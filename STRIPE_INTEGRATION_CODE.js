@@ -87,7 +87,7 @@ async function initiateCheckout(priceId) {
 // ============================================
 
 /*
-const stripe = require('stripe')('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');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 app.post('/api/create-checkout-session', async (req, res) => {
   try {
