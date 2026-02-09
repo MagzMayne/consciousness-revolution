@@ -307,7 +307,7 @@ Let me know if you want early access.
 ### Example 1: Stripe Key Delivery
 ```bash
 # After getting key from Stripe dashboard:
-echo "sk_live_51SF4PSIBd71i..." > .consciousness/file_transfers/stripe_key.txt
+echo "sk_live_YOUR_KEY_HERE" > .consciousness/file_transfers/stripe_key.txt
 echo "Stripe API key retrieved from dashboard.
 2FA completed successfully.
 Key type: Live mode secret key
