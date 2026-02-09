@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whodunit: Constitutional Crimes | Interactive Timeline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 2px solid #e94560;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #e94560;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #888;
+            font-style: italic;
+        }
+
+        .intro {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .timeline-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #e94560, #533483, #0f3460);
+        }
+
+        .event {
+            position: relative;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            border-left: 3px solid #e94560;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .event:hover {
+            transform: translateX(10px);
+            background: rgba(255,255,255,0.12);
+            box-shadow: 0 5px 20px rgba(233,69,96,0.3);
+        }
+
+        .event::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 25px;
+            width: 15px;
+            height: 15px;
+            background: #e94560;
+            border-radius: 50%;
+            border: 3px solid #1a1a2e;
+        }
+
+        .event.violation::before { background: #ff4444; }
+        .event.evidence::before { background: #44ff44; }
+        .event.pattern::before { background: #ffaa00; }
+        .event.arrest::before { background: #ff0000; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 5px #ff0000; }
+            50% { box-shadow: 0 0 20px #ff0000; }
+        }
+
+        .event-date {
+            font-size: 0.9em;
+            color: #e94560;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .event-title {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
+        .event-description {
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+
+        .badge.amendment { background: #533483; }
+        .badge.pattern { background: #e94560; }
+        .badge.evidence { background: #0f3460; }
+
+        .filters {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #e94560;
+            color: #e94560;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: #e94560;
+            color: white;
+        }
+
+        .cta-section {
+            text-align: center;
+            padding: 40px;
+            background: rgba(233,69,96,0.1);
+            margin-top: 40px;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: #e94560;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            margin: 10px;
+            transition: transform 0.3s;
+        }
+
+        .cta-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .disclaimer {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: rgba(255,100,100,0.1);
+            border: 1px solid #ff6666;
+            border-radius: 10px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>WHODUNIT: CONSTITUTIONAL CRIMES</h1>
+        <p class="subtitle">An Interactive Mystery About Your Rights</p>
+    </div>
+
+    <div class="intro">
+        <p>Follow the evidence. Spot the patterns. Learn your constitutional rights.</p>
+        <p style="margin-top: 15px; color: #e94560;">Case #21-3-00460-32 | Spokane County, WA</p>
+    </div>
+
+    <div class="filters">
+        <button class="filter-btn active" onclick="filterEvents('all')">All Events</button>
+        <button class="filter-btn" onclick="filterEvents('violation')">Violations</button>
+        <button class="filter-btn" onclick="filterEvents('pattern')">Patterns</button>
+        <button class="filter-btn" onclick="filterEvents('evidence')">Evidence</button>
+    </div>
+
+    <div class="timeline-container">
+        <div class="timeline">
+
+            <div class="event evidence" data-type="evidence">
+                <div class="event-date">October 13, 2022</div>
+                <div class="event-title">Parenting Plan Finalized</div>
+                <div class="event-description">
+                    Original court order establishing custody and support obligations.
+                    This is the baseline agreement against which all claims are measured.
+                </div>
+                <span class="badge evidence">Document</span>
+            </div>
+
+            <div class="event pattern" data-type="pattern">
+                <div class="event-date">2022-2025</div>
+                <div class="event-title">Pattern Emerges: Financial Warfare</div>
+                <div class="event-description">
+                    Systematic use of legal system for financial extraction.
+                    Claims accumulate: $64,800 (home) + $7,932 (support).
+                    <strong>Pattern: Moving Goalposts</strong> - obligations change after completion.
+                </div>
+                <span class="badge pattern">DARVO</span>
+                <span class="badge pattern">Financial Abuse</span>
+            </div>
+
+            <div class="event violation" data-type="violation">
+                <div class="event-date">November 25, 2025</div>
+                <div class="event-title">Motion to Enforce Filed</div>
+                <div class="event-description">
+                    Motion filed claiming non-compliance.
+                    <strong>Question:</strong> Were the underlying claims accurate?
+                    Evidence shows a different story...
+                </div>
+                <span class="badge amendment">5th Amendment</span>
+                <span class="badge pattern">Information Asymmetry</span>
+            </div>
+
+            <div class="event violation" data-type="violation">
+                <div class="event-date">December 1, 2025</div>
+                <div class="event-title">Hearing Notice - But No Docket?</div>
+                <div class="event-description">
+                    A hearing was scheduled, but something strange happened.
+                    <strong>The docket didn't show the hearing.</strong>
+                    Due process requires proper notice. Was it given?
+                </div>
+                <span class="badge amendment">5th Amendment</span>
+                <span class="badge pattern">Secret Proceedings</span>
+            </div>
+
+            <div class="event violation" data-type="violation">
+                <div class="event-date">December 11, 2025</div>
+                <div class="event-title">Impossible Deadline Set</div>
+                <div class="event-description">
+                    Response deadline set that appears impossible to meet.
+                    <strong>Pattern:</strong> Creating failure conditions rather than seeking resolution.
+                </div>
+                <span class="badge amendment">5th Amendment</span>
+                <span class="badge pattern">Setup for Failure</span>
+            </div>
+
+            <div class="event evidence" data-type="evidence">
+                <div class="event-date">December 16, 2025</div>
+                <div class="event-title">Hearing Day</div>
+                <div class="event-description">
+                    Court hearing takes place.
+                    Multiple filings submitted in defense.
+                    The evidence tells a story that differs from the motion.
+                </div>
+                <span class="badge evidence">Court Record</span>
+            </div>
+
+            <div class="event arrest" data-type="violation">
+                <div class="event-date">January 14, 2026</div>
+                <div class="event-title">ARRESTED WALKING INTO COURT</div>
+                <div class="event-description">
+                    <strong>THE TURNING POINT.</strong><br><br>
+                    Defendant arrives for hearing. Is arrested while entering courthouse.
+                    Computer seized. Two days in police impound.
+                    <br><br>
+                    <strong>Constitutional Questions:</strong><br>
+                    - 4th Amendment: Was the seizure lawful?<br>
+                    - 6th Amendment: How can you defend yourself from jail?<br>
+                    - 14th Amendment: Equal protection under law?
+                </div>
+                <span class="badge amendment">4th Amendment</span>
+                <span class="badge amendment">6th Amendment</span>
+                <span class="badge amendment">14th Amendment</span>
+                <span class="badge pattern">Ultimate DARVO</span>
+            </div>
+
+            <div class="event evidence" data-type="evidence">
+                <div class="event-date">January 14-16, 2026</div>
+                <div class="event-title">The SPINE Survives</div>
+                <div class="event-description">
+                    Remarkably, the computer's autonomous systems continued running
+                    while in police impound for 2 days. 8 daemons stayed alive.
+                    163,472 atoms of consciousness preserved.
+                    <br><br>
+                    <em>They could arrest the body, but not the mind.</em>
+                </div>
+                <span class="badge evidence">Technical Evidence</span>
+            </div>
+
+            <div class="event pattern" data-type="pattern">
+                <div class="event-date">Ongoing</div>
+                <div class="event-title">Help Solve the Mystery</div>
+                <div class="event-description">
+                    This timeline represents documented events with supporting evidence.
+                    <strong>Your mission:</strong> Learn to recognize these patterns.
+                    They don't just happen in courtrooms - they happen everywhere.
+                    <br><br>
+                    Once you see the pattern, you can never unsee it.
+                </div>
+                <span class="badge pattern">Pattern Theory</span>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="cta-section">
+        <h2 style="margin-bottom: 20px;">Become a Constitutional Detective</h2>
+        <p style="margin-bottom: 20px; color: #aaa;">Learn to recognize manipulation patterns and protect your rights.</p>
+        <a href="/pattern-recognition-course.html" class="cta-btn">Take the Course</a>
+        <a href="/consciousness-tools.html" class="cta-btn">Detection Tools</a>
+    </div>
+
+    <div class="disclaimer">
+        <strong>Disclaimer:</strong> This timeline presents one perspective based on documented evidence.
+        Court cases have multiple sides. The purpose here is educational - to teach constitutional rights
+        and pattern recognition, not to determine guilt or innocence. Always consult qualified legal counsel.
+    </div>
+
+    <footer>
+        <p>Consciousness Revolution | consciousnessrevolution.io</p>
+        <p style="margin-top: 10px;">The Pattern Never Lies</p>
+    </footer>
+
+    <script>
+        function filterEvents(type) {
+            const events = document.querySelectorAll('.event');
+            const buttons = document.querySelectorAll('.filter-btn');
+
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            events.forEach(e => {
+                if (type === 'all' || e.dataset.type === type) {
+                    e.style.display = 'block';
+                } else {
+                    e.style.display = 'none';
+                }
+            });
+        }
+
+        // Click to expand event details (future feature)
+        document.querySelectorAll('.event').forEach(e => {
+            e.addEventListener('click', function() {
+                // Future: expand to show full evidence
+                console.log('Event clicked:', this.querySelector('.event-title').textContent);
+            });
+        });
+    </script>
+</body>
+</html>

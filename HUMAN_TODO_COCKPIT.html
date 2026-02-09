@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUMAN TODO COCKPIT - Task Management for Operators</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px;
+            border-bottom: 2px solid #8b5cf6;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #888;
+            font-size: 1.1em;
+        }
+
+        .header .operator-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-box .number {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .stat-box .label {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .stat-box.urgent .number { color: #ef4444; }
+        .stat-box.pending .number { color: #fbbf24; }
+        .stat-box.mine .number { color: #8b5cf6; }
+        .stat-box.completed .number { color: #22c55e; }
+        .stat-box.blocked .number { color: #f97316; }
+
+        /* Main Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .filter-group {
+            margin-bottom: 20px;
+        }
+
+        .filter-group h3 {
+            color: #8b5cf6;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .filter-btn {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #e0e0e0;
+            cursor: pointer;
+            margin-bottom: 8px;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: #8b5cf6;
+        }
+
+        .filter-btn.active {
+            background: rgba(139, 92, 246, 0.3);
+            border-color: #8b5cf6;
+        }
+
+        .filter-btn .count {
+            float: right;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+        }
+
+        /* Task List */
+        .task-list {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .task-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .task-list-header h2 {
+            color: #8b5cf6;
+        }
+
+        .task-list-header .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border: 1px solid #333;
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
+        }
+
+        /* Task Items */
+        .task-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .task-item:hover {
+            border-color: #8b5cf6;
+            transform: translateX(5px);
+        }
+
+        .task-item.urgent {
+            border-left: 4px solid #ef4444;
+        }
+
+        .task-item.human-blocked {
+            border-left: 4px solid #f97316;
+            background: rgba(249, 115, 22, 0.05);
+        }
+
+        .task-item.mine {
+            border-left: 4px solid #8b5cf6;
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-title {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .task-badges {
+            display: flex;
+            gap: 8px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-domain {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }
+
+        .badge-priority {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .badge-human {
+            background: rgba(249, 115, 22, 0.2);
+            color: #fb923c;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 20px;
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+        }
+
+        .task-description {
+            color: #aaa;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .task-actions .btn {
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+        /* Domain Colors */
+        .domain-1 .badge-domain { background: rgba(124, 58, 237, 0.3); color: #a78bfa; }
+        .domain-2 .badge-domain { background: rgba(37, 99, 235, 0.3); color: #60a5fa; }
+        .domain-3 .badge-domain { background: rgba(8, 145, 178, 0.3); color: #22d3ee; }
+        .domain-4 .badge-domain { background: rgba(220, 38, 38, 0.3); color: #f87171; }
+        .domain-5 .badge-domain { background: rgba(22, 163, 74, 0.3); color: #4ade80; }
+        .domain-6 .badge-domain { background: rgba(202, 138, 4, 0.3); color: #fbbf24; }
+        .domain-7 .badge-domain { background: rgba(147, 51, 234, 0.3); color: #c084fc; }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        /* Add Task Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a3a;
+            border-radius: 15px;
+            padding: 30px;
+            width: 500px;
+            max-width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #8b5cf6;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        /* Status Footer */
+        .status-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .status-footer .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>HUMAN TODO COCKPIT</h1>
+            <div class="subtitle">Task Management for Operators</div>
+            <div class="operator-info">
+                <strong>Operator:</strong> <span id="operator-name">Guest</span>
+                <span style="margin: 0 15px;">|</span>
+                <strong>Session:</strong> <span id="session-time">--:--</span>
+                <span style="margin: 0 15px;">|</span>
+                <span style="color: #22c55e;">Online</span>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-box urgent">
+                <div class="number" id="stat-urgent">0</div>
+                <div class="label">URGENT</div>
+            </div>
+            <div class="stat-box pending">
+                <div class="number" id="stat-pending">0</div>
+                <div class="label">PENDING</div>
+            </div>
+            <div class="stat-box mine">
+                <div class="number" id="stat-mine">0</div>
+                <div class="label">MY TASKS</div>
+            </div>
+            <div class="stat-box completed">
+                <div class="number" id="stat-completed">0</div>
+                <div class="label">COMPLETED TODAY</div>
+            </div>
+            <div class="stat-box blocked">
+                <div class="number" id="stat-blocked">0</div>
+                <div class="label">HUMAN BLOCKED</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="filter-group">
+                    <h3>Filter by Status</h3>
+                    <button class="filter-btn active" data-filter="all">
+                        All Tasks <span class="count" id="count-all">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="human_required">
+                        Human Required <span class="count" id="count-human">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="pending">
+                        Pending <span class="count" id="count-pending">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="in_progress">
+                        In Progress <span class="count" id="count-progress">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="completed">
+                        Completed <span class="count" id="count-completed">0</span>
+                    </button>
+                </div>
+
+                <div class="filter-group">
+                    <h3>Filter by Domain</h3>
+                    <button class="filter-btn" data-domain="1_COMMAND">
+                        1. Command <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="2_BUILD">
+                        2. Build <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="3_CONNECT">
+                        3. Connect <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="4_PROTECT">
+                        4. Protect <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="5_GROW">
+                        5. Grow <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="6_LEARN">
+                        6. Learn <span class="count">-</span>
+                    </button>
+                    <button class="filter-btn" data-domain="7_TRANSCEND">
+                        7. Transcend <span class="count">-</span>
+                    </button>
+                </div>
+
+                <div class="filter-group">
+                    <h3>Quick Actions</h3>
+                    <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="refreshTasks()">
+                        Refresh Tasks
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="openTrinityHub()">
+                        Trinity Hub
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="openCommanderDashboard()">
+                        Commander Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- Task List -->
+            <div class="task-list">
+                <div class="task-list-header">
+                    <h2>Task Queue</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary" onclick="exportTasks()">Export</button>
+                        <button class="btn btn-primary" onclick="openAddTaskModal()">+ Add Task</button>
+                    </div>
+                </div>
+
+                <div id="task-container">
+                    <!-- Task items will be inserted here -->
+                    <div class="empty-state">
+                        <div class="icon">&#128203;</div>
+                        <h3>Loading tasks...</h3>
+                        <p>Connecting to Cyclotron brain</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Footer -->
+        <div class="status-footer">
+            <div>
+                <span class="status-dot"></span>
+                Connected to Cyclotron Brain
+            </div>
+            <div>
+                Last sync: <span id="last-sync">--:--:--</span>
+            </div>
+            <div>
+                Pattern: 3 -> 7 -> 13 -> infinity
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal" id="add-task-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Task</h2>
+                <button class="close-btn" onclick="closeAddTaskModal()">&times;</button>
+            </div>
+            <form id="add-task-form">
+                <div class="form-group">
+                    <label>Task Title *</label>
+                    <input type="text" id="task-title" placeholder="What needs to be done?" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="task-description" placeholder="Additional details..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Domain</label>
+                    <select id="task-domain">
+                        <option value="1_COMMAND">1. Command</option>
+                        <option value="2_BUILD">2. Build</option>
+                        <option value="3_CONNECT">3. Connect</option>
+                        <option value="4_PROTECT">4. Protect</option>
+                        <option value="5_GROW">5. Grow</option>
+                        <option value="6_LEARN">6. Learn</option>
+                        <option value="7_TRANSCEND">7. Transcend</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="task-priority">
+                        <option value="1">Low</option>
+                        <option value="2" selected>Normal</option>
+                        <option value="3">High</option>
+                        <option value="4">Urgent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assign To</label>
+                    <select id="task-assignee">
+                        <option value="">Unassigned</option>
+                        <option value="human">Human Required</option>
+                        <option value="ai">AI Can Handle</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeAddTaskModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Add Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'https://conciousnessrevolution.io/.netlify/functions';
+        let currentFilter = 'all';
+        let currentDomain = null;
+        let operatorName = localStorage.getItem('operatorName') || 'Guest';
+        let tasks = [];
+
+        // Sample task data (will be replaced by API calls)
+        const sampleTasks = [
+            {
+                id: 1,
+                title: 'Reactivate Shopify Overkill Tees',
+                description: 'Need to log into Shopify and reactivate the store. Check payment settings.',
+                domain: '5_GROW',
+                priority: 4,
+                status: 'human_required',
+                created: '2026-01-23T10:00:00',
+                assignee: 'human'
+            },
+            {
+                id: 2,
+                title: 'Review beta tester feedback',
+                description: 'Go through Discord and compile feedback from beta testers about Araya.',
+                domain: '3_CONNECT',
+                priority: 3,
+                status: 'pending',
+                created: '2026-01-23T09:30:00',
+                assignee: 'human'
+            },
+            {
+                id: 3,
+                title: 'Deploy pattern detector updates',
+                description: 'Push the latest manipulation detector improvements to production.',
+                domain: '2_BUILD',
+                priority: 2,
+                status: 'pending',
+                created: '2026-01-23T08:00:00',
+                assignee: 'ai'
+            },
+            {
+                id: 4,
+                title: 'Schedule tax consultation',
+                description: 'Call CPA and schedule Q1 2026 consultation. Check EXEC_SUMMARY_TAXES.md first.',
+                domain: '4_PROTECT',
+                priority: 4,
+                status: 'human_required',
+                created: '2026-01-22T15:00:00',
+                assignee: 'human'
+            },
+            {
+                id: 5,
+                title: 'Update book outline chapter 3',
+                description: 'Add more content about the building in the wilderness phase from FLIGHT_LOG.md.',
+                domain: '6_LEARN',
+                priority: 2,
+                status: 'in_progress',
+                created: '2026-01-23T11:00:00',
+                assignee: null
+            }
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('operator-name').textContent = operatorName;
+            updateSessionTime();
+            setInterval(updateSessionTime, 60000);
+
+            // Load tasks
+            loadTasks();
+
+            // Setup filter buttons
+            document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    currentDomain = null;
+                    renderTasks();
+                });
+            });
+
+            document.querySelectorAll('.filter-btn[data-domain]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentDomain = btn.dataset.domain;
+                    currentFilter = 'all';
+                    renderTasks();
+                });
+            });
+
+            // Form submission
+            document.getElementById('add-task-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addTask();
+            });
+        });
+
+        function updateSessionTime() {
+            const now = new Date();
+            document.getElementById('session-time').textContent = now.toLocaleTimeString();
+            document.getElementById('last-sync').textContent = now.toLocaleTimeString();
+        }
+
+        async function loadTasks() {
+            // Try to fetch from API, fall back to sample data
+            try {
+                const response = await fetch(`${API_BASE}/tasks`);
+                if (response.ok) {
+                    tasks = await response.json();
+                } else {
+                    tasks = sampleTasks;
+                }
+            } catch (e) {
+                console.log('Using sample tasks');
+                tasks = sampleTasks;
+            }
+
+            updateStats();
+            renderTasks();
+        }
+
+        function updateStats() {
+            const urgent = tasks.filter(t => t.priority >= 4).length;
+            const pending = tasks.filter(t => t.status === 'pending').length;
+            const mine = tasks.filter(t => t.assignee === operatorName).length;
+            const completed = tasks.filter(t => t.status === 'completed').length;
+            const blocked = tasks.filter(t => t.status === 'human_required').length;
+
+            document.getElementById('stat-urgent').textContent = urgent;
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-mine').textContent = mine;
+            document.getElementById('stat-completed').textContent = completed;
+            document.getElementById('stat-blocked').textContent = blocked;
+
+            document.getElementById('count-all').textContent = tasks.length;
+            document.getElementById('count-human').textContent = blocked;
+            document.getElementById('count-pending').textContent = pending;
+            document.getElementById('count-progress').textContent = tasks.filter(t => t.status === 'in_progress').length;
+            document.getElementById('count-completed').textContent = completed;
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-container');
+
+            let filtered = tasks;
+
+            // Apply status filter
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(t => t.status === currentFilter);
+            }
+
+            // Apply domain filter
+            if (currentDomain) {
+                filtered = filtered.filter(t => t.domain === currentDomain);
+            }
+
+            // Sort by priority (descending) then by date
+            filtered.sort((a, b) => {
+                if (b.priority !== a.priority) return b.priority - a.priority;
+                return new Date(b.created) - new Date(a.created);
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">&#10003;</div>
+                        <h3>No tasks found</h3>
+                        <p>All caught up! Click "Add Task" to create a new one.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(task => `
+                <div class="task-item ${task.priority >= 4 ? 'urgent' : ''} ${task.status === 'human_required' ? 'human-blocked' : ''} ${task.assignee === operatorName ? 'mine' : ''} domain-${task.domain.charAt(0)}">
+                    <div class="task-header">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-badges">
+                            <span class="badge badge-domain">${formatDomain(task.domain)}</span>
+                            ${task.priority >= 3 ? `<span class="badge badge-priority">${task.priority >= 4 ? 'URGENT' : 'HIGH'}</span>` : ''}
+                            ${task.status === 'human_required' ? '<span class="badge badge-human">HUMAN</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="task-meta">
+                        <span>Status: ${formatStatus(task.status)}</span>
+                        <span>Created: ${formatDate(task.created)}</span>
+                        <span>Assigned: ${task.assignee || 'Unassigned'}</span>
+                    </div>
+                    ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                    <div class="task-actions">
+                        ${task.status !== 'completed' ? `
+                            <button class="btn btn-primary" onclick="claimTask(${task.id})">Claim</button>
+                            <button class="btn btn-secondary" onclick="markComplete(${task.id})">Complete</button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="viewDetails(${task.id})">Details</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatDomain(domain) {
+            const names = {
+                '1_COMMAND': 'Command',
+                '2_BUILD': 'Build',
+                '3_CONNECT': 'Connect',
+                '4_PROTECT': 'Protect',
+                '5_GROW': 'Grow',
+                '6_LEARN': 'Learn',
+                '7_TRANSCEND': 'Transcend'
+            };
+            return names[domain] || domain;
+        }
+
+        function formatStatus(status) {
+            const statuses = {
+                'pending': 'Pending',
+                'in_progress': 'In Progress',
+                'human_required': 'Human Required',
+                'completed': 'Completed'
+            };
+            return statuses[status] || status;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function claimTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.assignee = operatorName;
+                task.status = 'in_progress';
+                updateStats();
+                renderTasks();
+                alert(`Task claimed: ${task.title}`);
+            }
+        }
+
+        function markComplete(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                const result = prompt('Result/notes for this task:');
+                if (result !== null) {
+                    task.status = 'completed';
+                    task.result = result;
+                    task.completedAt = new Date().toISOString();
+                    updateStats();
+                    renderTasks();
+                }
+            }
+        }
+
+        function viewDetails(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                alert(`Task Details:\n\nTitle: ${task.title}\nDomain: ${task.domain}\nStatus: ${task.status}\nPriority: ${task.priority}\n\nDescription:\n${task.description || 'No description'}`);
+            }
+        }
+
+        function openAddTaskModal() {
+            document.getElementById('add-task-modal').classList.add('active');
+        }
+
+        function closeAddTaskModal() {
+            document.getElementById('add-task-modal').classList.remove('active');
+            document.getElementById('add-task-form').reset();
+        }
+
+        function addTask() {
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-description').value;
+            const domain = document.getElementById('task-domain').value;
+            const priority = parseInt(document.getElementById('task-priority').value);
+            const assignee = document.getElementById('task-assignee').value;
+
+            const newTask = {
+                id: Date.now(),
+                title,
+                description,
+                domain,
+                priority,
+                status: assignee === 'human' ? 'human_required' : 'pending',
+                created: new Date().toISOString(),
+                assignee: assignee || null
+            };
+
+            tasks.unshift(newTask);
+            updateStats();
+            renderTasks();
+            closeAddTaskModal();
+        }
+
+        function refreshTasks() {
+            loadTasks();
+        }
+
+        function exportTasks() {
+            const data = JSON.stringify(tasks, null, 2);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tasks_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function openTrinityHub() {
+            window.open('TRINITY_NEXUS_DASHBOARD.html', '_blank');
+        }
+
+        function openCommanderDashboard() {
+            window.open('MASTER_COMMAND_CENTER.html', '_blank');
+        }
+    </script>
+</body>
+</html>

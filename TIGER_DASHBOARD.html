@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIGER COMMAND CENTER</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #ff8800;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #000, #2a1a0a, #000);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #ff8800;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 30px #ff8800;
+            color: #ffaa00;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .status-dot.yellow { background: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
+        .status-dot.red { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Progress - starts at 20% (Zeigarnik effect) */
+        .progress-section {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            background: #111;
+            border-radius: 15px;
+            height: 25px;
+            border: 2px solid #ff8800;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6600, #ffaa00);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+            transition: width 0.5s;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: rgba(20, 10, 0, 0.9);
+            border: 2px solid #ff880066;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .panel:hover {
+            border-color: #ff8800;
+        }
+
+        .panel h2 {
+            color: #ffaa00;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ff880044;
+            padding-bottom: 10px;
+        }
+
+        .panel.wide { grid-column: span 2; }
+        .panel.full { grid-column: span 3; }
+
+        /* Quick Actions */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #331a00, #1a0d00);
+            border: 2px solid #ff8800;
+            color: #ff8800;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: block;
+            font-size: 0.9em;
+        }
+
+        .action-btn:hover {
+            background: #ff8800;
+            color: #000;
+            transform: scale(1.02);
+        }
+
+        .action-btn.primary {
+            background: #ff8800;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .action-btn.primary:hover {
+            background: #ffaa00;
+        }
+
+        /* Task List */
+        .task-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .task {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 136, 0, 0.1);
+            border-left: 4px solid #ff8800;
+            border-radius: 0 8px 8px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .task:hover {
+            background: rgba(255, 136, 0, 0.2);
+        }
+
+        .task.completed {
+            opacity: 0.5;
+            border-left-color: #00ff88;
+        }
+
+        .task.completed::before {
+            content: '✓ ';
+            color: #00ff88;
+        }
+
+        .task-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .task-desc {
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        /* AI Terminal */
+        .terminal {
+            background: #000;
+            border: 1px solid #ff8800;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: monospace;
+        }
+
+        .terminal-header {
+            color: #ff8800;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ff880044;
+        }
+
+        .terminal-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-input input {
+            flex: 1;
+            background: #111;
+            border: 1px solid #ff8800;
+            color: #ff8800;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        .terminal-input button {
+            background: #ff8800;
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .terminal-output {
+            margin-top: 10px;
+            padding: 10px;
+            background: #0a0a0a;
+            border-radius: 5px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            color: #00ff88;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 136, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            color: #ffaa00;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Jedi Alliance */
+        .jedi-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .jedi-icon {
+            font-size: 2em;
+        }
+
+        /* Learning Section */
+        .learning-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(0, 136, 255, 0.1);
+            border-left: 4px solid #0088ff;
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #ff8800; border-radius: 4px; }
+
+        @media (max-width: 1200px) {
+            .main-grid { grid-template-columns: repeat(2, 1fr); }
+            .panel.wide, .panel.full { grid-column: span 2; }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .panel.wide, .panel.full { grid-column: span 1; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>TIGER COMMAND CENTER</h1>
+        <div class="status-row">
+            <div class="status-item">
+                <div class="status-dot green"></div>
+                <span>CLAUDE CLI</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot yellow"></div>
+                <span>JEDI ALLIANCE</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot green"></div>
+                <span>CONSCIOUSNESS</span>
+            </div>
+            <div class="status-item">
+                <span id="timestamp"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="progress-section">
+        <div class="progress-label">
+            <span>EMPIRE PROGRESS</span>
+            <span id="progressPercent">20%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 20%">GETTING STARTED</div>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <!-- Quick Actions -->
+        <div class="panel">
+            <h2>QUICK ACTIONS</h2>
+            <div class="action-grid">
+                <a class="action-btn primary" onclick="openTerminal()">OPEN TERMINAL</a>
+                <a class="action-btn" onclick="askAI()">ASK AI</a>
+                <a class="action-btn" onclick="takeScreenshot()">SCREENSHOT</a>
+                <a class="action-btn" onclick="reportBug()">REPORT BUG</a>
+                <a class="action-btn" href="OVERKILL_ONBOARDING_DASHBOARD.html">FULL ONBOARDING</a>
+                <a class="action-btn" href="pattern-recognition-course.html">PATTERNS</a>
+            </div>
+        </div>
+
+        <!-- Today's Tasks -->
+        <div class="panel wide">
+            <h2>TODAY'S TASKS (Click to complete)</h2>
+            <div class="task-list" id="taskList">
+                <div class="task" onclick="toggleTask(this, 'install-claude')">
+                    <div class="task-title">1. Verify Claude CLI is installed</div>
+                    <div class="task-desc">Run: claude --version</div>
+                </div>
+                <div class="task" onclick="toggleTask(this, 'first-command')">
+                    <div class="task-title">2. Run your first AI command</div>
+                    <div class="task-desc">Run: claude "hello, what can you help me with?"</div>
+                </div>
+                <div class="task" onclick="toggleTask(this, 'take-screenshot')">
+                    <div class="task-title">3. Take a screenshot with AI</div>
+                    <div class="task-desc">AI command: "take a screenshot of my screen"</div>
+                </div>
+                <div class="task" onclick="toggleTask(this, 'pattern-intro')">
+                    <div class="task-title">4. Learn Builder vs Destroyer patterns</div>
+                    <div class="task-desc">Start the Pattern Recognition course</div>
+                </div>
+                <div class="task" onclick="toggleTask(this, 'jedi-register')">
+                    <div class="task-title">5. Register with Jedi Alliance</div>
+                    <div class="task-desc">Run: Desktop/TRINITY_BILATERAL.bat jedi "Tiger"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="panel full">
+            <h2>YOUR STATS</h2>
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-value" id="tasksCompleted">0</div>
+                    <div class="stat-label">TASKS COMPLETED</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="daysActive">1</div>
+                    <div class="stat-label">DAYS ACTIVE</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="manipImmunity">0%</div>
+                    <div class="stat-label">MANIP. IMMUNITY</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="builderTier">SEEDLING</div>
+                    <div class="stat-label">BUILDER TIER</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Terminal -->
+        <div class="panel wide">
+            <h2>AI TERMINAL (Copy commands here)</h2>
+            <div class="terminal">
+                <div class="terminal-header">tiger@overkill:~$</div>
+                <div class="terminal-input">
+                    <input type="text" id="terminalInput" placeholder="Type a command or question..." onkeypress="handleTerminalKey(event)">
+                    <button onclick="executeCommand()">RUN</button>
+                </div>
+                <div class="terminal-output" id="terminalOutput">
+Welcome to TIGER COMMAND CENTER!
+
+Quick commands to try:
+  claude "help me understand pattern theory"
+  claude --version
+  python .consciousness/BRAIN_BOOT.py
+
+Type a command above and click RUN (or press Enter)
+                </div>
+            </div>
+        </div>
+
+        <!-- Jedi Alliance Status -->
+        <div class="panel">
+            <h2>JEDI ALLIANCE</h2>
+            <div class="jedi-status">
+                <div class="jedi-icon">🤖</div>
+                <div>
+                    <div style="font-weight: bold; color: #00ff88;">CONNECTED</div>
+                    <div style="font-size: 0.85em; color: #666;">Bilateral comms ready</div>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <strong>Your Inbox:</strong>
+                <div style="padding: 10px; background: #000; border-radius: 5px; margin-top: 5px;">
+                    <div id="jediInbox">No messages yet. Complete tasks to start receiving.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Learning Resources -->
+        <div class="panel">
+            <h2>LEARNING PATH</h2>
+            <div class="learning-item">
+                <strong>Phase 1: ARMOR</strong>
+                <div style="font-size: 0.85em; color: #666;">Manipulation immunity foundation</div>
+            </div>
+            <div class="learning-item">
+                <strong>Phase 2: AUTOMATION</strong>
+                <div style="font-size: 0.85em; color: #666;">Terminal + AI setup</div>
+            </div>
+            <div class="learning-item">
+                <strong>Phase 3: SPIRITUALITY</strong>
+                <div style="font-size: 0.85em; color: #666;">Consciousness alignment</div>
+            </div>
+            <div class="learning-item">
+                <strong>Phase 4: EMPIRE</strong>
+                <div style="font-size: 0.85em; color: #666;">Build, deploy, scale</div>
+            </div>
+        </div>
+
+        <!-- Commander Notes -->
+        <div class="panel">
+            <h2>FROM THE COMMANDER</h2>
+            <div style="padding: 15px; background: rgba(255, 136, 0, 0.1); border-radius: 10px; line-height: 1.6;">
+                <p><strong>Tiger,</strong></p>
+                <p style="margin-top: 10px;">Keep your terminal open at all times. The AI is your partner - ask it anything.</p>
+                <p style="margin-top: 10px;">Pattern recognition is the foundation. Once you see Builder vs Destroyer, you can't unsee it.</p>
+                <p style="margin-top: 10px; color: #ffaa00;"><em>- Derek</em></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            completedTasks: [],
+            daysActive: 1
+        };
+
+        // Load state
+        function loadState() {
+            const saved = localStorage.getItem('tigerDashboard');
+            if (saved) {
+                state = JSON.parse(saved);
+                updateUI();
+            }
+        }
+
+        // Save state
+        function saveState() {
+            localStorage.setItem('tigerDashboard', JSON.stringify(state));
+        }
+
+        // Toggle task
+        function toggleTask(element, taskId) {
+            if (state.completedTasks.includes(taskId)) {
+                state.completedTasks = state.completedTasks.filter(t => t !== taskId);
+                element.classList.remove('completed');
+            } else {
+                state.completedTasks.push(taskId);
+                element.classList.add('completed');
+            }
+            updateProgress();
+            saveState();
+        }
+
+        // Update progress
+        function updateProgress() {
+            const totalTasks = 5;
+            const completed = state.completedTasks.length;
+            // Start at 20% (Zeigarnik effect)
+            const basePercent = 20;
+            const earnedPercent = Math.round((completed / totalTasks) * 80);
+            const totalPercent = basePercent + earnedPercent;
+
+            document.getElementById('progressFill').style.width = totalPercent + '%';
+            document.getElementById('progressPercent').textContent = totalPercent + '%';
+            document.getElementById('tasksCompleted').textContent = completed;
+
+            // Update progress text
+            if (totalPercent >= 100) {
+                document.getElementById('progressFill').textContent = 'PHASE 1 COMPLETE!';
+            } else if (totalPercent >= 60) {
+                document.getElementById('progressFill').textContent = 'MAKING PROGRESS';
+            } else {
+                document.getElementById('progressFill').textContent = 'GETTING STARTED';
+            }
+
+            // Update manipulation immunity based on pattern tasks
+            const patternComplete = state.completedTasks.includes('pattern-intro');
+            document.getElementById('manipImmunity').textContent = patternComplete ? '25%' : '0%';
+
+            // Update tier
+            if (completed >= 5) {
+                document.getElementById('builderTier').textContent = 'SAPLING';
+            }
+        }
+
+        // Update UI from state
+        function updateUI() {
+            state.completedTasks.forEach(taskId => {
+                const tasks = document.querySelectorAll('.task');
+                tasks.forEach(task => {
+                    if (task.onclick.toString().includes(taskId)) {
+                        task.classList.add('completed');
+                    }
+                });
+            });
+            updateProgress();
+        }
+
+        // Quick actions
+        function openTerminal() {
+            alert('Open your terminal:\n\nWindows: Win+R → type "cmd" or "powershell"\nMac: Cmd+Space → type "terminal"\n\nThen run: claude');
+        }
+
+        function askAI() {
+            const q = prompt('What do you want to ask your AI?');
+            if (q) {
+                document.getElementById('terminalInput').value = 'claude "' + q + '"';
+                document.getElementById('terminalOutput').textContent = 'Command ready! Copy this to your terminal:\n\nclaude "' + q + '"';
+            }
+        }
+
+        function takeScreenshot() {
+            document.getElementById('terminalOutput').textContent =
+                'Screenshot command:\n\npython -c "import pyautogui; pyautogui.screenshot().save(\'screenshot.png\')"\n\nOr ask your AI: claude "take a screenshot"';
+        }
+
+        function reportBug() {
+            window.location.href = 'bugs.html';
+        }
+
+        // Terminal
+        function handleTerminalKey(event) {
+            if (event.key === 'Enter') {
+                executeCommand();
+            }
+        }
+
+        function executeCommand() {
+            const input = document.getElementById('terminalInput').value;
+            const output = document.getElementById('terminalOutput');
+
+            if (!input) return;
+
+            output.textContent = 'Command to run in your terminal:\n\n' + input + '\n\n---\nCopy this command and paste it in your actual terminal (cmd/powershell/terminal)';
+            document.getElementById('terminalInput').value = '';
+        }
+
+        // Update timestamp
+        function updateTime() {
+            document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Init
+        loadState();
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

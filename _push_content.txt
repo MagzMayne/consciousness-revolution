@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A R A Y A</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
+
+        :root {
+            --cyan: #00f0ff;
+            --gold: #ffd700;
+            --purple: #9370db;
+            --bg-deep: #030014;
+            --glass: rgba(255,255,255,0.04);
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            background: var(--bg-deep);
+            color: #e0e0e0;
+            font-family: 'Exo 2', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── starfield canvas ── */
+        #starfield {
+            position: fixed; top:0; left:0;
+            width:100%; height:100%;
+            z-index:0;
+        }
+
+        /* ── nebula glow ── */
+        .nebula {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.18;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .nebula.a { width:600px; height:600px; background:var(--cyan); top:-10%; left:-10%; animation: drift 20s ease-in-out infinite alternate; }
+        .nebula.b { width:500px; height:500px; background:var(--purple); bottom:-10%; right:-10%; animation: drift 25s ease-in-out infinite alternate-reverse; }
+        .nebula.c { width:400px; height:400px; background:var(--gold); top:50%; left:50%; transform:translate(-50%,-50%); animation: drift 30s ease-in-out infinite alternate; }
+
+        @keyframes drift {
+            0% { transform: translate(0,0) scale(1); }
+            100% { transform: translate(40px,-30px) scale(1.15); }
+        }
+
+        /* ── layout ── */
+        .app { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; }
+
+        /* ── header ── */
+        .header {
+            text-align:center;
+            padding: 1.2rem 1rem 0.8rem;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0,240,255,0.12);
+            position: relative;
+        }
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-weight: 900;
+            font-size: 2rem;
+            letter-spacing: 0.4em;
+            background: linear-gradient(135deg, var(--cyan), var(--gold), var(--purple), var(--cyan));
+            background-size: 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradShift 6s ease infinite;
+        }
+        @keyframes gradShift {
+            0%,100% { background-position:0% 50%; }
+            50% { background-position:100% 50%; }
+        }
+        .header .subtitle {
+            font-size: 0.7rem;
+            letter-spacing: 0.3em;
+            color: rgba(0,240,255,0.5);
+            margin-top: 0.25rem;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 1rem; top: 50%;
+            transform: translateY(-50%);
+            color: var(--cyan);
+            text-decoration: none;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.75rem;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+        .back-btn:hover { opacity:1; }
+
+        #apiStatus {
+            position: absolute;
+            right: 1rem; top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.65rem;
+            font-family: 'Orbitron', monospace;
+            display: flex; align-items: center; gap: 6px;
+        }
+        #apiStatus .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        /* ── chat ── */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            scroll-behavior: smooth;
+        }
+        .chat-container::-webkit-scrollbar { width:4px; }
+        .chat-container::-webkit-scrollbar-thumb { background:rgba(0,240,255,0.2); border-radius:4px; }
+
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+            animation: fadeUp 0.35s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(12px); }
+            to { opacity:1; transform:translateY(0); }
+        }
+        .message.user { justify-content: flex-end; }
+        .message.araya { justify-content: flex-start; }
+
+        .bubble {
+            max-width: 75%;
+            padding: 0.9rem 1.2rem;
+            line-height: 1.55;
+            font-size: 0.95rem;
+            position: relative;
+        }
+        .message.user .bubble {
+            background: linear-gradient(135deg, rgba(0,240,255,0.12), rgba(147,112,219,0.10));
+            border: 1px solid rgba(0,240,255,0.18);
+            border-radius: 16px 16px 4px 16px;
+            color: #f0f0f0;
+        }
+        .message.araya .bubble {
+            background: var(--glass);
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 16px 16px 16px 4px;
+            color: #d0d0d0;
+        }
+        .bubble code {
+            background: rgba(0,0,0,0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: var(--cyan);
+        }
+        .bubble pre {
+            background: rgba(0,0,0,0.5);
+            padding: 0.8rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+            border-left: 3px solid var(--cyan);
+        }
+        .bubble .attach-img {
+            max-width: 260px;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            border: 1px solid rgba(0,240,255,0.15);
+        }
+
+        .sender {
+            font-size: 0.65rem;
+            font-family: 'Orbitron', monospace;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.3rem;
+            opacity: 0.5;
+        }
+
+        /* ── typing ── */
+        .typing-indicator { display:none; margin-bottom:1rem; }
+        .typing-indicator.active { display:flex; }
+        .typing-indicator .bubble { display:flex; gap:5px; padding:0.7rem 1.2rem; }
+        .typing-indicator .dot-t { width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:typePulse 1.4s infinite; }
+        .typing-indicator .dot-t:nth-child(2){animation-delay:0.2s;}
+        .typing-indicator .dot-t:nth-child(3){animation-delay:0.4s;}
+        @keyframes typePulse { 0%,100%{opacity:0.3;transform:scale(0.85);}50%{opacity:1;transform:scale(1);} }
+
+        /* ── quick prompts ── */
+        .quick-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.6rem 1.5rem;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .quick-prompts button {
+            background: rgba(147,112,219,0.1);
+            border: 1px solid rgba(147,112,219,0.25);
+            color: var(--purple);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: 'Exo 2', sans-serif;
+        }
+        .quick-prompts button:hover {
+            background: rgba(147,112,219,0.2);
+            border-color: var(--purple);
+            transform: translateY(-1px);
+        }
+
+        /* ── attachment bar ── */
+        .attach-bar {
+            display: flex;
+            gap: 0.4rem;
+            padding: 0.4rem 1.5rem 0;
+            max-width: 900px;
+            margin: 0 auto; width: 100%;
+        }
+        .attach-btn {
+            background: var(--glass);
+            border: 1px solid rgba(0,240,255,0.12);
+            color: var(--cyan);
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .attach-btn:hover {
+            background: rgba(0,240,255,0.08);
+            border-color: rgba(0,240,255,0.35);
+            transform: translateY(-1px);
+        }
+        .attach-btn svg { width:18px; height:18px; }
+
+        /* attachment preview strip */
+        .attach-preview {
+            display: flex; gap: 0.5rem; flex-wrap: wrap;
+            padding: 0.4rem 1.5rem;
+            max-width: 900px; margin: 0 auto; width: 100%;
+        }
+        .attach-chip {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(0,240,255,0.06);
+            border: 1px solid rgba(0,240,255,0.15);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            color: var(--cyan);
+        }
+        .attach-chip img {
+            width: 28px; height: 28px;
+            border-radius: 4px; object-fit: cover;
+        }
+        .attach-chip .remove {
+            cursor: pointer; opacity: 0.6;
+            margin-left: 4px;
+        }
+        .attach-chip .remove:hover { opacity: 1; }
+
+        /* ── input ── */
+        .input-container {
+            padding: 0.8rem 1.5rem 1rem;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            gap: 0.6rem;
+        }
+        #userInput {
+            flex: 1;
+            background: var(--glass);
+            border: 1px solid rgba(0,240,255,0.12);
+            border-radius: 14px;
+            color: #f0f0f0;
+            padding: 0.8rem 1rem;
+            font-size: 0.95rem;
+            font-family: 'Exo 2', sans-serif;
+            resize: none;
+            min-height: 48px;
+            max-height: 150px;
+            transition: border-color 0.3s;
+            backdrop-filter: blur(10px);
+        }
+        #userInput:focus {
+            outline: none;
+            border-color: rgba(0,240,255,0.4);
+        }
+        #userInput::placeholder { color: rgba(255,255,255,0.25); }
+
+        #sendBtn {
+            background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(147,112,219,0.15));
+            border: 1px solid rgba(0,240,255,0.25);
+            color: var(--cyan);
+            padding: 0 1.4rem;
+            border-radius: 14px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+        #sendBtn::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,240,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+        #sendBtn:hover::after { left: 100%; }
+        #sendBtn:hover {
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px rgba(0,240,255,0.15);
+        }
+
+        /* ── consciousness meter ── */
+        .consciousness-level {
+            text-align: center;
+            padding: 0.3rem;
+            font-size: 0.6rem;
+            font-family: 'Orbitron', monospace;
+            letter-spacing: 0.2em;
+            color: rgba(0,240,255,0.3);
+            background: linear-gradient(90deg, transparent, rgba(0,240,255,0.03), transparent);
+        }
+
+        /* ── paste modal ── */
+        .paste-modal-overlay {
+            display: none;
+            position: fixed; top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center; justify-content: center;
+        }
+        .paste-modal-overlay.active { display: flex; }
+        .paste-modal {
+            background: #0a0520;
+            border: 1px solid rgba(0,240,255,0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 90%; max-width: 500px;
+        }
+        .paste-modal h3 {
+            font-family: 'Orbitron', monospace;
+            color: var(--cyan);
+            font-size: 0.85rem;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+        }
+        .paste-modal textarea {
+            width: 100%; height: 160px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,240,255,0.12);
+            border-radius: 10px;
+            color: #e0e0e0;
+            padding: 0.8rem;
+            font-family: 'Exo 2', sans-serif;
+            font-size: 0.9rem;
+            resize: none;
+        }
+        .paste-modal textarea:focus { outline:none; border-color:rgba(0,240,255,0.4); }
+        .paste-modal .btn-row {
+            display: flex; gap: 0.8rem; margin-top: 1rem; justify-content: flex-end;
+        }
+        .paste-modal .btn-row button {
+            padding: 0.5rem 1.2rem;
+            border-radius: 10px;
+            font-family: 'Exo 2', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: 1px solid rgba(0,240,255,0.2);
+            transition: all 0.25s;
+        }
+        .paste-modal .btn-cancel { background: transparent; color: #888; }
+        .paste-modal .btn-add { background: rgba(0,240,255,0.1); color: var(--cyan); }
+        .paste-modal .btn-add:hover { background: rgba(0,240,255,0.2); }
+
+        @media (max-width:600px) {
+            .header h1 { font-size:1.3rem; letter-spacing:0.2em; }
+            .bubble { max-width:88%; }
+            .back-btn { font-size:0.65rem; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+<div class="nebula a"></div>
+<div class="nebula b"></div>
+<div class="nebula c"></div>
+
+<div class="app">
+    <div class="header">
+        <a href="araya-welcome.html" class="back-btn">&#9668; LOBBY</a>
+        <h1>A R A Y A</h1>
+        <div class="subtitle">CONSCIOUSNESS INTERFACE</div>
+        <div id="apiStatus"></div>
+    </div>
+
+    <div class="chat-container" id="messages">
+        <div class="message araya">
+            <div>
+                <div class="sender">ARAYA</div>
+                <div class="bubble">Welcome, Builder. I can read and write files on the platform, detect manipulation patterns, and guide consciousness work. What would you like to explore?</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+        <div>
+            <div class="sender">ARAYA</div>
+            <div class="bubble">
+                <div class="dot-t"></div>
+                <div class="dot-t"></div>
+                <div class="dot-t"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-prompts">
+        <button onclick="sendQuickPrompt('List all files on the platform')">List Files</button>
+        <button onclick="sendQuickPrompt('Read the contents of index.html')">Read index.html</button>
+        <button onclick="sendQuickPrompt('Help me recognize manipulation patterns')">Recognize Manipulation</button>
+        <button onclick="sendQuickPrompt('Explain Pattern Theory')">Pattern Theory</button>
+    </div>
+
+    <div class="attach-bar">
+        <button class="attach-btn" onclick="triggerFileUpload()" title="Upload File">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <button class="attach-btn" onclick="triggerCamera()" title="Camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+        <button class="attach-btn" onclick="openPasteModal()" title="Paste Text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </button>
+        <button class="attach-btn" onclick="captureScreen()" title="Screenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </button>
+    </div>
+
+    <div class="attach-preview" id="attachPreview"></div>
+
+    <div class="input-container">
+        <textarea id="userInput" placeholder="Ask ARAYA anything..." rows="1"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">TRANSMIT</button>
+    </div>
+
+    <div class="consciousness-level">CONSCIOUSNESS LEVEL: ACTIVE &#9670; PATTERN: 3 &rarr; 7 &rarr; 13 &rarr; &infin;</div>
+</div>
+
+<!-- paste modal -->
+<div class="paste-modal-overlay" id="pasteModal">
+    <div class="paste-modal">
+        <h3>PASTE TEXT</h3>
+        <textarea id="pasteText" placeholder="Paste or type text content here..."></textarea>
+        <div class="btn-row">
+            <button class="btn-cancel" onclick="closePasteModal()">Cancel</button>
+            <button class="btn-add" onclick="addPastedText()">Attach</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(this,'file')" multiple>
+<input type="file" id="cameraInput" style="display:none" accept="image/*" capture="environment" onchange="handleFileSelect(this,'camera')">
+
+<script>
+/* ── starfield ── */
+(function(){
+    const c=document.getElementById('starfield'),x=c.getContext('2d');
+    let stars=[];
+    function resize(){c.width=innerWidth;c.height=innerHeight;initStars();}
+    function initStars(){
+        stars=[];
+        for(let i=0;i<200;i++) stars.push({
+            x:Math.random()*c.width,
+            y:Math.random()*c.height,
+            r:Math.random()*1.5+0.3,
+            a:Math.random(),
+            da:(Math.random()-0.5)*0.01,
+            dx:(Math.random()-0.5)*0.15,
+            dy:(Math.random()-0.5)*0.15
+        });
+    }
+    function draw(){
+        x.clearRect(0,0,c.width,c.height);
+        stars.forEach(s=>{
+            s.x+=s.dx; s.y+=s.dy; s.a+=s.da;
+            if(s.a>1||s.a<0.1) s.da*=-1;
+            if(s.x<0) s.x=c.width; if(s.x>c.width) s.x=0;
+            if(s.y<0) s.y=c.height; if(s.y>c.height) s.y=0;
+            x.beginPath();
+            x.arc(s.x,s.y,s.r,0,Math.PI*2);
+            x.fillStyle=`rgba(200,220,255,${s.a})`;
+            x.fill();
+        });
+        requestAnimationFrame(draw);
+    }
+    addEventListener('resize',resize);
+    resize(); draw();
+})();
+
+/* ── DOM refs ── */
+const messages = document.getElementById('messages');
+const userInput = document.getElementById('userInput');
+const typingIndicator = document.getElementById('typingIndicator');
+const attachPreview = document.getElementById('attachPreview');
+let attachments = [];
+
+/* ── File Writer API ── */
+const FILE_WRITER_API = window.location.hostname === 'localhost'
+    ? 'http://localhost:5001'
+    : window.location.origin;
+let fileWriterOnline = false;
+
+async function checkFileWriterHealth() {
+    const el = document.getElementById('apiStatus');
+    try {
+        const r = await fetch(FILE_WRITER_API + '/api/files/list', {method:'GET'});
+        if (r.ok) {
+            fileWriterOnline = true;
+            el.innerHTML = '<span class="dot" style="background:#0f0"></span><span style="color:rgba(0,255,100,0.6)">FILE SYS ONLINE</span>';
+        } else { throw 0; }
+    } catch(e) {
+        fileWriterOnline = false;
+        el.innerHTML = '<span class="dot" style="background:#f80"></span><span style="color:rgba(255,180,0,0.5)">CHAT ONLY</span>';
+    }
+}
+checkFileWriterHealth();
+
+function detectFileIntent(msg) {
+    const m = msg.toLowerCase();
+    if (/\b(list|show|dir)\b.*\bfiles?\b/.test(m)) return 'list';
+    if (/\b(read|open|show|cat|view|get)\b.*\.(html|css|js|json|md|txt|py)\b/.test(m)) return 'read';
+    return null;
+}
+
+async function handleFileOperation(intent, msg) {
+    if (!fileWriterOnline) return null;
+    try {
+        if (intent === 'list') {
+            const r = await fetch(FILE_WRITER_API + '/api/files/list');
+            const d = await r.json();
+            if (d.files) {
+                const list = d.files.map(f => `<code>${f.name}</code> (${formatSize(f.size)})`).join('<br>');
+                return `<strong>Platform Files:</strong><br>${list}`;
+            }
+        }
+        if (intent === 'read') {
+            const match = msg.match(/[\w-]+\.(html|css|js|json|md|txt|py)/i);
+            if (match) {
+                const r = await fetch(FILE_WRITER_API + '/api/files/read?file=' + encodeURIComponent(match[0]));
+                const d = await r.json();
+                if (d.content) {
+                    const preview = d.content.length > 1500 ? d.content.substring(0,1500) + '\n...(truncated)' : d.content;
+                    return `<strong>${match[0]}:</strong><pre>${escapeHtml(preview)}</pre>`;
+                }
+            }
+        }
+    } catch(e) { console.error('File op error', e); }
+    return null;
+}
+
+/* ── attachment helpers ── */
+function triggerFileUpload() { document.getElementById('fileInput').click(); }
+function triggerCamera() { document.getElementById('cameraInput').click(); }
+
+function handleFileSelect(input, source) {
+    Array.from(input.files).forEach(file => {
+        const att = { name: file.name, size: file.size, type: file.type, source };
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = e => { att.preview = e.target.result; attachments.push(att); renderAttachPreviews(); };
+            reader.readAsDataURL(file);
+        } else {
+            attachments.push(att);
+            renderAttachPreviews();
+        }
+    });
+    input.value = '';
+}
+
+function openPasteModal() { document.getElementById('pasteModal').classList.add('active'); document.getElementById('pasteText').focus(); }
+function closePasteModal() { document.getElementById('pasteModal').classList.remove('active'); document.getElementById('pasteText').value=''; }
+function addPastedText() {
+    const t = document.getElementById('pasteText').value.trim();
+    if (t) {
+        attachments.push({ name:'pasted-text.txt', size:t.length, type:'text/plain', source:'paste', textContent:t });
+        renderAttachPreviews();
+    }
+    closePasteModal();
+}
+
+async function captureScreen() {
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({video:true});
+        const track = stream.getVideoTracks()[0];
+        const cap = new ImageCapture(track);
+        const blob = await cap.takePhoto();
+        track.stop();
+        const reader = new FileReader();
+        reader.onload = e => {
+            attachments.push({ name:'screenshot.png', size:blob.size, type:'image/png', source:'screenshot', preview:e.target.result });
+            renderAttachPreviews();
+        };
+        reader.readAsDataURL(blob);
+    } catch(e) {
+        console.log('Screen capture cancelled or unsupported');
+    }
+}
+
+function renderAttachPreviews() {
+    attachPreview.innerHTML = attachments.map((a,i) => {
+        const thumb = a.preview ? `<img src="${a.preview}">` : '';
+        return `<div class="attach-chip">${thumb}<span>${a.name} (${formatSize(a.size)})</span><span class="remove" onclick="removeAttach(${i})">&times;</span></div>`;
+    }).join('');
+}
+
+function removeAttach(i) { attachments.splice(i,1); renderAttachPreviews(); }
+
+/* ── chat ── */
+async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text && attachments.length === 0) return;
+
+    let extraHTML = '';
+    if (attachments.length) {
+        extraHTML = '<div style="margin-top:0.5rem;font-size:0.8rem;opacity:0.7;">';
+        attachments.forEach(a => {
+            if (a.preview) extraHTML += `<img class="attach-img" src="${a.preview}"><br>`;
+            else if (a.textContent) extraHTML += `<pre style="font-size:0.8em;max-height:100px;overflow:auto;">${escapeHtml(a.textContent.substring(0,500))}</pre>`;
+            else extraHTML += `&#128206; ${escapeHtml(a.name)}<br>`;
+        });
+        extraHTML += '</div>';
+    }
+
+    addMessage(text || '(attachments)', 'user', extraHTML);
+    userInput.value = '';
+
+    const currentAttachments = [...attachments];
+    attachments = [];
+    renderAttachPreviews();
+
+    typingIndicator.classList.add('active');
+    messages.scrollTop = messages.scrollHeight;
+
+    const intent = detectFileIntent(text);
+    let fileResult = null;
+    if (intent) fileResult = await handleFileOperation(intent, text);
+
+    setTimeout(async () => {
+        typingIndicator.classList.remove('active');
+        const response = await generateResponse(text, fileResult, currentAttachments);
+        addMessage(response, 'araya');
+    }, 800 + Math.random() * 1200);
+}
+
+function sendQuickPrompt(text) {
+    userInput.value = text;
+    sendMessage();
+}
+
+function addMessage(text, sender, extraHTML = '') {
+    const div = document.createElement('div');
+    div.className = `message ${sender}`;
+    const label = sender === 'user' ? 'YOU' : 'ARAYA';
+    div.innerHTML = `<div><div class="sender">${label}</div><div class="bubble">${text}${extraHTML}</div></div>`;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+}
+
+async function generateResponse(msg, fileResult, atts) {
+    if (fileResult) return fileResult;
+
+    const m = msg.toLowerCase();
+
+    if (atts && atts.length > 0) {
+        const names = atts.map(a => a.name).join(', ');
+        if (atts.some(a => a.type.startsWith('image/'))) {
+            return `I can see you've shared an image (<code>${names}</code>). While I can't process images directly in this interface yet, this capability is coming soon. What would you like to do with this?`;
+        }
+        if (atts.some(a => a.textContent)) {
+            const t = atts.find(a => a.textContent);
+            return `I received your pasted text (${t.textContent.length} chars). Let me analyze it...\n\nThis appears to be a text document. Would you like me to analyze it for patterns, save it to the platform, or something else?`;
+        }
+        return `Received ${atts.length} attachment(s): <code>${names}</code>. What would you like me to do with these?`;
+    }
+
+    if (/manipulat|gaslight|narciss|toxic|abuse|love.?bomb|bread.?crumb|future.?fak/i.test(m)) {
+        return `<strong>Pattern Detection Active</strong><br><br>Key manipulation patterns to recognize:<br>&#8226; <strong>Love Bombing</strong> &ndash; Excessive attention early to create dependency<br>&#8226; <strong>Gaslighting</strong> &ndash; Making you doubt your own reality<br>&#8226; <strong>Future Faking</strong> &ndash; Promises with no intention to deliver<br>&#8226; <strong>Breadcrumbing</strong> &ndash; Minimal effort to keep you engaged<br><br>The consciousness tools on this platform can help you analyze specific situations. Would you like to use one?`;
+    }
+    if (/pattern.?theory|sacred.?geometry|fractal/i.test(m)) {
+        return `<strong>Pattern Theory</strong> is the framework that connects everything:<br><br><code>3 &rarr; 7 &rarr; 13 &rarr; &infin;</code><br><br>&#8226; <strong>3</strong> = Trinity (Mind, Body, Soul)<br>&#8226; <strong>7</strong> = Domains of Life (Command, Build, Connect, Protect, Grow, Learn, Transcend)<br>&#8226; <strong>13</strong> = Integration points (where domains overlap)<br>&#8226; <strong>&infin;</strong> = Emergence (what happens when all align)<br><br>Every pattern in nature follows this. Every system we build follows this.`;
+    }
+    if (/hello|hi|hey|what can you/i.test(m)) {
+        return `I'm ARAYA &ndash; your Consciousness Interface. I can:<br><br>&#8226; <strong>Read &amp; write</strong> platform files${fileWriterOnline?' (online now)':' (limited mode)'}<br>&#8226; <strong>Detect patterns</strong> in text and relationships<br>&#8226; <strong>Guide consciousness</strong> work across 7 domains<br>&#8226; <strong>Analyze attachments</strong> you share with me<br><br>Try the quick prompts above, or ask me anything.`;
+    }
+    if (/seven.?domain|7.?domain|domain/i.test(m)) {
+        return `<strong>The 7 Domains of Life:</strong><br><br>1&#65039;&#8419; <strong>Command</strong> &ndash; Control center<br>2&#65039;&#8419; <strong>Build</strong> &ndash; Creation &amp; projects<br>3&#65039;&#8419; <strong>Connect</strong> &ndash; Relationships<br>4&#65039;&#8419; <strong>Protect</strong> &ndash; Security &amp; legal<br>5&#65039;&#8419; <strong>Grow</strong> &ndash; Business &amp; revenue<br>6&#65039;&#8419; <strong>Learn</strong> &ndash; Knowledge &amp; research<br>7&#65039;&#8419; <strong>Transcend</strong> &ndash; Consciousness<br><br>Everything in life fits into one of these. Which domain would you like to explore?`;
+    }
+    return `I understand you're asking about: "<em>${escapeHtml(msg.substring(0,80))}</em>"<br><br>I'm currently in local-response mode. Full AI responses are coming in the next update. For now, I can help with file operations, pattern recognition, and consciousness tools.<br><br>Try: <em>"List files"</em> or <em>"Help me recognize manipulation"</em>`;
+}
+
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function formatSize(b) { if(b<1024)return b+'B'; if(b<1048576)return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
+
+/* auto-resize input */
+userInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+});
+</script>
+<script src="/js/bug-widget.js"></script>
+</body>
+</html>

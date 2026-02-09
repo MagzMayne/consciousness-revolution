@@ -107,6 +107,37 @@
             font-family: 'Orbitron', monospace;
             display: flex; align-items: center; gap: 6px;
         }
+        /* Memory Counter + Save Confirmation */
+        #memoryCounter {
+            position: absolute;
+            left: 1rem; top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.6rem;
+            font-family: 'Orbitron', monospace;
+            color: rgba(0,255,100,0.7);
+            display: flex; align-items: center; gap: 5px;
+            cursor: pointer;
+        }
+        #memoryCounter:hover { color: #0f0; }
+        .save-indicator {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.6rem;
+            color: rgba(0,255,100,0.8);
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .save-indicator.show { opacity: 1; }
+        .save-indicator.fade { animation: fadeOut 2s forwards; }
+        @keyframes fadeOut { 0%{opacity:1;} 100%{opacity:0;} }
+        .export-btn {
+            background: rgba(255,200,0,0.1);
+            border: 1px solid rgba(255,200,0,0.25);
+        }
+        .export-btn:hover {
+            background: rgba(255,200,0,0.2);
+            border-color: rgba(255,200,0,0.5);
+        }
         #apiStatus .dot {
             width: 7px; height: 7px;
             border-radius: 50%;
@@ -459,6 +490,7 @@
 
 <div class="app" role="main" aria-label="ARAYA Chat">
     <header class="header" role="banner">
+        <div id="memoryCounter" onclick="showMemoryStats()" title="Click to view memory stats">💾 <span id="memCount">--</span> MEMORIES</div>
         <a href="araya-welcome.html" class="back-btn">&#9668; LOBBY</a>
         <h1>A R A Y A</h1>
         <div class="subtitle">CONSCIOUSNESS INTERFACE</div>
@@ -507,6 +539,9 @@
         </button>
         <button class="attach-btn" id="voiceBtn" onclick="toggleVoiceInput()" title="Voice Input">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button class="attach-btn export-btn" onclick="exportConversation()" title="Export Conversation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffc800" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
     </div>
     <div class="voice-status" id="voiceStatus">● LISTENING...</div>
@@ -806,6 +841,35 @@ async function captureScreen() {
     }
 }
 
+/* ── Araya Action Handler ── */
+/* Detects and executes actions Araya requests in her response */
+async function handleArayaActions(response) {
+    // Look for JSON action blocks in the response
+    const actionMatch = response.match(/\{"araya_action"\s*:\s*"([^"]+)"[^}]*\}/);
+    if (actionMatch) {
+        const action = actionMatch[1];
+        console.log('[Araya Action Detected]:', action);
+
+        switch(action) {
+            case 'screenshot':
+                addMessage('📸 Capturing screen...', 'araya');
+                await captureScreen();
+                if (attachments.length > 0) {
+                    addMessage('✅ Screenshot captured! I can see it in the attachments. Send a message and I\'ll analyze it.', 'araya');
+                }
+                break;
+            case 'diagnostics':
+                addMessage('🔧 Running ability diagnostics...', 'araya');
+                break;
+            default:
+                console.log('[Unknown Araya Action]:', action);
+        }
+        // Remove the action JSON from the displayed response
+        return response.replace(/\{"araya_action"[^}]*\}/, '').trim();
+    }
+    return response;
+}
+
 function renderAttachPreviews() {
     attachPreview.innerHTML = attachments.map((a,i) => {
         const thumb = a.preview ? `<img src="${a.preview}">` : '';
@@ -953,9 +1017,13 @@ async function sendMessage() {
     conversationHistory.push({ role: 'user', content: historyContent });
 
     try {
-        const response = await callArayaAPI(text, currentAttachments);
+        let response = await callArayaAPI(text, currentAttachments);
         typingIndicator.classList.remove('active');
-        addMessage(response, 'araya');
+        // Check for and handle any Araya action requests
+        response = await handleArayaActions(response);
+        if (response) {
+            addMessage(response, 'araya');
+        }
         conversationHistory.push({ role: 'assistant', content: response });
         if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
     } catch(err) {
@@ -1261,6 +1329,75 @@ userInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 150) + 'px';
 });
+
+/* ── Memory Stats + Export + Save Confirmation ── */
+let memoryCount = 0;
+
+// Fetch memory count on load and periodically
+async function fetchMemoryCount() {
+    try {
+        const res = await fetch('/.netlify/functions/araya-memory-stats?user_id=' + encodeURIComponent(userId));
+        if (res.ok) {
+            const data = await res.json();
+            memoryCount = data.count || 0;
+            document.getElementById('memCount').textContent = memoryCount.toLocaleString();
+        }
+    } catch (e) {
+        console.log('Memory count unavailable');
+    }
+}
+fetchMemoryCount();
+setInterval(fetchMemoryCount, 60000); // Refresh every minute
+
+// Show memory stats when counter is clicked
+function showMemoryStats() {
+    addMessage(`📊 <strong>Your Memory Bank</strong><br><br>` +
+        `• <strong>${memoryCount.toLocaleString()}</strong> total memories stored<br>` +
+        `• User ID: <code>${userId.substring(0, 20)}...</code><br>` +
+        `• Session: <strong>${conversationHistory.length}</strong> messages<br><br>` +
+        `<em>Every message you share helps me learn your patterns and preferences. ` +
+        `Your data is private to your user ID.</em>`, 'araya');
+}
+
+// Export conversation to JSON file
+function exportConversation() {
+    if (conversationHistory.length === 0) {
+        addMessage('No conversation to export yet. Start chatting first!', 'araya');
+        return;
+    }
+
+    const exportData = {
+        user_id: userId,
+        exported_at: new Date().toISOString(),
+        messages: conversationHistory,
+        memory_count: memoryCount
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `araya-conversation-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    addMessage(`✅ <strong>Exported!</strong> ${conversationHistory.length} messages saved to your downloads.`, 'araya');
+}
+
+// Show save confirmation indicator
+function showSaveConfirmation() {
+    memoryCount++;
+    document.getElementById('memCount').textContent = memoryCount.toLocaleString();
+
+    // Flash the memory counter green briefly
+    const counter = document.getElementById('memoryCounter');
+    counter.style.color = '#0f0';
+    counter.style.textShadow = '0 0 10px #0f0';
+    setTimeout(() => {
+        counter.style.color = '';
+        counter.style.textShadow = '';
+    }, 1000);
+}
 </script>
 <script src="/js/bug-widget.js"></script>
 

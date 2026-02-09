@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scaling Architecture | C2 Architect Blueprint</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111;
+            --surface-2: #1a1a1a;
+            --border: #333;
+            --text: #fff;
+            --text-dim: #888;
+            --accent: #ffd700;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4444;
+            --info: #00aaff;
+            --purple: #8844ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(136,68,255,0.1));
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            font-size: 1.1em;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: var(--surface-2);
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 1.2em;
+            color: var(--accent);
+        }
+
+        .section-header .icon {
+            font-size: 1.5em;
+        }
+
+        .section-body {
+            padding: 20px;
+        }
+
+        /* Fractal Diagram */
+        .fractal-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .fractal-level {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fractal-node {
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-weight: bold;
+            text-align: center;
+            position: relative;
+        }
+
+        .fractal-node.commander {
+            background: linear-gradient(135deg, var(--accent), #ff8800);
+            color: var(--bg);
+            font-size: 1.1em;
+        }
+
+        .fractal-node.operator {
+            background: var(--surface-2);
+            border: 2px solid var(--success);
+            color: var(--success);
+        }
+
+        .fractal-node.domain {
+            background: var(--surface-2);
+            border: 2px solid var(--info);
+            color: var(--info);
+        }
+
+        .fractal-node.consumer {
+            background: var(--surface-2);
+            border: 2px solid var(--purple);
+            color: var(--purple);
+        }
+
+        .fractal-nodes-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .connector {
+            width: 2px;
+            height: 20px;
+            background: var(--border);
+        }
+
+        .connector-h {
+            width: 100%;
+            max-width: 300px;
+            height: 2px;
+            background: var(--border);
+        }
+
+        /* Component Diagram */
+        .component-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .component-row {
+            display: flex;
+            gap: 15px;
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .component {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .component.frontend {
+            background: rgba(0,170,255,0.2);
+            border: 2px solid var(--info);
+        }
+
+        .component.api {
+            background: rgba(255,215,0,0.2);
+            border: 2px solid var(--accent);
+        }
+
+        .component.queue {
+            background: rgba(255,68,68,0.2);
+            border: 2px solid var(--danger);
+        }
+
+        .component.database {
+            background: rgba(0,255,136,0.2);
+            border: 2px solid var(--success);
+        }
+
+        .component.worker {
+            background: rgba(136,68,255,0.2);
+            border: 2px solid var(--purple);
+        }
+
+        .component .name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .component .platform {
+            font-size: 0.8em;
+            color: var(--text-dim);
+        }
+
+        .flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            color: var(--text-dim);
+        }
+
+        /* Scale Metrics */
+        .scale-meter {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .scale-meter .label {
+            min-width: 100px;
+            font-weight: bold;
+        }
+
+        .scale-bar {
+            flex: 1;
+            height: 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .scale-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s;
+        }
+
+        .scale-fill.phase1 { width: 20%; background: var(--success); }
+        .scale-fill.phase2 { width: 50%; background: var(--warning); }
+        .scale-fill.phase3 { width: 100%; background: var(--accent); }
+
+        .scale-meter .value {
+            min-width: 80px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Security Matrix */
+        .security-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+
+        .security-table th,
+        .security-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .security-table th {
+            background: var(--surface-2);
+            color: var(--accent);
+        }
+
+        .security-table td.yes {
+            color: var(--success);
+        }
+
+        .security-table td.no {
+            color: var(--danger);
+        }
+
+        .security-table td.limited {
+            color: var(--warning);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: var(--surface-2);
+            border-radius: 8px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 20px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .timeline-item.current::before {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(255,215,0,0); }
+        }
+
+        .timeline-item .phase {
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 5px;
+        }
+
+        .timeline-item .users {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .timeline-item .tasks {
+            font-size: 0.9em;
+            color: var(--text-dim);
+        }
+
+        /* Data Flow */
+        .dataflow {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .dataflow-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dataflow-node {
+            padding: 10px 15px;
+            background: var(--surface-2);
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+
+        .dataflow-arrow {
+            color: var(--accent);
+            font-size: 1.2em;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 15px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .legend-color.netlify { background: var(--info); }
+        .legend-color.railway { background: var(--accent); }
+        .legend-color.supabase { background: var(--success); }
+        .legend-color.redis { background: var(--danger); }
+        .legend-color.workers { background: var(--purple); }
+
+        /* Jedi Poker Table Diagram */
+        .poker-table {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .poker-center {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--bg);
+            position: relative;
+        }
+
+        .poker-players {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .poker-player {
+            padding: 15px 20px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid;
+        }
+
+        .poker-player.chatgpt { border-color: #00a67e; }
+        .poker-player.deepseek { border-color: #ff6b35; }
+        .poker-player.qwen { border-color: #6b5ce7; }
+        .poker-player.claude { border-color: #d4a574; }
+
+        .poker-player .icon { font-size: 1.5em; margin-bottom: 5px; }
+        .poker-player .name { font-weight: bold; margin-bottom: 3px; }
+        .poker-player .role { font-size: 0.8em; color: var(--text-dim); }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            color: var(--text-dim);
+            border-top: 1px solid var(--border);
+        }
+
+        .footer .formula {
+            font-size: 1.5em;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Scaling Architecture Blueprint</h1>
+        <p>C2 Architect Analysis | Fractal Dashboard + Multi-AI Validation System</p>
+    </div>
+
+    <div class="architecture-grid">
+        <!-- Fractal Dashboard Pattern -->
+        <div class="section">
+            <div class="section-header">
+                <span class="icon">&#x1F4CA;</span>
+                <h2>FRACTAL DASHBOARD PATTERN</h2>
+            </div>
+            <div class="section-body">
+                <div class="fractal-tree">
+                    <div class="fractal-level">
+                        <div class="fractal-node commander">COMMANDER<br><small>1 user</small></div>
+                    </div>
+                    <div class="connector"></div>
+                    <div class="fractal-level">
+                        <div class="fractal-nodes-row">
+                            <div class="fractal-node operator">Erica</div>
+                            <div class="fractal-node operator">Tiger</div>
+                            <div class="fractal-node operator">Josh</div>
+                            <div class="fractal-node operator">Maggie</div>
+                            <div class="fractal-node operator">Alex</div>
+                        </div>
+                        <small style="color:var(--text-dim)">5-20 operators</small>
+                    </div>
+                    <div class="connector"></div>
+                    <div class="fractal-level">
+                        <div class="fractal-nodes-row">
+                            <div class="fractal-node domain">1_COMMAND</div>
+                            <div class="fractal-node domain">2_BUILD</div>
+                            <div class="fractal-node domain">3_CONNECT</div>
+                            <div class="fractal-node domain">...</div>
+                            <div class="fractal-node domain">7_TRANSCEND</div>
+                        </div>
+                        <small style="color:var(--text-dim)">50-500 domain viewers</small>
+                    </div>
+                    <div class="connector"></div>
+                    <div class="fractal-level">
+                        <div class="fractal-node consumer">PUBLIC CONSUMERS<br><small>500-5000+ users</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Architecture -->
+        <div class="section">
+            <div class="section-header">
+                <span class="icon">&#x2699;</span>
+                <h2>COMPONENT ARCHITECTURE</h2>
+            </div>
+            <div class="section-body">
+                <div class="component-diagram">
+                    <div class="component-row">
+                        <div class="component frontend">
+                            <div class="name">Static Frontend</div>
+                            <div class="platform">Netlify CDN</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">&#x2193;</div>
+                    <div class="component-row">
+                        <div class="component api">
+                            <div class="name">API Gateway</div>
+                            <div class="platform">Railway</div>
+                        </div>
+                        <div class="component api">
+                            <div class="name">Serverless</div>
+                            <div class="platform">Netlify Functions</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">&#x2193;</div>
+                    <div class="component-row">
+                        <div class="component queue">
+                            <div class="name">Message Queue</div>
+                            <div class="platform">Redis/BullMQ</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">&#x2193;</div>
+                    <div class="component-row">
+                        <div class="component worker">
+                            <div class="name">Jedi Workers</div>
+                            <div class="platform">Railway x3</div>
+                        </div>
+                        <div class="component worker">
+                            <div class="name">Email Workers</div>
+                            <div class="platform">Railway x2</div>
+                        </div>
+                    </div>
+                    <div class="flow-arrow">&#x2193;</div>
+                    <div class="component-row">
+                        <div class="component database">
+                            <div class="name">Database</div>
+                            <div class="platform">Supabase Postgres</div>
+                        </div>
+                        <div class="component database">
+                            <div class="name">Real-time</div>
+                            <div class="platform">Supabase + Ably</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color netlify"></div>
+                        <span>Netlify</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color railway"></div>
+                        <span>Railway</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color supabase"></div>
+                        <span>Supabase</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color redis"></div>
+                        <span>Redis</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color workers"></div>
+                        <span>Workers</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jedi Poker Table -->
+        <div class="section">
+            <div class="section-header">
+                <span class="icon">&#x1F3B0;</span>
+                <h2>JEDI POKER TABLE (Multi-AI Validation)</h2>
+            </div>
+            <div class="section-body">
+                <div class="poker-table">
+                    <div class="poker-players">
+                        <div class="poker-player chatgpt">
+                            <div class="icon">&#x1F916;</div>
+                            <div class="name">ChatGPT</div>
+                            <div class="role">Broad Reasoning</div>
+                        </div>
+                        <div class="poker-player deepseek">
+                            <div class="icon">&#x1F50D;</div>
+                            <div class="name">DeepSeek</div>
+                            <div class="role">Code Specialist</div>
+                        </div>
+                        <div class="poker-player qwen">
+                            <div class="icon">&#x1F3AF;</div>
+                            <div class="name">Qwen</div>
+                            <div class="role">Technical</div>
+                        </div>
+                    </div>
+                    <div class="poker-center">
+                        CONSENSUS<br>ENGINE
+                    </div>
+                    <div class="dataflow">
+                        <div class="dataflow-row">
+                            <div class="dataflow-node">Content</div>
+                            <span class="dataflow-arrow">&rarr;</span>
+                            <div class="dataflow-node">Queue</div>
+                            <span class="dataflow-arrow">&rarr;</span>
+                            <div class="dataflow-node">Workers</div>
+                            <span class="dataflow-arrow">&rarr;</span>
+                            <div class="dataflow-node">Aggregate</div>
+                            <span class="dataflow-arrow">&rarr;</span>
+                            <div class="dataflow-node">Result</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scaling Timeline -->
+        <div class="section">
+            <div class="section-header">
+                <span class="icon">&#x1F680;</span>
+                <h2>SCALING TIMELINE</h2>
+            </div>
+            <div class="section-body">
+                <div class="timeline">
+                    <div class="timeline-item current">
+                        <div class="phase">Phase 1: Foundation</div>
+                        <div class="users">5 &rarr; 50 users</div>
+                        <div class="tasks">Deploy bug_reports, Real-time subs, Operator cockpits</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="phase">Phase 2: Scale</div>
+                        <div class="users">50 &rarr; 500 users</div>
+                        <div class="tasks">Jedi to Railway, WebSocket, Team assignments</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="phase">Phase 3: Enterprise</div>
+                        <div class="users">500 &rarr; 5000+ users</div>
+                        <div class="tasks">Horizontal scaling, Read replicas, Analytics</div>
+                    </div>
+                </div>
+
+                <div class="scale-meter">
+                    <span class="label">Phase 1</span>
+                    <div class="scale-bar"><div class="scale-fill phase1"></div></div>
+                    <span class="value">50 users</span>
+                </div>
+                <div class="scale-meter">
+                    <span class="label">Phase 2</span>
+                    <div class="scale-bar"><div class="scale-fill phase2"></div></div>
+                    <span class="value">500 users</span>
+                </div>
+                <div class="scale-meter">
+                    <span class="label">Phase 3</span>
+                    <div class="scale-bar"><div class="scale-fill phase3"></div></div>
+                    <span class="value">5000+ users</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Matrix -->
+        <div class="section" style="grid-column: 1 / -1;">
+            <div class="section-header">
+                <span class="icon">&#x1F512;</span>
+                <h2>SECURITY ACCESS MATRIX</h2>
+            </div>
+            <div class="section-body">
+                <table class="security-table">
+                    <thead>
+                        <tr>
+                            <th>Permission</th>
+                            <th>Commander</th>
+                            <th>Operators</th>
+                            <th>Domain Viewers</th>
+                            <th>Consumers</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>View all dashboards</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>View operator cockpit</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="limited">Own only</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>View domain dashboard</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="limited">Assigned</td>
+                            <td class="limited">Assigned</td>
+                            <td class="limited">Public</td>
+                        </tr>
+                        <tr>
+                            <td>Edit domain content</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="limited">Assigned</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>Report bugs</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>View bug reports</td>
+                            <td class="yes">All</td>
+                            <td class="limited">Own</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>Mass email</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>System settings</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                        <tr>
+                            <td>Jedi Poker Table</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="yes">&#x2714;</td>
+                            <td class="no">&#x2716;</td>
+                            <td class="no">&#x2716;</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Data Flow -->
+        <div class="section" style="grid-column: 1 / -1;">
+            <div class="section-header">
+                <span class="icon">&#x27A1;</span>
+                <h2>DATA FLOW ARCHITECTURE</h2>
+            </div>
+            <div class="section-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    <div>
+                        <h3 style="color: var(--success); margin-bottom: 15px;">Bug Report Flow</h3>
+                        <div class="dataflow">
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">User clicks Report Bug</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Araya collects details</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">POST to Supabase</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Real-time to Commander</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Discord notification</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">Validation Flow</h3>
+                        <div class="dataflow">
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Submit content</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Hash for cache check</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Queue to BullMQ</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Workers (3 AIs parallel)</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Consensus + Cache</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 style="color: var(--purple); margin-bottom: 15px;">Dashboard Load Flow</h3>
+                        <div class="dataflow">
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">User authenticates</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Check role (RLS)</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Fetch scoped data</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Subscribe real-time</div>
+                            </div>
+                            <div class="dataflow-row">
+                                <span class="dataflow-arrow">&darr;</span>
+                            </div>
+                            <div class="dataflow-row">
+                                <div class="dataflow-node">Render dashboard</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="formula">C1 x C2 x C3 = INFINITY</div>
+        <p>The pattern scales because the pattern is fractal. Each level is a reflection of the one above.</p>
+        <p style="margin-top: 10px; font-size: 0.9em;">alpha = 1/137.035999</p>
+    </div>
+</body>
+</html>

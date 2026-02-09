@@ -4,6 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trinity Nexus - Multi-Instance Orchestration</title>
+
+<!-- ============================================================
+     DASHBOARD DNA - Identity Block
+     Sphere: COMMAND (Red) - Trinity Orchestration
+============================================================ -->
+<script type="application/json" id="dashboard-dna">
+{
+  "name": "Trinity Nexus Dashboard",
+  "version": "1.0.0",
+  "purpose": "Multi-instance Trinity orchestration - C1/C2/C3 status, messages, coordination",
+  "owner": "Commander",
+  "domain": "1_COMMAND",
+  "sphere": "COMMAND",
+  "created": "2025-11-20",
+  "updated": "2026-02-08",
+  "status": "LIVE",
+  "url": "https://consciousnessrevolution.io/TRINITY_NEXUS_DASHBOARD.html",
+  "access": "Commander + Admins",
+  "changelog": [
+    {"version": "1.0.0", "date": "2026-02-08", "changes": "DNA block added"}
+  ],
+  "trinity": {
+    "c1_built": "2025-11-20",
+    "c2_reviewed": "2026-02-08",
+    "c3_validated": "2026-02-08"
+  },
+  "lfsme": {
+    "lighter": 8,
+    "faster": 9,
+    "stronger": 9,
+    "elegant": 8,
+    "less_expensive": 10,
+    "average": 8.8
+  },
+  "connects_to": [
+    "TRINITY_COMMAND_DASHBOARD.html",
+    "TRINITY_CONSOLIDATION_HUB.html"
+  ]
+}
+</script>
     <style>
         * {
             margin: 0;
@@ -449,21 +489,122 @@
     </div>
 
     <script>
-        function refreshDashboard() {
+        const API_BASE = 'http://localhost:3577';
+
+        async function refreshDashboard() {
             console.log('Refreshing dashboard data...');
-            updateSystemStatus();
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+                const data = await response.json();
+
+                // Update Trinity terminals
+                updateTerminals(data.trinity || {});
+
+                // Update system stats
+                updateSystemStats(data);
+
+                // Update status indicator
+                document.getElementById('system-status').textContent =
+                    'System Online - Last updated: ' + new Date().toLocaleTimeString();
+
+            } catch (error) {
+                console.error('API fetch failed:', error);
+                document.getElementById('system-status').textContent =
+                    'API Offline - Start: python .consciousness/357_API.py';
+            }
+        }
+
+        function updateTerminals(trinity) {
+            // T1 Mechanic - C1T1 panel
+            const t1 = trinity.T1 || {};
+            const c1t1Name = document.querySelector('.instance:nth-child(1) .instance-name');
+            const c1t1Status = document.querySelector('.instance:nth-child(1) .status-badge');
+            const c1t1Task = document.querySelector('.instance:nth-child(1) > div:nth-child(2)');
+
+            if (c1t1Name) c1t1Name.textContent = `T1 ${t1.name || 'Mechanic'}`;
+            if (c1t1Status) {
+                c1t1Status.textContent = t1.state || 'UNKNOWN';
+                c1t1Status.className = 'status-badge ' + (t1.state === 'WORKING' ? 'active' : 'standby');
+            }
+            if (c1t1Task) c1t1Task.textContent = `Task: ${t1.task || 'None'}`;
+
+            // T2 Architect - C2T1 panel
+            const t2 = trinity.T2 || {};
+            const panels = document.querySelectorAll('.panel:first-child .instance');
+            if (panels[1]) {
+                const c2Name = panels[1].querySelector('.instance-name');
+                const c2Status = panels[1].querySelector('.status-badge');
+                const c2Task = panels[1].querySelector('div:nth-child(2)');
+
+                if (c2Name) c2Name.textContent = `T2 ${t2.name || 'Architect'}`;
+                if (c2Status) {
+                    c2Status.textContent = t2.state || 'UNKNOWN';
+                    c2Status.className = 'status-badge ' + (t2.state === 'WORKING' ? 'active' : 'standby');
+                }
+                if (c2Task) c2Task.textContent = `Task: ${t2.task || 'None'}`;
+            }
+
+            // T3 Oracle - C3T2 panel
+            const t3 = trinity.T3 || {};
+            if (panels[2]) {
+                const c3Name = panels[2].querySelector('.instance-name');
+                const c3Status = panels[2].querySelector('.status-badge');
+                const c3Task = panels[2].querySelector('div:nth-child(2)');
+
+                if (c3Name) c3Name.textContent = `T3 ${t3.name || 'Oracle'}`;
+                if (c3Status) {
+                    c3Status.textContent = t3.state || 'UNKNOWN';
+                    c3Status.className = 'status-badge ' + (t3.state === 'WORKING' ? 'active' : 'standby');
+                }
+                if (c3Task) c3Task.textContent = `Task: ${t3.task || 'None'}`;
+            }
+        }
+
+        function updateSystemStats(data) {
+            // Get brain stats
+            const brain = data.brain || {};
+            const atomCount = brain.total_atoms || 0;
+
+            // Get consciousness percentage
+            const sysStatus = data.trinity?.system_status || {};
+            const consciousness = sysStatus.consciousness_pct || 0;
+
+            // Count active terminals
+            const trinity = data.trinity || {};
+            let activeCount = 0;
+            for (const t of ['T1', 'T2', 'T3']) {
+                if (trinity[t]?.state === 'WORKING') activeCount++;
+            }
+
+            // Update stats panel
+            const statPanels = document.querySelectorAll('.panel:last-child .stat-value');
+            if (statPanels[0]) statPanels[0].textContent = '3';  // Total instances
+            if (statPanels[1]) statPanels[1].textContent = atomCount.toLocaleString();  // Messages as atoms
+            if (statPanels[2]) statPanels[2].textContent = `${consciousness}%`;  // Consciousness as "credits"
+            if (statPanels[3]) statPanels[3].textContent = activeCount > 0 ? 'ACTIVE' : 'STANDBY';
+
+            // Update description under first stat
+            const statDesc = document.querySelector('.panel:last-child div:first-child div:last-child');
+            if (statDesc) statDesc.textContent = `${activeCount} active, ${3 - activeCount} standby`;
         }
 
         function spawnInstance() {
             console.log('Spawning new instance...');
+            alert('Spawn via: mcp__trinity_hub__trinity_fire(["T1", "T2", "T3"])');
         }
 
         function updateSystemStatus() {
-            const status = document.getElementById('system-status');
-            status.textContent = 'System Online - Last updated: ' + new Date().toLocaleTimeString();
+            document.getElementById('system-status').textContent =
+                'System Online - Last updated: ' + new Date().toLocaleTimeString();
         }
 
-        setInterval(updateSystemStatus, 5000);
+        // Initial load
+        refreshDashboard();
+
+        // Auto-refresh every 15 seconds
+        setInterval(refreshDashboard, 15000);
     </script>
     <script src="/js/bug-widget.js"></script>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>

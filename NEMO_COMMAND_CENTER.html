@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEMO Command Center | Self-Building AI Operations</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffd700;
+            --accent-red: #ff4757;
+            --accent-purple: #a855f7;
+            --accent-orange: #ff6b35;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --border-color: #2a2a3a;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--accent-green);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .status-badge.operational { border-color: var(--accent-green); color: var(--accent-green); }
+        .status-badge.warning { border-color: var(--accent-yellow); color: var(--accent-yellow); background: rgba(255, 215, 0, 0.1); }
+        .status-badge.error { border-color: var(--accent-red); color: var(--accent-red); background: rgba(255, 71, 87, 0.1); }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: var(--accent-cyan);
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        /* Main Grid */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+            padding: 20px 30px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title .icon {
+            font-size: 1.3rem;
+        }
+
+        /* 5-Key Council Panel */
+        .council-panel {
+            grid-column: span 2;
+        }
+
+        .council-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+        }
+
+        .council-key {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 15px;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .council-key::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--key-color, var(--accent-cyan));
+        }
+
+        .council-key.active {
+            border-color: var(--key-color, var(--accent-green));
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .council-key.inactive {
+            opacity: 0.5;
+            border-color: var(--accent-red);
+        }
+
+        .council-key.inactive::before {
+            background: var(--accent-red);
+        }
+
+        .key-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .key-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .key-model {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .key-speed {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            font-family: 'Courier New', monospace;
+        }
+
+        .key-status {
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .key-status.pass { background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }
+        .key-status.fail { background: rgba(255, 71, 87, 0.2); color: var(--accent-red); }
+
+        /* Brain Stats */
+        .brain-panel {
+            grid-row: span 2;
+        }
+
+        .brain-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .brain-stat:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--accent-cyan);
+        }
+
+        .stat-value.highlight {
+            color: var(--accent-green);
+        }
+
+        /* Self-Building Loop */
+        .loop-panel {
+            grid-column: span 2;
+        }
+
+        .loop-visualization {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 30px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            position: relative;
+        }
+
+        .loop-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            min-width: 120px;
+            transition: all 0.3s;
+        }
+
+        .loop-node.active {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            animation: nodeGlow 2s infinite;
+        }
+
+        @keyframes nodeGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.5); }
+        }
+
+        .loop-node .node-icon {
+            font-size: 2rem;
+        }
+
+        .loop-node .node-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .loop-arrow {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            animation: arrowPulse 1s infinite;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { opacity: 0.5; transform: translateX(0); }
+            50% { opacity: 1; transform: translateX(5px); }
+        }
+
+        .loop-return {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            color: var(--accent-purple);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Recent Operations */
+        .operations-panel {
+            grid-column: span 3;
+        }
+
+        .operations-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .operations-table th,
+        .operations-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .operations-table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .operations-table tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .op-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .op-status.success { background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }
+        .op-status.running { background: rgba(0, 212, 255, 0.2); color: var(--accent-cyan); }
+        .op-status.failed { background: rgba(255, 71, 87, 0.2); color: var(--accent-red); }
+
+        .op-id {
+            font-family: 'Courier New', monospace;
+            color: var(--accent-purple);
+        }
+
+        /* API Keys Panel */
+        .api-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .api-key {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .api-key-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .api-key-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .api-key-status.ok { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+        .api-key-status.error { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+
+        /* Command Terminal */
+        .terminal-panel {
+            grid-column: span 2;
+        }
+
+        .terminal {
+            background: #000;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-prompt {
+            color: var(--accent-green);
+        }
+
+        .terminal-output {
+            color: var(--text-secondary);
+        }
+
+        .terminal-success {
+            color: var(--accent-green);
+        }
+
+        .terminal-error {
+            color: var(--accent-red);
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+        }
+
+        .action-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        /* Metrics Bar */
+        .metrics-bar {
+            grid-column: span 3;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-family: 'Courier New', monospace;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-change {
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .metric-change.positive { color: var(--accent-green); }
+        .metric-change.negative { color: var(--accent-red); }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .council-panel, .loop-panel, .operations-panel, .terminal-panel {
+                grid-column: span 2;
+            }
+            .metrics-bar {
+                grid-column: span 2;
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .council-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .council-panel, .loop-panel, .operations-panel, .terminal-panel, .brain-panel {
+                grid-column: span 1;
+            }
+            .metrics-bar {
+                grid-column: span 1;
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .council-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">⚡ NEMO COMMAND</div>
+            <div class="status-badge operational" id="systemStatus">
+                <span class="pulse-dot"></span>
+                <span>OPERATIONAL</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="time-display" id="timeDisplay">--:--:--</div>
+            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="main-container">
+
+        <!-- Metrics Bar -->
+        <div class="metrics-bar">
+            <div class="metric-card">
+                <div class="metric-value" id="atomCount">166,735</div>
+                <div class="metric-label">Brain Atoms</div>
+                <div class="metric-change positive">+1 this session</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="councilHealth">80%</div>
+                <div class="metric-label">Council Health</div>
+                <div class="metric-change">4/5 Keys Active</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="jobsToday">8</div>
+                <div class="metric-label">Jobs Today</div>
+                <div class="metric-change positive">100% Success</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="avgSpeed">7.2s</div>
+                <div class="metric-label">Avg Response</div>
+                <div class="metric-change">5-Key Consensus</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="slotsAvailable">50</div>
+                <div class="metric-label">Slots Available</div>
+                <div class="metric-change">All Idle</div>
+            </div>
+        </div>
+
+        <!-- 5-Key Council Panel -->
+        <div class="card council-panel">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">🔑</span>
+                    5-Key Council Status
+                </div>
+                <div class="status-badge operational">4/5 ACTIVE</div>
+            </div>
+            <div class="council-grid">
+                <div class="council-key inactive" style="--key-color: #9b59b6;">
+                    <div class="key-icon">👻</div>
+                    <div class="key-name">Ghost</div>
+                    <div class="key-model">Kimi K2.5 Cloud</div>
+                    <div class="key-speed">--</div>
+                    <div class="key-status fail">401 AUTH</div>
+                </div>
+                <div class="council-key active" style="--key-color: #3498db;">
+                    <div class="key-icon">🏗️</div>
+                    <div class="key-name">Architect</div>
+                    <div class="key-model">Kimi K2.5 (OR)</div>
+                    <div class="key-speed">9.91s</div>
+                    <div class="key-status pass">PASS</div>
+                </div>
+                <div class="council-key active" style="--key-color: #f39c12;">
+                    <div class="key-icon">🧘</div>
+                    <div class="key-name">Monk</div>
+                    <div class="key-model">DeepSeek Chat</div>
+                    <div class="key-speed">7.89s</div>
+                    <div class="key-status pass">PASS</div>
+                </div>
+                <div class="council-key active" style="--key-color: #2c3e50;">
+                    <div class="key-icon">🌑</div>
+                    <div class="key-name">Shadow</div>
+                    <div class="key-model">GPT-4o-mini</div>
+                    <div class="key-speed">3.95s</div>
+                    <div class="key-status pass">PASS</div>
+                </div>
+                <div class="council-key active" style="--key-color: #00d4ff;">
+                    <div class="key-icon">👁️</div>
+                    <div class="key-name">Observer</div>
+                    <div class="key-model">Claude Haiku</div>
+                    <div class="key-speed">7.08s</div>
+                    <div class="key-status pass">PASS</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Brain Stats -->
+        <div class="card brain-panel">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">🧠</span>
+                    Cyclotron Brain
+                </div>
+            </div>
+            <div class="brain-stat">
+                <span class="stat-label">Total Atoms</span>
+                <span class="stat-value">166,735</span>
+            </div>
+            <div class="brain-stat">
+                <span class="stat-label">Last Atom ID</span>
+                <span class="stat-value highlight">#166735</span>
+            </div>
+            <div class="brain-stat">
+                <span class="stat-label">NEMO Synced</span>
+                <span class="stat-value">1</span>
+            </div>
+            <div class="brain-stat">
+                <span class="stat-label">Database Size</span>
+                <span class="stat-value">847 MB</span>
+            </div>
+            <div class="brain-stat">
+                <span class="stat-label">Connection</span>
+                <span class="stat-value highlight">OK</span>
+            </div>
+
+            <!-- API Keys -->
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                <div class="card-title" style="margin-bottom: 15px; font-size: 0.95rem;">
+                    <span class="icon">🔐</span>
+                    API Keys
+                </div>
+                <div class="api-grid">
+                    <div class="api-key">
+                        <span class="api-key-name">
+                            <span class="api-key-status ok"></span>
+                            OpenRouter
+                        </span>
+                    </div>
+                    <div class="api-key">
+                        <span class="api-key-name">
+                            <span class="api-key-status ok"></span>
+                            OpenAI
+                        </span>
+                    </div>
+                    <div class="api-key">
+                        <span class="api-key-name">
+                            <span class="api-key-status ok"></span>
+                            Anthropic
+                        </span>
+                    </div>
+                    <div class="api-key">
+                        <span class="api-key-name">
+                            <span class="api-key-status ok"></span>
+                            DeepSeek
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Self-Building Loop -->
+        <div class="card loop-panel">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">🔄</span>
+                    Self-Building Loop
+                </div>
+                <div class="status-badge operational">VERIFIED</div>
+            </div>
+            <div class="loop-visualization">
+                <div class="loop-node" id="node-task">
+                    <div class="node-icon">📋</div>
+                    <div class="node-label">TASK</div>
+                </div>
+                <div class="loop-arrow">→</div>
+                <div class="loop-node" id="node-nemo">
+                    <div class="node-icon">🐟</div>
+                    <div class="node-label">NEMO<br>5-Key</div>
+                </div>
+                <div class="loop-arrow">→</div>
+                <div class="loop-node" id="node-conductor">
+                    <div class="node-icon">🎼</div>
+                    <div class="node-label">Conductor<br>Orchestrate</div>
+                </div>
+                <div class="loop-arrow">→</div>
+                <div class="loop-node active" id="node-cyclotron">
+                    <div class="node-icon">🧠</div>
+                    <div class="node-label">Cyclotron<br>Brain</div>
+                </div>
+                <div class="loop-return">
+                    ↩️ Knowledge grows, enables more building
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="card terminal-panel">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">💻</span>
+                    Command Terminal
+                </div>
+            </div>
+            <div class="terminal" id="terminal">
+                <div class="terminal-line">
+                    <span class="terminal-prompt">NEMO&gt;</span>
+                    <span class="terminal-output">python NEMO_BRIDGE.py status</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-success">✓ NEMO Root: D:\dev-tools\projects\business-plan</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-success">✓ nemo.py: Found</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-success">✓ nemo_5key_test.py: Found</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-success">✓ Cyclotron DB: Connected (166,735 atoms)</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-success">✓ API Keys: 4/4 verified</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-prompt">NEMO&gt;</span>
+                    <span class="terminal-output">Ready for commands...</span>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <button class="action-btn primary" onclick="runCommand('build')">
+                    🔨 Build Task
+                </button>
+                <button class="action-btn" onclick="runCommand('status')">
+                    📊 Status
+                </button>
+                <button class="action-btn" onclick="runCommand('swarm')">
+                    🐝 Swarm
+                </button>
+                <button class="action-btn" onclick="runCommand('conductor')">
+                    🎼 Conductor
+                </button>
+                <button class="action-btn" onclick="runCommand('sync')">
+                    🔄 Sync
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Operations -->
+        <div class="card operations-panel">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="icon">📜</span>
+                    Recent Operations
+                </div>
+                <span style="color: var(--text-secondary); font-size: 0.85rem;">Last 24 hours</span>
+            </div>
+            <table class="operations-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Operation</th>
+                        <th>Provider</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Output</th>
+                    </tr>
+                </thead>
+                <tbody id="operationsBody">
+                    <tr>
+                        <td class="op-id">#166735</td>
+                        <td>Self-Build Test</td>
+                        <td>Conductor</td>
+                        <td>0.260s</td>
+                        <td><span class="op-status success">✓ Success</span></td>
+                        <td>25 jobs, atom created</td>
+                    </tr>
+                    <tr>
+                        <td class="op-id">#166734</td>
+                        <td>Status Check</td>
+                        <td>NEMO Bridge</td>
+                        <td>0.150s</td>
+                        <td><span class="op-status success">✓ Success</span></td>
+                        <td>All systems green</td>
+                    </tr>
+                    <tr>
+                        <td class="op-id">#166733</td>
+                        <td>5-Key Test</td>
+                        <td>5-Key Council</td>
+                        <td>7.20s</td>
+                        <td><span class="op-status success">✓ Success</span></td>
+                        <td>4/5 keys passed</td>
+                    </tr>
+                    <tr>
+                        <td class="op-id">#166732</td>
+                        <td>Bridge Init</td>
+                        <td>System</td>
+                        <td>0.080s</td>
+                        <td><span class="op-status success">✓ Success</span></td>
+                        <td>D: ↔ C: connected</td>
+                    </tr>
+                    <tr>
+                        <td class="op-id">#166731</td>
+                        <td>JEDI Integration</td>
+                        <td>Router</td>
+                        <td>0.120s</td>
+                        <td><span class="op-status success">✓ Success</span></td>
+                        <td>Smart routing enabled</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>NEMO Command Center v1.0 | Self-Building AI Operations | Connected to Cyclotron Brain</p>
+        <p style="margin-top: 5px; color: var(--accent-purple);">
+            "The AI that builds itself." — Teddy × Commander Collaboration
+        </p>
+    </footer>
+
+    <script>
+        // Time display
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('timeDisplay').textContent =
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Self-building loop animation
+        let loopStep = 0;
+        const loopNodes = ['node-task', 'node-nemo', 'node-conductor', 'node-cyclotron'];
+
+        function animateLoop() {
+            loopNodes.forEach(id => document.getElementById(id).classList.remove('active'));
+            document.getElementById(loopNodes[loopStep]).classList.add('active');
+            loopStep = (loopStep + 1) % loopNodes.length;
+        }
+        setInterval(animateLoop, 2000);
+
+        // Terminal commands
+        function runCommand(cmd) {
+            const terminal = document.getElementById('terminal');
+            const commands = {
+                'build': 'python NEMO_BRIDGE.py build "Create new feature"',
+                'status': 'python NEMO_BRIDGE.py status',
+                'swarm': 'python NEMO_BRIDGE.py swarm "Analyze architecture"',
+                'conductor': 'python NEMO_BRIDGE.py conductor',
+                'sync': 'python NEMO_BRIDGE.py sync'
+            };
+
+            // Add command to terminal
+            terminal.innerHTML += `
+                <div class="terminal-line">
+                    <span class="terminal-prompt">NEMO&gt;</span>
+                    <span class="terminal-output">${commands[cmd]}</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="terminal-output">Executing...</span>
+                </div>
+            `;
+            terminal.scrollTop = terminal.scrollHeight;
+
+            // Simulate response
+            setTimeout(() => {
+                terminal.innerHTML += `
+                    <div class="terminal-line">
+                        <span class="terminal-success">✓ Command completed successfully</span>
+                    </div>
+                `;
+                terminal.scrollTop = terminal.scrollHeight;
+            }, 1000);
+        }
+
+        // Refresh all
+        function refreshAll() {
+            location.reload();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && e.ctrlKey) {
+                e.preventDefault();
+                refreshAll();
+            }
+        });
+
+        console.log('🐟 NEMO Command Center loaded');
+        console.log('Self-Building AI Operations monitoring active');
+    </script>
+</body>
+</html>

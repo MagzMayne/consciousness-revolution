@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Diagnostics Dashboard</title>
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --card: #12121f;
+            --accent: #00ffaa;
+            --red: #ff4444;
+            --yellow: #ffaa00;
+            --green: #00ff88;
+            --blue: #3498db;
+            --purple: #9b59b6;
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 { font-size: 2rem; }
+        .header .subtitle { color: var(--text-dim); margin-top: 5px; }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-box {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-box .value { font-size: 2.5rem; font-weight: bold; }
+        .stat-box .label { color: var(--text-dim); margin-top: 5px; }
+        .stat-box.healthy .value { color: var(--green); }
+        .stat-box.warning .value { color: var(--yellow); }
+        .stat-box.critical .value { color: var(--red); }
+
+        .section-title {
+            font-size: 1.3rem;
+            margin: 30px 0 15px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+        .service-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .service-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .service-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-active { background: rgba(0, 255, 136, 0.2); color: var(--green); }
+        .status-expired { background: rgba(255, 68, 68, 0.2); color: var(--red); }
+        .status-missing { background: rgba(255, 170, 0, 0.2); color: var(--yellow); }
+        .status-unknown { background: rgba(136, 136, 136, 0.2); color: var(--text-dim); }
+
+        .service-details {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: var(--text-dim); }
+        .detail-value { color: var(--text); }
+        .detail-value.good { color: var(--green); }
+        .detail-value.bad { color: var(--red); }
+        .detail-value.warn { color: var(--yellow); }
+
+        .service-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn:hover { opacity: 0.8; transform: scale(1.02); }
+
+        .sync-status {
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        .sync-status.synced { color: var(--green); }
+        .sync-status.mismatch { color: var(--red); }
+
+        .quick-actions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .quick-btn {
+            padding: 15px 25px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .quick-btn.sync { background: var(--accent); color: var(--bg); }
+        .quick-btn.fix { background: var(--yellow); color: var(--bg); }
+
+        .timestamp {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-bar { flex-direction: column; }
+            .service-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Service Diagnostics Dashboard</h1>
+            <p class="subtitle">All Services Lined Up | Auth Status | DNA Coverage</p>
+        </div>
+        <div class="timestamp">Last Updated: <span id="timestamp"></span></div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-box healthy">
+            <div class="value" id="activeCount">15</div>
+            <div class="label">Active Services</div>
+        </div>
+        <div class="stat-box warning">
+            <div class="value" id="warningCount">5</div>
+            <div class="label">MCP Need Keys</div>
+        </div>
+        <div class="stat-box critical">
+            <div class="value" id="expiredCount">2</div>
+            <div class="label">DNA Missing</div>
+        </div>
+        <div class="stat-box">
+            <div class="value" id="dnaCount">26</div>
+            <div class="label">DNA Blueprints</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Core Infrastructure</h2>
+    <div class="service-grid" id="coreServices"></div>
+
+    <h2 class="section-title">MCP Servers (18 Configured)</h2>
+    <div class="service-grid" id="mcpServices"></div>
+
+    <h2 class="section-title">External APIs</h2>
+    <div class="service-grid" id="externalApis"></div>
+
+    <h2 class="section-title">Wallets & Financial</h2>
+    <div class="service-grid" id="financialServices"></div>
+
+    <div class="quick-actions">
+        <button class="quick-btn sync" onclick="syncAllKeys()">Sync All Keys</button>
+        <button class="quick-btn fix" onclick="showFixQueue()">Fix Queue (7)</button>
+        <button class="quick-btn" style="background:#3498db" onclick="alert('RESTART CLAUDE CODE to apply GitHub token sync!')">Restart Required</button>
+    </div>
+
+    <script>
+        // Service data - manually updated from MASTER_KEYS.json and .mcp.json
+        const services = {
+            core: [
+                {
+                    name: "GitHub",
+                    icon: "",
+                    status: "active",
+                    statusText: "SYNCED",
+                    masterKey: "ghp_lXRr...0ot0bk (Feb 6)",
+                    mcpKey: "SYNCED (Feb 8)",
+                    dna: "GITHUB_DNA_BLUEPRINT.md",
+                    dnaStatus: "GOLD",
+                    lastUpdated: "2026-02-08",
+                    issue: "Restart Claude Code to apply new token",
+                    fixAction: "Token synced - restart Claude Code session"
+                },
+                {
+                    name: "Stripe",
+                    icon: "",
+                    status: "active",
+                    statusText: "ACTIVE",
+                    masterKey: "sk_live_51SF4PS... (Feb 8)",
+                    mcpKey: "SYNCED",
+                    dna: "STRIPE_DNA_BLUEPRINT.md",
+                    dnaStatus: "BLOCKED",
+                    lastUpdated: "2026-02-08",
+                    issue: "DNA says BLOCKED but key exists"
+                },
+                {
+                    name: "Railway",
+                    icon: "",
+                    status: "active",
+                    statusText: "ACTIVE",
+                    masterKey: "93805a11-... (Dec 31)",
+                    dna: "RAILWAY_DNA_BLUEPRINT.md",
+                    dnaStatus: "SHIP",
+                    lastUpdated: "2025-12-31"
+                },
+                {
+                    name: "Netlify",
+                    icon: "",
+                    status: "active",
+                    statusText: "ACTIVE",
+                    masterKey: "Site: verdant-tulumba-fa2a5a",
+                    dna: "NEEDED",
+                    dnaStatus: "MISSING",
+                    lastUpdated: "2026-02-04"
+                },
+                {
+                    name: "Supabase",
+                    icon: "",
+                    status: "active",
+                    statusText: "ACTIVE",
+                    masterKey: "lgibygzcbvrrykfaxvbg (Jan 5)",
+                    dna: "NEEDED",
+                    dnaStatus: "MISSING",
+                    lastUpdated: "2026-01-05"
+                },
+                {
+                    name: "BitWarden",
+                    icon: "",
+                    status: "active",
+                    statusText: "ACTIVE",
+                    masterKey: "Session active (Jan 6)",
+                    dna: "PASSWORD_MANAGEMENT_DNA.md",
+                    dnaStatus: "DRAFT",
+                    lastUpdated: "2026-01-06"
+                }
+            ],
+            mcp: [
+                { name: "github", status: "active", statusText: "SYNCED", issue: "Restart Claude to apply" },
+                { name: "stripe", status: "active", statusText: "ACTIVE" },
+                { name: "trinity_hub", status: "active", statusText: "ACTIVE" },
+                { name: "playwright", status: "active", statusText: "ACTIVE" },
+                { name: "context7", status: "active", statusText: "ACTIVE" },
+                { name: "firecrawl", status: "missing", statusText: "NEEDS KEY", issue: "${FIRECRAWL_API_KEY} placeholder" },
+                { name: "chrome-devtools", status: "active", statusText: "ACTIVE" },
+                { name: "brave-search", status: "missing", statusText: "NEEDS KEY", issue: "${BRAVE_API_KEY} placeholder" },
+                { name: "filesystem", status: "active", statusText: "ACTIVE" },
+                { name: "notion", status: "missing", statusText: "NEEDS KEY", issue: "${NOTION_TOKEN} placeholder" },
+                { name: "sequential-thinking", status: "active", statusText: "ACTIVE" },
+                { name: "memory", status: "active", statusText: "ACTIVE" },
+                { name: "slack", status: "active", statusText: "ACTIVE" },
+                { name: "google-maps", status: "missing", statusText: "NEEDS KEY", issue: "${GOOGLE_MAPS_API_KEY} placeholder" },
+                { name: "everything", status: "active", statusText: "ACTIVE" },
+                { name: "coinbase", status: "active", statusText: "ACTIVE" },
+                { name: "chatgpt", status: "active", statusText: "ACTIVE" },
+                { name: "discord", status: "missing", statusText: "NEEDS KEY", issue: "${DISCORD_TOKEN} placeholder" },
+                { name: "shopify", status: "active", statusText: "ACTIVE" }
+            ],
+            external: [
+                { name: "OpenAI/ChatGPT", status: "active", statusText: "ACTIVE", key: "sk-proj-iGZc...", lastUpdated: "Active" },
+                { name: "Anthropic", status: "active", statusText: "ACTIVE", key: "Admin + OAT + Backup keys", lastUpdated: "Dec 25" },
+                { name: "DeepSeek", status: "active", statusText: "ACTIVE", key: "sk-92387bd9...", lastUpdated: "Active" },
+                { name: "OpenRouter", status: "active", statusText: "ACTIVE", key: "Kimi K2.5 working", lastUpdated: "Feb 5" },
+                { name: "Gmail", status: "active", statusText: "ACTIVE", key: "OAuth + App Password", lastUpdated: "Active" },
+                { name: "Twilio", status: "active", statusText: "ACTIVE", key: "+15092166552", lastUpdated: "Dec 31" },
+                { name: "Airtable", status: "active", statusText: "ACTIVE", key: "patSlMjHd3...", lastUpdated: "Dec 31" },
+                { name: "ngrok", status: "active", statusText: "ACTIVE", key: "3SuQkzQLe6...", lastUpdated: "Active" }
+            ],
+            financial: [
+                { name: "Coinbase", status: "warning", statusText: "SECURITY HOLD", key: "Advanced Trade API", issue: "Security hold deadline passed" },
+                { name: "Exodus Wallet", status: "active", statusText: "ACTIVE", key: "BTC + ETH addresses" },
+                { name: "Brave Wallet", status: "active", statusText: "ACTIVE", key: "12-word seed stored" },
+                { name: "Shopify", status: "active", statusText: "ACTIVE", key: "overkillkulture.myshopify.com" }
+            ]
+        };
+
+        function getStatusClass(status) {
+            const map = {
+                'active': 'status-active',
+                'expired': 'status-expired',
+                'missing': 'status-missing',
+                'mismatch': 'status-expired',
+                'warning': 'status-missing',
+                'unknown': 'status-unknown'
+            };
+            return map[status] || 'status-unknown';
+        }
+
+        function renderCoreServices() {
+            const container = document.getElementById('coreServices');
+            container.innerHTML = services.core.map(s => `
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-name">${s.icon} ${s.name}</span>
+                        <span class="status-badge ${getStatusClass(s.status)}">${s.statusText}</span>
+                    </div>
+                    <div class="service-details">
+                        <div class="detail-row">
+                            <span class="detail-label">MASTER_KEYS</span>
+                            <span class="detail-value">${s.masterKey}</span>
+                        </div>
+                        ${s.mcpKey ? `<div class="detail-row">
+                            <span class="detail-label">.mcp.json</span>
+                            <span class="detail-value ${s.mcpKey === 'SYNCED' ? 'good' : 'bad'}">${s.mcpKey}</span>
+                        </div>` : ''}
+                        <div class="detail-row">
+                            <span class="detail-label">DNA Blueprint</span>
+                            <span class="detail-value ${s.dnaStatus === 'GOLD' ? 'good' : s.dnaStatus === 'MISSING' ? 'bad' : 'warn'}">${s.dna} (${s.dnaStatus})</span>
+                        </div>
+                        ${s.issue ? `<div class="detail-row">
+                            <span class="detail-label">Issue</span>
+                            <span class="detail-value bad">${s.issue}</span>
+                        </div>` : ''}
+                    </div>
+                    <div class="service-actions">
+                        ${s.dnaStatus !== 'MISSING' ? `<button class="btn btn-secondary" onclick="openDNA('${s.dna}')">View DNA</button>` : `<button class="btn btn-primary" onclick="createDNA('${s.name}')">Create DNA</button>`}
+                        ${s.status === 'mismatch' ? `<button class="btn btn-primary" onclick="syncKey('${s.name}')">Sync Key</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMCPServices() {
+            const container = document.getElementById('mcpServices');
+            container.innerHTML = services.mcp.map(s => `
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-name">${s.name}</span>
+                        <span class="status-badge ${getStatusClass(s.status)}">${s.statusText}</span>
+                    </div>
+                    ${s.issue ? `<div class="service-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Issue</span>
+                            <span class="detail-value bad">${s.issue}</span>
+                        </div>
+                    </div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderExternalApis() {
+            const container = document.getElementById('externalApis');
+            container.innerHTML = services.external.map(s => `
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-name">${s.name}</span>
+                        <span class="status-badge ${getStatusClass(s.status)}">${s.statusText}</span>
+                    </div>
+                    <div class="service-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Key</span>
+                            <span class="detail-value">${s.key}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Updated</span>
+                            <span class="detail-value">${s.lastUpdated}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderFinancialServices() {
+            const container = document.getElementById('financialServices');
+            container.innerHTML = services.financial.map(s => `
+                <div class="service-card">
+                    <div class="service-header">
+                        <span class="service-name">${s.name}</span>
+                        <span class="status-badge ${getStatusClass(s.status)}">${s.statusText}</span>
+                    </div>
+                    <div class="service-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Info</span>
+                            <span class="detail-value">${s.key}</span>
+                        </div>
+                        ${s.issue ? `<div class="detail-row">
+                            <span class="detail-label">Issue</span>
+                            <span class="detail-value warn">${s.issue}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openDNA(filename) {
+            window.open(`https://github.com/overkor-tek/consciousness-revolution/blob/main/${filename}`, '_blank');
+        }
+
+        function createDNA(serviceName) {
+            alert(`Creating DNA Blueprint for ${serviceName}...\nTemplate: DNA_BLUEPRINT_TEMPLATE.md`);
+        }
+
+        function syncKey(serviceName) {
+            alert(`Syncing ${serviceName} key from MASTER_KEYS.json to .mcp.json...\nRun: python .consciousness/SECRETS_PROPAGATOR.py sync`);
+        }
+
+        function syncAllKeys() {
+            alert('Run: python .consciousness/SECRETS_PROPAGATOR.py sync\n\nThis will update all service keys across:\n- .mcp.json\n- .env files\n- Netlify env vars');
+        }
+
+        function showFixQueue() {
+            alert('FIX QUEUE:\n\n1. GitHub - Token mismatch\n   Action: Update .mcp.json line 12\n   New token: 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\n\n2. MCP Placeholders - 5 services need real keys\n   - Firecrawl, Brave Search, Google Maps, Notion, Discord\n   Action: Add keys to MASTER_KEYS.json, then sync');
+        }
+
+        // Initialize
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        renderCoreServices();
+        renderMCPServices();
+        renderExternalApis();
+        renderFinancialServices();
+
+        // Update counts
+        const activeCount = services.mcp.filter(s => s.status === 'active').length +
+                           services.external.length +
+                           services.core.filter(s => s.status === 'active').length;
+        const warningCount = services.mcp.filter(s => s.status === 'warning' || s.status === 'missing').length;
+        const expiredCount = services.mcp.filter(s => s.status === 'mismatch').length +
+                            services.core.filter(s => s.status === 'mismatch').length;
+
+        document.getElementById('activeCount').textContent = activeCount;
+        document.getElementById('warningCount').textContent = warningCount;
+        document.getElementById('expiredCount').textContent = expiredCount;
+    </script>
+</body>
+</html>

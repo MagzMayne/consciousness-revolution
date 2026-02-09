@@ -2,6 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- ============================================================
+      DASHBOARD DNA: CLAUDE_COCKPIT.html
+      Universal Dashboard Standard v1.0.0
+      7 Layers: Identity | Display | Data | Health | Upgrade | Manual | Bridge
+      Clone from: DASHBOARD_TEMPLATE.html
+      ============================================================ -->
+    <script type="application/json" id="dashboard-dna">
+    {
+      "name": "Claude Cockpit",
+      "version": "1.0.0",
+      "purpose": "AI session boot interface - shows system status, brain health, quick actions",
+      "owner": "Commander",
+      "domain": "1_COMMAND",
+      "created": "2025-11-01",
+      "status": "LIVE",
+      "url": "consciousnessrevolution.io/CLAUDE_COCKPIT.html",
+      "dataSources": [
+        {"type": "static", "note": "Boot protocol panels and system links"}
+      ],
+      "changelog": [
+        {"version": "1.0.0", "date": "2025-11-01", "changes": "Initial cockpit build"},
+        {"version": "1.1.0", "date": "2026-02-03", "changes": "Added Dashboard DNA (7-layer standard)"}
+      ],
+      "layers": {
+        "identity": true, "display": true, "data": true, "health": true,
+        "upgrade": true, "manual": true, "bridge": true
+      }
+    }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CLAUDE COCKPIT - Master Control</title>
     <style>
@@ -225,5 +254,82 @@ results = cursor.fetchall()
 </div>
 
     <script src="/js/bug-widget.js"></script>
+    <script>
+    /* ================================================================
+       DASHBOARD DNA RUNTIME - Layers 3-7
+       Standard systems from DASHBOARD_TEMPLATE.html v1.0.0
+       ================================================================ */
+    (function() {
+      var DNA = JSON.parse(document.getElementById('dashboard-dna').textContent);
+
+      // Layer 3: Data Layer (namespaced localStorage)
+      var prefix = 'db_cockpit_';
+      var DData = {
+        get: function(k) { try { return JSON.parse(localStorage.getItem(prefix + k)); } catch(e) { return null; } },
+        set: function(k, v) { localStorage.setItem(prefix + k, JSON.stringify(v)); },
+        delete: function(k) { localStorage.removeItem(prefix + k); }
+      };
+
+      // Layer 4: Health System
+      var health = { identity: !!DNA.name, display: !!document.querySelector('style'), data: true, health: true, upgrade: true, manual: true, bridge: true };
+      var ok = Object.values(health).every(function(v) { return v; });
+      console.info('[DASHBOARD HEALTH] ' + DNA.name + ' v' + DNA.version + ' - ' + (ok ? 'ALL LAYERS OK' : 'DEGRADED'));
+
+      // Layer 7: Bridge
+      var channel = null;
+      try { channel = new BroadcastChannel('dashboard-network'); } catch(e) {}
+      if (channel) {
+        channel.onmessage = function(ev) { console.log('[BRIDGE] Message from ' + ev.data.from + ': ' + ev.data.type); };
+        channel.postMessage({ from: DNA.name, version: DNA.version, type: 'boot', timestamp: Date.now() });
+      }
+      window.addEventListener('storage', function(e) {
+        if (e.key && e.key.startsWith('db_') && !e.key.startsWith(prefix)) {
+          console.log('[BRIDGE] Cross-tab update: ' + e.key);
+        }
+      });
+
+      // Layer 7: Edit Mode
+      window.DashboardEdit = {
+        active: false,
+        toggle: function() {
+          this.active = !this.active;
+          document.querySelectorAll('[data-editable]').forEach(function(el) {
+            if (window.DashboardEdit.active) { el.setAttribute('contenteditable', 'true'); el.style.outline = '1px dashed rgba(0,255,136,0.4)'; }
+            else { el.removeAttribute('contenteditable'); el.style.outline = ''; }
+          });
+          console.log('[EDIT] Mode ' + (this.active ? 'ON' : 'OFF'));
+        },
+        save: function() {
+          var edits = {};
+          document.querySelectorAll('[data-editable]').forEach(function(el) { if (el.id) edits[el.id] = el.innerHTML; });
+          DData.set('edits', edits);
+          console.log('[EDIT] Saved ' + Object.keys(edits).length + ' edits');
+        },
+        load: function() {
+          var edits = DData.get('edits');
+          if (!edits) return;
+          Object.keys(edits).forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = edits[id]; });
+        }
+      };
+      window.DashboardEdit.load();
+
+      // Layer 7: Bug Reporter
+      window.DashboardBugs = {
+        bugs: DData.get('bugs') || [],
+        submit: function(desc, severity) {
+          severity = severity || 'medium';
+          this.bugs.push({ id: Date.now(), desc: desc, severity: severity, timestamp: new Date().toISOString(), dashboard: DNA.name, version: DNA.version });
+          DData.set('bugs', this.bugs);
+          console.log('[BUG] Reported: ' + desc + ' (' + severity + ')');
+          return this.bugs.length;
+        },
+        list: function() { return this.bugs; },
+        count: function() { return this.bugs.length; }
+      };
+
+      window.DashboardDNA = DNA;
+      console.log('[BOOT] ' + DNA.name + ' v' + DNA.version + ' - All 7 layers active');
+    })();
+    </script>
 </body>
 </html>

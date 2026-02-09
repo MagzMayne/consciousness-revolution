@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUILDER COCKPIT - Multi-Node Command Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-panel: #12121a;
+            --border-color: #2a2a3a;
+            --accent-cyan: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-orange: #ff8800;
+            --accent-purple: #aa66ff;
+            --text-main: #e0e0e0;
+            --text-dim: #888;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--accent-cyan);
+            letter-spacing: 3px;
+        }
+
+        .header .subtitle {
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .node-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 5px 15px;
+            background: var(--bg-panel);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .node-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 12px 15px;
+            background: rgba(0,212,255,0.1);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+            letter-spacing: 2px;
+        }
+
+        .panel-content {
+            padding: 15px;
+        }
+
+        /* Network Status */
+        .node-list {
+            list-style: none;
+        }
+
+        .node-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .node-item.offline {
+            border-left-color: var(--text-dim);
+            opacity: 0.6;
+        }
+
+        .node-name {
+            font-weight: bold;
+        }
+
+        .node-status {
+            font-size: 0.8rem;
+            color: var(--accent-green);
+        }
+
+        .node-item.offline .node-status {
+            color: var(--text-dim);
+        }
+
+        /* Messages */
+        .message-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .message-from {
+            font-size: 0.8rem;
+            color: var(--accent-purple);
+            margin-bottom: 5px;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            float: right;
+        }
+
+        .message-content {
+            font-size: 0.9rem;
+        }
+
+        /* Compose */
+        .compose-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .compose-form select,
+        .compose-form textarea,
+        .compose-form input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--text-main);
+            font-family: inherit;
+        }
+
+        .compose-form textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .compose-form button {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .compose-form button:hover {
+            background: var(--accent-green);
+        }
+
+        /* Tasks */
+        .task-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-orange);
+        }
+
+        .task-priority {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-right: 8px;
+        }
+
+        .task-priority.high {
+            background: rgba(255,0,0,0.3);
+            color: #ff6666;
+        }
+
+        .task-priority.medium {
+            background: rgba(255,136,0,0.3);
+            color: var(--accent-orange);
+        }
+
+        .task-priority.low {
+            background: rgba(0,255,136,0.3);
+            color: var(--accent-green);
+        }
+
+        /* Stats */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            color: var(--accent-cyan);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body .form-group {
+            margin-bottom: 15px;
+        }
+
+        .modal-body label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        .modal-body input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            color: var(--text-main);
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0,255,136,0.1);
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .sync-status.offline {
+            background: rgba(255,136,0,0.1);
+        }
+
+        .btn-settings {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .btn-settings:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>BUILDER COCKPIT</h1>
+        <div class="subtitle">Multi-Node Command Center v1.0</div>
+        <div class="node-indicator">
+            <div class="node-dot"></div>
+            <span id="myNodeName">NODE_COMMANDER</span>
+            <button class="btn-settings" onclick="openSettings()">SETTINGS</button>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Network Status -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>NETWORK STATUS</h2>
+                <span id="nodeCount">0 NODES</span>
+            </div>
+            <div class="panel-content">
+                <ul class="node-list" id="nodeList">
+                    <!-- Populated by JS -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Inbox -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>INBOX</h2>
+                <span id="messageCount">0 MESSAGES</span>
+            </div>
+            <div class="panel-content">
+                <div class="message-list" id="messageList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Send Message -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>SEND MESSAGE</h2>
+            </div>
+            <div class="panel-content">
+                <form class="compose-form" onsubmit="sendMessage(event)">
+                    <select id="sendTo">
+                        <option value="all">BROADCAST TO ALL</option>
+                        <option value="NODE_COMMANDER">COMMANDER</option>
+                        <option value="NODE_TIGER">TIGER</option>
+                        <option value="NODE_TEDDY">TEDDY</option>
+                        <option value="NODE_BILL">BILL</option>
+                    </select>
+                    <select id="messageType">
+                        <option value="message">Message</option>
+                        <option value="task">Task Assignment</option>
+                        <option value="data">Data Transfer</option>
+                        <option value="urgent">URGENT</option>
+                    </select>
+                    <textarea id="messageText" placeholder="Enter your message..."></textarea>
+                    <button type="submit">SEND</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tasks -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>MY TASKS</h2>
+                <span id="taskCount">0 PENDING</span>
+            </div>
+            <div class="panel-content">
+                <div id="taskList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Brain Stats -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>LOCAL BRAIN</h2>
+            </div>
+            <div class="panel-content">
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="atomCount">0</div>
+                        <div class="stat-label">ATOMS</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="sessionCount">0</div>
+                        <div class="stat-label">SESSIONS</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="abilitiesCount">0</div>
+                        <div class="stat-label">ABILITIES</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="healthScore">--</div>
+                        <div class="stat-label">HEALTH</div>
+                    </div>
+                </div>
+                <div class="sync-status" id="syncStatus">
+                    <div class="node-dot"></div>
+                    <span>Connected to Supabase</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>QUICK ACTIONS</h2>
+            </div>
+            <div class="panel-content">
+                <form class="compose-form">
+                    <button type="button" onclick="syncNow()">SYNC NOW</button>
+                    <button type="button" onclick="requestHelp()">REQUEST HELP</button>
+                    <button type="button" onclick="shareAtoms()">SHARE ATOMS</button>
+                    <button type="button" onclick="pullFromCommander()">PULL FROM COMMANDER</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>NODE SETTINGS</h3>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Node ID</label>
+                    <input type="text" id="settingsNodeId" value="NODE_BUILDER">
+                </div>
+                <div class="form-group">
+                    <label>Node Name (Display)</label>
+                    <input type="text" id="settingsNodeName" value="Builder">
+                </div>
+                <div class="form-group">
+                    <label>Supabase URL</label>
+                    <input type="text" id="settingsSupabaseUrl" placeholder="https://xxx.supabase.co">
+                </div>
+                <div class="form-group">
+                    <label>Supabase Anon Key</label>
+                    <input type="password" id="settingsSupabaseKey" placeholder="eyJ...">
+                </div>
+                <button onclick="saveSettings()" style="width: 100%; padding: 12px; background: var(--accent-cyan); border: none; border-radius: 4px; color: var(--bg-dark); font-weight: bold; cursor: pointer;">SAVE SETTINGS</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // BUILDER COCKPIT - Multi-Node System
+        // ==========================================
+
+        let config = {
+            nodeId: localStorage.getItem('nodeId') || 'NODE_BUILDER',
+            nodeName: localStorage.getItem('nodeName') || 'Builder',
+            supabaseUrl: localStorage.getItem('supabaseUrl') || '',
+            supabaseKey: localStorage.getItem('supabaseKey') || ''
+        };
+
+        let supabase = null;
+        let nodes = [];
+        let messages = [];
+        let tasks = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            initSupabase();
+            startPolling();
+            updateUI();
+        });
+
+        function loadConfig() {
+            document.getElementById('myNodeName').textContent = config.nodeId;
+            document.getElementById('settingsNodeId').value = config.nodeId;
+            document.getElementById('settingsNodeName').value = config.nodeName;
+            document.getElementById('settingsSupabaseUrl').value = config.supabaseUrl;
+            document.getElementById('settingsSupabaseKey').value = config.supabaseKey;
+        }
+
+        function initSupabase() {
+            if (!config.supabaseUrl || !config.supabaseKey) {
+                console.log('No Supabase config - running in offline mode');
+                document.getElementById('syncStatus').classList.add('offline');
+                document.getElementById('syncStatus').innerHTML = '<div class="node-dot" style="background: var(--accent-orange);"></div><span>Offline Mode - Configure Supabase</span>';
+                loadMockData();
+                return;
+            }
+
+            // Initialize Supabase client
+            // In production, include supabase-js library
+            console.log('Supabase initialized:', config.supabaseUrl);
+
+            // Subscribe to real-time updates
+            subscribeToChanges();
+        }
+
+        function subscribeToChanges() {
+            // Real-time subscription to messages and node status
+            // This would use Supabase's realtime feature
+            console.log('Subscribed to real-time changes');
+        }
+
+        function loadMockData() {
+            // Mock data for offline/demo mode
+            nodes = [
+                { id: 'NODE_COMMANDER', name: 'Commander', status: 'online', lastSeen: new Date() },
+                { id: 'NODE_TIGER', name: 'Tiger', status: 'online', lastSeen: new Date() },
+                { id: 'NODE_TEDDY', name: 'Teddy', status: 'online', lastSeen: new Date() },
+                { id: 'NODE_BILL', name: 'Bill', status: 'offline', lastSeen: new Date(Date.now() - 3600000) }
+            ];
+
+            messages = [
+                { from: 'NODE_COMMANDER', type: 'task', content: 'Build the BUILDER_COCKPIT.html', time: new Date() },
+                { from: 'NODE_TEDDY', type: 'message', content: 'NEMO system is ready for integration', time: new Date(Date.now() - 600000) }
+            ];
+
+            tasks = [
+                { id: 1, title: 'Set up Supabase project', priority: 'high', from: 'COMMANDER' },
+                { id: 2, title: 'Test bilateral messaging', priority: 'medium', from: 'COMMANDER' },
+                { id: 3, title: 'Integrate NEMO interface', priority: 'low', from: 'SYSTEM' }
+            ];
+
+            updateUI();
+        }
+
+        function startPolling() {
+            // Poll for updates every 30 seconds
+            setInterval(() => {
+                if (config.supabaseUrl) {
+                    fetchUpdates();
+                }
+                sendHeartbeat();
+            }, 30000);
+        }
+
+        async function fetchUpdates() {
+            // Fetch latest messages and node status from Supabase
+            console.log('Fetching updates...');
+        }
+
+        async function sendHeartbeat() {
+            // Send heartbeat to indicate this node is online
+            const heartbeat = {
+                nodeId: config.nodeId,
+                nodeName: config.nodeName,
+                timestamp: new Date().toISOString(),
+                status: 'online'
+            };
+
+            if (config.supabaseUrl) {
+                // Push to Supabase
+                console.log('Heartbeat sent:', heartbeat);
+            }
+
+            // Also save locally for offline sync
+            localStorage.setItem('lastHeartbeat', JSON.stringify(heartbeat));
+        }
+
+        function updateUI() {
+            // Update node list
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = nodes.map(node => `
+                <li class="node-item ${node.status}">
+                    <div>
+                        <span class="node-name">${node.name}</span>
+                        <br><small style="color: var(--text-dim)">${node.id}</small>
+                    </div>
+                    <span class="node-status">${node.status.toUpperCase()}</span>
+                </li>
+            `).join('');
+            document.getElementById('nodeCount').textContent = `${nodes.filter(n => n.status === 'online').length}/${nodes.length} ONLINE`;
+
+            // Update messages
+            const messageList = document.getElementById('messageList');
+            messageList.innerHTML = messages.map(msg => `
+                <div class="message">
+                    <span class="message-time">${formatTime(msg.time)}</span>
+                    <div class="message-from">${msg.from} [${msg.type}]</div>
+                    <div class="message-content">${msg.content}</div>
+                </div>
+            `).join('');
+            document.getElementById('messageCount').textContent = `${messages.length} MESSAGES`;
+
+            // Update tasks
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <span class="task-priority ${task.priority}">${task.priority.toUpperCase()}</span>
+                    ${task.title}
+                    <br><small style="color: var(--text-dim)">From: ${task.from}</small>
+                </div>
+            `).join('');
+            document.getElementById('taskCount').textContent = `${tasks.length} PENDING`;
+
+            // Update stats (mock values for now)
+            document.getElementById('atomCount').textContent = '163,858';
+            document.getElementById('sessionCount').textContent = '52';
+            document.getElementById('abilitiesCount').textContent = '982';
+            document.getElementById('healthScore').textContent = '94%';
+        }
+
+        function formatTime(date) {
+            const d = new Date(date);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function sendMessage(event) {
+            event.preventDefault();
+
+            const to = document.getElementById('sendTo').value;
+            const type = document.getElementById('messageType').value;
+            const content = document.getElementById('messageText').value;
+
+            if (!content.trim()) return;
+
+            const message = {
+                from: config.nodeId,
+                to: to,
+                type: type,
+                content: content,
+                timestamp: new Date().toISOString()
+            };
+
+            // Send to Supabase if connected
+            if (config.supabaseUrl) {
+                console.log('Sending message:', message);
+            }
+
+            // Add to local queue for offline sync
+            const outbox = JSON.parse(localStorage.getItem('outbox') || '[]');
+            outbox.push(message);
+            localStorage.setItem('outbox', JSON.stringify(outbox));
+
+            // Clear form
+            document.getElementById('messageText').value = '';
+
+            alert('Message queued for delivery!');
+        }
+
+        function syncNow() {
+            const outbox = JSON.parse(localStorage.getItem('outbox') || '[]');
+            console.log('Syncing', outbox.length, 'messages');
+            alert(`Syncing ${outbox.length} queued messages...`);
+        }
+
+        function requestHelp() {
+            document.getElementById('sendTo').value = 'all';
+            document.getElementById('messageType').value = 'urgent';
+            document.getElementById('messageText').value = 'I need help with: ';
+            document.getElementById('messageText').focus();
+        }
+
+        function shareAtoms() {
+            alert('Atom sharing: This will push your local brain atoms to Supabase for other nodes to access.');
+        }
+
+        function pullFromCommander() {
+            alert('Pulling latest data from COMMANDER node...');
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function saveSettings() {
+            config.nodeId = document.getElementById('settingsNodeId').value;
+            config.nodeName = document.getElementById('settingsNodeName').value;
+            config.supabaseUrl = document.getElementById('settingsSupabaseUrl').value;
+            config.supabaseKey = document.getElementById('settingsSupabaseKey').value;
+
+            localStorage.setItem('nodeId', config.nodeId);
+            localStorage.setItem('nodeName', config.nodeName);
+            localStorage.setItem('supabaseUrl', config.supabaseUrl);
+            localStorage.setItem('supabaseKey', config.supabaseKey);
+
+            closeSettings();
+            location.reload();
+        }
+    </script>
+</body>
+</html>

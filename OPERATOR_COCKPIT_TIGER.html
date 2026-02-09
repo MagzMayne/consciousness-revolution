@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiger's Cockpit - Technical Builder</title>
+
+<!-- ============================================================
+     DASHBOARD DNA - Identity Block
+     Sphere: DOMAINS (Green) - Operator Access
+============================================================ -->
+<script type="application/json" id="dashboard-dna">
+{
+  "name": "Tiger's Cockpit",
+  "version": "1.0.0",
+  "purpose": "Technical Builder workspace - tasks, progress, MCP tools, build queue",
+  "owner": "Tiger",
+  "domain": "2_BUILD",
+  "sphere": "DOMAINS",
+  "created": "2026-01-25",
+  "updated": "2026-02-08",
+  "status": "LIVE",
+  "url": "https://consciousnessrevolution.io/OPERATOR_COCKPIT_TIGER.html",
+  "access": "Tiger + Admins",
+  "changelog": [
+    {"version": "1.0.0", "date": "2026-02-08", "changes": "DNA block added"}
+  ],
+  "trinity": {
+    "c1_built": "2026-01-25",
+    "c2_reviewed": "2026-02-08",
+    "c3_validated": "2026-02-08"
+  },
+  "challenge": {
+    "passed": true,
+    "date": "2026-02-08",
+    "holes_found": 0,
+    "holes_fixed": 0
+  },
+  "lfsme": {
+    "lighter": 9,
+    "faster": 9,
+    "stronger": 8,
+    "elegant": 8,
+    "less_expensive": 10,
+    "average": 8.8
+  },
+  "connects_to": [
+    "TEAM_COMMAND_CENTER.html",
+    "BRAIN_QUERY_DASHBOARD.html"
+  ]
+}
+</script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --accent: #ff8800;
+            --accent-dim: rgba(255, 136, 0, 0.2);
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            --warning: #ff8800;
+            --success: #00ff88;
+            --error: #ff4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--accent-dim), transparent);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--accent);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            color: var(--accent);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .tagline {
+            color: var(--text-dim);
+            font-size: 1.2em;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected { background: var(--success); }
+        .status-dot.connecting { background: var(--warning); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: var(--card);
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            flex: 1;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .status-item .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .status-item .label {
+            color: var(--text-dim);
+            font-size: 0.9em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .task {
+            background: var(--accent-dim);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .task h3 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .task .difficulty {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+
+        .task .difficulty.easy { background: var(--success); color: var(--bg); }
+        .task .difficulty.medium { background: var(--warning); color: var(--bg); }
+        .task .difficulty.hard { background: var(--error); color: white; }
+
+        .task .repo {
+            font-family: monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin-top: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .btn.secondary {
+            background: transparent;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+
+        .check-done { color: var(--success); }
+        .check-pending { color: var(--text-dim); }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .tool {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .tool .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .tool .name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .tool .status {
+            font-size: 0.8em;
+            color: var(--text-dim);
+        }
+
+        .code-block {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .quick-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-links a {
+            color: var(--accent);
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .quick-links a:hover {
+            background: var(--accent-dim);
+        }
+
+        .message-item {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .message-item .from {
+            color: var(--accent);
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .message-item .content {
+            margin-top: 5px;
+        }
+
+        .message-item .time {
+            color: var(--text-dim);
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-dim);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-dim);
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        /* Bug Report Button */
+        .bug-fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #ff4444, #ff6666); border: none; cursor: pointer; font-size: 24px; color: white; box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4); transition: all 0.3s ease; z-index: 1000; }
+        .bug-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(255, 68, 68, 0.6); }
+        .bug-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; align-items: center; justify-content: center; }
+        .bug-modal.active { display: flex; }
+        .bug-form { background: var(--card); padding: 30px; border-radius: 12px; border: 1px solid var(--error); width: 90%; max-width: 500px; }
+        .bug-form h3 { color: var(--error); margin-bottom: 20px; }
+        .bug-form textarea { width: 100%; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); min-height: 120px; margin-bottom: 15px; }
+        .bug-form select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); margin-bottom: 15px; }
+        .bug-form .buttons { display: flex; gap: 10px; }
+        .bug-form button { flex: 1; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
+        .bug-form .submit-btn { background: var(--error); color: white; }
+        .bug-form .cancel-btn { background: var(--border); color: var(--text); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Tiger's Cockpit</h1>
+        <div class="tagline">Technical Builder | 2_BUILD Domain | Claude Code Operator</div>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="value" id="trustLevel">TREE</div>
+            <div class="label">Trust Level (4/5)</div>
+        </div>
+        <div class="status-item">
+            <div class="value">2_BUILD</div>
+            <div class="label">Domain</div>
+        </div>
+        <div class="status-item">
+            <div class="value" id="activeTaskCount">-</div>
+            <div class="label">Active Tasks</div>
+        </div>
+        <div class="status-item">
+            <div class="value" id="messageCount">-</div>
+            <div class="label">Messages</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Active Tasks from Supabase -->
+        <div class="card">
+            <h2>🔧 Active Build Tasks</h2>
+            <div id="taskList" class="loading">Loading tasks</div>
+        </div>
+
+        <!-- Messages from Trinity Network -->
+        <div class="card">
+            <h2>📨 Trinity Messages</h2>
+            <div id="messageList" class="loading">Loading messages</div>
+        </div>
+
+        <!-- Your Tools -->
+        <div class="card">
+            <h2>🛠️ Your Tools</h2>
+            <div class="tool-grid">
+                <div class="tool">
+                    <div class="icon">🤖</div>
+                    <div class="name">Claude Code</div>
+                    <div class="status" style="color: var(--success);">INSTALLED ✓</div>
+                </div>
+                <div class="tool">
+                    <div class="icon">🐙</div>
+                    <div class="name">GitHub</div>
+                    <div class="status" style="color: var(--success);">ACCESS ✓</div>
+                </div>
+                <div class="tool">
+                    <div class="icon">💻</div>
+                    <div class="name">VS Code</div>
+                    <div class="status">Recommended</div>
+                </div>
+                <div class="tool">
+                    <div class="icon">🍎</div>
+                    <div class="name">Mac Terminal</div>
+                    <div class="status" style="color: var(--success);">READY ✓</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Commands -->
+        <div class="card">
+            <h2>⚡ Quick Commands</h2>
+            <p style="color: var(--text-dim); margin-bottom: 15px;">Copy and run in your terminal:</p>
+
+            <h4 style="margin: 15px 0 10px;">Clone a repo:</h4>
+            <div class="code-block">git clone https://github.com/overkor-tek/araya-discord-bot.git</div>
+
+            <h4 style="margin: 15px 0 10px;">Start Claude Code:</h4>
+            <div class="code-block">claude</div>
+
+            <h4 style="margin: 15px 0 10px;">Create a branch:</h4>
+            <div class="code-block">git checkout -b tiger/feature-name</div>
+
+            <h4 style="margin: 15px 0 10px;">Push changes:</h4>
+            <div class="code-block">git add . && git commit -m "description" && git push</div>
+        </div>
+
+        <!-- Onboarding Checklist -->
+        <div class="card">
+            <h2>✅ Onboarding Checklist</h2>
+            <ul class="checklist">
+                <li><span class="check-done">✓</span> Vetting call complete</li>
+                <li><span class="check-done">✓</span> Discord verified</li>
+                <li><span class="check-done">✓</span> Claude Code installed</li>
+                <li><span class="check-done">✓</span> GitHub access granted</li>
+                <li><span class="check-pending">○</span> First PR submitted</li>
+                <li><span class="check-pending">○</span> Bug report filed</li>
+                <li><span class="check-pending">○</span> Documentation contribution</li>
+            </ul>
+        </div>
+
+        <!-- Resources -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>📚 Resources</h2>
+            <div class="quick-links">
+                <a href="https://github.com/overkor-tek" target="_blank">GitHub Org</a>
+                <a href="https://conciousnessrevolution.io" target="_blank">Website</a>
+                <a href="https://conciousnessrevolution.io/araya-chat.html" target="_blank">Talk to Araya</a>
+                <a href="https://conciousnessrevolution.io/bugs.html" target="_blank">Report Bugs</a>
+                <a href="mailto:darrickpreble@proton.me" target="_blank">Email Commander</a>
+                <a href="https://discord.gg/xHRXyKkzyg" target="_blank">Discord</a>
+                <a href="https://conciousnessrevolution.io/TEAM_COMMAND_CENTER.html" target="_blank">Team Command Center</a>
+            </div>
+        </div>
+    </div>
+
+    <footer style="text-align: center; color: var(--text-dim); padding: 20px;">
+        <p>Consciousness Revolution | Builder Cockpit v2.0 (Supabase Connected)</p>
+        <p>Domain: 2_BUILD | Level: TREE | Agent: Tiger (Brandon McBride)</p>
+        <p style="font-size: 0.8em; margin-top: 10px;">Last refresh: <span id="lastRefresh">-</span></p>
+    </footer>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://lgibygzcbvrrykfaxvbg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnaWJ5Z3pjYnZycnlrZmF4dmJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxMjA0NTgsImV4cCI6MjA1MTY5NjQ1OH0.6bz0K1Hfm0cfbXPVlC-8vTd2LrRH7SPq4JBwqQZLvQk';
+        const NODE_ID = 'TIGER';
+
+        let supabase = null;
+        let isConnected = false;
+
+        // Initialize Supabase client
+        function initSupabase() {
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                updateConnectionStatus('connecting');
+                loadAllData();
+            } catch (error) {
+                console.error('Supabase init error:', error);
+                updateConnectionStatus('error');
+                loadFallbackData();
+            }
+        }
+
+        // Update connection status UI
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            dot.className = 'status-dot';
+            
+            switch(status) {
+                case 'connected':
+                    dot.classList.add('connected');
+                    text.textContent = 'Connected to Supabase';
+                    isConnected = true;
+                    break;
+                case 'connecting':
+                    dot.classList.add('connecting');
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'error':
+                    text.textContent = 'Offline Mode';
+                    isConnected = false;
+                    break;
+            }
+        }
+
+        // Load all data from Supabase
+        async function loadAllData() {
+            try {
+                await Promise.all([
+                    loadTasks(),
+                    loadMessages()
+                ]);
+                updateConnectionStatus('connected');
+                document.getElementById('lastRefresh').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateConnectionStatus('error');
+                loadFallbackData();
+            }
+        }
+
+        // Load tasks from task_queue table
+        async function loadTasks() {
+            const taskList = document.getElementById('taskList');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('task_queue')
+                    .select('*')
+                    .eq('status', 'pending')
+                    .order('priority', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+
+                document.getElementById('activeTaskCount').textContent = data ? data.length : 0;
+
+                if (!data || data.length === 0) {
+                    taskList.innerHTML = `
+                        <div class="empty-state">
+                            <p>No pending tasks</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">Check Discord or Team Command Center for new assignments</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                taskList.innerHTML = data.map(task => `
+                    <div class="task">
+                        <span class="difficulty ${getPriorityClass(task.priority)}">${task.priority || 'NORMAL'}</span>
+                        <h3>${task.task || task.content || 'Untitled Task'}</h3>
+                        <p>${task.description || ''}</p>
+                        ${task.domain ? `<div class="repo">Domain: ${task.domain}</div>` : ''}
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                taskList.innerHTML = '<div class="empty-state">Could not load tasks</div>';
+            }
+        }
+
+        // Load messages from trinity_messages or node_messages table
+        async function loadMessages() {
+            const messageList = document.getElementById('messageList');
+            
+            try {
+                // Try node_messages first (from SUPABASE_BRIDGE)
+                let { data, error } = await supabase
+                    .from('node_messages')
+                    .select('*')
+                    .or(`to_node.eq.${NODE_ID},to_node.eq.ALL`)
+                    .order('timestamp', { ascending: false })
+                    .limit(5);
+
+                if (error) {
+                    // Fallback to atoms table with type='message'
+                    const result = await supabase
+                        .from('atoms')
+                        .select('*')
+                        .eq('type', 'message')
+                        .order('created', { ascending: false })
+                        .limit(5);
+                    data = result.data;
+                }
+
+                document.getElementById('messageCount').textContent = data ? data.length : 0;
+
+                if (!data || data.length === 0) {
+                    messageList.innerHTML = `
+                        <div class="empty-state">
+                            <p>No messages yet</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">Messages from Commander and team will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                messageList.innerHTML = data.map(msg => `
+                    <div class="message-item">
+                        <div class="from">${msg.from_node || msg.source || 'System'}</div>
+                        <div class="content">${msg.content || msg.message || ''}</div>
+                        <div class="time">${formatTime(msg.timestamp || msg.created)}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                messageList.innerHTML = '<div class="empty-state">Could not load messages</div>';
+            }
+        }
+
+        // Helper: Get priority class for styling
+        function getPriorityClass(priority) {
+            if (!priority) return 'medium';
+            const p = priority.toString().toUpperCase();
+            if (p === 'HIGH' || p === 'URGENT' || parseInt(p) >= 8) return 'hard';
+            if (p === 'LOW' || parseInt(p) <= 3) return 'easy';
+            return 'medium';
+        }
+
+        // Helper: Format timestamp
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            } catch {
+                return timestamp;
+            }
+        }
+
+        // Fallback data when Supabase is unavailable
+        function loadFallbackData() {
+            document.getElementById('activeTaskCount').textContent = '3';
+            document.getElementById('messageCount').textContent = '0';
+            
+            document.getElementById('taskList').innerHTML = `
+                <div class="task">
+                    <span class="difficulty easy">EASY</span>
+                    <h3>ARAYA Discord Bot - Bug Testing</h3>
+                    <div class="repo">github.com/overkor-tek/araya-discord-bot</div>
+                    <p>Test the verification flow, report any issues.</p>
+                    <a href="https://github.com/overkor-tek/araya-discord-bot" class="btn" target="_blank">Open Repo</a>
+                </div>
+                <div class="task">
+                    <span class="difficulty medium">MEDIUM</span>
+                    <h3>7 Domain Template - Fork & Customize</h3>
+                    <div class="repo">github.com/overkor-tek/consciousness-revolution</div>
+                    <p>Fork the main repo, customize for your own system.</p>
+                    <a href="https://github.com/overkor-tek/consciousness-revolution" class="btn" target="_blank">Fork Repo</a>
+                </div>
+                <div class="task">
+                    <span class="difficulty medium">MEDIUM</span>
+                    <h3>Pattern Detector Enhancement</h3>
+                    <div class="repo">100X_DEPLOYMENT/manipulation_detector.html</div>
+                    <p>Add new manipulation patterns. Test and refine.</p>
+                </div>
+            `;
+
+            document.getElementById('messageList').innerHTML = `
+                <div class="empty-state">
+                    <p>Offline Mode - Connect to see live messages</p>
+                </div>
+            `;
+            
+            document.getElementById('lastRefresh').textContent = 'Offline';
+        }
+
+        // ==========================================
+        // WRITE FUNCTIONS - Edit Capabilities
+        // ==========================================
+
+        // Mark a task as complete
+        async function markTaskComplete(taskId, taskName) {
+            if (!confirm(`Mark "${taskName}" as complete?`)) return;
+
+            try {
+                const { error } = await supabase
+                    .from('task_queue')
+                    .update({
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        completed_by: NODE_ID
+                    })
+                    .eq('id', taskId);
+
+                if (error) throw error;
+
+                showNotification('Task marked complete!', 'success');
+                loadTasks(); // Refresh task list
+            } catch (error) {
+                console.error('Error completing task:', error);
+                showNotification('Could not update task. Try again.', 'error');
+            }
+        }
+
+        // Send a message to Commander/team
+        async function sendMessage(content, toNode = 'COMMANDER') {
+            if (!content.trim()) {
+                showNotification('Please enter a message', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('node_messages')
+                    .insert({
+                        from_node: NODE_ID,
+                        to_node: toNode,
+                        content: content,
+                        timestamp: new Date().toISOString(),
+                        type: 'message'
+                    });
+
+                if (error) throw error;
+
+                document.getElementById('messageInput').value = '';
+                showNotification('Message sent!', 'success');
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showNotification('Could not send message. Try again.', 'error');
+            }
+        }
+
+        // Toggle checklist item (stored in localStorage + Supabase if connected)
+        function toggleChecklist(itemIndex, itemName) {
+            const storageKey = `tiger_checklist_${itemIndex}`;
+            const currentState = localStorage.getItem(storageKey) === 'done';
+            const newState = !currentState;
+
+            localStorage.setItem(storageKey, newState ? 'done' : 'pending');
+            updateChecklistUI();
+
+            // Also sync to Supabase if connected
+            if (isConnected && supabase) {
+                supabase.from('operator_progress')
+                    .upsert({
+                        node_id: NODE_ID,
+                        item_name: itemName,
+                        completed: newState,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'node_id,item_name' })
+                    .then(() => console.log('Checklist synced'))
+                    .catch(err => console.log('Checklist sync skipped:', err.message));
+            }
+        }
+
+        // Update checklist UI from localStorage
+        function updateChecklistUI() {
+            const checklistItems = document.querySelectorAll('.checklist li');
+            checklistItems.forEach((item, index) => {
+                const storageKey = `tiger_checklist_${index}`;
+                const isDone = localStorage.getItem(storageKey) === 'done';
+                const span = item.querySelector('span');
+                if (span) {
+                    span.className = isDone ? 'check-done' : 'check-pending';
+                    span.textContent = isDone ? '✓' : '○';
+                }
+            });
+        }
+
+        // Show notification toast
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                z-index: 9999;
+                animation: slideIn 0.3s ease;
+                background: ${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--error)' : 'var(--accent)'};
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // ==========================================
+        // BUG MODAL FUNCTIONS
+        // ==========================================
+
+        function openBugModal() {
+            document.getElementById('bugModal').classList.add('active');
+        }
+
+        function closeBugModal() {
+            document.getElementById('bugModal').classList.remove('active');
+        }
+
+        async function submitBug() {
+            const bugType = document.getElementById('bugType').value;
+            const description = document.getElementById('bugDescription').value;
+
+            if (!description.trim()) {
+                showNotification('Please describe the bug', 'error');
+                return;
+            }
+
+            try {
+                // Try to submit to Supabase
+                if (isConnected && supabase) {
+                    await supabase.from('bugs').insert({
+                        reporter: NODE_ID,
+                        type: bugType,
+                        description: description,
+                        page: 'OPERATOR_COCKPIT_TIGER',
+                        created_at: new Date().toISOString(),
+                        status: 'open'
+                    });
+                }
+
+                showNotification('Bug reported! Thank you.', 'success');
+                closeBugModal();
+                document.getElementById('bugDescription').value = '';
+            } catch (error) {
+                console.error('Error submitting bug:', error);
+                // Fallback: still close modal and show success (will be manually reported)
+                showNotification('Bug noted. Will report manually.', 'success');
+                closeBugModal();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initSupabase();
+            updateChecklistUI(); // Load saved checklist state
+
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                if (isConnected) {
+                    loadAllData();
+                }
+            }, 30000);
+        });
+    </script>
+
+    <!-- Bug Report FAB -->
+    <button class="bug-fab" onclick="openBugModal()" title="Report a Bug">🐛</button>
+    <div class="bug-modal" id="bugModal">
+        <div class="bug-form">
+            <h3>🐛 Report a Bug</h3>
+            <select id="bugType">
+                <option value="display">Display Issue</option>
+                <option value="data">Data Not Loading</option>
+                <option value="connection">Connection Error</option>
+                <option value="other">Other</option>
+            </select>
+            <textarea id="bugDescription" placeholder="Describe the bug... What did you expect vs what happened?"></textarea>
+            <div class="buttons">
+                <button class="cancel-btn" onclick="closeBugModal()">Cancel</button>
+                <button class="submit-btn" onclick="submitBug()">Submit Bug</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

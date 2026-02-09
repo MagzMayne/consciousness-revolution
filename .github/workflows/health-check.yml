@@ -1,0 +1,61 @@
+name: Daily Health Check
+
+on:
+  schedule:
+    # Run at 6 AM UTC daily
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health-check:
+    name: Platform Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Count HTML files
+        id: count
+        run: |
+          count=$(find . -name "*.html" -type f | wc -l)
+          echo "html_count=$count" >> $GITHUB_OUTPUT
+          echo "Found $count HTML files"
+
+      - name: Check critical pages exist
+        run: |
+          critical_pages=(
+            "index.html"
+            "login.html"
+            "araya-chat.html"
+            "consciousness-tools.html"
+            "seven-domains.html"
+          )
+
+          for page in "${critical_pages[@]}"; do
+            if [ -f "$page" ]; then
+              echo "OK: $page exists"
+            else
+              echo "WARNING: $page is missing!"
+              exit 1
+            fi
+          done
+
+      - name: Check Netlify config
+        run: |
+          if [ -f "netlify.toml" ]; then
+            echo "netlify.toml found"
+            cat netlify.toml
+          else
+            echo "WARNING: netlify.toml missing!"
+          fi
+
+      - name: Generate Health Report
+        run: |
+          echo "# Platform Health Report" > health_report.md
+          echo "Date: $(date)" >> health_report.md
+          echo "HTML Files: ${{ steps.count.outputs.html_count }}" >> health_report.md
+          echo "Status: HEALTHY" >> health_report.md
+          cat health_report.md

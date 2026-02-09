@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA Ability Diagnostics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            font-size: 2rem;
+            color: #00f0ff;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(0,240,255,0.5);
+        }
+        .subtitle { color: rgba(255,255,255,0.6); margin-bottom: 2rem; }
+        .status-bar {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0,240,255,0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(0,240,255,0.2);
+        }
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .status-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00f0ff;
+        }
+        .status-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+        .ability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .ability-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        .ability-card:hover {
+            border-color: rgba(0,240,255,0.4);
+            transform: translateY(-2px);
+        }
+        .ability-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .ability-name { font-size: 1.2rem; font-weight: bold; color: #fff; }
+        .ability-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .status-active { background: rgba(0,255,100,0.2); color: #0f0; }
+        .status-pending { background: rgba(255,180,0,0.2); color: #f80; }
+        .status-failed { background: rgba(255,60,60,0.2); color: #f44; }
+        .status-testing { background: rgba(0,150,255,0.2); color: #0af; }
+        .ability-desc { color: rgba(255,255,255,0.6); font-size: 0.9rem; margin-bottom: 1rem; }
+        .ability-triggers {
+            background: rgba(0,0,0,0.3);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 1rem;
+        }
+        .test-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(90deg, #00f0ff 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .test-btn:hover { opacity: 0.9; transform: scale(1.02); }
+        .test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .test-result {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .result-pass { display: block; background: rgba(0,255,100,0.1); border: 1px solid rgba(0,255,100,0.3); }
+        .result-fail { display: block; background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3); }
+        .actions {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+        }
+        .action-btn {
+            padding: 1rem 2rem;
+            border: 2px solid #00f0ff;
+            background: transparent;
+            color: #00f0ff;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .action-btn:hover { background: rgba(0,240,255,0.1); }
+        .action-btn.primary { background: #00f0ff; color: #000; }
+        #log {
+            margin-top: 2rem;
+            background: rgba(0,0,0,0.5);
+            border-radius: 12px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .log-entry { padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .log-time { color: rgba(255,255,255,0.3); }
+        .log-pass { color: #0f0; }
+        .log-fail { color: #f44; }
+        .log-info { color: #0af; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ARAYA ABILITY DIAGNOSTICS</h1>
+        <p class="subtitle">Test and verify all Araya abilities are functioning correctly</p>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-value" id="totalAbilities">7</span>
+                <span class="status-label">TOTAL ABILITIES</span>
+            </div>
+            <div class="status-item">
+                <span class="status-value" id="passedTests">0</span>
+                <span class="status-label">PASSED</span>
+            </div>
+            <div class="status-item">
+                <span class="status-value" id="failedTests">0</span>
+                <span class="status-label">FAILED</span>
+            </div>
+            <div class="status-item">
+                <span class="status-value" id="healthScore">--</span>
+                <span class="status-label">HEALTH %</span>
+            </div>
+        </div>
+
+        <div class="ability-grid" id="abilityGrid">
+            <!-- Populated by JS -->
+        </div>
+
+        <div class="actions">
+            <button class="action-btn primary" onclick="runAllTests()">RUN ALL TESTS</button>
+            <button class="action-btn" onclick="checkAPIHealth()">CHECK API HEALTH</button>
+            <button class="action-btn" onclick="exportResults()">EXPORT RESULTS</button>
+        </div>
+
+        <div id="log">
+            <div class="log-entry"><span class="log-time">[INIT]</span> <span class="log-info">Diagnostics loaded. Click RUN ALL TESTS to begin.</span></div>
+        </div>
+    </div>
+
+    <script>
+        const ARAYA_ABILITIES = {
+            'file_edit': {
+                name: 'File Editor',
+                description: 'Read, write, and edit files on the website',
+                triggers: ['edit file', 'update file', 'change the', 'modify the', 'fix the code'],
+                testPrompt: 'read file araya-chat.html'
+            },
+            'file_write': {
+                name: 'File Writer',
+                description: 'Write changes to files (after confirmation)',
+                triggers: ['write file', 'save file', 'commit the changes', 'apply the changes'],
+                testPrompt: null // Manual test - requires confirmation flow
+            },
+            'bug_report': {
+                name: 'Bug Reporter',
+                description: 'Log bugs and issues to the system',
+                triggers: ['report bug', 'found a bug', 'something broke', 'not working'],
+                testPrompt: 'report bug: test diagnostic entry'
+            },
+            'brain_query': {
+                name: 'Brain Query',
+                description: 'Search the 160k+ atom knowledge base',
+                triggers: ['search brain', 'what do you know about', 'search knowledge'],
+                testPrompt: 'search brain for pattern theory'
+            },
+            'self_improve': {
+                name: 'Self Improvement',
+                description: 'Araya improving her own interface',
+                triggers: ['improve yourself', 'upgrade yourself', 'make yourself better'],
+                testPrompt: null // Manual - requires safe sandbox
+            },
+            'screenshot': {
+                name: 'Screenshot',
+                description: 'Take a screenshot of the current interface',
+                triggers: ['take screenshot', 'capture screen', 'grab a screenshot'],
+                testPrompt: 'take a screenshot'
+            },
+            'ability_diagnostics': {
+                name: 'Ability Diagnostics',
+                description: 'Test and diagnose all Araya abilities',
+                triggers: ['run diagnostics', 'test abilities', 'check abilities'],
+                testPrompt: 'run diagnostics'
+            },
+            'image_recall': {
+                name: 'Image Recall',
+                description: 'Recall stored images from Supabase by user',
+                triggers: ['show my images', 'show my photos', 'what images do i have'],
+                testPrompt: 'show my images'
+            },
+            'image_search': {
+                name: 'Image Search',
+                description: 'Search stored images by description or tags',
+                triggers: ['find images of', 'search my images for', 'find photos of'],
+                testPrompt: 'search my images for documents'
+            }
+        };
+
+        const testResults = {};
+        let passed = 0, failed = 0;
+
+        function renderAbilities() {
+            const grid = document.getElementById('abilityGrid');
+            grid.innerHTML = Object.entries(ARAYA_ABILITIES).map(([key, ability]) => `
+                <div class="ability-card" id="card-${key}">
+                    <div class="ability-header">
+                        <span class="ability-name">${ability.name}</span>
+                        <span class="ability-status status-active" id="status-${key}">REGISTERED</span>
+                    </div>
+                    <p class="ability-desc">${ability.description}</p>
+                    <div class="ability-triggers">Triggers: ${ability.triggers.slice(0,3).join(' | ')}...</div>
+                    <button class="test-btn" onclick="testAbility('${key}')" ${!ability.testPrompt ? 'disabled title="Manual test required"' : ''}>
+                        ${ability.testPrompt ? 'TEST' : 'MANUAL TEST'}
+                    </button>
+                    <div class="test-result" id="result-${key}"></div>
+                </div>
+            `).join('');
+            document.getElementById('totalAbilities').textContent = Object.keys(ARAYA_ABILITIES).length;
+        }
+
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${type}">${msg}</span></div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function testAbility(key) {
+            const ability = ARAYA_ABILITIES[key];
+            if (!ability.testPrompt) {
+                log(`${ability.name}: Requires manual testing`, 'info');
+                return;
+            }
+
+            const statusEl = document.getElementById(`status-${key}`);
+            const resultEl = document.getElementById(`result-${key}`);
+
+            statusEl.className = 'ability-status status-testing';
+            statusEl.textContent = 'TESTING...';
+            log(`Testing ${ability.name}...`, 'info');
+
+            try {
+                const response = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: ability.testPrompt,
+                        user_id: 'diagnostics-system',
+                        conversationHistory: []
+                    })
+                });
+
+                if (!response.ok) throw new Error(`API returned ${response.status}`);
+
+                const data = await response.json();
+
+                // Check if ability was detected
+                if (data.abilityDetected === key || data.response) {
+                    statusEl.className = 'ability-status status-active';
+                    statusEl.textContent = 'PASSED';
+                    resultEl.className = 'test-result result-pass';
+                    resultEl.textContent = `✓ Ability triggered. Response: ${data.response?.substring(0, 100)}...`;
+                    testResults[key] = { passed: true, response: data.response };
+                    passed++;
+                    log(`${ability.name}: PASSED`, 'pass');
+                } else {
+                    throw new Error('Ability not detected in response');
+                }
+            } catch (err) {
+                statusEl.className = 'ability-status status-failed';
+                statusEl.textContent = 'FAILED';
+                resultEl.className = 'test-result result-fail';
+                resultEl.textContent = `✗ Error: ${err.message}`;
+                testResults[key] = { passed: false, error: err.message };
+                failed++;
+                log(`${ability.name}: FAILED - ${err.message}`, 'fail');
+            }
+
+            updateStats();
+        }
+
+        async function runAllTests() {
+            passed = 0; failed = 0;
+            log('Starting full diagnostic run...', 'info');
+
+            for (const key of Object.keys(ARAYA_ABILITIES)) {
+                if (ARAYA_ABILITIES[key].testPrompt) {
+                    await testAbility(key);
+                    await new Promise(r => setTimeout(r, 500)); // Throttle
+                }
+            }
+
+            log(`Diagnostic complete. ${passed} passed, ${failed} failed.`, passed > failed ? 'pass' : 'fail');
+        }
+
+        async function checkAPIHealth() {
+            log('Checking API health...', 'info');
+            try {
+                const r = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: '__ping__', user_id: 'health-check', conversationHistory: [] })
+                });
+                if (r.ok) {
+                    log('API Health: ONLINE', 'pass');
+                } else {
+                    log(`API Health: ERROR (${r.status})`, 'fail');
+                }
+            } catch (e) {
+                log(`API Health: OFFLINE (${e.message})`, 'fail');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            const total = passed + failed;
+            const health = total > 0 ? Math.round((passed / total) * 100) : '--';
+            document.getElementById('healthScore').textContent = health;
+        }
+
+        function exportResults() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                totalAbilities: Object.keys(ARAYA_ABILITIES).length,
+                passed,
+                failed,
+                healthPercent: passed + failed > 0 ? Math.round((passed / (passed + failed)) * 100) : 0,
+                results: testResults
+            };
+
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `araya-diagnostics-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            log('Results exported to JSON', 'info');
+        }
+
+        // Init
+        renderAbilities();
+    </script>
+
+    <script type="application/json" id="dna">
+    {
+        "title": "ARAYA Ability Diagnostics",
+        "domain": "2_BUILD",
+        "aspect": "TOOL",
+        "phase": "TEST",
+        "purpose": "Test and verify all Araya abilities are functioning correctly",
+        "created": "2026-02-08",
+        "version": "1.0.0",
+        "connections": ["araya-chat.mjs", "ARAYA_SOUL_CORE.json"]
+    }
+    </script>
+</body>
+</html>

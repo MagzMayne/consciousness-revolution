@@ -1,127 +1,158 @@
-/**
- * TWILIO SMS WEBHOOK
- * ==================
- * Receives incoming SMS from Twilio and routes to Cyclotron Radio
- *
- * Endpoint: /.netlify/functions/sms-webhook
- * Configure in Twilio: https://console.twilio.com → Phone Numbers → Webhooks
- *
- * C1 MECHANIC BUILD - Jan 28, 2026
- */
+// SMS Webhook - Receives inbound Twilio SMS and routes to Cyclotron
+// POST from Twilio: Form data with From, Body, MessageSid
+// Stores bugs in Supabase and can trigger notifications
 
-// In-memory message store (persists via Netlify KV in production)
-// For now, we'll return messages via GET endpoint
-let pendingMessages = [];
+import { createClient } from "@supabase/supabase-js";
+
+// Supabase config
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://lgibygzcbvrrykfaxvbg.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+// Known team phone numbers (for priority routing)
+const TEAM_NUMBERS = {
+  "+15094968855": { name: "Commander", priority: "critical" },
+  "+14256289888": { name: "Maggie", priority: "high" },
+  "+12674439742": { name: "Josh S", priority: "high" },
+  "+13463083078": { name: "Teddy", priority: "high" },
+  "+15094963855": { name: "Josh B", priority: "normal" }
+};
 
 export const handler = async (event, context) => {
-  // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
+  // TwiML response header
+  const headers = {
+    "Content-Type": "text/xml",
+    "Access-Control-Allow-Origin": "*"
+  };
+
+  // Handle GET (webhook verification)
+  if (event.httpMethod === "GET") {
     return {
       statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      },
-      body: ''
+      headers: { "Content-Type": "text/plain" },
+      body: "SMS Webhook Active - Consciousness Revolution"
     };
   }
 
-  // GET - Retrieve pending messages (for local polling)
-  if (event.httpMethod === 'GET') {
-    const messages = pendingMessages;
-    pendingMessages = []; // Clear after read
-
+  if (event.httpMethod !== "POST") {
     return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
-      body: JSON.stringify({
-        success: true,
-        count: messages.length,
-        messages: messages
-      })
+      statusCode: 405,
+      headers,
+      body: '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Method not allowed</Message></Response>'
     };
   }
 
-  // POST - Receive Twilio webhook
-  if (event.httpMethod === 'POST') {
-    try {
-      // Parse Twilio's form-encoded body
-      const params = new URLSearchParams(event.body);
+  try {
+    // Parse Twilio form data
+    const params = new URLSearchParams(event.body);
+    const from = params.get("From");
+    const body = params.get("Body");
+    const messageSid = params.get("MessageSid");
+    const numMedia = parseInt(params.get("NumMedia") || "0");
 
-      const smsData = {
-        id: `SMS-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        from: params.get('From') || 'unknown',
-        to: params.get('To') || 'unknown',
-        body: params.get('Body') || '',
-        timestamp: new Date().toISOString(),
-        messageSid: params.get('MessageSid') || '',
-        accountSid: params.get('AccountSid') || '',
-        numMedia: params.get('NumMedia') || '0',
-        fromCity: params.get('FromCity') || '',
-        fromState: params.get('FromState') || '',
-        fromCountry: params.get('FromCountry') || '',
-        channel: 'TWILIO_SMS'
-      };
-
-      // Log for debugging
-      console.log('📱 SMS RECEIVED:', JSON.stringify(smsData, null, 2));
-
-      // Store message for polling
-      pendingMessages.push(smsData);
-
-      // Also store in Netlify Blobs if available (future upgrade)
-      // For now, we'll use a simple file-based approach via the deploy
-
-      // Parse command if message starts with /
-      let responseText = `✅ Message received by Overkore Brain.\n\nYour message: "${smsData.body}"\n\nTimestamp: ${smsData.timestamp}`;
-
-      if (smsData.body.toLowerCase().startsWith('/status')) {
-        responseText = `🧠 OVERKORE STATUS\n\nBrain: ONLINE\nAtoms: 163,649\nDivine: 92.2%\nLocation: Denver → Red Rocks\n\nC1×C2×C3=∞`;
-      } else if (smsData.body.toLowerCase().startsWith('/help')) {
-        responseText = `📱 SMS COMMANDS\n\n/status - System status\n/help - This menu\n/ping - Test connection\n\nOr just text anything - it goes to the brain.`;
-      } else if (smsData.body.toLowerCase().startsWith('/ping')) {
-        responseText = `🏓 PONG! Latency: ${Date.now() % 1000}ms\n\nConnection: ACTIVE\nRadio: RECEIVING`;
-      }
-
-      // Return TwiML response (Twilio's XML format)
-      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>${responseText}</Message>
-</Response>`;
-
+    if (!from || !body) {
       return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'text/xml',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: twiml
-      };
-
-    } catch (error) {
-      console.error('SMS Webhook Error:', error);
-
-      // Still return valid TwiML on error
-      const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>⚠️ Message received but processing error. Brain notified.</Message>
-</Response>`;
-
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'text/xml' },
-        body: errorTwiml
+        statusCode: 400,
+        headers,
+        body: '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Missing required fields</Message></Response>'
       };
     }
-  }
 
-  // Method not allowed
-  return {
-    statusCode: 405,
-    body: JSON.stringify({ error: 'Method not allowed' })
-  };
+    // Detect message type
+    const lowerBody = body.toLowerCase();
+    let messageType = "general";
+    let priority = "normal";
+
+    if (lowerBody.includes("bug") || lowerBody.includes("broken") || lowerBody.includes("error")) {
+      messageType = "bug";
+      priority = "high";
+    } else if (lowerBody.includes("urgent") || lowerBody.includes("critical") || lowerBody.includes("emergency")) {
+      messageType = "urgent";
+      priority = "critical";
+    } else if (lowerBody.includes("idea") || lowerBody.includes("suggest") || lowerBody.includes("feature")) {
+      messageType = "idea";
+    } else if (lowerBody.includes("help") || lowerBody.includes("how do") || lowerBody.includes("?")) {
+      messageType = "question";
+    }
+
+    // Check if from known team member
+    const teamMember = TEAM_NUMBERS[from];
+    if (teamMember) {
+      if (teamMember.priority === "critical" && priority === "normal") {
+        priority = "high";
+      }
+    }
+
+    // Build record
+    const record = {
+      from_number: from,
+      message: body,
+      message_sid: messageSid,
+      message_type: messageType,
+      priority: priority,
+      has_media: numMedia > 0,
+      sender_name: teamMember?.name || "Unknown",
+      processed: false,
+      created_at: new Date().toISOString()
+    };
+
+    // Store in Supabase if available
+    let stored = false;
+    if (SUPABASE_KEY) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { data, error } = await supabase
+          .from("sms_inbox")
+          .insert([record]);
+
+        if (!error) {
+          stored = true;
+        } else {
+          console.error("Supabase error:", error);
+        }
+      } catch (e) {
+        console.error("Supabase connection error:", e.message);
+      }
+    }
+
+    // Build response message
+    let responseMessage;
+    if (messageType === "bug") {
+      responseMessage = "Bug received! Team has been notified.";
+    } else if (messageType === "urgent") {
+      responseMessage = "URGENT message received! Escalating immediately.";
+    } else if (messageType === "idea") {
+      responseMessage = "Great idea! Added to our feature backlog.";
+    } else if (messageType === "question") {
+      responseMessage = "Question received! Someone will respond shortly.";
+    } else {
+      responseMessage = "Message received! Thanks for reaching out.";
+    }
+
+    // Log for debugging
+    console.log("SMS received:", {
+      from,
+      type: messageType,
+      priority,
+      stored,
+      preview: body.substring(0, 50)
+    });
+
+    // TwiML response
+    const twiml = '<?xml version="1.0" encoding="UTF-8"?><Response><Message>' + responseMessage + '</Message></Response>';
+
+    return {
+      statusCode: 200,
+      headers,
+      body: twiml
+    };
+
+  } catch (error) {
+    console.error("SMS webhook error:", error);
+
+    return {
+      statusCode: 500,
+      headers,
+      body: '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Error processing message.</Message></Response>'
+    };
+  }
 };

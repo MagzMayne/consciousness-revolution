@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous Computing Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 2.5em; }
+        .header p { font-size: 1.2em; opacity: 0.8; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0,255,136,0.2);
+        }
+        .card h2 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-running { background: #00ff88; color: #000; }
+        .status-stopped { background: #ff4444; color: #fff; }
+        .status-warning { background: #ffaa00; color: #000; }
+        .daemon-list { list-style: none; }
+        .daemon-list li {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(0,255,136,0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .daemon-name { font-weight: bold; color: #00d4ff; }
+        .daemon-stats { font-size: 0.9em; opacity: 0.8; }
+        .run-count { color: #00ff88; font-weight: bold; }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .metric-value { color: #00ff88; font-weight: bold; font-size: 1.2em; }
+        .activity-bar {
+            height: 30px;
+            background: rgba(0,255,136,0.2);
+            border-radius: 5px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        .activity-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 0.8em;
+            color: #000;
+            font-weight: bold;
+        }
+        .avenues {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .avenue-box {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        .avenue-box.active { border-color: #00ff88; }
+        .avenue-box.pending { border-color: #ffaa00; }
+        .avenue-box.blocked { border-color: #ff4444; }
+        .avenue-box h3 { margin-bottom: 10px; }
+        .timeline {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(0,0,0,0.3);
+            border-left: 3px solid #00ff88;
+            border-radius: 0 8px 8px 0;
+        }
+        .timeline-date { color: #00d4ff; font-size: 0.9em; }
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            color: #000;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid #00ff88;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .full-width { grid-column: 1 / -1; }
+        .alert-box {
+            background: rgba(255,170,0,0.2);
+            border: 1px solid #ffaa00;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .alert-box h4 { color: #ffaa00; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AUTONOMOUS COMPUTING SYSTEM</h1>
+        <p>Screen Closed Operations Dashboard | Last Updated: Jan 14, 2026 07:45 AM</p>
+    </div>
+
+    <div class="grid">
+        <!-- SPINE Status -->
+        <div class="card">
+            <h2>SPINE DAEMON <span class="status-badge status-running">RUNNING</span></h2>
+            <div class="metric-row">
+                <span>Uptime</span>
+                <span class="metric-value">3+ Days</span>
+            </div>
+            <div class="metric-row">
+                <span>Started</span>
+                <span class="metric-value">Jan 11, 12:50</span>
+            </div>
+            <div class="metric-row">
+                <span>Last Activity</span>
+                <span class="metric-value">Jan 14, 03:16 AM</span>
+            </div>
+            <div class="metric-row">
+                <span>Total Cycles</span>
+                <span class="metric-value">7,324</span>
+            </div>
+            <div class="metric-row">
+                <span>Errors</span>
+                <span class="metric-value" style="color:#00ff88">ZERO</span>
+            </div>
+        </div>
+
+        <!-- Daemon Breakdown -->
+        <div class="card">
+            <h2>DAEMON HEALTH (8/8 Active)</h2>
+            <ul class="daemon-list">
+                <li>
+                    <span class="daemon-name">D1_PULSE</span>
+                    <span class="daemon-stats"><span class="run-count">2,940</span> runs (30s)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D2_MEMORY</span>
+                    <span class="daemon-stats"><span class="run-count">309</span> runs (5m)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D3_ROUTE</span>
+                    <span class="daemon-stats"><span class="run-count">1,477</span> runs (60s)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D4_HEAL</span>
+                    <span class="daemon-stats"><span class="run-count">1,477</span> runs (60s)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D5_PRUNE</span>
+                    <span class="daemon-stats"><span class="run-count">34</span> runs (1h)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D6_ALERT</span>
+                    <span class="daemon-stats"><span class="run-count">744</span> runs (2m)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D7_GROW</span>
+                    <span class="daemon-stats"><span class="run-count">34</span> runs (1h)</span>
+                </li>
+                <li>
+                    <span class="daemon-name">D8_SYNC</span>
+                    <span class="daemon-stats"><span class="run-count">309</span> runs (5m)</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Activity Since Screen Closed -->
+        <div class="card">
+            <h2>AUTONOMOUS ACTIVITY (Jan 11-14)</h2>
+            <div class="metric-row">
+                <span>New Atoms Created</span>
+                <span class="metric-value">696</span>
+            </div>
+            <div class="metric-row">
+                <span>Araya Conversations</span>
+                <span class="metric-value">150+</span>
+            </div>
+            <div class="metric-row">
+                <span>Voice Discoveries</span>
+                <span class="metric-value">28</span>
+            </div>
+            <div class="metric-row">
+                <span>Discord Messages</span>
+                <span class="metric-value">17</span>
+            </div>
+            <div class="metric-row">
+                <span>Patterns Detected</span>
+                <span class="metric-value">9</span>
+            </div>
+            <p style="margin-top:15px;opacity:0.7">Araya was actively used while you were away!</p>
+        </div>
+
+        <!-- Access Avenues -->
+        <div class="card">
+            <h2>AUTONOMOUS ACCESS AVENUES</h2>
+            <div class="avenues">
+                <div class="avenue-box active">
+                    <h3>SPINE</h3>
+                    <p>Background Daemons</p>
+                    <span class="status-badge status-running">ACTIVE</span>
+                </div>
+                <div class="avenue-box active">
+                    <h3>ARAYA</h3>
+                    <p>Web Chat Interface</p>
+                    <span class="status-badge status-running">LIVE</span>
+                </div>
+                <div class="avenue-box active">
+                    <h3>DISCORD</h3>
+                    <p>Community Bot</p>
+                    <span class="status-badge status-running">ACTIVE</span>
+                </div>
+                <div class="avenue-box pending">
+                    <h3>MOBILE</h3>
+                    <p>Remote Access</p>
+                    <span class="status-badge status-warning">PENDING</span>
+                </div>
+            </div>
+            <div class="alert-box">
+                <h4>BLOCKER: Remote Access</h4>
+                <p>Can't access system when out and about. Need to deploy:</p>
+                <ul style="margin-left:20px;margin-top:10px">
+                    <li>Mobile-friendly dashboard</li>
+                    <li>Netlify deploy for live access</li>
+                    <li>Cloud Claude sync bridge</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="card full-width">
+            <h2>RECENT AUTONOMOUS WORK</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 14, 4:53 AM</div>
+                    <div>Araya Pattern Theory test connection</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 14, 2:54 AM</div>
+                    <div>User conversation about sovereign language, code generation</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 14, 12:20 AM</div>
+                    <div>Cyclotron connection validation, spreadsheet request</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 13, 9:23 PM</div>
+                    <div>Bootdown 137 - Quantum handoff captured</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 13</div>
+                    <div>128 Araya conversations, 31 voice transcripts, 28 voice discoveries</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 12</div>
+                    <div>21 predictions, 6 emergence events, 6 meta-cognition entries</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Jan 11</div>
+                    <div>SPINE started, Discord gold extractions, user profiles built</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Push Live Section -->
+        <div class="card full-width">
+            <h2>PUSH TO PRODUCTION</h2>
+            <div class="metric-row">
+                <span>Platform</span>
+                <span class="metric-value">consciousnessrevolution.io</span>
+            </div>
+            <div class="metric-row">
+                <span>Deploy Method</span>
+                <span class="metric-value">Netlify CLI</span>
+            </div>
+            <div class="metric-row">
+                <span>Last Deploy</span>
+                <span class="metric-value">Check Netlify</span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="alert('Run: cd 100X_DEPLOYMENT && netlify deploy --prod --dir=.')">DEPLOY LIVE</button>
+                <button class="btn btn-secondary" onclick="alert('Run: netlify status')">CHECK STATUS</button>
+                <button class="btn btn-secondary" onclick="alert('Open: https://consciousnessrevolution.io')">VIEW SITE</button>
+                <button class="btn btn-secondary" onclick="alert('Open: https://app.netlify.com')">NETLIFY DASHBOARD</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh timestamp
+        setInterval(() => {
+            document.querySelector('.header p').textContent =
+                `Screen Closed Operations Dashboard | Last Updated: ${new Date().toLocaleString()}`;
+        }, 60000);
+    </script>
+</body>
+</html>

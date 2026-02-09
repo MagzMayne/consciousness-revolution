@@ -3,8 +3,9 @@
 // Connects to the consciousness system
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_OWNER = 'overkillkulture';
-const GITHUB_REPO = 'consciousness-revolution';
+const GITHUB_OWNER = process.env.GITHUB_OWNER || 'overkor-tek';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'consciousness-revolution';
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'master';
 
 // CORS headers
 const headers = {
@@ -15,26 +16,38 @@ const headers = {
 };
 
 // Allowed file paths (security - only allow certain directories)
+// Note: repo root = 100X_DEPLOYMENT contents. No prefix needed.
 const ALLOWED_PATHS = [
     '.consciousness/',
-    '100X_DEPLOYMENT/',
-    'Desktop/1_COMMAND/',
-    'Desktop/2_BUILD/',
-    'Desktop/3_CONNECT/',
-    'Desktop/4_PROTECT/',
-    'Desktop/5_GROW/',
-    'Desktop/6_LEARN/',
-    'Desktop/7_TRANSCEND/',
-    'CLAUDE.md',
-    'TODO.md'
+    '.trinity/',
+    'netlify/',
+    'js/',
+    'ARAYA/',
+    'index.html',
+    'README.md',
+    'CHANGELOG.md',
+    'netlify.toml',
+    // Allow HTML dashboards at root
+    '.html',
 ];
 
 function isPathAllowed(path) {
     // Normalize path
     const normalizedPath = path.replace(/\\/g, '/').replace(/^\/+/, '');
 
-    // Check against allowed paths
-    return ALLOWED_PATHS.some(allowed => normalizedPath.startsWith(allowed) || normalizedPath === allowed);
+    // Block dangerous paths
+    if (normalizedPath.includes('..') || normalizedPath.includes('.env') || normalizedPath.includes('.secrets')) {
+        return false;
+    }
+
+    // Check against allowed paths (prefix match, exact match, or suffix match)
+    return ALLOWED_PATHS.some(allowed => {
+        if (allowed.startsWith('.') && !allowed.includes('/')) {
+            // Suffix match (e.g. '.html')
+            return normalizedPath.endsWith(allowed);
+        }
+        return normalizedPath.startsWith(allowed) || normalizedPath === allowed;
+    });
 }
 
 // Read file from GitHub
@@ -116,7 +129,7 @@ async function writeFile(path, content, message = 'Araya file update') {
         const body = {
             message: `[ARAYA] ${message}`,
             content: Buffer.from(content).toString('base64'),
-            branch: 'main'
+            branch: GITHUB_BRANCH
         };
 
         if (sha) {
@@ -316,6 +329,9 @@ export async function handler(event, context) {
                     status: 'online',
                     capabilities: ['read', 'write', 'edit', 'list'],
                     hasGitHub: !!GITHUB_TOKEN,
+                    owner: GITHUB_OWNER,
+                    repo: GITHUB_REPO,
+                    branch: GITHUB_BRANCH,
                     allowedPaths: ALLOWED_PATHS,
                     timestamp: new Date().toISOString()
                 };

@@ -1,7 +1,12 @@
 """
 ARAYA FILE WRITER - Flask endpoint for live website editing
-Allows ARAYA to write/edit files within 100X_DEPLOYMENT
-Security: Only allows writes within ALLOWED_ROOT
+Allows ARAYA to write/edit files within ALLOWED domains
+Security: Only allows writes within configured domain roots
+
+DOMAINS:
+- consciousness: 100X_DEPLOYMENT (default)
+- legal: Pro Se Shield legal tools
+- command: Desktop command center
 """
 
 from flask import Flask, request, jsonify
@@ -11,29 +16,98 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Allow ARAYA chat to call this
+CORS(app)
 
-ALLOWED_ROOT = "C:/Users/dwrek/100X_DEPLOYMENT"
+# DOMAIN CONFIGURATION - Multi-domain support
+ALLOWED_ROOTS = {
+    "consciousness": "C:/Users/dwrek/100X_DEPLOYMENT",
+    "legal": "C:/Users/dwrek/Desktop/2_BUILD/PRO_SE_SHIELD",
+    "command": "C:/Users/dwrek/Desktop/1_COMMAND",
+}
 
-def is_safe_path(path):
-    """Validate path is within ALLOWED_ROOT"""
+DOMAIN_INFO = {
+    "consciousness": {
+        "name": "Consciousness Revolution",
+        "description": "100X Platform - main website and tools",
+        "color": "#00ff88"
+    },
+    "legal": {
+        "name": "Pro Se Shield",
+        "description": "Legal tools - court, patterns, documents",
+        "color": "#ff6b6b"
+    },
+    "command": {
+        "name": "Command Center",
+        "description": "Desktop command files and protocols",
+        "color": "#ffd700"
+    }
+}
+
+# Backward compatibility
+ALLOWED_ROOT = ALLOWED_ROOTS["consciousness"]
+DEFAULT_DOMAIN = "consciousness"
+
+
+def is_safe_path(path, domain=None):
+    """Validate path is within allowed roots"""
     try:
         real_path = os.path.realpath(path)
-        real_root = os.path.realpath(ALLOWED_ROOT)
-        return real_path.startswith(real_root)
+        
+        # If domain specified, check only that domain
+        if domain and domain in ALLOWED_ROOTS:
+            real_root = os.path.realpath(ALLOWED_ROOTS[domain])
+            return real_path.startswith(real_root)
+        
+        # Otherwise check all allowed roots
+        for root in ALLOWED_ROOTS.values():
+            real_root = os.path.realpath(root)
+            if real_path.startswith(real_root):
+                return True
+        return False
     except:
         return False
+
+
+def get_domain_for_path(path):
+    """Detect which domain a path belongs to"""
+    try:
+        real_path = os.path.realpath(path)
+        for domain, root in ALLOWED_ROOTS.items():
+            real_root = os.path.realpath(root)
+            if real_path.startswith(real_root):
+                return domain
+        return None
+    except:
+        return None
+
+
+def resolve_path(file_path, domain=None):
+    """
+    Resolve file path with domain awareness.
+    Returns (absolute_path, detected_domain)
+    """
+    if os.path.isabs(file_path):
+        # Absolute path - detect domain
+        detected = get_domain_for_path(file_path)
+        return file_path, detected
+    else:
+        # Relative path - use specified domain or default
+        use_domain = domain if domain in ALLOWED_ROOTS else DEFAULT_DOMAIN
+        root = ALLOWED_ROOTS[use_domain]
+        return os.path.join(root, file_path), use_domain
+
 
 @app.route('/write-file', methods=['POST'])
 def write_file():
     """
-    Write/edit files within 100X_DEPLOYMENT
+    Write/edit files within allowed domains
 
     Expected JSON:
     {
         "file_path": "relative/or/absolute/path.html",
         "content": "file content here",
-        "action": "write|append|edit"
+        "action": "write|append|edit",
+        "domain": "consciousness|legal|command" (optional)
     }
     """
     try:
@@ -45,24 +119,23 @@ def write_file():
         file_path = data.get('file_path')
         content = data.get('content')
         action = data.get('action', 'write')
+        domain = data.get('domain')  # NEW: domain parameter
 
-        # For edit action, content is not required (uses old_string/new_string instead)
         if not file_path:
             return jsonify({"error": "Missing file_path"}), 400
 
         if action != 'edit' and content is None:
             return jsonify({"error": "Missing content"}), 400
 
-        # Convert relative paths to absolute
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(ALLOWED_ROOT, file_path)
+        # Resolve path with domain awareness
+        file_path, detected_domain = resolve_path(file_path, domain)
 
         # Security check
-        if not is_safe_path(file_path):
+        if not is_safe_path(file_path, detected_domain):
             return jsonify({
-                "error": "Security violation: Path outside allowed root",
+                "error": "Security violation: Path outside allowed roots",
                 "path": file_path,
-                "allowed_root": ALLOWED_ROOT
+                "allowed_domains": list(ALLOWED_ROOTS.keys())
             }), 403
 
         # Create directory if needed
@@ -70,31 +143,26 @@ def write_file():
 
         # Perform action
         if action == 'write':
-            # Full write (overwrites)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
         elif action == 'append':
-            # Append to end
             with open(file_path, 'a', encoding='utf-8') as f:
                 f.write(content)
 
         elif action == 'edit':
-            # Edit requires old_string and new_string
             old_string = data.get('old_string')
             new_string = data.get('new_string')
 
             if not old_string or new_string is None:
                 return jsonify({"error": "Edit action requires old_string and new_string"}), 400
 
-            # Read existing
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     existing = f.read()
             else:
                 existing = ""
 
-            # Replace
             if old_string not in existing:
                 return jsonify({
                     "error": "old_string not found in file",
@@ -118,6 +186,7 @@ def write_file():
                 "file_path": file_path,
                 "action": action,
                 "size": file_size,
+                "domain": detected_domain,
                 "timestamp": datetime.now().isoformat()
             })
         else:
@@ -132,22 +201,23 @@ def write_file():
             "type": type(e).__name__
         }), 500
 
+
 @app.route('/read-file', methods=['POST'])
 def read_file():
     """Read file contents (for verification)"""
     try:
         data = request.get_json()
         file_path = data.get('file_path')
+        domain = data.get('domain')
 
         if not file_path:
             return jsonify({"error": "Missing file_path"}), 400
 
-        # Convert relative to absolute
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(ALLOWED_ROOT, file_path)
+        # Resolve path with domain awareness
+        file_path, detected_domain = resolve_path(file_path, domain)
 
         # Security check
-        if not is_safe_path(file_path):
+        if not is_safe_path(file_path, detected_domain):
             return jsonify({"error": "Security violation"}), 403
 
         if not os.path.exists(file_path):
@@ -160,11 +230,13 @@ def read_file():
             "success": True,
             "file_path": file_path,
             "content": content,
-            "size": len(content)
+            "size": len(content),
+            "domain": detected_domain
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/list-files', methods=['POST'])
 def list_files():
@@ -172,13 +244,13 @@ def list_files():
     try:
         data = request.get_json()
         dir_path = data.get('dir_path', '.')
+        domain = data.get('domain')
 
-        # Convert relative to absolute
-        if not os.path.isabs(dir_path):
-            dir_path = os.path.join(ALLOWED_ROOT, dir_path)
+        # Resolve path with domain awareness
+        dir_path, detected_domain = resolve_path(dir_path, domain)
 
         # Security check
-        if not is_safe_path(dir_path):
+        if not is_safe_path(dir_path, detected_domain):
             return jsonify({"error": "Security violation"}), 403
 
         if not os.path.exists(dir_path):
@@ -196,25 +268,73 @@ def list_files():
         return jsonify({
             "success": True,
             "dir_path": dir_path,
-            "files": files
+            "files": files,
+            "domain": detected_domain
         })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check"""
+
+@app.route('/domains', methods=['GET'])
+def list_domains():
+    """List all available domains and their status"""
+    domains = []
+    for domain_key, root_path in ALLOWED_ROOTS.items():
+        info = DOMAIN_INFO.get(domain_key, {})
+        exists = os.path.exists(root_path)
+        file_count = 0
+        if exists:
+            try:
+                file_count = len([f for f in os.listdir(root_path) if os.path.isfile(os.path.join(root_path, f))])
+            except:
+                pass
+        
+        domains.append({
+            "key": domain_key,
+            "name": info.get("name", domain_key),
+            "description": info.get("description", ""),
+            "color": info.get("color", "#888888"),
+            "root": root_path,
+            "exists": exists,
+            "file_count": file_count
+        })
+    
     return jsonify({
-        "status": "alive",
-        "allowed_root": ALLOWED_ROOT,
+        "success": True,
+        "domains": domains,
+        "default": DEFAULT_DOMAIN,
         "timestamp": datetime.now().isoformat()
     })
 
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check with domain status"""
+    domain_status = {}
+    for domain, root in ALLOWED_ROOTS.items():
+        domain_status[domain] = {
+            "root": root,
+            "exists": os.path.exists(root),
+            "writable": os.access(root, os.W_OK) if os.path.exists(root) else False
+        }
+    
+    return jsonify({
+        "status": "alive",
+        "domains": domain_status,
+        "default_domain": DEFAULT_DOMAIN,
+        "timestamp": datetime.now().isoformat()
+    })
+
+
 if __name__ == '__main__':
-    print(f"🔧 ARAYA FILE WRITER starting...")
-    print(f"📁 Allowed root: {ALLOWED_ROOT}")
-    print(f"🌐 Running on http://localhost:5001")
+    print(f"ARAYA FILE WRITER starting...")
+    print(f"MULTI-DOMAIN MODE ENABLED")
+    print(f"Domains configured:")
+    for domain, root in ALLOWED_ROOTS.items():
+        status = "OK" if os.path.exists(root) else "MISSING"
+        print(f"  - {domain}: {root} [{status}]")
+    print(f"Running on http://localhost:5001")
 
     app.run(
         host='0.0.0.0',

@@ -1,5 +1,87 @@
 // Araya Browser Agent - Background Service Worker
 // Persistent background processing for workflow detection
+// Native Messaging bridge to OVERKORE local brain (163K+ atoms)
+
+// =========================================================
+// Native Messaging - OVERKORE Bridge
+// =========================================================
+
+const NATIVE_HOST = 'com.overkore.native_host';
+let nativePort = null;
+let nativeConnected = false;
+
+// Connect to native OVERKORE host
+function connectNative() {
+    try {
+        nativePort = chrome.runtime.connectNative(NATIVE_HOST);
+
+        nativePort.onMessage.addListener((response) => {
+            console.log('Native response:', response);
+            // Broadcast to any listeners (sidepanel, popup)
+            chrome.runtime.sendMessage({
+                type: 'NATIVE_RESPONSE',
+                data: response
+            });
+        });
+
+        nativePort.onDisconnect.addListener(() => {
+            console.log('Native host disconnected:', chrome.runtime.lastError?.message);
+            nativeConnected = false;
+            nativePort = null;
+            // Retry connection after 5 seconds
+            setTimeout(connectNative, 5000);
+        });
+
+        nativeConnected = true;
+        console.log('Connected to OVERKORE native host');
+
+        // Send ping to verify
+        sendNative({ action: 'ping' });
+
+    } catch (err) {
+        console.log('Native connection failed:', err.message);
+        nativeConnected = false;
+    }
+}
+
+// Send message to native host
+function sendNative(message) {
+    if (nativePort && nativeConnected) {
+        nativePort.postMessage(message);
+        return true;
+    } else {
+        console.log('Native host not connected, using cloud fallback');
+        return false;
+    }
+}
+
+// Save content via native host (local file system)
+function saveToLocal(domain, data) {
+    const filename = `${data.type}_${Date.now()}.md`;
+    const content = data.content || `# ${data.title}\n\nURL: ${data.url}\nCaptured: ${new Date().toISOString()}`;
+
+    return sendNative({
+        action: 'save',
+        data: {
+            domain: domain,
+            filename: filename,
+            content: content,
+            url: data.url,
+            classification: data.type
+        }
+    });
+}
+
+// Query local Cyclotron brain
+function queryBrain(query, limit = 10) {
+    return sendNative({
+        action: 'query',
+        data: { query, limit }
+    });
+}
+
+// Initialize native connection on startup
+connectNative();
 
 // Open side panel on extension icon click
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -137,12 +219,39 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
-// Handle messages from content scripts
+// Handle messages from content scripts and sidepanel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Background received:', message.type);
 
+    // Save to domain via native host (local Cyclotron brain)
+    if (message.type === 'SAVE_TO_DOMAIN') {
+        const savedLocally = saveToLocal(message.domain, message.data);
+        sendResponse({
+            success: true,
+            savedLocally: savedLocally,
+            domain: message.domain
+        });
+        return true;
+    }
+
+    // Query local Cyclotron brain
+    if (message.type === 'QUERY_BRAIN') {
+        queryBrain(message.query, message.limit || 10);
+        sendResponse({ success: true, querying: true });
+        return true;
+    }
+
+    // Check native host connection status
+    if (message.type === 'NATIVE_STATUS') {
+        sendResponse({
+            connected: nativeConnected,
+            host: NATIVE_HOST
+        });
+        return true;
+    }
+
+    // Forward to Araya cloud API
     if (message.type === 'ASK_ARAYA') {
-        // Forward to Araya API
         fetch('https://conciousnessrevolution.io/.netlify/functions/araya-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

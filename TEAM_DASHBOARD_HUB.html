@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Dashboard Hub - Command Center</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --card: #12121f;
+            --accent: #00ffaa;
+            --accent-dim: rgba(0, 255, 170, 0.15);
+            --purple: #9b59b6;
+            --blue: #3498db;
+            --gold: #f39c12;
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            --success: #00ff88;
+            --warning: #ffaa00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .hub-header {
+            background: linear-gradient(135deg, rgba(0,255,170,0.1), rgba(155,89,182,0.1));
+            padding: 30px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hub-header h1 {
+            color: var(--accent);
+            font-size: 2em;
+        }
+
+        .hub-header .subtitle {
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .user-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .user-btn {
+            padding: 12px 24px;
+            border: 2px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+        }
+
+        .user-btn:hover, .user-btn.active {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: calc(100vh - 100px);
+        }
+
+        .sidebar {
+            background: var(--card);
+            padding: 20px;
+            border-right: 1px solid var(--border);
+        }
+
+        .sidebar h3 {
+            color: var(--accent);
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-section {
+            margin-bottom: 30px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 5px;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .nav-item.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .nav-icon {
+            font-size: 1.3em;
+        }
+
+        .nav-label {
+            flex: 1;
+        }
+
+        .nav-badge {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .dashboard-container {
+            padding: 30px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .dashboard-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .dashboard-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,255,170,0.2);
+        }
+
+        .dashboard-card.commander { --card-accent: var(--gold); }
+        .dashboard-card.builder { --card-accent: var(--accent); }
+        .dashboard-card.architect { --card-accent: var(--purple); }
+        .dashboard-card.shared { --card-accent: var(--blue); }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .card-icon {
+            font-size: 2em;
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .card-owner {
+            color: var(--text-dim);
+            font-size: 0.9em;
+        }
+
+        .card-desc {
+            color: var(--text-dim);
+            font-size: 0.95em;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .card-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .edit-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .edit-btn:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .section-header h2 {
+            color: var(--accent);
+            font-size: 1.5em;
+        }
+
+        .add-dashboard-btn {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collab-panel {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+            border: 2px solid var(--purple);
+        }
+
+        .collab-panel h3 {
+            color: var(--purple);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .idea-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .idea-input input {
+            flex: 1;
+            padding: 12px 15px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1em;
+        }
+
+        .idea-input button {
+            padding: 12px 20px;
+            background: var(--purple);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .ideas-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .idea-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: var(--bg);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--purple);
+        }
+
+        .idea-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .idea-content {
+            flex: 1;
+        }
+
+        .idea-author {
+            font-size: 0.85em;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+
+        .quick-access {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .quick-btn {
+            padding: 10px 18px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .quick-btn:hover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .quick-btn.github { border-color: #6e5494; }
+        .quick-btn.railway { border-color: #0B0D0E; }
+        .quick-btn.netlify { border-color: #00AD9F; }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hub-header">
+        <div>
+            <h1>🎛️ Team Dashboard Hub</h1>
+            <p class="subtitle">Command Center for Collaborative Building</p>
+        </div>
+        <div class="user-selector">
+            <button class="user-btn active" onclick="setUser('commander')">👑 Commander</button>
+            <button class="user-btn" onclick="setUser('teddy')">🔮 Teddy</button>
+            <button class="user-btn" onclick="setUser('tiger')">🐅 Tiger</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <div class="nav-section">
+                <h3>📊 My Dashboards</h3>
+                <div class="nav-item active" onclick="loadCategory('my')">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-label">My Cockpit</span>
+                </div>
+                <div class="nav-item" onclick="loadCategory('tools')">
+                    <span class="nav-icon">🔧</span>
+                    <span class="nav-label">My Tools</span>
+                    <span class="nav-badge">3</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>👥 Shared</h3>
+                <div class="nav-item" onclick="loadCategory('team')">
+                    <span class="nav-icon">🤝</span>
+                    <span class="nav-label">Team Dashboards</span>
+                </div>
+                <div class="nav-item" onclick="loadCategory('command')">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-label">Command Center</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>⚡ Quick Deploy</h3>
+                <div class="quick-access">
+                    <button class="quick-btn github" onclick="window.open('https://github.com/overkor-tek/consciousness-revolution')">GitHub</button>
+                    <button class="quick-btn railway" onclick="window.open('https://railway.app')">Railway</button>
+                    <button class="quick-btn netlify" onclick="window.open('https://app.netlify.com')">Netlify</button>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>📚 Resources</h3>
+                <div class="nav-item" onclick="window.location='DASHBOARD_EDIT_GUIDE.html'">
+                    <span class="nav-icon">📖</span>
+                    <span class="nav-label">How to Edit</span>
+                </div>
+                <div class="nav-item" onclick="window.location='CREDENTIAL_ACCESS.html'">
+                    <span class="nav-icon">🔑</span>
+                    <span class="nav-label">Credentials</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-container">
+            <div class="section-header">
+                <h2>🎛️ All Dashboards</h2>
+                <button class="add-dashboard-btn" onclick="createDashboard()">
+                    <span>+</span> New Dashboard
+                </button>
+            </div>
+
+            <div class="dashboard-grid" id="dashboardGrid">
+                <!-- Commander Dashboards -->
+                <div class="dashboard-card commander" onclick="window.location='COMMANDER_COCKPIT.html'">
+                    <div class="card-header">
+                        <span class="card-icon">👑</span>
+                        <div>
+                            <div class="card-title">Commander Cockpit</div>
+                            <div class="card-owner">Owner: Commander</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">Central command dashboard with all system controls and status</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('COMMANDER_COCKPIT.html')">Edit</button>
+                    </div>
+                </div>
+
+                <!-- Teddy's Dashboards -->
+                <div class="dashboard-card architect" onclick="window.location='OPERATOR_COCKPIT_TEDDY.html'">
+                    <div class="card-header">
+                        <span class="card-icon">🔮</span>
+                        <div>
+                            <div class="card-title">Teddy's Cockpit</div>
+                            <div class="card-owner">Owner: Teddy</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">Consciousness architecture and system design hub</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('OPERATOR_COCKPIT_TEDDY.html')">Edit</button>
+                    </div>
+                </div>
+
+                <!-- Tiger's Dashboards -->
+                <div class="dashboard-card builder" onclick="window.location='OPERATOR_COCKPIT_TIGER.html'">
+                    <div class="card-header">
+                        <span class="card-icon">🐅</span>
+                        <div>
+                            <div class="card-title">Tiger's Cockpit</div>
+                            <div class="card-owner">Owner: Tiger</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">Builder operations and Discord community management</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('OPERATOR_COCKPIT_TIGER.html')">Edit</button>
+                    </div>
+                </div>
+
+                <!-- Shared Team Tools -->
+                <div class="dashboard-card shared" onclick="window.location='TEAM_COMMAND_CENTER.html'">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <div>
+                            <div class="card-title">Team Command Center</div>
+                            <div class="card-owner">Shared</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">Real-time collaboration hub for the whole team</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('TEAM_COMMAND_CENTER.html')">Edit</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card shared" onclick="window.location='DASHBOARD_MESSENGER.html'">
+                    <div class="card-header">
+                        <span class="card-icon">💬</span>
+                        <div>
+                            <div class="card-title">Dashboard Messenger</div>
+                            <div class="card-owner">Shared</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">Cross-dashboard messaging and idea sharing</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('DASHBOARD_MESSENGER.html')">Edit</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-card shared" onclick="window.location='TRINITY_COMMAND_DASHBOARD.html'">
+                    <div class="card-header">
+                        <span class="card-icon">🔱</span>
+                        <div>
+                            <div class="card-title">Trinity Dashboard</div>
+                            <div class="card-owner">Shared</div>
+                        </div>
+                    </div>
+                    <div class="card-desc">C1/C2/C3 coordination and status</div>
+                    <div class="card-meta">
+                        <div class="card-status">
+                            <span class="status-dot"></span>
+                            Live
+                        </div>
+                        <button class="edit-btn" onclick="event.stopPropagation(); editDashboard('TRINITY_COMMAND_DASHBOARD.html')">Edit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collaboration Panel -->
+            <div class="collab-panel">
+                <h3>💡 Idea Board - Add Ideas Together</h3>
+                <div class="idea-input">
+                    <input type="text" id="ideaInput" placeholder="Share an idea for the team..." onkeypress="if(event.key==='Enter')submitIdea()">
+                    <button onclick="submitIdea()">Share</button>
+                </div>
+                <div class="ideas-list" id="ideasList">
+                    <div class="idea-item">
+                        <div class="idea-avatar" style="background: var(--gold);">D</div>
+                        <div class="idea-content">
+                            <div class="idea-author">Commander • Just now</div>
+                            <div>Team dashboards with GitHub editing - let everyone tune their own cockpit!</div>
+                        </div>
+                    </div>
+                    <div class="idea-item">
+                        <div class="idea-avatar" style="background: var(--purple);">T</div>
+                        <div class="idea-content">
+                            <div class="idea-author">Teddy • 2 hours ago</div>
+                            <div>5-Key Council integration for NEMO - collaborative AI brainstorming</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = 'commander';
+
+        function setUser(user) {
+            currentUser = user;
+            document.querySelectorAll('.user-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            filterDashboards();
+        }
+
+        function loadCategory(category) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            // Filter dashboard grid based on category
+        }
+
+        function editDashboard(filename) {
+            // Open GitHub edit link for the file
+            const repoUrl = 'https://github.com/overkor-tek/consciousness-revolution/edit/main/';
+            window.open(repoUrl + filename, '_blank');
+        }
+
+        function createDashboard() {
+            const name = prompt('Dashboard name?');
+            if (name) {
+                alert(`Creating ${name}... This will open GitHub to create a new file.`);
+                window.open('https://github.com/overkor-tek/consciousness-revolution/new/main?filename=' + encodeURIComponent(name.toUpperCase().replace(/ /g, '_') + '.html'), '_blank');
+            }
+        }
+
+        function submitIdea() {
+            const input = document.getElementById('ideaInput');
+            const idea = input.value.trim();
+            if (!idea) return;
+
+            const userNames = { commander: 'Commander', teddy: 'Teddy', tiger: 'Tiger' };
+            const userColors = { commander: 'var(--gold)', teddy: 'var(--purple)', tiger: 'var(--accent)' };
+            const userInitial = currentUser[0].toUpperCase();
+
+            const ideaHtml = `
+                <div class="idea-item">
+                    <div class="idea-avatar" style="background: ${userColors[currentUser]};">${userInitial}</div>
+                    <div class="idea-content">
+                        <div class="idea-author">${userNames[currentUser]} • Just now</div>
+                        <div>${idea}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('ideasList').insertAdjacentHTML('afterbegin', ideaHtml);
+            input.value = '';
+
+            // TODO: Save to Supabase for persistence
+        }
+
+        function filterDashboards() {
+            // Filter visible dashboards based on current user
+            // For now, show all dashboards to everyone
+        }
+    </script>
+</body>
+</html>

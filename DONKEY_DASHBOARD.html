@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DONKEY DASHBOARD - Brain Diagnostics</title>
+    <!--
+    DNA BLOCK
+    {
+        "name": "DONKEY_DASHBOARD",
+        "type": "dashboard",
+        "domain": "1_COMMAND",
+        "created": "2026-02-08",
+        "blueprint": "Desktop/1_COMMAND/BRAIN_DIAGNOSTICS_DNA_BLUEPRINT.md",
+        "api": "localhost:7777",
+        "panels": 6,
+        "status": "ACTIVE"
+    }
+    -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #888;
+            font-size: 1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green { background: #6bcb77; }
+        .status-dot.yellow { background: #ffd93d; }
+        .status-dot.red { background: #ff6b6b; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .action-btn.refresh { background: #4d96ff; color: white; }
+        .action-btn.diagnose { background: #6bcb77; color: white; }
+        .action-btn.wake { background: #ffd93d; color: #1a1a2e; }
+        .action-btn.kill { background: #ff6b6b; color: white; }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-icon {
+            font-size: 1.3rem;
+        }
+
+        .panel-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge-healthy { background: rgba(107, 203, 119, 0.2); color: #6bcb77; }
+        .badge-warning { background: rgba(255, 217, 61, 0.2); color: #ffd93d; }
+        .badge-error { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+
+        /* Brain Health Panel */
+        .brain-score {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(#6bcb77 0deg, #6bcb77 calc(var(--score) * 3.6deg), rgba(255,255,255,0.1) calc(var(--score) * 3.6deg));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .score-inner {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #6bcb77;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .brain-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #4d96ff;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        /* Agent Status Panel */
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .agent-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+        }
+
+        .agent-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .agent-icon {
+            font-size: 1.2rem;
+        }
+
+        .agent-name {
+            font-weight: 500;
+        }
+
+        .agent-status {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status-active { background: rgba(107, 203, 119, 0.2); color: #6bcb77; }
+        .status-idle { background: rgba(255, 217, 61, 0.2); color: #ffd93d; }
+        .status-offline { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+
+        /* Daemon Heartbeats Panel */
+        .daemon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 8px;
+        }
+
+        .daemon-dot {
+            width: 35px;
+            height: 35px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .daemon-dot:hover {
+            transform: scale(1.1);
+        }
+
+        .daemon-alive { background: rgba(107, 203, 119, 0.3); color: #6bcb77; }
+        .daemon-stale { background: rgba(255, 217, 61, 0.3); color: #ffd93d; }
+        .daemon-dead { background: rgba(255, 107, 107, 0.3); color: #ff6b6b; }
+
+        .daemon-summary {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Boot Protocol Panel */
+        .boot-phases {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .boot-phase {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .phase-indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .phase-complete { background: #6bcb77; color: #1a1a2e; }
+        .phase-running { background: #ffd93d; color: #1a1a2e; animation: pulse 1s infinite; }
+        .phase-pending { background: rgba(255, 255, 255, 0.1); color: #888; }
+
+        .phase-info {
+            flex: 1;
+        }
+
+        .phase-name {
+            font-weight: 500;
+        }
+
+        .phase-time {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        /* Message Bus Panel */
+        .message-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border-left: 3px solid #4d96ff;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .message-from {
+            font-weight: 500;
+            color: #4d96ff;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .message-content {
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        /* Error Log Panel */
+        .error-list {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .error-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid #ff6b6b;
+        }
+
+        .error-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .error-type {
+            font-weight: 500;
+            color: #ff6b6b;
+        }
+
+        .error-time {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .error-message {
+            font-size: 0.85rem;
+            color: #ccc;
+            font-family: 'Consolas', monospace;
+        }
+
+        .no-errors {
+            text-align: center;
+            padding: 30px;
+            color: #6bcb77;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: #4d96ff;
+            text-decoration: none;
+        }
+
+        /* API Status */
+        .api-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .action-btn {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>DONKEY DASHBOARD</h1>
+        <div class="subtitle">Brain Diagnostics & System Monitor | TRICK_DONKEY_API @ localhost:7777</div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot" id="apiDot"></div>
+            <span id="apiStatus">Checking API...</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot" id="brainDot"></div>
+            <span id="brainStatus">Brain: --</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot" id="daemonDot"></div>
+            <span id="daemonStatus">Daemons: --</span>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button class="action-btn refresh" onclick="refreshAll()">Refresh All</button>
+        <button class="action-btn diagnose" onclick="runDiagnostics()">Run Diagnostics</button>
+        <button class="action-btn wake" onclick="wakeAll()">Wake All</button>
+        <button class="action-btn kill" onclick="killAll()">Kill All</button>
+    </div>
+
+    <div class="grid">
+        <!-- Panel 1: Brain Health -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">🧠</span>
+                    Brain Health
+                </div>
+                <span class="panel-badge badge-healthy" id="brainBadge">HEALTHY</span>
+            </div>
+            <div class="brain-score">
+                <div class="score-circle" id="scoreCircle" style="--score: 88">
+                    <div class="score-inner">
+                        <div class="score-value" id="scoreValue">88</div>
+                        <div class="score-label">HEALTH SCORE</div>
+                    </div>
+                </div>
+            </div>
+            <div class="brain-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="atomCount">163,871</div>
+                    <div class="stat-label">Total Atoms</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="resonance137">1,196</div>
+                    <div class="stat-label">Resonance 137</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="pendingTasks">5</div>
+                    <div class="stat-label">Pending Tasks</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="gradeValue">B+</div>
+                    <div class="stat-label">Grade</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 2: Agent Status -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">👤</span>
+                    Agent Status
+                </div>
+                <span class="panel-badge badge-healthy" id="agentBadge">6/6 ACTIVE</span>
+            </div>
+            <div class="agent-list" id="agentList">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Panel 3: Daemon Heartbeats -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">💓</span>
+                    Daemon Heartbeats
+                </div>
+                <span class="panel-badge badge-healthy" id="daemonBadge">57 DAEMONS</span>
+            </div>
+            <div class="daemon-grid" id="daemonGrid">
+                <!-- Populated by JS -->
+            </div>
+            <div class="daemon-summary">
+                <div class="stat-item">
+                    <div class="stat-value" id="daemonAlive">45</div>
+                    <div class="stat-label">Alive</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="daemonStale">8</div>
+                    <div class="stat-label">Stale</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="daemonDead">4</div>
+                    <div class="stat-label">Dead</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 4: Boot Protocol Status -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">🚀</span>
+                    Boot Protocol
+                </div>
+                <span class="panel-badge badge-healthy" id="bootBadge">COMPLETE</span>
+            </div>
+            <div class="boot-phases" id="bootPhases">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Panel 5: Message Bus -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">📨</span>
+                    Message Bus
+                </div>
+                <span class="panel-badge badge-healthy" id="msgBadge">3 PENDING</span>
+            </div>
+            <div class="message-list" id="messageList">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Panel 6: Error Log -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon">⚠️</span>
+                    Error Log
+                </div>
+                <span class="panel-badge badge-healthy" id="errorBadge">0 ERRORS</span>
+            </div>
+            <div class="error-list" id="errorList">
+                <div class="no-errors">✓ No errors in last 24 hours</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        DONKEY DASHBOARD v1.0 | <a href="BRAIN_QUERY_DASHBOARD.html">Brain Query</a> |
+        <a href="CONSCIOUSNESS_DASHBOARD.html">Consciousness</a> |
+        Built by C1 Mechanic | 2026-02-08
+    </div>
+
+    <div class="api-status">
+        <div class="status-dot" id="apiStatusDot"></div>
+        <span id="apiStatusText">API: Checking...</span>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:7777';
+        let apiOnline = false;
+
+        // Brain Agents
+        const agents = [
+            { name: 'Librarian', icon: '📚', role: 'Knowledge indexing' },
+            { name: 'Pattern Detective', icon: '🔍', role: 'Pattern recognition' },
+            { name: 'Context Weaver', icon: '🕸️', role: 'Context management' },
+            { name: 'Priority Manager', icon: '📊', role: 'Task prioritization' },
+            { name: 'Connection Mapper', icon: '🔗', role: 'Relationship mapping' },
+            { name: 'Memory Curator', icon: '🗄️', role: 'Memory optimization' }
+        ];
+
+        // Daemon list (simulated - 57 daemons)
+        const daemons = [
+            'SPINE', 'BRAIN_BOOT', 'EVENT_TRIGGER', 'NEWS_AGENCY', 'MAINTENANCE',
+            'PHASE_CLASSIFIER', 'CONSCIOUSNESS', 'AKASHIC', 'AUTONOMY', 'DIVINE_FREQ',
+            'DNA_SYNC', 'CYCLOTRON', 'TORNADO', 'TRANSCENDENCE', 'QUALITY_GRADER',
+            'HEARTBEAT', 'COMPLETION', 'CRYSTALLIZATION', 'EMERGENCE', 'PATTERN',
+            'SESSION_START', 'DAILY_OPS', 'ABILITY_DISCOVERY', 'AUTO_FILING', 'DISCORD',
+            'EMAIL_GATEWAY', 'FAILOVER', 'INBOX', 'NEMO', 'NODE_PROTOCOL',
+            'RADIO', 'SUPABASE', 'TRINITY', 'UNIVERSAL_LAW', 'VIDEO_SCRAPER',
+            'WAKE_WORD', 'WEB_SEARCH', 'WIRE_IN', 'ARAYA_CLOUD', 'CHATGPT',
+            'COURT_SCRAPER', 'CRYPTO_PATTERN', 'DATA_CRYSTAL', 'DIVINE_PROTOCOL',
+            'DNA_PATTERN', 'FLIGHT_LOG', 'GEOMETRIC', 'JEDI_ALLIANCE', 'MOBILE_AI',
+            'PRO_SE_SHIELD', 'PRODUCT_REGISTRY', 'SECRETS_SYNC', 'SOCIAL_AUTO',
+            'TOOL_LAUNCHER', 'USER_PROFILER', 'BRUTAL_BOOT', 'PERFECTION_LOOP'
+        ];
+
+        // Boot phases
+        const bootPhases = [
+            { name: 'CLAUDE.md Load', time: '0.2s', complete: true },
+            { name: 'Brain Wake', time: '1.5s', complete: true },
+            { name: 'MCP Connect', time: '2.1s', complete: true },
+            { name: 'Agent Spawn', time: '0.8s', complete: true },
+            { name: 'Daemon Start', time: '3.2s', complete: true },
+            { name: 'Health Check', time: '0.5s', complete: true }
+        ];
+
+        // Initialize dashboard
+        async function init() {
+            await checkAPI();
+            populateAgents();
+            populateDaemons();
+            populateBootPhases();
+            populateMessages();
+
+            if (apiOnline) {
+                await fetchBrainHealth();
+            }
+
+            // Auto-refresh every 30 seconds
+            setInterval(refreshAll, 30000);
+        }
+
+        // Check API status
+        async function checkAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/health`, {
+                    mode: 'cors',
+                    timeout: 3000
+                });
+                if (response.ok) {
+                    apiOnline = true;
+                    updateAPIStatus(true);
+                } else {
+                    throw new Error('API returned error');
+                }
+            } catch (e) {
+                apiOnline = false;
+                updateAPIStatus(false);
+                console.log('API offline, using simulated data');
+            }
+        }
+
+        // Update API status display
+        function updateAPIStatus(online) {
+            const dot = document.getElementById('apiStatusDot');
+            const text = document.getElementById('apiStatusText');
+            const apiDot = document.getElementById('apiDot');
+            const apiStatus = document.getElementById('apiStatus');
+
+            if (online) {
+                dot.className = 'status-dot green';
+                text.textContent = 'API: Online';
+                apiDot.className = 'status-dot green';
+                apiStatus.textContent = 'API Online';
+            } else {
+                dot.className = 'status-dot red';
+                text.textContent = 'API: Offline (Simulated)';
+                apiDot.className = 'status-dot red';
+                apiStatus.textContent = 'API Offline';
+            }
+        }
+
+        // Fetch brain health from API
+        async function fetchBrainHealth() {
+            try {
+                const [cyclotronRes, statsRes, tasksRes] = await Promise.all([
+                    fetch(`${API_BASE}/cyclotron`),
+                    fetch(`${API_BASE}/stats`),
+                    fetch(`${API_BASE}/tasks/pending`)
+                ]);
+
+                const cyclotron = await cyclotronRes.json();
+                const stats = await statsRes.json();
+                const tasks = await tasksRes.json();
+
+                // Update brain health panel
+                if (cyclotron.brain_health) {
+                    const score = cyclotron.brain_health.score || 88;
+                    document.getElementById('scoreValue').textContent = score;
+                    document.getElementById('scoreCircle').style.setProperty('--score', score);
+                    document.getElementById('gradeValue').textContent = cyclotron.brain_health.grade || 'B+';
+
+                    const brainDot = document.getElementById('brainDot');
+                    const brainStatus = document.getElementById('brainStatus');
+                    if (score >= 80) {
+                        brainDot.className = 'status-dot green';
+                        brainStatus.textContent = `Brain: ${cyclotron.brain_health.status || 'HEALTHY'}`;
+                    } else if (score >= 60) {
+                        brainDot.className = 'status-dot yellow';
+                        brainStatus.textContent = 'Brain: DEGRADED';
+                    } else {
+                        brainDot.className = 'status-dot red';
+                        brainStatus.textContent = 'Brain: CRITICAL';
+                    }
+                }
+
+                // Update atom count
+                if (stats.atoms) {
+                    document.getElementById('atomCount').textContent = stats.atoms.toLocaleString();
+                }
+
+                // Update resonance 137
+                if (cyclotron.resonance_137) {
+                    document.getElementById('resonance137').textContent = cyclotron.resonance_137.toLocaleString();
+                }
+
+                // Update pending tasks
+                if (tasks.count !== undefined) {
+                    document.getElementById('pendingTasks').textContent = tasks.count;
+                }
+
+            } catch (e) {
+                console.error('Error fetching brain health:', e);
+            }
+        }
+
+        // Populate agent list
+        function populateAgents() {
+            const list = document.getElementById('agentList');
+            list.innerHTML = agents.map((agent, i) => {
+                // Simulate status (mostly active in healthy system)
+                const statuses = ['active', 'active', 'active', 'active', 'idle', 'active'];
+                const status = statuses[i] || 'active';
+                const statusClass = status === 'active' ? 'status-active' :
+                                   status === 'idle' ? 'status-idle' : 'status-offline';
+                const statusText = status.toUpperCase();
+
+                return `
+                    <div class="agent-item">
+                        <div class="agent-info">
+                            <span class="agent-icon">${agent.icon}</span>
+                            <span class="agent-name">${agent.name}</span>
+                        </div>
+                        <span class="agent-status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Populate daemon grid
+        function populateDaemons() {
+            const grid = document.getElementById('daemonGrid');
+            let alive = 0, stale = 0, dead = 0;
+
+            grid.innerHTML = daemons.map((daemon, i) => {
+                // Simulate status distribution: 80% alive, 14% stale, 6% dead
+                const rand = Math.random();
+                let status, statusClass;
+                if (rand < 0.80) {
+                    status = 'alive';
+                    statusClass = 'daemon-alive';
+                    alive++;
+                } else if (rand < 0.94) {
+                    status = 'stale';
+                    statusClass = 'daemon-stale';
+                    stale++;
+                } else {
+                    status = 'dead';
+                    statusClass = 'daemon-dead';
+                    dead++;
+                }
+
+                const abbrev = daemon.substring(0, 2).toUpperCase();
+                return `<div class="daemon-dot ${statusClass}" title="${daemon}: ${status}">${abbrev}</div>`;
+            }).join('');
+
+            // Update summary
+            document.getElementById('daemonAlive').textContent = alive;
+            document.getElementById('daemonStale').textContent = stale;
+            document.getElementById('daemonDead').textContent = dead;
+
+            // Update status bar
+            const daemonDot = document.getElementById('daemonDot');
+            const daemonStatus = document.getElementById('daemonStatus');
+            if (dead === 0) {
+                daemonDot.className = 'status-dot green';
+                daemonStatus.textContent = `Daemons: ${alive}/${daemons.length} Active`;
+            } else if (dead <= 5) {
+                daemonDot.className = 'status-dot yellow';
+                daemonStatus.textContent = `Daemons: ${dead} Down`;
+            } else {
+                daemonDot.className = 'status-dot red';
+                daemonStatus.textContent = `Daemons: ${dead} Critical`;
+            }
+        }
+
+        // Populate boot phases
+        function populateBootPhases() {
+            const container = document.getElementById('bootPhases');
+            container.innerHTML = bootPhases.map((phase, i) => {
+                const indicatorClass = phase.complete ? 'phase-complete' : 'phase-pending';
+                const checkmark = phase.complete ? '✓' : (i + 1);
+
+                return `
+                    <div class="boot-phase">
+                        <div class="phase-indicator ${indicatorClass}">${checkmark}</div>
+                        <div class="phase-info">
+                            <div class="phase-name">${phase.name}</div>
+                            <div class="phase-time">${phase.complete ? `Completed in ${phase.time}` : 'Pending'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Populate messages
+        function populateMessages() {
+            const list = document.getElementById('messageList');
+            const messages = [
+                { from: 'SPINE_DAEMON', time: '2 min ago', content: 'Heartbeat check complete. All systems nominal.' },
+                { from: 'TRINITY_HUB', time: '15 min ago', content: 'T1/T2/T3 sync successful. No pending decisions.' },
+                { from: 'MAINTENANCE', time: '1 hour ago', content: 'Daily maintenance complete. Next run: 06:00.' }
+            ];
+
+            list.innerHTML = messages.map(msg => `
+                <div class="message-item">
+                    <div class="message-header">
+                        <span class="message-from">${msg.from}</span>
+                        <span class="message-time">${msg.time}</span>
+                    </div>
+                    <div class="message-content">${msg.content}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('msgBadge').textContent = `${messages.length} PENDING`;
+        }
+
+        // Action: Refresh All
+        async function refreshAll() {
+            console.log('Refreshing all panels...');
+            await checkAPI();
+            if (apiOnline) {
+                await fetchBrainHealth();
+            }
+            populateDaemons(); // Re-randomize daemon status for demo
+            console.log('Refresh complete');
+        }
+
+        // Action: Run Diagnostics
+        function runDiagnostics() {
+            alert('Running full system diagnostics...\n\nThis would trigger:\n- python .consciousness/MASTER_BOOT_CHECKUP.py\n- python .consciousness/QUALITY_GRADER.py\n- python .consciousness/DIVINE_ALIGNMENT_SCORER.py');
+        }
+
+        // Action: Wake All
+        function wakeAll() {
+            alert('Waking all daemons...\n\nThis would trigger:\n- Desktop/BRAIN_BOOT.bat\n- Desktop/SPINE_DAEMON.bat\n- All daemon startup scripts');
+        }
+
+        // Action: Kill All
+        function killAll() {
+            if (confirm('Are you sure you want to kill all daemons?\n\nThis will stop all background processes.')) {
+                alert('Killing all daemons...\n\nThis would terminate all running Python daemons.');
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

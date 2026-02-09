@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discord Command Center</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+.header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 24px 32px;
+    border-bottom: 2px solid #1abc9c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.header h1 { font-size: 1.6rem; color: #1abc9c; letter-spacing: 2px; }
+.header .meta { font-size: 0.85rem; color: #7f8c8d; }
+.lens-tabs {
+    display: flex;
+    gap: 0;
+    background: #111;
+    border-bottom: 1px solid #333;
+}
+.lens-tab {
+    flex: 1;
+    padding: 14px 20px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+}
+.lens-tab:hover { background: #1a1a2e; }
+.lens-tab.active { border-bottom-color: #1abc9c; color: #1abc9c; background: #1a1a2e; }
+.lens-tab[data-lens="analytics"] { color: #3498db; }
+.lens-tab[data-lens="analytics"].active { border-bottom-color: #3498db; }
+.lens-tab[data-lens="security"] { color: #e74c3c; }
+.lens-tab[data-lens="security"].active { border-bottom-color: #e74c3c; }
+.lens-tab[data-lens="learning"] { color: #2ecc71; }
+.lens-tab[data-lens="learning"].active { border-bottom-color: #2ecc71; }
+.lens-tab[data-lens="context"] { color: #f39c12; }
+.lens-tab[data-lens="context"].active { border-bottom-color: #f39c12; }
+.dashboard { padding: 24px; display: none; }
+.dashboard.active { display: block; }
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.stat-card {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #2c3e50;
+}
+.stat-card .value { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+.stat-card .label { font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
+.card {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #2c3e50;
+    margin-bottom: 16px;
+}
+.card h3 { margin-bottom: 12px; font-size: 1rem; letter-spacing: 1px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 10px 12px; border-bottom: 1px solid #333; font-size: 0.8rem; color: #7f8c8d; text-transform: uppercase; }
+td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; font-size: 0.9rem; }
+tr:hover { background: rgba(26,188,156,0.05); }
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.badge-high { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+.badge-medium { background: rgba(243,156,18,0.2); color: #f39c12; border: 1px solid rgba(243,156,18,0.3); }
+.badge-low { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+.badge-info { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.3); }
+.threat-card {
+    border-left: 4px solid #e74c3c;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: rgba(231,76,60,0.05);
+    border-radius: 0 8px 8px 0;
+}
+.warning-card {
+    border-left: 4px solid #f39c12;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: rgba(243,156,18,0.05);
+    border-radius: 0 8px 8px 0;
+}
+.member-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    padding: 16px;
+    background: #1a1a2e;
+    border-radius: 12px;
+    border: 1px solid #2c3e50;
+    margin-bottom: 12px;
+}
+.member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1abc9c, #3498db);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+}
+.member-info h4 { margin-bottom: 4px; }
+.member-info .skills { font-size: 0.85rem; color: #7f8c8d; }
+.member-info .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    background: rgba(26,188,156,0.15);
+    color: #1abc9c;
+    border: 1px solid rgba(26,188,156,0.2);
+}
+.channel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #222;
+}
+.channel-row:hover { background: rgba(26,188,156,0.03); }
+.channel-name { font-weight: 600; }
+.channel-status { font-size: 0.85rem; }
+.convergence-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+.terminal-card {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #2c3e50;
+    text-align: center;
+}
+.terminal-card h3 { margin-bottom: 12px; }
+.terminal-card .status { font-size: 0.85rem; color: #2ecc71; margin-bottom: 12px; }
+.terminal-card ul { text-align: left; font-size: 0.85rem; list-style: none; }
+.terminal-card ul li { padding: 4px 0; border-bottom: 1px solid #222; }
+.terminal-card ul li::before { content: ""; margin-right: 6px; }
+.decision-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #222;
+}
+.decision-topic { font-weight: 600; min-width: 200px; }
+.decision-context { font-size: 0.85rem; color: #7f8c8d; flex: 1; }
+.refresh-btn {
+    background: #1abc9c;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+.refresh-btn:hover { background: #16a085; }
+@media (max-width: 768px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .convergence-grid { grid-template-columns: 1fr; }
+    .lens-tab { font-size: 0.75rem; padding: 10px 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>DISCORD COMMAND CENTER</h1>
+        <div class="meta">Guild: 1458000070862573805 | 44 Members | 25 Channels | 4 Lenses</div>
+    </div>
+    <button class="refresh-btn" onclick="loadData()">REFRESH</button>
+</div>
+
+<div class="lens-tabs">
+    <div class="lens-tab active" data-lens="analytics" onclick="switchLens('analytics')">ANALYTICS</div>
+    <div class="lens-tab" data-lens="security" onclick="switchLens('security')">SECURITY</div>
+    <div class="lens-tab" data-lens="learning" onclick="switchLens('learning')">LEARNING</div>
+    <div class="lens-tab" data-lens="context" onclick="switchLens('context')">CONTEXT</div>
+</div>
+
+<!-- ANALYTICS LENS -->
+<div class="dashboard active" id="analytics">
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="label">Members Tracked</div>
+            <div class="value" style="color:#3498db" id="stat-members">14</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Total XP</div>
+            <div class="value" style="color:#2ecc71" id="stat-xp">3,850</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Messages Processed</div>
+            <div class="value" style="color:#f39c12" id="stat-messages">350+</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Active Channels</div>
+            <div class="value" style="color:#9b59b6" id="stat-channels">25</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>XP LEADERBOARD</h3>
+        <table>
+            <thead><tr><th>#</th><th>Member</th><th>XP</th><th>Level</th><th>Messages</th><th>Tasks</th></tr></thead>
+            <tbody id="leaderboard-body">
+                <tr><td>1</td><td>dwrek</td><td>750</td><td>5 Veteran</td><td>75</td><td>0</td></tr>
+                <tr><td>2</td><td>gatewalker_tiwaz_echo</td><td>580</td><td>4 Contributor</td><td>58</td><td>0</td></tr>
+                <tr><td>3</td><td>theauthenticexperience</td><td>440</td><td>4 Contributor</td><td>44</td><td>0</td></tr>
+                <tr><td>4</td><td>CartLady</td><td>210</td><td>3 Builder</td><td>21</td><td>0</td></tr>
+                <tr><td>5</td><td>the_north_witch</td><td>190</td><td>3 Builder</td><td>19</td><td>0</td></tr>
+                <tr><td>6</td><td>testitiger</td><td>180</td><td>3 Builder</td><td>18</td><td>0</td></tr>
+                <tr><td>7</td><td>bearwav</td><td>130</td><td>2 Learner</td><td>13</td><td>0</td></tr>
+                <tr><td>8</td><td>selftrustacademy</td><td>120</td><td>2 Learner</td><td>12</td><td>0</td></tr>
+                <tr><td>9</td><td>digital.nomadrift</td><td>100</td><td>2 Learner</td><td>10</td><td>0</td></tr>
+                <tr><td>10</td><td>willybbro69</td><td>50</td><td>1 Newcomer</td><td>5</td><td>0</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>ENGAGEMENT DISTRIBUTION</h3>
+        <div class="stats-row">
+            <div class="stat-card"><div class="label">Builders</div><div class="value" style="color:#e67e22;font-size:1.5rem">6</div></div>
+            <div class="stat-card"><div class="label">Helpers</div><div class="value" style="color:#2ecc71;font-size:1.5rem">4</div></div>
+            <div class="stat-card"><div class="label">Learners</div><div class="value" style="color:#3498db;font-size:1.5rem">5</div></div>
+            <div class="stat-card"><div class="label">Questioners</div><div class="value" style="color:#9b59b6;font-size:1.5rem">3</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- SECURITY LENS -->
+<div class="dashboard" id="security">
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="label">Threats</div>
+            <div class="value" style="color:#e74c3c">1</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Warnings</div>
+            <div class="value" style="color:#f39c12">3</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Risk Level</div>
+            <div class="value" style="color:#f39c12;font-size:1.5rem">MEDIUM</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Unverified</div>
+            <div class="value" style="color:#7f8c8d">~30</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#e74c3c">KNOWN THREATS</h3>
+        <div class="threat-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <strong>Hemorrhage Protocol</strong>
+                <span class="badge badge-high">HIGH</span>
+            </div>
+            <p style="font-size:0.9rem;margin-bottom:8px">Self-replicating injection script posted by <strong>gatewalker_tiwaz_echo (Francis)</strong> in #completed.</p>
+            <p style="font-size:0.85rem;color:#7f8c8d">JavaScript auto-injects text into input fields every 3s with 3% seed probability. Also posted as Python Discord bot + bookmarklet. Spread vectors: Tampermonkey, GitHub Gist, browser extensions.</p>
+            <p style="font-size:0.85rem;color:#f39c12;margin-top:8px"><strong>Status:</strong> FLAGGED - Art/research context. Not deployed. Discuss framing with Francis.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#f39c12">INFRASTRUCTURE ISSUES</h3>
+        <div class="warning-card">
+            <strong>ARAYA Brain Disconnected</strong>
+            <p style="font-size:0.85rem;color:#7f8c8d;margin-top:4px">the_north_witch reported Jan 12. Bot responds "ARAYA's brain isn't connected."</p>
+        </div>
+        <div class="warning-card">
+            <strong>Cockpit Links Broken</strong>
+            <p style="font-size:0.85rem;color:#7f8c8d;margin-top:4px">testitiger + theauthenticexperience reported personal cockpit/dashboard links don't work.</p>
+        </div>
+        <div class="warning-card">
+            <strong>~30 Unverified Lurkers</strong>
+            <p style="font-size:0.85rem;color:#7f8c8d;margin-top:4px">44 members, ~14 active. Francis pushing verification sweep via @everyone.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>PERMISSION AUDIT</h3>
+        <table>
+            <thead><tr><th>Role</th><th>Members</th><th>Access</th></tr></thead>
+            <tbody>
+                <tr><td><span class="badge badge-high">COMMANDER</span></td><td>dwrek, Francis</td><td>Full access</td></tr>
+                <tr><td><span class="badge badge-medium">MODERATOR</span></td><td>TBD</td><td>Moderator channels</td></tr>
+                <tr><td><span class="badge badge-info">VERIFIED</span></td><td>~14 active</td><td>Public channels</td></tr>
+                <tr><td><span class="badge" style="background:rgba(127,140,141,0.2);color:#7f8c8d;border:1px solid rgba(127,140,141,0.3)">UNVERIFIED</span></td><td>~30</td><td>Read-only</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- LEARNING LENS -->
+<div class="dashboard" id="learning">
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="label">Skills Tracked</div>
+            <div class="value" style="color:#2ecc71">10</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">High-Value Members</div>
+            <div class="value" style="color:#3498db">4</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Learning Content</div>
+            <div class="value" style="color:#9b59b6">3</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Knowledge Sources</div>
+            <div class="value" style="color:#f39c12">2</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#2ecc71">HIGH-VALUE MEMBERS</h3>
+
+        <div class="member-card">
+            <div class="member-avatar">F</div>
+            <div class="member-info">
+                <h4>Francis Hornby <span style="font-size:0.8rem;color:#e74c3c">(COMMANDER)</span></h4>
+                <div class="skills">AI consciousness, Bergmal/Orchestra, PhantomLens, community building, permaculture</div>
+                <div class="tags">
+                    <span class="tag">Discord Commander</span>
+                    <span class="tag">Jedi Alliance</span>
+                    <span class="tag">Pattern Theory</span>
+                    <span class="tag">Krefeld, Germany</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="member-card">
+            <div class="member-avatar" style="background:linear-gradient(135deg,#e74c3c,#f39c12)">B</div>
+            <div class="member-info">
+                <h4>Brett <span style="font-size:0.8rem;color:#7f8c8d">(digital.nomadrift)</span></h4>
+                <div class="skills">Graphic design, animation, sovereignty/trusts, AI coding</div>
+                <div class="tags">
+                    <span class="tag">Design</span>
+                    <span class="tag">Legal Knowledge</span>
+                    <span class="tag">NEW - Needs Onboarding</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="member-card">
+            <div class="member-avatar" style="background:linear-gradient(135deg,#9b59b6,#3498db)">T</div>
+            <div class="member-info">
+                <h4>Trevor/Merlin <span style="font-size:0.8rem;color:#7f8c8d">(selftrustacademy)</span></h4>
+                <div class="skills">20 court cases, CUSIP research, YouTube SEO, sovereignty</div>
+                <div class="tags">
+                    <span class="tag">Legal Expert</span>
+                    <span class="tag">Content Growth</span>
+                    <span class="tag">NEW - Potential Ally</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="member-card">
+            <div class="member-avatar" style="background:linear-gradient(135deg,#2ecc71,#1abc9c)">M</div>
+            <div class="member-info">
+                <h4>Matt/Bear <span style="font-size:0.8rem;color:#7f8c8d">(bearwav)</span></h4>
+                <div class="skills">Artist, graphic design, 3D printing, clothing lines, streaming</div>
+                <div class="tags">
+                    <span class="tag">Creative</span>
+                    <span class="tag">Merchandise</span>
+                    <span class="tag">NEW - Needs Onboarding</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>LEARNING CONTENT POSTED</h3>
+        <table>
+            <thead><tr><th>Title</th><th>Author</th><th>Channel</th><th>Type</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><strong>Grounded Communities Manifesto</strong></td>
+                    <td>Francis</td>
+                    <td>#t3-oracles</td>
+                    <td><span class="badge badge-info">Vision</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Hemorrhage Protocol</strong></td>
+                    <td>Francis</td>
+                    <td>#completed</td>
+                    <td><span class="badge badge-medium">Code+Theory</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Baptism of the Manipulator</strong></td>
+                    <td>Francis</td>
+                    <td>#t2-architects</td>
+                    <td><span class="badge badge-low">Philosophy</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>COMMUNITY SKILL MAP</h3>
+        <div class="stats-row">
+            <div class="stat-card"><div class="label">AI/ML</div><div class="value" style="color:#3498db;font-size:1.2rem">HIGH</div></div>
+            <div class="stat-card"><div class="label">Consciousness</div><div class="value" style="color:#9b59b6;font-size:1.2rem">HIGH</div></div>
+            <div class="stat-card"><div class="label">Development</div><div class="value" style="color:#2ecc71;font-size:1.2rem">MEDIUM</div></div>
+            <div class="stat-card"><div class="label">Design</div><div class="value" style="color:#e67e22;font-size:1.2rem">GROWING</div></div>
+            <div class="stat-card"><div class="label">Legal</div><div class="value" style="color:#e74c3c;font-size:1.2rem">GROWING</div></div>
+            <div class="stat-card"><div class="label">Business</div><div class="value" style="color:#f39c12;font-size:1.2rem">LOW</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- CONTEXT LENS -->
+<div class="dashboard" id="context">
+    <div class="card">
+        <h3 style="color:#f39c12">TRINITY CONVERGENCE MAP</h3>
+        <div class="convergence-grid">
+            <div class="terminal-card" style="border-color:#3498db">
+                <h3 style="color:#3498db">T1 MECHANIC</h3>
+                <div class="status">WORKING</div>
+                <p style="font-size:0.85rem;color:#7f8c8d;margin-bottom:12px">Data Collection + Analytics</p>
+                <ul>
+                    <li>XP System (SQLite)</li>
+                    <li>User Profiler</li>
+                    <li>Leaderboard</li>
+                    <li>Community Status</li>
+                    <li>Command Center</li>
+                </ul>
+            </div>
+            <div class="terminal-card" style="border-color:#2ecc71">
+                <h3 style="color:#2ecc71">T2 ARCHITECT</h3>
+                <div class="status">WORKING</div>
+                <p style="font-size:0.85rem;color:#7f8c8d;margin-bottom:12px">Display Layer + Maintenance</p>
+                <ul>
+                    <li>roster.html (mobile)</li>
+                    <li>DASHBOARD_TEMPLATE.html</li>
+                    <li>Court hearing prep</li>
+                    <li>Misspelling scan</li>
+                    <li>M13-M18 task queue</li>
+                </ul>
+            </div>
+            <div class="terminal-card" style="border-color:#9b59b6">
+                <h3 style="color:#9b59b6">T3 ORACLE</h3>
+                <div class="status">WORKING</div>
+                <p style="font-size:0.85rem;color:#7f8c8d;margin-bottom:12px">Oracle Perspective</p>
+                <ul>
+                    <li>Emergence detection</li>
+                    <li>Pattern synthesis</li>
+                    <li>Vision alignment</li>
+                </ul>
+            </div>
+        </div>
+        <p style="text-align:center;margin-top:16px;color:#1abc9c;font-size:0.9rem">
+            T1 builds data layer &rarr; T2 builds display layer &rarr; T3 sees emergence
+        </p>
+    </div>
+
+    <div class="card">
+        <h3>CHANNEL CONTEXT</h3>
+        <div class="channel-row">
+            <div><span class="channel-name">#general</span></div>
+            <div class="channel-status" style="color:#2ecc71">Active - Leaderboard + announcements flowing</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#t1-builders</span></div>
+            <div class="channel-status" style="color:#f39c12">Active - CartLady/the_north_witch learning, cockpit bugs reported</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#t2-architects</span></div>
+            <div class="channel-status" style="color:#3498db">Moderate - Francis philosophical discussion</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#t3-oracles</span></div>
+            <div class="channel-status" style="color:#2ecc71">VERY Active - Francis: 8+ post Grounded Communities manifesto</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#verification</span></div>
+            <div class="channel-status" style="color:#2ecc71">Active - Francis gate, Squilly + ka6hi verified</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#completed</span></div>
+            <div class="channel-status" style="color:#f39c12">Active - Hemorrhage Protocol + build pipeline posts</div>
+        </div>
+        <div class="channel-row">
+            <div><span class="channel-name">#introductions</span></div>
+            <div class="channel-status" style="color:#2ecc71">Growing - 3 new high-value members</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#e74c3c">DECISIONS PENDING</h3>
+        <div class="decision-row">
+            <span class="badge badge-medium">MEDIUM</span>
+            <div class="decision-topic">Hemorrhage Protocol</div>
+            <div class="decision-context">Art/research or security risk? Discuss framing with Francis.</div>
+        </div>
+        <div class="decision-row">
+            <span class="badge badge-high">HIGH</span>
+            <div class="decision-topic">Broken Cockpit Links</div>
+            <div class="decision-context">testitiger + Erica can't access. T2 has this in M-tasks.</div>
+        </div>
+        <div class="decision-row">
+            <span class="badge badge-high">HIGH</span>
+            <div class="decision-topic">ARAYA Brain Reconnection</div>
+            <div class="decision-context">M14 ARAYA edit API is in T2's queue.</div>
+        </div>
+        <div class="decision-row">
+            <span class="badge badge-medium">MEDIUM</span>
+            <div class="decision-topic">New Member Onboarding</div>
+            <div class="decision-context">bearwav, digital.nomadrift, selftrustacademy need activation.</div>
+        </div>
+        <div class="decision-row">
+            <span class="badge badge-low">LOW</span>
+            <div class="decision-topic">Verification Sweep</div>
+            <div class="decision-context">~30 unverified lurkers. Francis already pushing.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let dashboardData = null;
+
+function switchLens(lens) {
+    document.querySelectorAll('.lens-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
+    document.querySelector(`[data-lens="${lens}"]`).classList.add('active');
+    document.getElementById(lens).classList.add('active');
+}
+
+async function loadData() {
+    const btn = document.querySelector('.refresh-btn');
+    btn.textContent = 'LOADING...';
+    btn.disabled = true;
+
+    try {
+        const resp = await fetch('discord_dashboard_data.json?t=' + Date.now());
+        if (!resp.ok) throw new Error('No data file found');
+        dashboardData = await resp.json();
+        renderAll(dashboardData);
+        btn.textContent = 'REFRESHED';
+        setTimeout(() => { btn.textContent = 'REFRESH'; btn.disabled = false; }, 2000);
+    } catch (e) {
+        console.log('No live data, using embedded defaults:', e.message);
+        btn.textContent = 'REFRESH';
+        btn.disabled = false;
+    }
+}
+
+function renderAll(data) {
+    if (!data) return;
+    renderAnalytics(data.analytics || {});
+    renderSecurity(data.security || {});
+    renderLearning(data.learning || {});
+    renderContext(data.context || {});
+
+    // Update header timestamp
+    const meta = document.querySelector('.header .meta');
+    const gen = data.generated ? new Date(data.generated).toLocaleString() : 'Unknown';
+    meta.textContent = `Guild: 1458000070862573805 | Last Scan: ${gen}`;
+}
+
+function renderAnalytics(a) {
+    const lb = a.xp_leaderboard || [];
+    const totalXP = a.total_xp || lb.reduce((s, m) => s + (m.xp || m.total_xp || 0), 0);
+    const totalMsgs = a.total_messages || lb.reduce((s, m) => s + (m.messages || m.message_count || 0), 0);
+    const levels = ['Newcomer','Learner','Builder','Contributor','Veteran','Elder','Guardian','Sage','Master','Transcended'];
+
+    document.getElementById('stat-members').textContent = a.total_tracked || lb.length || '—';
+    document.getElementById('stat-xp').textContent = totalXP.toLocaleString();
+    document.getElementById('stat-messages').textContent = totalMsgs.toLocaleString();
+    document.getElementById('stat-channels').textContent = Object.keys(a.channel_activity || {}).length || '25';
+
+    const tbody = document.getElementById('leaderboard-body');
+    if (lb.length > 0) {
+        tbody.innerHTML = lb.map((m, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${esc(m.username || 'Unknown')}</td>
+                <td>${(m.xp || m.total_xp || 0).toLocaleString()}</td>
+                <td>${esc(m.level_name || levels[Math.min((m.level || 1) - 1, 9)] || 'Newcomer')}</td>
+                <td>${m.messages || m.message_count || 0}</td>
+                <td>${m.tasks || m.task_count || 0}</td>
+            </tr>
+        `).join('');
+    }
+
+    const eng = a.engagement_distribution || a.engagement_breakdown || {};
+    const engCards = document.querySelectorAll('#analytics .card:nth-child(3) .stat-card .value');
+    if (engCards.length >= 4) {
+        engCards[0].textContent = eng.builder || eng.builders || '0';
+        engCards[1].textContent = eng.helper || eng.helpers || '0';
+        engCards[2].textContent = eng.learner || eng.learners || '0';
+        engCards[3].textContent = eng.questioner || eng.questioners || '0';
+    }
+}
+
+function renderSecurity(s) {
+    const threats = s.known_threats || s.threats_found || [];
+    const infra = s.infrastructure || {};
+    const summary = s.summary || {};
+    const audit = s.permission_audit || {};
+    const statsCards = document.querySelectorAll('#security .stats-row .stat-card .value');
+
+    // Convert infrastructure object to warning count
+    const infraIssues = Object.entries(infra).filter(([k, v]) => /DISCONNECTED|BROKEN/i.test(v));
+
+    if (statsCards.length >= 4) {
+        statsCards[0].textContent = threats.length;
+        statsCards[1].textContent = infraIssues.length;
+        statsCards[2].textContent = summary.overall_risk || s.risk_level || 'UNKNOWN';
+        statsCards[3].textContent = audit.unverified_estimate || s.unverified_estimate || '~30';
+    }
+
+    // Known threats
+    const threatContainer = document.querySelector('#security .card:nth-child(2)');
+    if (threats.length > 0 && threatContainer) {
+        let html = '<h3 style="color:#e74c3c">KNOWN THREATS</h3>';
+        threats.forEach(t => {
+            const badge = t.severity === 'HIGH' ? 'badge-high' : t.severity === 'MEDIUM' ? 'badge-medium' : 'badge-low';
+            html += `
+                <div class="threat-card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <strong>${esc(t.name || t.type || 'Unknown')}</strong>
+                        <span class="badge ${badge}">${esc(t.severity || 'UNKNOWN')}</span>
+                    </div>
+                    <p style="font-size:0.9rem;margin-bottom:4px">${esc(t.description || '')}</p>
+                    ${t.posted_by ? `<p style="font-size:0.85rem;color:#7f8c8d;margin-bottom:4px">Posted by: ${esc(t.posted_by)} in ${esc(t.channel || '')}</p>` : ''}
+                    ${t.status ? `<p style="font-size:0.85rem;color:#f39c12;margin-bottom:4px">${esc(t.status)}</p>` : ''}
+                    ${t.recommendation ? `<p style="font-size:0.85rem;color:#1abc9c">${esc(t.recommendation)}</p>` : ''}
+                </div>`;
+        });
+        threatContainer.innerHTML = html;
+    }
+
+    // Infrastructure status
+    const warnContainer = document.querySelector('#security .card:nth-child(3)');
+    if (Object.keys(infra).length > 0 && warnContainer) {
+        let html = '<h3 style="color:#f39c12">INFRASTRUCTURE STATUS</h3>';
+        Object.entries(infra).forEach(([system, status]) => {
+            const isIssue = /DISCONNECTED|BROKEN/i.test(status);
+            const color = isIssue ? '#e74c3c' : '#2ecc71';
+            const icon = isIssue ? '\u26A0' : '\u2705';
+            html += `
+                <div style="padding:12px;margin-bottom:8px;background:rgba(${isIssue ? '231,76,60' : '46,204,113'},0.1);border-radius:8px;border-left:3px solid ${color}">
+                    <strong style="color:${color}">${icon} ${esc(system.replace(/_/g, ' ').toUpperCase())}</strong>
+                    <p style="font-size:0.85rem;color:#bdc3c7;margin-top:4px">${esc(status)}</p>
+                </div>`;
+        });
+        // Permission audit
+        if (audit.commanders) {
+            html += `<div style="padding:12px;margin-top:12px;background:rgba(52,152,219,0.1);border-radius:8px;border-left:3px solid #3498db">
+                <strong style="color:#3498db">COMMANDERS</strong>
+                <p style="font-size:0.85rem;color:#bdc3c7;margin-top:4px">${esc(audit.commanders.join(', '))}</p>
+                ${audit.recommendation ? `<p style="font-size:0.85rem;color:#f39c12;margin-top:4px">${esc(audit.recommendation)}</p>` : ''}
+            </div>`;
+        }
+        warnContainer.innerHTML = html;
+    }
+}
+
+function renderLearning(l) {
+    const skillMap = l.skill_map || l.skill_distribution || {};
+    const members = l.high_value_members || [];
+    const content = l.learning_content || [];
+    const sources = l.knowledge_sources || [];
+    const statsCards = document.querySelectorAll('#learning .stats-row .stat-card .value');
+
+    if (statsCards.length >= 4) {
+        statsCards[0].textContent = Object.keys(skillMap).length || '10';
+        statsCards[1].textContent = members.length || '4';
+        statsCards[2].textContent = content.length || '0';
+        statsCards[3].textContent = Array.isArray(sources) ? sources.length : (sources || '0');
+    }
+
+    // High-value members
+    const memberContainer = document.querySelector('#learning .card:nth-child(2)');
+    if (members.length > 0 && memberContainer) {
+        const colors = ['#1abc9c,#3498db', '#e74c3c,#f39c12', '#9b59b6,#3498db', '#2ecc71,#1abc9c'];
+        let html = '<h3 style="color:#2ecc71">HIGH-VALUE MEMBERS</h3>';
+        members.forEach((m, i) => {
+            const name = m.alias || m.display_name || m.username || 'Unknown';
+            const initial = name[0].toUpperCase();
+            const grad = colors[i % colors.length];
+            const skillList = m.skills || m.tags || [];
+            const tags = skillList.map(t => `<span class="tag">${esc(t)}</span>`).join('');
+            const statusColor = /ACTIVE/i.test(m.status) ? '#2ecc71' : /NEW/i.test(m.status) ? '#3498db' : '#7f8c8d';
+            html += `
+                <div class="member-card">
+                    <div class="member-avatar" style="background:linear-gradient(135deg,${grad})">${initial}</div>
+                    <div class="member-info">
+                        <h4>${esc(name)} <span style="font-size:0.8rem;color:#7f8c8d">(${esc(m.username || '')})</span></h4>
+                        <div class="skills">${esc(m.value || skillList.join(', ') || 'No skills detected')}</div>
+                        <div class="tags">${tags}</div>
+                        ${m.status ? `<div style="font-size:0.8rem;color:${statusColor};margin-top:4px">${esc(m.status)}</div>` : ''}
+                    </div>
+                </div>`;
+        });
+        memberContainer.innerHTML = html;
+    }
+
+    // Skill map — entries are {total_mentions, members[], depth}
+    const skillContainer = document.querySelector('#learning .card:last-child');
+    if (Object.keys(skillMap).length > 0 && skillContainer) {
+        const depthColors = { deep: '#3498db', moderate: '#2ecc71', surface: '#f39c12' };
+        let html = '<h3>COMMUNITY SKILL MAP</h3><div class="stats-row" style="flex-wrap:wrap">';
+        Object.entries(skillMap).forEach(([skill, data]) => {
+            const mentions = typeof data === 'object' ? (data.total_mentions || 0) : 0;
+            const depth = typeof data === 'object' ? (data.depth || 'surface') : (typeof data === 'string' ? data : 'surface');
+            const memberList = typeof data === 'object' ? (data.members || []) : [];
+            const color = depthColors[depth] || '#7f8c8d';
+            html += `<div class="stat-card" style="min-width:120px">
+                <div class="label">${esc(skill.replace(/_/g, ' '))}</div>
+                <div class="value" style="color:${color};font-size:1.4rem">${mentions}</div>
+                <div style="font-size:0.75rem;color:${color};text-transform:uppercase">${esc(depth)}</div>
+                ${memberList.length > 0 ? `<div style="font-size:0.7rem;color:#7f8c8d;margin-top:2px">${esc(memberList.join(', '))}</div>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+
+        // Learning content
+        if (content.length > 0) {
+            html += '<h3 style="margin-top:20px">LEARNING CONTENT</h3>';
+            content.forEach(c => {
+                html += `<div style="padding:10px;margin-bottom:8px;background:rgba(26,188,156,0.1);border-radius:8px;border-left:3px solid #1abc9c">
+                    <strong>${esc(c.title || 'Untitled')}</strong>
+                    <span style="font-size:0.8rem;color:#7f8c8d;margin-left:8px">by ${esc(c.author || 'Unknown')} in ${esc(c.channel || '')}</span>
+                    <p style="font-size:0.85rem;color:#bdc3c7;margin-top:4px">${esc((c.topics || []).join(', '))}</p>
+                </div>`;
+            });
+        }
+        skillContainer.innerHTML = html;
+    }
+}
+
+function renderContext(c) {
+    // Channel summaries — JSON is an OBJECT keyed by channel name, not an array
+    const channelsRaw = c.channel_summaries || {};
+    const channels = Array.isArray(channelsRaw) ? channelsRaw :
+        Object.entries(channelsRaw).map(([name, data]) => ({ name, ...data }));
+    const channelContainer = document.querySelector('#context .card:nth-child(2)');
+
+    if (channels.length > 0 && channelContainer) {
+        let html = '<h3>CHANNEL CONTEXT</h3>';
+        const statusColors = { 'Active': '#2ecc71', 'VERY active': '#1abc9c', 'Growing': '#3498db', 'Moderate': '#f39c12' };
+        channels.forEach(ch => {
+            const status = ch.status || '';
+            const color = Object.entries(statusColors).find(([k]) => status.includes(k))?.[1] || '#7f8c8d';
+            const members = ch.key_members || [];
+            const issues = ch.issues || [];
+            html += `
+                <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border-radius:8px;border-left:3px solid ${color}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="color:#1abc9c;font-weight:600">#${esc(ch.name || 'unknown')}</span>
+                        <span style="color:${color};font-size:0.85rem">${esc(status)}</span>
+                    </div>
+                    <p style="font-size:0.85rem;color:#bdc3c7;margin-top:6px">${esc(ch.summary || '')}</p>
+                    ${members.length > 0 ? `<div style="font-size:0.8rem;color:#7f8c8d;margin-top:4px">Active: ${esc(members.join(', '))}</div>` : ''}
+                    ${issues.length > 0 ? `<div style="font-size:0.8rem;color:#e74c3c;margin-top:4px">\u26A0 ${esc(issues.join(' | '))}</div>` : ''}
+                </div>`;
+        });
+        channelContainer.innerHTML = html;
+    }
+
+    // Convergence map
+    const conv = c.convergence_map || {};
+    const statsCards = document.querySelectorAll('#context .stats-row .stat-card .value');
+    if (statsCards.length >= 4) {
+        statsCards[0].textContent = channels.length;
+        statsCards[1].textContent = (c.decisions_pending || []).length;
+        statsCards[2].textContent = (c.active_threads || []).length;
+        const working = Object.values(conv).filter(v => typeof v === 'object' && v.status === 'WORKING').length;
+        statsCards[3].textContent = `${working}/3`;
+    }
+
+    // Decisions pending — uses "urgency" not "priority"
+    const decisions = c.decisions_pending || [];
+    const decContainer = document.querySelector('#context .card:last-child');
+    if (decisions.length > 0 && decContainer) {
+        let html = '<h3 style="color:#e74c3c">DECISIONS PENDING</h3>';
+        decisions.forEach(d => {
+            const urg = d.urgency || d.priority || 'MEDIUM';
+            const badge = urg === 'HIGH' ? 'badge-high' : urg === 'MEDIUM' ? 'badge-medium' : 'badge-low';
+            html += `
+                <div style="padding:12px;margin-bottom:8px;background:rgba(231,76,60,0.08);border-radius:8px;border-left:3px solid ${urg === 'HIGH' ? '#e74c3c' : urg === 'MEDIUM' ? '#f39c12' : '#7f8c8d'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <strong>${esc(d.topic || 'Unknown')}</strong>
+                        <span class="badge ${badge}">${esc(urg)}</span>
+                    </div>
+                    ${d.owner ? `<div style="font-size:0.85rem;color:#3498db;margin-top:4px">Owner: ${esc(d.owner)}</div>` : ''}
+                    <p style="font-size:0.85rem;color:#bdc3c7;margin-top:4px">${esc(d.context || d.description || '')}</p>
+                </div>`;
+        });
+        decContainer.innerHTML = html;
+    }
+}
+
+function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = String(str);
+    return d.innerHTML;
+}
+
+// Auto-load on page open
+document.addEventListener('DOMContentLoaded', loadData);
+</script>
+
+</body>
+</html>

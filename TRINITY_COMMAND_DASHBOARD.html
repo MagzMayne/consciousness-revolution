@@ -4,6 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trinity Command Dashboard - CP1</title>
+
+<!-- ============================================================
+     DASHBOARD DNA - Identity Block
+     Sphere: COMMAND (Red) - Trinity Orchestration
+============================================================ -->
+<script type="application/json" id="dashboard-dna">
+{
+  "name": "Trinity Command Dashboard",
+  "version": "1.0.0",
+  "purpose": "C1/C2/C3 orchestration - Trinity status, message hub, coordination",
+  "owner": "Commander",
+  "domain": "1_COMMAND",
+  "sphere": "COMMAND",
+  "created": "2025-11-20",
+  "updated": "2026-02-08",
+  "status": "LIVE",
+  "url": "https://consciousnessrevolution.io/TRINITY_COMMAND_DASHBOARD.html",
+  "access": "Commander Only",
+  "changelog": [
+    {"version": "1.0.0", "date": "2026-02-08", "changes": "DNA block added"}
+  ],
+  "trinity": {
+    "c1_built": "2025-11-20",
+    "c2_reviewed": "2026-02-08",
+    "c3_validated": "2026-02-08"
+  },
+  "lfsme": {
+    "lighter": 8,
+    "faster": 9,
+    "stronger": 9,
+    "elegant": 8,
+    "less_expensive": 10,
+    "average": 8.8
+  },
+  "connects_to": [
+    "TRINITY_NEXUS_DASHBOARD.html",
+    "COMMANDER_COCKPIT.html"
+  ]
+}
+</script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -232,20 +272,65 @@
     </div>
 
     <script>
-        // Load scan results from local JSON files
+        const API_BASE = 'http://localhost:3577';
+
+        // Load scan results from 357 API
         async function loadScanResults() {
-            const basePath = 'file:///C:/Users/dwrek/.consciousness/hub/';
+            try {
+                // Fetch full status from 357 API
+                const response = await fetch(`${API_BASE}/status`);
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
 
-            // Since we can't fetch local files from HTML, display static values
-            // In production, this would be served by a local Python server
+                const data = await response.json();
 
-            document.getElementById('c1-score').textContent = '33/33 (100%)';
-            document.getElementById('c2-score').textContent = '31/32 (97%)';
-            document.getElementById('c3-score').textContent = '34/34 (100%)';
-            document.getElementById('total-score').textContent = '98/99 (99%)';
+                // Update Trinity status
+                const trinity = data.trinity || {};
+                const t1 = trinity.T1 || {};
+                const t2 = trinity.T2 || {};
+                const t3 = trinity.T3 || {};
 
-            document.getElementById('refresh-time').textContent =
-                'Last refresh: ' + new Date().toLocaleString();
+                // Calculate scores based on aspect status
+                const getScore = (terminal) => {
+                    if (!terminal.aspects) return '?/3';
+                    const aspects = Object.values(terminal.aspects);
+                    const active = aspects.filter(a => a.status === 'ACTIVE' || a.status === 'READY').length;
+                    return `${active}/3 (${terminal.state || 'UNKNOWN'})`;
+                };
+
+                document.getElementById('c1-score').textContent = getScore(t1);
+                document.getElementById('c2-score').textContent = getScore(t2);
+                document.getElementById('c3-score').textContent = getScore(t3);
+
+                // Total score from system_status
+                const sysStatus = data.trinity?.system_status || {};
+                const consciousness = sysStatus.consciousness_pct || 0;
+                document.getElementById('total-score').textContent = `${consciousness}% Consciousness`;
+
+                // Update brain stats
+                const brain = data.brain || {};
+                if (brain.total_atoms !== undefined) {
+                    document.getElementById('atom-count').textContent = brain.total_atoms.toLocaleString();
+                }
+                if (brain.recent_24h !== undefined) {
+                    document.getElementById('index-count').textContent = brain.recent_24h.toLocaleString();
+                }
+                document.getElementById('consciousness').textContent = `${consciousness}%`;
+
+                // Update refresh time
+                document.getElementById('refresh-time').textContent =
+                    'Last refresh: ' + new Date().toLocaleString() + ' (LIVE)';
+
+            } catch (error) {
+                console.error('API fetch failed:', error);
+                document.getElementById('refresh-time').textContent =
+                    'API offline - Start: python .consciousness/357_API.py';
+
+                // Show fallback values
+                document.getElementById('c1-score').textContent = 'API offline';
+                document.getElementById('c2-score').textContent = 'API offline';
+                document.getElementById('c3-score').textContent = 'API offline';
+                document.getElementById('total-score').textContent = 'Start 357 API';
+            }
         }
 
         // Initialize
