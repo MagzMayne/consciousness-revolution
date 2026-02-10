@@ -223,6 +223,36 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('Background received:', message.type);
 
+    // Generic native message forwarding (new sidebar pattern)
+    if (message.type === 'NATIVE_MESSAGE') {
+        if (nativePort && nativeConnected) {
+            // Construct payload from action + data (sidebar format)
+            const payload = {
+                action: message.action || message.payload?.action,
+                data: message.data || message.payload?.data || {}
+            };
+            nativePort.postMessage(payload);
+            sendResponse({ success: true, sent: true, ok: true });
+        } else {
+            sendResponse({ success: false, error: 'Native host not connected', ok: false });
+        }
+        return true;
+    }
+
+    // Large file chunk transfer
+    if (message.type === 'SAVE_CHUNK') {
+        if (nativePort && nativeConnected) {
+            nativePort.postMessage({
+                action: 'save_chunk',
+                data: message.data
+            });
+            sendResponse({ success: true, sent: true });
+        } else {
+            sendResponse({ success: false, error: 'Native host not connected' });
+        }
+        return true;
+    }
+
     // Save to domain via native host (local Cyclotron brain)
     if (message.type === 'SAVE_TO_DOMAIN') {
         const savedLocally = saveToLocal(message.domain, message.data);

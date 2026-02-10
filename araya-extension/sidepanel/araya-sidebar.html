@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA Sidebar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #0ff5e0;
+            --toxic-green: #39ff14;
+            --rust-orange: #d4622a;
+            --warning-amber: #ffab00;
+            --hot-pink: #ff2d95;
+            --chrome: #b8b8c8;
+            --deep-space: #0a0812;
+            --panel-bg: rgba(15,12,20,0.95);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--deep-space);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(180deg, rgba(15,245,224,0.08), transparent);
+            border-bottom: 1px solid rgba(15,245,224,0.2);
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.3em;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--toxic-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .connection-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px currentColor;
+            cursor: pointer;
+        }
+        .connection-dot.connected { background: var(--toxic-green); }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--chrome);
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover { color: var(--neon-cyan); }
+        .tab.active {
+            color: var(--neon-cyan);
+            border-bottom-color: var(--neon-cyan);
+            background: rgba(15,245,224,0.05);
+        }
+
+        /* Tab Panels */
+        .tab-panel {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        .tab-panel.active { display: flex; }
+
+        /* Chat Panel */
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .message.user { align-items: flex-end; }
+        .message.araya { align-items: flex-start; }
+
+        .message .sender {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            opacity: 0.6;
+        }
+
+        .message .bubble {
+            max-width: 90%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, rgba(15,245,224,0.15), rgba(57,255,20,0.1));
+            border: 1px solid rgba(15,245,224,0.3);
+            border-radius: 12px 12px 4px 12px;
+        }
+
+        .message.araya .bubble {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px 12px 12px 4px;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 0 12px;
+        }
+        .typing-indicator.active { display: block; }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            width: fit-content;
+        }
+
+        .typing-dots span {
+            width: 6px; height: 6px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* Quick Prompts */
+        .quick-prompts {
+            padding: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3);
+        }
+
+        .quick-prompt {
+            font-size: 10px;
+            padding: 4px 10px;
+            border: 1px solid rgba(15,245,224,0.3);
+            border-radius: 12px;
+            background: transparent;
+            color: var(--chrome);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quick-prompt:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+            background: rgba(15,245,224,0.1);
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 10px;
+            background: rgba(0,0,0,0.5);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .attach-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .attach-btn {
+            width: 32px; height: 32px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--chrome);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .attach-btn:hover {
+            border-color: var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+        .attach-btn svg { width: 16px; height: 16px; }
+        .attach-btn.recording { border-color: var(--hot-pink); color: var(--hot-pink); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            resize: none;
+            min-height: 40px;
+            max-height: 100px;
+        }
+        #userInput:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+        }
+
+        #sendBtn {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--toxic-green));
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        #sendBtn:hover { opacity: 0.9; }
+
+        /* Domains Panel */
+        .domains-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .domain-card {
+            padding: 14px 10px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .domain-card:hover { transform: scale(1.03); }
+
+        .domain-card .icon { font-size: 24px; }
+        .domain-card .name { font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .domain-card .count { font-size: 9px; opacity: 0.7; }
+
+        .domain-1 { background: linear-gradient(135deg, #7c3aed, #5b21b6); }
+        .domain-2 { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        .domain-3 { background: linear-gradient(135deg, #0891b2, #0e7490); }
+        .domain-4 { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+        .domain-5 { background: linear-gradient(135deg, #16a34a, #15803d); }
+        .domain-6 { background: linear-gradient(135deg, #ca8a04, #a16207); }
+        .domain-7 { background: linear-gradient(135deg, #9333ea, #7c3aed); }
+
+        /* File Transfer Panel */
+        .transfer-panel {
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .transfer-zone {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 16px;
+        }
+        .transfer-zone:hover, .transfer-zone.dragover {
+            border-color: var(--neon-cyan);
+            background: rgba(15,245,224,0.05);
+        }
+
+        .transfer-zone .icon { font-size: 40px; margin-bottom: 10px; }
+        .transfer-zone .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .transfer-zone .subtitle { font-size: 11px; color: var(--chrome); }
+
+        .transfer-queue {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .transfer-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .transfer-item .name {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .transfer-item .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .transfer-item .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--toxic-green));
+            transition: width 0.3s;
+        }
+
+        .transfer-item .status {
+            font-size: 10px;
+            color: var(--chrome);
+        }
+
+        .transfer-settings {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .setting-row select, .setting-row input {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        /* Status Footer */
+        .status-footer {
+            padding: 6px 12px;
+            background: rgba(0,0,0,0.5);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 9px;
+            color: var(--chrome);
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .toast.info { background: #3b82f6; }
+
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        /* Hidden inputs */
+        .hidden-input { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ARAYA</h1>
+        <div class="connection-dot" id="connectionDot" title="Click for status"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="chat">Chat</button>
+        <button class="tab" data-tab="domains">Domains</button>
+        <button class="tab" data-tab="transfer">Transfer</button>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="tab-panel active" id="panel-chat">
+        <div class="chat-messages" id="chatMessages">
+            <div class="message araya">
+                <span class="sender">ARAYA</span>
+                <div class="bubble">Welcome, Builder. I'm connected to your local brain (163K+ atoms) and ready to assist. What would you like to explore?</div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <div class="quick-prompts">
+            <button class="quick-prompt" data-prompt="What can you do?">Capabilities</button>
+            <button class="quick-prompt" data-prompt="Help me organize this page">Organize</button>
+            <button class="quick-prompt" data-prompt="Detect manipulation patterns">Patterns</button>
+            <button class="quick-prompt" data-prompt="Guide me through 7 Domains">7 Domains</button>
+        </div>
+
+        <div class="input-area">
+            <div class="attach-bar">
+                <button class="attach-btn" id="uploadBtn" title="Upload File">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                </button>
+                <button class="attach-btn" id="voiceBtn" title="Voice Input">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </button>
+                <button class="attach-btn" id="captureBtn" title="Capture Page">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </button>
+            </div>
+            <div class="input-row">
+                <textarea id="userInput" placeholder="Ask ARAYA anything..." rows="1"></textarea>
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domains Panel -->
+    <div class="tab-panel" id="panel-domains">
+        <div class="domains-grid">
+            <div class="domain-card domain-1" data-domain="1_COMMAND">
+                <span class="icon">&#9733;</span>
+                <span class="name">Command</span>
+                <span class="count" id="count-1">0 items</span>
+            </div>
+            <div class="domain-card domain-2" data-domain="2_BUILD">
+                <span class="icon">&#128736;</span>
+                <span class="name">Build</span>
+                <span class="count" id="count-2">0 items</span>
+            </div>
+            <div class="domain-card domain-3" data-domain="3_CONNECT">
+                <span class="icon">&#128101;</span>
+                <span class="name">Connect</span>
+                <span class="count" id="count-3">0 items</span>
+            </div>
+            <div class="domain-card domain-4" data-domain="4_PROTECT">
+                <span class="icon">&#128737;</span>
+                <span class="name">Protect</span>
+                <span class="count" id="count-4">0 items</span>
+            </div>
+            <div class="domain-card domain-5" data-domain="5_GROW">
+                <span class="icon">&#127793;</span>
+                <span class="name">Grow</span>
+                <span class="count" id="count-5">0 items</span>
+            </div>
+            <div class="domain-card domain-6" data-domain="6_LEARN">
+                <span class="icon">&#128218;</span>
+                <span class="name">Learn</span>
+                <span class="count" id="count-6">0 items</span>
+            </div>
+            <div class="domain-card domain-7" data-domain="7_TRANSCEND">
+                <span class="icon">&#10024;</span>
+                <span class="name">Transcend</span>
+                <span class="count" id="count-7">0 items</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Transfer Panel -->
+    <div class="tab-panel" id="panel-transfer">
+        <div class="transfer-panel">
+            <div class="transfer-zone" id="transferZone">
+                <div class="icon">📦</div>
+                <div class="title">Drop Large Files Here</div>
+                <div class="subtitle">Up to 10GB • Synced via local brain</div>
+            </div>
+
+            <div class="transfer-queue" id="transferQueue">
+                <!-- Transfer items will appear here -->
+            </div>
+
+            <div class="transfer-settings">
+                <div class="setting-row">
+                    <span>Target Domain</span>
+                    <select id="transferDomain">
+                        <option value="2_BUILD">2_BUILD</option>
+                        <option value="3_CONNECT">3_CONNECT</option>
+                        <option value="6_LEARN">6_LEARN</option>
+                        <option value="7_TRANSCEND">7_TRANSCEND</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <span>Recipient</span>
+                    <input type="text" id="transferRecipient" placeholder="Teddy" value="Teddy">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-footer">
+        <span id="brainStatus">BRAIN: CHECKING...</span>
+        <span id="totalItems">0 ITEMS</span>
+    </div>
+
+    <!-- Hidden inputs -->
+    <input type="file" id="fileInput" class="hidden-input" onchange="handleFileSelect(event)" multiple>
+    <input type="file" id="largeFileInput" class="hidden-input" onchange="handleLargeFileSelect(event)" multiple>
+
+    <script src="araya-sidebar.js"></script>
+</body>
+</html>
