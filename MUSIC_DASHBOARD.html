@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Music Empire Dashboard | OVERKILL KULTURE</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ff88;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff88;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 0 0 20px #00ff88;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(0,255,136,0.1);
+            border: 1px solid #00ff88;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+        }
+        .stat-card h3 { font-size: 2em; }
+        .stat-card p { color: #888; }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00cc6a;
+            transform: scale(1.05);
+        }
+        button.secondary {
+            background: transparent;
+            color: #00ff88;
+            border: 2px solid #00ff88;
+        }
+
+        .album-creator {
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #ffd700;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+        .album-creator h2 { color: #ffd700; margin-bottom: 15px; }
+        .album-creator input {
+            background: #1a1a2e;
+            border: 1px solid #ffd700;
+            color: #fff;
+            padding: 10px;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        #selectedForAlbum {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,215,0,0.1);
+            border-radius: 5px;
+            min-height: 50px;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-bar select, .filter-bar input {
+            background: #1a1a2e;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .song-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .song-card {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .song-card:hover {
+            border-color: #00ff88;
+            transform: translateY(-3px);
+        }
+        .song-card.selected {
+            border-color: #ffd700;
+            background: rgba(255,215,0,0.1);
+        }
+        .song-card .title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+        .song-card .theme {
+            color: #00ff88;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .song-card .tier {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            margin-bottom: 10px;
+        }
+        .tier.free { background: #2ecc71; color: #000; }
+        .tier.streaming { background: #3498db; color: #fff; }
+        .tier.premium { background: #ffd700; color: #000; }
+        .tier.uncategorized { background: #666; color: #fff; }
+
+        .song-card .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .song-card button {
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+
+        .album-preview {
+            background: rgba(255,215,0,0.1);
+            border: 2px solid #ffd700;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 10px;
+            display: none;
+        }
+        .album-preview.active { display: block; }
+        .album-preview h2 { color: #ffd700; }
+        .album-preview ul { list-style: none; padding: 0; margin-top: 15px; }
+        .album-preview li {
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.5);
+            margin-bottom: 5px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            cursor: move;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .modal-content h2 { margin-bottom: 20px; }
+        .modal-content textarea {
+            width: 100%;
+            height: 200px;
+            background: #0a0a0a;
+            color: #00ff88;
+            border: 1px solid #333;
+            padding: 15px;
+            font-family: monospace;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 MUSIC EMPIRE DASHBOARD</h1>
+        <p>OVERKILL KULTURE | 62 Tracks Ready to Deploy</p>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card">
+            <h3 id="totalTracks">62</h3>
+            <p>Total Tracks</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="freeCount">8</h3>
+            <p>Free Singles</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="streamingCount">10</h3>
+            <p>Streaming</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="premiumCount">10</h3>
+            <p>Premium/Gumroad</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="selectedCount">0</h3>
+            <p>Selected</p>
+        </div>
+    </div>
+
+    <div class="album-creator">
+        <h2>🎨 Album Builder</h2>
+        <input type="text" id="albumName" placeholder="Enter Album Name...">
+        <div class="controls">
+            <button onclick="createAlbum()">📀 Create Album from Selected</button>
+            <button class="secondary" onclick="clearSelection()">Clear Selection</button>
+            <button class="secondary" onclick="selectAll()">Select All</button>
+        </div>
+        <div id="selectedForAlbum">
+            <em>No songs selected. Click songs below to add to album.</em>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <select id="tierFilter" onchange="filterSongs()">
+            <option value="all">All Tiers</option>
+            <option value="free">Free Singles</option>
+            <option value="streaming">Streaming</option>
+            <option value="premium">Premium</option>
+            <option value="uncategorized">Uncategorized</option>
+        </select>
+        <select id="themeFilter" onchange="filterSongs()">
+            <option value="all">All Themes</option>
+            <option value="consciousness">Consciousness</option>
+            <option value="pattern">Pattern Theory</option>
+            <option value="revolution">Revolution</option>
+            <option value="family">Family</option>
+            <option value="legal">Legal/Court</option>
+            <option value="personal">Personal</option>
+            <option value="brand">Brand</option>
+        </select>
+        <input type="text" id="searchBox" placeholder="Search songs..." oninput="filterSongs()">
+    </div>
+
+    <div class="song-grid" id="songGrid">
+        <!-- Songs populated by JavaScript -->
+    </div>
+
+    <div class="album-preview" id="albumPreview">
+        <h2>📀 Album Preview: <span id="previewAlbumName"></span></h2>
+        <p><span id="previewTrackCount">0</span> tracks</p>
+        <ul id="albumTrackList"></ul>
+        <div class="controls" style="margin-top: 20px;">
+            <button onclick="exportAlbum()">📤 Export Tracklist</button>
+            <button onclick="pushToSite()">🚀 Push to Site</button>
+            <button class="secondary" onclick="closePreview()">Close</button>
+        </div>
+    </div>
+
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <h2>📤 Export Album</h2>
+            <textarea id="exportText" readonly></textarea>
+            <div class="controls" style="margin-top: 15px;">
+                <button onclick="copyExport()">📋 Copy to Clipboard</button>
+                <button class="secondary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Full song catalog with metadata
+        const songs = [
+            // TIER 1: FREE
+            { name: "Dad's Still Here", file: "Dads still Here.wav", tier: "free", theme: "family" },
+            { name: "DAD'S STILL HERE v2", file: "v2_ DAD'S STILL HERE.wav", tier: "free", theme: "family" },
+            { name: "Phoenix Morning", file: "Pheonix Morning.wav", tier: "free", theme: "personal" },
+            { name: "Phoenix Morning v2", file: "Pheonix Morning v2.wav", tier: "free", theme: "personal" },
+            { name: "Kickstart Revolution", file: "KICKSTART REVOLUTION.wav", tier: "free", theme: "revolution" },
+            { name: "Wolf Pack Mentality", file: "Wolf Pack Mentality.wav", tier: "free", theme: "personal" },
+            { name: "Watch the Show", file: "Watch the Show.wav", tier: "free", theme: "personal" },
+            { name: "Lights Come On", file: "Lights Come On.wav", tier: "free", theme: "personal" },
+            { name: "World Cultures", file: "World Cultures.wav", tier: "free", theme: "consciousness" },
+            { name: "Lake Day", file: "Lake Day.wav", tier: "free", theme: "personal" },
+
+            // TIER 2: STREAMING
+            { name: "Creator's Rebellion", file: "CREATOR'S REBELLION.wav", tier: "streaming", theme: "revolution" },
+            { name: "Creator's Rebellion v2", file: "v2_ CREATOR'S REBELLION.wav", tier: "streaming", theme: "revolution" },
+            { name: "Cultural Tornado", file: "CULTURAL TORNADO.wav", tier: "streaming", theme: "pattern" },
+            { name: "Overkill Solution", file: "Overkill Solution.wav", tier: "streaming", theme: "brand" },
+            { name: "Quantum Dance", file: "Quantum Dance.wav", tier: "streaming", theme: "consciousness" },
+            { name: "The Three Seekers", file: "THE THREE SEEKERS.wav", tier: "streaming", theme: "consciousness" },
+            { name: "Overkills in Charge", file: "Overkills in Charge.wav", tier: "streaming", theme: "brand" },
+            { name: "Stand Your Ground", file: "Stand your Ground.wav", tier: "streaming", theme: "personal" },
+            { name: "The Phoenix Rises", file: "The Pheonix Rizes.wav", tier: "streaming", theme: "personal" },
+            { name: "Reciprocity Revelation", file: "RECIPROCITY REVELATION.wav", tier: "streaming", theme: "pattern" },
+            { name: "Nature's Patterns", file: "natures_patterns.wav", tier: "streaming", theme: "consciousness" },
+
+            // TIER 3: PREMIUM
+            { name: "SMOKE AND MIRRORS - Pattern Theory Horror", file: "SMOKE AND MIRRORS - Pattern Theory Horro.wav", tier: "premium", theme: "pattern", price: 3 },
+            { name: "Domestic Violence Industrial Complex", file: "DOMESTIC VIOLENCE INDUSTRIAL COMPLEX.wav", tier: "premium", theme: "legal", price: 3 },
+            { name: "6D Court Anthem", file: "OVERKILL KULTURE 6D COURT ANTHEM.wav", tier: "premium", theme: "legal", price: 3 },
+            { name: "Dimensional Cascade Rap", file: "HAILEY DOG WARFARE - DIMENSIONAL CASCADE RAP.wav", tier: "premium", theme: "consciousness", price: 3 },
+            { name: "Level 8 Consciousness Stack", file: "LEVEL 8 CONSCIOUSNESS RAP STACK.wav", tier: "premium", theme: "consciousness", price: 5 },
+            { name: "Cyborg Constitution", file: "Cyborg Constituion.wav", tier: "premium", theme: "consciousness", price: 3 },
+            { name: "PATTERNATOR", file: "PATTERNATOR.wav", tier: "premium", theme: "pattern", price: 3 },
+            { name: "Cares Act = Game Over", file: "Cares Act= Game Over.wav", tier: "premium", theme: "legal", price: 3 },
+            { name: "Vanishing Point", file: "Vanishing Point.wav", tier: "premium", theme: "consciousness", price: 3 },
+            { name: "Reciprocity Paradox", file: "Reciprocity Paradox.wav", tier: "premium", theme: "pattern", price: 3 },
+            { name: "Reciprocity Test", file: "Reciprocity Test.wav", tier: "premium", theme: "pattern", price: 3 },
+
+            // UNCATEGORIZED (need assignment)
+            { name: "Dwrek & Jason's 6D Cultural Tornado", file: "DWREK & JASON'S 6D CULTURAL TORNAD.wav", tier: "uncategorized", theme: "pattern" },
+            { name: "Dwrek & Jason's Interdimensional", file: "DWREK & JASON'S INTERDIMENSIONAL T.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Ultimate Consciousness 1", file: "DWREKATEXTURE_ THE ULTIMATE CONSCIO (1).wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Ultimate Consciousness 2", file: "DWREKATEXTURE_ THE ULTIMATE CONSCIO (2).wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Friday the 13th - Wake Up", file: "FRIDAY THE 13TH WAKE UP.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "95% Steal", file: "95% steal.wav", tier: "uncategorized", theme: "legal" },
+            { name: "Clark Level MAX", file: "Clark here at Level MAX.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Corrupted NAS", file: "Corrupted NAS.wav", tier: "uncategorized", theme: "pattern" },
+            { name: "Debbie ProtoPaul", file: "Debbie ProtoPaul.wav", tier: "uncategorized", theme: "personal" },
+            { name: "DwrekatextureTrain", file: "DwrekatextureTrain.wav", tier: "uncategorized", theme: "brand" },
+            { name: "Dwrek's Overkill Alto", file: "Dwrek's Overkill Alto.wav", tier: "uncategorized", theme: "brand" },
+            { name: "Encrypted and Zipped", file: "Encrypted and zipped.wav", tier: "uncategorized", theme: "pattern" },
+            { name: "Fisher Price Destroyer", file: "Fisher Price Destroyer.wav", tier: "uncategorized", theme: "pattern" },
+            { name: "Joint in the Sauna", file: "Jiont in the sauna.wav", tier: "uncategorized", theme: "personal" },
+            { name: "Librarians Last Stand", file: "Librarians Last Stand.wav", tier: "uncategorized", theme: "revolution" },
+            { name: "Mnyovrdrma", file: "Mnyovrdrma.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "NAS Boy", file: "NAS boy.wav", tier: "uncategorized", theme: "brand" },
+            { name: "No Boundaries World Collab", file: "New No Boundaries style_ world collab.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Planet Crya-ton", file: "Planet Crya-ton.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "SavdaDav", file: "SavdaDav.wav", tier: "uncategorized", theme: "personal" },
+            { name: "The Quantum Problem", file: "The Quantum Problem.wav", tier: "uncategorized", theme: "consciousness" },
+            { name: "Lefty's Last Stand", file: "Lefty's Last Stand.wav", tier: "uncategorized", theme: "revolution" },
+            { name: "Treasure Hunt", file: "Treasure Hunt.wav", tier: "uncategorized", theme: "personal" },
+            { name: "Trump's Golf Game", file: "Trump's Golf Game.wav", tier: "uncategorized", theme: "legal" },
+            { name: "Wolf Spyryt", file: "WOLF SPYRYT.wav", tier: "uncategorized", theme: "personal" },
+            { name: "Cars and Coffee", file: "cars and Coffee.wav", tier: "uncategorized", theme: "personal" },
+            { name: "Kulture and Cars", file: "kulture and cars.wav", tier: "uncategorized", theme: "brand" }
+        ];
+
+        let selectedSongs = [];
+        let albums = JSON.parse(localStorage.getItem('musicAlbums') || '[]');
+
+        function renderSongs(songsToRender = songs) {
+            const grid = document.getElementById('songGrid');
+            grid.innerHTML = songsToRender.map((song, index) => `
+                <div class="song-card ${selectedSongs.includes(song.name) ? 'selected' : ''}"
+                     onclick="toggleSong('${song.name}')"
+                     data-tier="${song.tier}"
+                     data-theme="${song.theme}">
+                    <div class="tier ${song.tier}">${song.tier.toUpperCase()}${song.price ? ' $' + song.price : ''}</div>
+                    <div class="title">${song.name}</div>
+                    <div class="theme">🏷️ ${song.theme}</div>
+                    <div class="actions">
+                        <button onclick="event.stopPropagation(); playSong('${song.file}')" class="secondary">▶️ Preview</button>
+                        <button onclick="event.stopPropagation(); changeTier('${song.name}')" class="secondary">📁 Change Tier</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleSong(name) {
+            if (selectedSongs.includes(name)) {
+                selectedSongs = selectedSongs.filter(s => s !== name);
+            } else {
+                selectedSongs.push(name);
+            }
+            updateSelectedDisplay();
+            renderSongs(getFilteredSongs());
+        }
+
+        function updateSelectedDisplay() {
+            document.getElementById('selectedCount').textContent = selectedSongs.length;
+            const container = document.getElementById('selectedForAlbum');
+            if (selectedSongs.length === 0) {
+                container.innerHTML = '<em>No songs selected. Click songs below to add to album.</em>';
+            } else {
+                container.innerHTML = selectedSongs.map(s => `<span style="background:#ffd700;color:#000;padding:3px 8px;margin:3px;display:inline-block;border-radius:3px;">${s}</span>`).join('');
+            }
+        }
+
+        function filterSongs() {
+            renderSongs(getFilteredSongs());
+        }
+
+        function getFilteredSongs() {
+            const tier = document.getElementById('tierFilter').value;
+            const theme = document.getElementById('themeFilter').value;
+            const search = document.getElementById('searchBox').value.toLowerCase();
+
+            return songs.filter(song => {
+                if (tier !== 'all' && song.tier !== tier) return false;
+                if (theme !== 'all' && song.theme !== theme) return false;
+                if (search && !song.name.toLowerCase().includes(search)) return false;
+                return true;
+            });
+        }
+
+        function selectAll() {
+            const filtered = getFilteredSongs();
+            filtered.forEach(s => {
+                if (!selectedSongs.includes(s.name)) {
+                    selectedSongs.push(s.name);
+                }
+            });
+            updateSelectedDisplay();
+            renderSongs(getFilteredSongs());
+        }
+
+        function clearSelection() {
+            selectedSongs = [];
+            updateSelectedDisplay();
+            renderSongs(getFilteredSongs());
+        }
+
+        function createAlbum() {
+            const name = document.getElementById('albumName').value.trim();
+            if (!name) {
+                alert('Please enter an album name!');
+                return;
+            }
+            if (selectedSongs.length === 0) {
+                alert('Please select at least one song!');
+                return;
+            }
+
+            const album = {
+                name: name,
+                tracks: [...selectedSongs],
+                created: new Date().toISOString()
+            };
+
+            albums.push(album);
+            localStorage.setItem('musicAlbums', JSON.stringify(albums));
+
+            showAlbumPreview(album);
+        }
+
+        function showAlbumPreview(album) {
+            document.getElementById('previewAlbumName').textContent = album.name;
+            document.getElementById('previewTrackCount').textContent = album.tracks.length;
+            document.getElementById('albumTrackList').innerHTML = album.tracks.map((t, i) =>
+                `<li draggable="true">${i + 1}. ${t} <button onclick="removeFromAlbum(${i})" style="float:right;padding:2px 8px;font-size:0.8em;">❌</button></li>`
+            ).join('');
+            document.getElementById('albumPreview').classList.add('active');
+        }
+
+        function closePreview() {
+            document.getElementById('albumPreview').classList.remove('active');
+        }
+
+        function exportAlbum() {
+            const name = document.getElementById('previewAlbumName').textContent;
+            const tracks = Array.from(document.getElementById('albumTrackList').querySelectorAll('li'))
+                .map((li, i) => li.textContent.split('❌')[0].trim());
+
+            const exportText = `ALBUM: ${name}
+Generated: ${new Date().toISOString()}
+Tracks: ${tracks.length}
+
+TRACKLIST:
+${tracks.join('\n')}
+
+---
+Generated by OVERKILL KULTURE Music Dashboard
+https://conciousnessrevolution.io/MUSIC_DASHBOARD.html`;
+
+            document.getElementById('exportText').value = exportText;
+            document.getElementById('exportModal').classList.add('active');
+        }
+
+        function copyExport() {
+            const text = document.getElementById('exportText').value;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('exportModal').classList.remove('active');
+        }
+
+        function pushToSite() {
+            const name = document.getElementById('previewAlbumName').textContent;
+            const tracks = selectedSongs;
+
+            // This would integrate with your deployment system
+            alert(`🚀 Album "${name}" with ${tracks.length} tracks ready to push!\n\nTo push live:\n1. Export tracklist\n2. Update store.html with tracks\n3. Deploy via Netlify\n\nOr use the API (coming soon) for automatic push.`);
+        }
+
+        function playSong(file) {
+            alert(`🎵 Preview: ${file}\n\nNote: Direct playback requires the files to be hosted. Local files are at:\nDesktop/2_BUILD/MUSIC/NEW_ALBUM_2026/`);
+        }
+
+        function changeTier(name) {
+            const song = songs.find(s => s.name === name);
+            const newTier = prompt(`Change tier for "${name}":\n\nCurrent: ${song.tier}\n\nOptions: free, streaming, premium, uncategorized`, song.tier);
+            if (newTier && ['free', 'streaming', 'premium', 'uncategorized'].includes(newTier)) {
+                song.tier = newTier;
+                renderSongs(getFilteredSongs());
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalTracks').textContent = songs.length;
+            document.getElementById('freeCount').textContent = songs.filter(s => s.tier === 'free').length;
+            document.getElementById('streamingCount').textContent = songs.filter(s => s.tier === 'streaming').length;
+            document.getElementById('premiumCount').textContent = songs.filter(s => s.tier === 'premium').length;
+        }
+
+        // Initialize
+        renderSongs();
+        updateStats();
+    </script>
+</body>
+</html>
