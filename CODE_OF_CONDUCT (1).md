@@ -45,6 +45,9 @@ Our work requires all three in balance. Code without intuition is soulless. Visi
 
 ### ✅ We Practice:
 
+**Joy to Self and Others**
+All of this brings joy - deep, real, sustainable joy. Not toxic positivity, but genuine freedom, relief, empowerment, and peace. We build with joy, for joy. Our work brings joy to ourselves as builders and to others as users. Joy is not optional; it is essential to consciousness evolution. (See [JOY_PRINCIPLES.md](JOY_PRINCIPLES.md))
+
 **Sacred Honesty**
 Truth is our foundation. Lies lower frequency. We speak truth even when it's uncomfortable.
 
