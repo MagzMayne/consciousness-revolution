@@ -113,6 +113,47 @@ consciousness-revolution/
 
 ---
 
+## 🤖 Autonomous Agent System
+
+The platform includes a comprehensive autonomous agent system that ensures **100% functionality** through continuous monitoring, automated testing, and self-healing capabilities.
+
+### Key Features
+
+- **Continuous Monitoring** - Checks every 5 minutes
+- **Automated Testing** - 50+ comprehensive tests
+- **Self-Healing** - Automatically fixes common issues
+- **Real-time Dashboard** - Live status at http://localhost:8765
+- **CI/CD Integration** - Hourly GitHub Actions validation
+
+### Quick Start
+
+```bash
+# Run functionality tests
+python3 FUNCTIONALITY_TEST_SUITE.py
+
+# Start autonomous monitoring
+python3 AUTONOMOUS_AGENT_ORCHESTRATOR.py
+
+# Or use the quick-start script
+./START_AUTONOMOUS_AGENTS.sh
+```
+
+### What It Monitors
+
+- ✅ HTML page structure and validity
+- ✅ Python module syntax
+- ✅ Configuration file integrity
+- ✅ npm dependencies
+- ✅ GitHub Actions workflows
+- ✅ Security vulnerabilities
+- ✅ Performance metrics
+
+### Documentation
+
+See [AUTONOMOUS_AGENTS_DOCUMENTATION.md](AUTONOMOUS_AGENTS_DOCUMENTATION.md) for complete details.
+
+---
+
 ## Autonomous Restore Points
 
 The repository includes an autonomous restore point system that creates automatic backups of stable states.
