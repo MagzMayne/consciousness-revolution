@@ -204,6 +204,20 @@
 
         <div class="input-section">
             <textarea class="meeting-input" id="meeting" placeholder="Describe the meeting dynamics, key phrases used, who spoke most, decisions made..."></textarea>
+            
+            <!-- Meeting Transcript Upload Section -->
+            <div style="margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 2px dashed rgba(255,255,255,0.2);">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span style="font-size: 32px;">📝</span>
+                    <p style="margin: 10px 0; font-size: 14px; opacity: 0.8;">Or upload meeting transcript/notes</p>
+                </div>
+                <input type="file" id="meetingFileInput" accept=".txt,.doc,.docx,.pdf" style="display: none;" onchange="handleMeetingFileUpload(event)">
+                <button class="analyze-btn" onclick="document.getElementById('meetingFileInput').click()" style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);">
+                    Upload Transcript (TXT, DOC, PDF)
+                </button>
+                <div id="meetingFileStatus" style="margin-top: 10px; font-size: 12px; text-align: center; color: #4ECDC4;"></div>
+            </div>
+            
             <button class="analyze-btn" onclick="analyze()">Analyze Meeting</button>
         </div>
 
@@ -420,6 +434,54 @@
             awareness.push('Your silence can be interpreted as agreement');
 
             return awareness.slice(0, 4);
+        }
+
+        // Meeting file upload functionality
+        async function handleMeetingFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const statusEl = document.getElementById('meetingFileStatus');
+            statusEl.textContent = `📤 Uploading ${file.name}...`;
+            statusEl.style.color = '#4ECDC4';
+            
+            // Try backend API first
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('domain', 'communication');
+                formData.append('tool', 'MEETING_ANALYZER');
+                
+                const response = await fetch('http://localhost:5555/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('meeting').value = result.extracted_text;
+                    statusEl.textContent = `✅ Loaded ${file.name} (${result.text_length} chars)`;
+                    statusEl.style.color = '#2ecc71';
+                } else {
+                    throw new Error('Backend not available');
+                }
+            } catch (error) {
+                // Fallback to client-side file reading
+                console.log('Backend not available, using client-side processing');
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    document.getElementById('meeting').value = text;
+                    statusEl.textContent = `✅ Loaded ${file.name} (${text.length} chars)`;
+                    statusEl.style.color = '#2ecc71';
+                };
+                reader.onerror = function() {
+                    statusEl.textContent = '❌ Error reading file';
+                    statusEl.style.color = '#e74c3c';
+                };
+                reader.readAsText(file);
+            }
         }
     </script>
     <script src="/js/bug-widget.js"></script>
