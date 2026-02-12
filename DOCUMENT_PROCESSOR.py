@@ -304,16 +304,20 @@ def upload_file():
             'domain': domain,
             'tool': tool
         },
-        'extracted_text': extracted_text[:1000] + ('...' if len(extracted_text) > 1000 else ''),
+        'extracted_text': extracted_text,  # Return full text for frontend
+        'extracted_text_preview': extracted_text[:1000] + ('...' if len(extracted_text) > 1000 else ''),  # Preview for metadata
         'text_length': len(extracted_text),
         'analysis': analysis,
         'storage_path': filepath
     }
     
-    # Save metadata
+    # Save metadata (with preview only to keep file size reasonable)
     metadata_file = filepath + '.meta.json'
+    metadata_response = response.copy()
+    metadata_response['extracted_text'] = metadata_response['extracted_text_preview']  # Save only preview in metadata
+    del metadata_response['extracted_text_preview']
     with open(metadata_file, 'w') as f:
-        json.dump(response, f, indent=2)
+        json.dump(metadata_response, f, indent=2)
     
     return jsonify(response)
 
@@ -404,4 +408,9 @@ if __name__ == '__main__':
     print("  GET  /api/files/<domain>/<tool> - List uploaded files")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5555, debug=True)
+    # Use debug mode only when explicitly set via environment variable
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    if debug_mode:
+        print("⚠️  WARNING: Running in DEBUG mode - not recommended for production!")
+    
+    app.run(host='0.0.0.0', port=5555, debug=debug_mode)
