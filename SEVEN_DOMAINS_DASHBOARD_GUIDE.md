@@ -174,3 +174,263 @@ Users can now:
 - ✅ Persist progress across sessions
 
 The **Consciousness Revolution** dashboard is ready for full deployment! 🌟
+
+---
+
+## 📄 Document Upload & Analysis System (NEW)
+
+### Overview
+**Version 2.1.0** adds comprehensive document upload functionality to all analyzer tools across all seven domains. Users can now upload documents for instant AI-powered analysis.
+
+### Supported Tools with Document Upload
+
+#### 🏛️ Legal Domain
+- **CONTRACT_ANALYZER** - Upload PDF/DOC contracts for instant red flag detection
+- **EMAIL_ANALYZER** - Upload .eml email files for manipulation pattern detection
+- **MEETING_ANALYZER** - Upload meeting transcripts for power dynamic analysis
+
+#### 💼 Business Domain
+- **NEGOTIATION_ANALYZER** - Upload negotiation transcripts for tactic identification
+- **SALES_PITCH_DETECTOR** - Upload sales materials for pressure tactic detection
+- **FINANCIAL_DECISION_CHECKER** - Upload financial documents for risk analysis
+
+#### 📡 Communication Domain
+- **CONVERSATION_ANALYZER** - Upload chat logs (JSON/TXT) for manipulation detection
+- **GASLIGHTING_DETECTOR** - Upload conversation context for pattern analysis
+- **MEETING_ANALYZER** - Upload meeting notes and transcripts
+
+### How to Use Document Upload
+
+1. **Open any analyzer tool** from the Seven Domains Dashboard
+2. **Look for the upload section** (dashed border with file icon)
+3. **Click "Choose File" or "Upload Document"** button
+4. **Select your document** (formats vary by tool)
+5. **Wait for processing** - status shows upload progress
+6. **Review extracted text** - appears in the text area automatically
+7. **Click "Analyze"** - get instant analysis with patterns detected
+
+### Supported File Formats
+
+| Format | Extension | Tools Supporting |
+|--------|-----------|------------------|
+| **Text** | .txt | All tools |
+| **PDF** | .pdf | Contract, Meeting, Negotiation, Sales |
+| **Word** | .doc, .docx | All document tools |
+| **Email** | .eml, .msg | Email Analyzer |
+| **Chat** | .json | Conversation Analyzer |
+| **Spreadsheet** | .csv, .xlsx | Financial Decision Checker |
+
+### Backend API (DOCUMENT_PROCESSOR.py)
+
+The system includes a powerful backend API for advanced document processing:
+
+#### Features
+- **Multi-format extraction** - PDF, DOCX, TXT, EML, CSV, XLSX
+- **Pattern analysis** - Detects manipulation, red flags, pressure tactics
+- **Security** - 50MB limit, file validation, sanitization
+- **Storage** - Organized by domain and tool
+- **Metadata** - Full audit trail of uploads
+
+#### Starting the Backend
+```bash
+# Windows
+START_DOCUMENT_PROCESSOR.bat
+
+# Linux/Mac
+python DOCUMENT_PROCESSOR.py
+```
+
+API runs on `http://localhost:5555`
+
+#### Client-Side Fallback
+If the backend is not running:
+- Tools automatically fallback to client-side file reading
+- Works for TXT files without backend
+- Binary formats (PDF, DOCX) require backend
+
+### Analysis Features
+
+#### Legal Red Flags Detected
+- Non-negotiable terms
+- Unlimited liability clauses
+- Perpetual licenses
+- Broad indemnification
+- Arbitration clauses
+- IP assignment issues
+- Termination without cause
+
+#### Manipulation Patterns Detected
+- Gaslighting language ("You never...", "That didn't happen...")
+- Emotional manipulation ("If you loved me...", "After all I've done...")
+- Passive-aggressive behavior
+- Stonewalling tactics
+- DARVO (Deny, Attack, Reverse Victim & Offender)
+
+#### Business Pressure Tactics
+- Limited time offers
+- Artificial urgency ("Act now!")
+- Unrealistic guarantees
+- Risk-free claims
+- Social proof manipulation
+- Authority bias tactics
+
+### Security & Privacy
+
+✅ **Secure Upload**
+- File type validation
+- 50MB size limit
+- Filename sanitization
+- SHA256 checksums
+
+✅ **Local Storage**
+- Files stored in organized folders
+- Metadata tracking
+- Easy cleanup
+
+✅ **Privacy**
+- No cloud upload (runs locally)
+- Files stay on your machine
+- Complete control of your data
+
+### Example Workflows
+
+#### Legal Contract Review
+1. Upload employment contract (PDF)
+2. System extracts 5,432 words
+3. Detects 4 red flags (HIGH RISK)
+4. Lists specific concerning clauses
+5. Provides questions to ask employer
+6. Suggests negotiation points
+
+#### Email Analysis
+1. Upload suspicious email (.eml)
+2. System parses headers and body
+3. Detects manipulation patterns
+4. Analyzes tone and urgency
+5. Provides grounding statements
+6. Suggests safe responses
+
+#### Meeting Transcript Analysis
+1. Upload meeting notes (DOCX)
+2. System identifies power dynamics
+3. Detects who dominated conversation
+4. Flags manipulation tactics
+5. Provides awareness points
+6. Suggests boundary statements
+
+### Installation Requirements
+
+For full backend functionality:
+```bash
+pip install -r requirements-document-processor.txt
+```
+
+Includes:
+- Flask (web server)
+- PyPDF2 (PDF extraction)
+- python-docx (Word documents)
+- pandas (spreadsheets)
+- openpyxl (Excel files)
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/health` | GET | Service status check |
+| `/api/upload` | POST | Upload and analyze document |
+| `/api/analyze-text` | POST | Analyze text without upload |
+| `/api/domains` | GET | List supported domains |
+| `/api/files/<domain>/<tool>` | GET | List uploaded files |
+
+### Troubleshooting
+
+**"Backend not available" error**
+- Start DOCUMENT_PROCESSOR.py
+- Check port 5555 is free
+- Tools will use client-side fallback
+
+**File won't upload**
+- Check file size < 50MB
+- Verify file extension is supported
+- Ensure backend is running for PDF/DOCX
+
+**Analysis incomplete**
+- Large files take longer to process
+- Check browser console for errors
+- Try smaller file or text excerpt
+
+### Future Enhancements (Roadmap)
+
+- [ ] OCR for scanned documents
+- [ ] Audio transcription for recordings
+- [ ] Multi-language support
+- [ ] Advanced NLP with transformers
+- [ ] Batch document processing
+- [ ] Document comparison/diff
+- [ ] Entity extraction (names, dates, amounts)
+- [ ] Export analysis reports
+
+---
+
+## 📊 Complete Seven Domains Status
+
+### Domain 1: Legal (100% Functional)
+✅ Contract Analyzer with upload  
+✅ Email Analyzer with upload  
+✅ Argument Mapper  
+✅ Timeline Projector  
+
+### Domain 2: Business (100% Functional)
+✅ Negotiation Analyzer with upload  
+✅ Sales Pitch Detector with upload  
+✅ Financial Decision Checker  
+✅ Pattern detection library  
+
+### Domain 3: Digital Infrastructure (100% Functional)
+✅ System Health Monitor  
+✅ Architecture Simulator  
+✅ Service Diagnostics  
+✅ Cyclotron Search  
+✅ ARAYA Integration  
+
+### Domain 4: Consciousness Tools (100% Functional)
+✅ 50+ Manipulation detectors  
+✅ Pattern recognition tools  
+✅ GLYPH analysis system  
+✅ Consciousness tracking  
+
+### Domain 5: Communication (100% Functional)
+✅ Meeting Analyzer with upload  
+✅ Conversation Analyzer with upload  
+✅ Gaslighting Detector with upload  
+✅ Email Analyzer  
+✅ Word Salad Translator  
+
+### Domain 6: Showcase (100% Functional)
+✅ GitHub repository  
+✅ Pattern Library  
+✅ Architecture visuals  
+✅ Component demos  
+✅ DNA documentation  
+
+### Domain 7: Transparency (100% Functional)
+✅ Open source code  
+✅ Source Verifier  
+✅ Truth Signal Finder  
+✅ Public documentation  
+
+---
+
+## 🎉 Conclusion
+
+The Seven Domains Dashboard now features:
+1. ✅ **Dynamic consciousness tracking** - Real-time score calculation
+2. ✅ **100% achievement system** - Celebration on mastery
+3. ✅ **Document upload capability** - AI-powered file analysis
+4. ✅ **50+ functional tools** - Complete analyzer library
+5. ✅ **Backend API** - Python-powered document processing
+6. ✅ **Security & privacy** - Local, secure file handling
+7. ✅ **Client-side fallback** - Works without backend
+8. ✅ **Comprehensive documentation** - Full user guides
+
+**All seven domains are now 100% functional with enhanced capabilities!** 🌟
