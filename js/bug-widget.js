@@ -13,7 +13,7 @@
     btn.title = 'Request Feature / Give Feedback';
     btn.style.cssText = `
         position: fixed;
-        bottom: 20px;
+        bottom: 100px;
         right: 20px;
         width: 50px;
         height: 50px;
@@ -22,7 +22,7 @@
         border: 2px solid #64c8ff;
         font-size: 24px;
         cursor: pointer;
-        z-index: 99999;
+        z-index: 999;
         transition: all 0.3s;
         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     `;
