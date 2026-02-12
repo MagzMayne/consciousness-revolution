@@ -111,6 +111,59 @@ consciousness-revolution/
 
 ---
 
+## Autonomous Restore Points
+
+The repository includes an autonomous restore point system that creates automatic backups of stable states.
+
+### How It Works
+
+- **Automatic backups** created after successful deployments and weekly
+- **Git tags** mark restore points with metadata
+- **Easy restoration** to any previous stable state
+- **Automatic cleanup** keeps the 10 most recent restore points
+
+### Usage
+
+**Create a restore point manually:**
+```bash
+python create_restore_point.py --create --reason "Before major refactor"
+```
+
+**List all restore points:**
+```bash
+python create_restore_point.py --list
+```
+
+**Restore to a previous point:**
+```bash
+python restore_from_point.py restore-20260212_034304
+```
+
+**Restore to the latest point:**
+```bash
+python restore_from_point.py --latest
+```
+
+**Create a branch at a restore point (safer):**
+```bash
+python restore_from_point.py restore-20260212_034304 --branch
+```
+
+### When Restore Points Are Created
+
+1. **After successful deployments** - Automatically via GitHub Actions
+2. **Weekly** - Every Sunday at 3 AM UTC
+3. **Manual** - Run the script anytime you want a backup
+
+### Safety Features
+
+- Creates a safety backup branch before restoring
+- Warns about uncommitted changes
+- Stores metadata (timestamp, commit, branch, reason)
+- Automatically cleans up old restore points
+
+---
+
 ## Contributing
 
 1. Join the [Discord](https://discord.gg/xHRXyKkzyg)
