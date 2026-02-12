@@ -262,7 +262,7 @@ cat FUNCTIONALITY_TEST_RESULTS.json | python3 -m json.tool
 ### Orchestrator not starting?
 
 ```bash
-# Check Python version (need 3.12+)
+# Check Python version (need 3.8+)
 python3 --version
 
 # Check for port conflicts (8765)

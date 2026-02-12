@@ -2,7 +2,6 @@ name: Autonomous Monitoring
 
 on:
   schedule:
-    # Run every hour
     - cron: '0 * * * *'
   workflow_dispatch:
   push:
@@ -35,8 +34,7 @@ jobs:
           node-version: '18'
       
       - name: Install dependencies
-        run: |
-          npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
       
       - name: Run functionality test suite
         id: tests
@@ -59,86 +57,17 @@ jobs:
             echo "## Test Results" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            # Extract results using Python
-            python3 -c "
-import json
-with open('FUNCTIONALITY_TEST_RESULTS.json') as f:
-    data = json.load(f)
-    summary = data['summary']
-    print(f\"Total Tests: {summary['total_tests']}\")
-    print(f\"Passed: {summary['passed']} ✅\")
-    print(f\"Failed: {summary['failed']} ❌\")
-    print(f\"Success Rate: {summary['success_rate']:.1f}%\")
-            " >> $GITHUB_STEP_SUMMARY
+            total=$(python3 -c "import json; d=json.load(open('FUNCTIONALITY_TEST_RESULTS.json')); print(d['summary']['total_tests'])")
+            passed=$(python3 -c "import json; d=json.load(open('FUNCTIONALITY_TEST_RESULTS.json')); print(d['summary']['passed'])")
+            failed=$(python3 -c "import json; d=json.load(open('FUNCTIONALITY_TEST_RESULTS.json')); print(d['summary']['failed'])")
+            rate=$(python3 -c "import json; d=json.load(open('FUNCTIONALITY_TEST_RESULTS.json')); print(f\"{d['summary']['success_rate']:.1f}\")")
+            
+            echo "Total Tests: $total" >> $GITHUB_STEP_SUMMARY
+            echo "Passed: $passed ✅" >> $GITHUB_STEP_SUMMARY
+            echo "Failed: $failed ❌" >> $GITHUB_STEP_SUMMARY
+            echo "Success Rate: ${rate}%" >> $GITHUB_STEP_SUMMARY
           fi
-      
-      - name: Create issue on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            
-            let testResults = {};
-            try {
-              const data = fs.readFileSync('FUNCTIONALITY_TEST_RESULTS.json', 'utf8');
-              testResults = JSON.parse(data);
-            } catch (error) {
-              console.log('Could not read test results');
-            }
-            
-            const failedTests = testResults.tests?.filter(t => !t.passed) || [];
-            const failureList = failedTests.map(t => 
-              `- ❌ [${t.category}] ${t.name}${t.message ? ': ' + t.message : ''}`
-            ).join('\n');
-            
-            const issueBody = `## Autonomous Monitoring Alert
 
-Functionality tests have failed!
-
-**Summary:**
-- Total Tests: ${testResults.summary?.total_tests || 'Unknown'}
-- Failed: ${testResults.summary?.failed || 'Unknown'}
-- Success Rate: ${testResults.summary?.success_rate?.toFixed(1) || 'Unknown'}%
-
-**Failed Tests:**
-${failureList || 'See workflow logs for details'}
-
-**Timestamp:** ${testResults.timestamp || new Date().toISOString()}
-
-**Action Required:** Review and fix the failing tests to restore 100% functionality.
-
----
-*This issue was created automatically by the Autonomous Monitoring system.*
-`;
-            
-            // Check if there's already an open issue
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'autonomous-monitoring'
-            });
-            
-            if (issues.data.length === 0) {
-              // Create new issue
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `🚨 Functionality Tests Failing - ${new Date().toISOString().split('T')[0]}`,
-                body: issueBody,
-                labels: ['autonomous-monitoring', 'bug', 'automated']
-              });
-            } else {
-              // Update existing issue
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issues.data[0].number,
-                body: `## Update: Tests still failing\n\n${issueBody}`
-              });
-            }
-  
   health-check:
     name: System Health Check
     runs-on: ubuntu-latest
@@ -153,8 +82,7 @@ ${failureList || 'See workflow logs for details'}
           python-version: '3.12'
       
       - name: Run health monitor
-        run: |
-          python3 SYSTEM_HEALTH_MONITOR.py || true
+        run: python3 SYSTEM_HEALTH_MONITOR.py || true
       
       - name: Count files
         run: |
@@ -169,15 +97,7 @@ ${failureList || 'See workflow logs for details'}
           echo "## Critical Pages Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          pages=(
-            "index.html"
-            "login.html"
-            "araya-chat.html"
-            "consciousness-tools.html"
-            "seven-domains.html"
-            "start.html"
-            "dashboard.html"
-          )
+          pages=("index.html" "login.html" "araya-chat.html" "consciousness-tools.html" "seven-domains.html" "start.html" "dashboard.html")
           
           for page in "${pages[@]}"; do
             if [ -f "$page" ]; then
@@ -205,60 +125,12 @@ ${failureList || 'See workflow logs for details'}
         run: |
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f npm-audit.json ]; then
-            python3 -c "
-import json
-import sys
-
-try:
-    with open('npm-audit.json') as f:
-        data = json.load(f)
-    
-    metadata = data.get('metadata', {})
-    vulnerabilities = metadata.get('vulnerabilities', {})
-    
-    print(f\"- Total vulnerabilities: {vulnerabilities.get('total', 0)}\")
-    print(f\"- Critical: {vulnerabilities.get('critical', 0)}\")
-    print(f\"- High: {vulnerabilities.get('high', 0)}\")
-    print(f\"- Moderate: {vulnerabilities.get('moderate', 0)}\")
-    print(f\"- Low: {vulnerabilities.get('low', 0)}\")
-except:
-    print('- Could not parse audit results')
-            " >> $GITHUB_STEP_SUMMARY
-          fi
-
-  performance-check:
-    name: Performance Check
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      
-      - name: Check file sizes
-        run: |
-          echo "## File Size Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Find largest HTML files
-          echo "### Largest HTML Files" >> $GITHUB_STEP_SUMMARY
-          find . -name "*.html" -type f -exec ls -lh {} \; | sort -k5 -hr | head -5 | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || echo "- No HTML files found" >> $GITHUB_STEP_SUMMARY
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Repository Size" >> $GITHUB_STEP_SUMMARY
-          du -sh . | awk '{print "- Total: " $1}' >> $GITHUB_STEP_SUMMARY
-      
-      - name: Check for large files
-        run: |
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Large Files (>1MB)" >> $GITHUB_STEP_SUMMARY
-          find . -type f -size +1M -exec ls -lh {} \; | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY || echo "- None found" >> $GITHUB_STEP_SUMMARY
+          echo "Security scan completed. Check npm-audit.json for details." >> $GITHUB_STEP_SUMMARY
 
   status-report:
     name: Generate Status Report
     runs-on: ubuntu-latest
-    needs: [comprehensive-testing, health-check, security-scan, performance-check]
+    needs: [comprehensive-testing, health-check, security-scan]
     if: always()
     
     steps:
@@ -274,6 +146,3 @@ except:
           echo "## Job Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All monitoring jobs completed. Check individual job results for details." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "*Generated by Autonomous Monitoring System*" >> $GITHUB_STEP_SUMMARY

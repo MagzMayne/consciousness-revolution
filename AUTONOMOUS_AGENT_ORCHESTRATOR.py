@@ -638,21 +638,17 @@ class AutonomousAgentOrchestrator:
     def _start_dashboard_server(self):
         """Start HTTP server for dashboard."""
         PORT = 8765
+        repo_root = self.repo_root
         
         class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
-                super().__init__(*args, directory=str(self.repo_root), **kwargs)
+                super().__init__(*args, directory=str(repo_root), **kwargs)
             
             def log_message(self, format, *args):
                 pass  # Suppress log messages
         
-        # Fix the handler to use the correct directory
-        handler = lambda *args, **kwargs: http.server.SimpleHTTPRequestHandler(
-            *args, directory=str(self.repo_root), **kwargs
-        )
-        
         try:
-            with socketserver.TCPServer(("", PORT), handler) as httpd:
+            with socketserver.TCPServer(("", PORT), DashboardHandler) as httpd:
                 httpd.serve_forever()
         except Exception as e:
             print(f"Dashboard server error: {e}")
