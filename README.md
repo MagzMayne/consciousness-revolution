@@ -12,6 +12,8 @@
 
 Consciousness Revolution is an open-source platform that gives people tools to recognize patterns in communication, relationships, and decision-making. Built on Pattern Theory - the idea that recognizing patterns is the foundation of all growth.
 
+**Our Mission:** All of this brings joy to self and to others. We don't just expose manipulation - we create freedom, empowerment, and genuine joy through consciousness evolution. See [JOY_PRINCIPLES.md](JOY_PRINCIPLES.md) for our complete joy philosophy.
+
 **The 7 Domains of Life:**
 1. **Command** - Clarity, decisions, daily structure
 2. **Creation** - Building, projects, skills
