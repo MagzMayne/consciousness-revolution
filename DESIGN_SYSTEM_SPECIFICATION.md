@@ -97,7 +97,7 @@ Consciousness (Result)
         <a href="index.html" class="nav-link">Home</a>
         <a href="about.html" class="nav-link">About</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
 </body>
@@ -376,7 +376,7 @@ Consciousness (Result)
       <a href="araya-chat.html" class="nav-link">Contact</a>
     </div>
     <p class="footer-text">
-      © 2025 Consciousness Revolution. All rights reserved.
+      © 2025 Consciousness Revolution Developer Collective Developer Collective. Credit to all contributors.
     </p>
   </div>
 </footer>
@@ -523,7 +523,7 @@ Tools/features within domain
         <a href="workspace.html" class="nav-link">Build</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
 </body>

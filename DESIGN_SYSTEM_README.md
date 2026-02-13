@@ -70,7 +70,7 @@ The **Sacred Theme Design System** is a complete, production-ready design langua
         <a href="workspace.html" class="nav-link">Build</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
@@ -225,7 +225,7 @@ Professional Excellence (Execution)
       <a href="index.html" class="nav-link">Home</a>
       <a href="araya-chat.html" class="nav-link">Araya</a>
     </div>
-    <p class="footer-text">© 2025 Consciousness Revolution</p>
+    <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
   </div>
 </footer>
 ```
@@ -469,7 +469,7 @@ Add once per page, right after `<body>` tag.
         <a href="index.html" class="nav-link">Home</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
@@ -555,5 +555,5 @@ Consciousness (The ultimate goal)
 
 ---
 
-**© 2025 Consciousness Revolution**
+**© 2025 Consciousness Revolution Developer Collective**
 **Sacred Theme Design System v1.0**

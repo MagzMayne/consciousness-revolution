@@ -263,7 +263,7 @@ AFTER:  <button class="btn btn-primary">Click</button>
       <a href="index.html" class="nav-link">Home</a>
       <a href="araya-chat.html" class="nav-link">Araya</a>
     </div>
-    <p class="footer-text">© 2025 Consciousness Revolution</p>
+    <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
   </div>
 </footer>
 ```
@@ -451,7 +451,7 @@ Desktop: > 1024px    (full layout, max 1400px containers)
         <a href="index.html" class="nav-link">Home</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
