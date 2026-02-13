@@ -197,7 +197,7 @@ cp original-page.html original-page.html.backup
       <a href="araya-chat.html" class="nav-link">Araya</a>
     </div>
     <p class="footer-text">
-      © 2025 Consciousness Revolution
+      © 2025 Consciousness Revolution Developer Collective
     </p>
   </div>
 </footer>
@@ -379,7 +379,7 @@ cp original-page.html original-page.html.backup
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
       <p class="footer-text">
-        © 2025 Consciousness Revolution
+        © 2025 Consciousness Revolution Developer Collective
       </p>
     </div>
   </footer>

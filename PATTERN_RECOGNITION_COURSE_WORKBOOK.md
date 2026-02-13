@@ -1615,7 +1615,7 @@ Help others awaken. Teach pattern recognition. Build manipulation-proof systems.
 **End of Workbook**
 
 **Pattern Recognition Course - Version 1.0**
-**Consciousness Revolution**
-**© 2025 - All Rights Reserved**
+**Consciousness Revolution Developer Collective**
+**© 2025 - Created by the developer collective. Credit to all contributors.**
 
 *Print this workbook and keep it for life. Review regularly. Teach others. Elevate consciousness.*
