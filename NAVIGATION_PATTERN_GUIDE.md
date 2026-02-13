@@ -103,7 +103,7 @@ Home → Transcend → Araya Chat → Conversation History
       <a href="ABOUT.html" class="nav-link">About</a>
     </div>
     <p class="footer-text">
-      © 2025 Consciousness Revolution
+      © 2025 Consciousness Revolution Developer Collective
     </p>
   </div>
 </footer>

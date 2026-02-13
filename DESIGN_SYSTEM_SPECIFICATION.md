@@ -376,7 +376,7 @@ Consciousness (Result)
       <a href="araya-chat.html" class="nav-link">Contact</a>
     </div>
     <p class="footer-text">
-      © 2025 Consciousness Revolution Developer Collective Developer Collective. Credit to all contributors.
+      © 2025 Consciousness Revolution Developer Collective. Credit to all contributors.
     </p>
   </div>
 </footer>
