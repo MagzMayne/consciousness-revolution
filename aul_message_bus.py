@@ -77,6 +77,10 @@ class AULMessageBus:
         # Message queues
         self.message_queue = MessageQueue(max_queue_size)
         
+        # Message history for dashboard (keep last 100 messages)
+        self.message_history = deque(maxlen=100)
+        self.history_lock = threading.Lock()
+        
         # State
         self._running = False
         self._dispatch_thread = None
@@ -147,6 +151,19 @@ class AULMessageBus:
             # Add to queue
             self.message_queue.put(message)
             self.metrics["messages_sent"] += 1
+            
+            # Add to history for dashboard
+            with self.history_lock:
+                self.message_history.append({
+                    "id": message.message_id,
+                    "timestamp": message.timestamp,
+                    "sender_id": message.sender_id,
+                    "sender_type": message.sender_type,
+                    "recipient_id": message.recipient_id or "broadcast",
+                    "message_type": message.message_type,
+                    "priority": message.priority,
+                    "payload": message.payload
+                })
             
             logger.debug(f"Message published: {message.message_id} ({message.message_type})")
             return True
@@ -330,6 +347,11 @@ class AULMessageBus:
             }
             for info in self.agents.values()
         ]
+    
+    def get_message_history(self, limit: int = 50) -> List[Dict]:
+        """Get recent message history for dashboard"""
+        with self.history_lock:
+            return list(self.message_history)[-limit:]
 
 
 # Singleton instance
