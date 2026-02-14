@@ -227,11 +227,57 @@
         /**
          * Enable or disable autonomous editing
          * @param {boolean} enabled - Whether to enable autonomous editing
+         * @returns {Promise<{success: boolean, message?: string, error?: string}>}
          */
-        enableAutonomousEditing: (enabled) => {
+        enableAutonomousEditing: async (enabled) => {
             if (window.RobotAssistant) {
-                window.RobotAssistant.enableAutonomousEditing(enabled);
+                return await window.RobotAssistant.enableAutonomousEditing(enabled);
             }
+            return { success: false, error: 'Robot Assistant not loaded' };
+        },
+
+        /**
+         * Check authentication status
+         * @returns {boolean} - Whether user is authenticated
+         */
+        checkAuthentication: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.checkAuthentication();
+            }
+            return false;
+        },
+
+        /**
+         * Check if user is authenticated
+         * @returns {boolean}
+         */
+        isAuthenticated: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.isAuthenticated();
+            }
+            return false;
+        },
+
+        /**
+         * Get authenticated user's email
+         * @returns {string|null}
+         */
+        getUserEmail: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.getUserEmail();
+            }
+            return null;
+        },
+
+        /**
+         * Check if user is admin
+         * @returns {boolean}
+         */
+        isAdmin: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.isAdmin();
+            }
+            return false;
         }
     };
 

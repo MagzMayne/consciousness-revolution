@@ -124,7 +124,9 @@ export async function handler(event, context) {
                     manipulation_immunity: foundation?.manipulation_immunity || 0.3,
                     account_tier: foundation?.account_tier || 'free',
                     contribution_tier: networkStatus?.contribution_tier || 'GHOST',
-                    contribution_score: networkStatus?.contribution_score || 0
+                    contribution_score: networkStatus?.contribution_score || 0,
+                    is_admin: foundation?.is_admin || false,
+                    r3d3_access_enabled: foundation?.r3d3_access_enabled || false
                 }
             })
         };

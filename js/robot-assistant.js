@@ -34,7 +34,11 @@
         lastActivity: Date.now(),
         currentAction: 'Waiting for interactions...',
         canEditPages: false, // Can robot autonomously edit pages
-        isEditing: false // Is robot currently editing
+        isEditing: false, // Is robot currently editing
+        isAuthenticated: false, // User logged in
+        userEmail: null, // User email
+        isAdmin: false, // User is admin
+        authToken: null // Auth token
     };
 
     // Three.js components
@@ -49,6 +53,9 @@
 
         // Load saved state
         loadState();
+        
+        // Check authentication status
+        checkAuthentication();
 
         // Get or create session ID (sync with ARAYA)
         state.sessionId = getSessionId();
@@ -69,6 +76,13 @@
         startAutonomousBehavior();
 
         console.log('🤖 R3-D3 Robot Assistant initialized');
+        if (state.isAuthenticated) {
+            console.log(`   User: ${state.userEmail}`);
+            console.log(`   Admin: ${state.isAdmin}`);
+            console.log(`   R3-D3 Access: ${state.canEditPages}`);
+        } else {
+            console.log('   User: Not authenticated');
+        }
     }
 
     /**
@@ -589,23 +603,133 @@
     }
 
     /**
-     * Enable/disable autonomous editing
+     * Check authentication status from localStorage or cookies
      */
-    function enableAutonomousEditing(enabled) {
-        state.canEditPages = enabled;
-        saveState();
+    function checkAuthentication() {
+        // Check for auth session in localStorage (from login)
+        const authSession = localStorage.getItem('araya_auth_session');
+        
+        if (authSession) {
+            try {
+                const session = JSON.parse(authSession);
+                if (session.access_token && session.user) {
+                    state.isAuthenticated = true;
+                    state.authToken = session.access_token;
+                    state.userEmail = session.user.email;
+                    state.isAdmin = session.user.is_admin || false;
+                    
+                    // Check if user has R3-D3 access
+                    if (session.user.r3d3_access_enabled) {
+                        state.canEditPages = true;
+                    }
+                    
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Failed to parse auth session:', e);
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Enable/disable autonomous editing (with authentication check)
+     */
+    async function enableAutonomousEditing(enabled) {
+        // Check if user is authenticated
+        if (!state.isAuthenticated) {
+            showNotification('🤖 R3-D3: Please log in to enable editing', 'error');
+            return { success: false, error: 'Authentication required' };
+        }
         
         if (enabled) {
-            showNotification('🤖 R3-D3: Autonomous editing enabled', 'success');
+            // Verify access with backend
+            try {
+                const response = await fetch('/.netlify/functions/r3d3-access-check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.authToken}`
+                    },
+                    body: JSON.stringify({
+                        action: 'edit_page'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.allowed) {
+                    showNotification(`🤖 R3-D3: ${result.reason}`, 'error');
+                    return { success: false, error: result.reason };
+                }
+                
+                // Access granted
+                state.canEditPages = true;
+                saveState();
+                showNotification(`🤖 R3-D3: Autonomous editing enabled for ${state.userEmail}`, 'success');
+                
+                // Log the action
+                await logAction('enable_editing', null, 'Enabled editing', true);
+                
+                return { success: true, message: 'Editing enabled' };
+                
+            } catch (error) {
+                console.error('Failed to verify R3-D3 access:', error);
+                showNotification('🤖 R3-D3: Failed to verify access. Please try again.', 'error');
+                return { success: false, error: error.message };
+            }
         } else {
+            // Disable editing
+            state.canEditPages = false;
+            saveState();
             showNotification('🤖 R3-D3: Autonomous editing disabled', 'info');
+            
+            // Log the action
+            await logAction('disable_editing', null, 'Disabled editing', true);
+            
+            return { success: true, message: 'Editing disabled' };
         }
     }
 
     /**
-     * Edit a page using ARAYA services
+     * Log R3-D3 action to backend
+     */
+    async function logAction(action, targetFile, changeDescription, success, errorMessage = null) {
+        try {
+            await fetch('/.netlify/functions/r3d3-log-action', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': state.authToken ? `Bearer ${state.authToken}` : ''
+                },
+                body: JSON.stringify({
+                    action,
+                    target_file: targetFile,
+                    change_description: changeDescription,
+                    success,
+                    error_message: errorMessage,
+                    metadata: {
+                        session_id: state.sessionId,
+                        user_email: state.userEmail || 'anonymous'
+                    }
+                })
+            });
+        } catch (error) {
+            // Logging is non-critical, just log to console
+            console.warn('Failed to log R3-D3 action:', error);
+        }
+    }
+
+    /**
+     * Edit a page using ARAYA services (with authentication and logging)
      */
     async function editPage(filePathOrShortcut, changeDescription) {
+        if (!state.isAuthenticated) {
+            showNotification('🤖 R3-D3: Please log in to use editing features', 'error');
+            return { success: false, error: 'Authentication required' };
+        }
+        
         if (!state.canEditPages) {
             showNotification('🤖 R3-D3: Editing disabled. Enable first!', 'error');
             return { success: false, error: 'Autonomous editing is disabled' };
@@ -637,6 +761,10 @@
             if (result.success) {
                 showNotification(`🤖 R3-D3: ✅ ${result.message || 'Edit successful!'}`, 'success');
                 setAction('Edit completed!');
+                
+                // Log successful edit
+                await logAction('edit_page', filePathOrShortcut, changeDescription, true);
+                
                 setTimeout(() => {
                     state.isEditing = false;
                     setAnimationState('idle');
@@ -649,6 +777,10 @@
             console.error('R3-D3 Edit Error:', error);
             showNotification(`🤖 R3-D3: ❌ ${error.message}`, 'error');
             setAction('Edit failed');
+            
+            // Log failed edit
+            await logAction('edit_page', filePathOrShortcut, changeDescription, false, error.message);
+            
             state.isEditing = false;
             setTimeout(() => setAnimationState('idle'), 1000);
             return { success: false, error: error.message };
@@ -682,6 +814,10 @@
         isEditing: isEditingNow,
         editPage,
         enableAutonomousEditing,
+        checkAuthentication,
+        isAuthenticated: () => state.isAuthenticated,
+        getUserEmail: () => state.userEmail,
+        isAdmin: () => state.isAdmin,
         config: CONFIG
     };
 
