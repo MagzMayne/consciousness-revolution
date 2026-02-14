@@ -13,7 +13,7 @@ import asyncio
 from AGENT_FACTORY import get_agent_factory
 from SYSTEM_MONITORING_AGENT import SystemMonitoringAgent
 from AGENT_BASE_CLASS import AgentConfig
-from MULTI_PROVIDER_AI_ORCHESTRATOR import SyncMultiProviderOrchestrator
+from MULTI_PROVIDER_AI_ORCHESTRATOR import MultiProviderOrchestrator
 
 
 async def main():
@@ -92,7 +92,7 @@ async def main():
     print("🧠 Step 3: Initialize AI Orchestrator")
     print("-" * 70)
     
-    ai_orchestrator = SyncMultiProviderOrchestrator()
+    ai_orchestrator = MultiProviderOrchestrator()
     health = ai_orchestrator.get_health_status()
     
     print(f"✅ AI Orchestrator initialized")
