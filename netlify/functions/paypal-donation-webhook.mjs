@@ -11,7 +11,7 @@
  * 1. Go to PayPal Developer Dashboard: https://developer.paypal.com/dashboard/
  * 2. Navigate to Apps & Credentials
  * 3. Create a REST API app or use existing one
- * 4. Configure webhook URL: https://conciousnessrevolution.io/.netlify/functions/paypal-donation-webhook
+ * 4. Configure webhook URL: https://consciousnessrevolution.io/.netlify/functions/paypal-donation-webhook
  * 5. Subscribe to these events:
  *    - PAYMENT.SALE.COMPLETED
  *    - PAYMENT.CAPTURE.COMPLETED
@@ -31,6 +31,10 @@ const RELEVANT_EVENTS = [
 /**
  * Verify PayPal webhook signature
  * This ensures the webhook actually came from PayPal
+ * 
+ * IMPORTANT: This is a simplified version for initial setup.
+ * For production, implement full signature verification using PayPal SDK:
+ * https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/#link-verifysignature
  */
 function verifyWebhookSignature(headers, body, webhookId) {
   try {
@@ -42,18 +46,33 @@ function verifyWebhookSignature(headers, body, webhookId) {
     const transmissionSig = headers['paypal-transmission-sig'];
 
     if (!transmissionId || !transmissionTime || !transmissionSig) {
+      console.warn('Missing required PayPal webhook headers');
       return false;
     }
 
-    // For production, you'd verify the certificate and signature
-    // This is a simplified version - see PayPal docs for full implementation
+    // TODO: Implement full verification in production:
+    // 1. Retrieve PayPal certificate from certUrl
+    // 2. Construct expected message: webhook_id + transmission_id + transmission_time + body
+    // 3. Verify signature using certificate and authAlgo
+    // 4. Check certificate is from PayPal domain
+    // 
+    // For now, log verification attempt for monitoring
     console.log('Webhook verification attempted:', {
       transmissionId,
       transmissionTime,
-      authAlgo
+      authAlgo,
+      certUrl
     });
 
-    return true; // Simplified for now - implement full verification in production
+    // In development/testing: Accept if headers are present
+    // In production: Return false until full verification is implemented
+    const isProduction = process.env.PAYPAL_MODE === 'live';
+    if (isProduction) {
+      console.error('Production mode requires full signature verification - rejecting webhook');
+      return false;
+    }
+
+    return true; // Only for development/testing
   } catch (error) {
     console.error('Webhook verification error:', error);
     return false;

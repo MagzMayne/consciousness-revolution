@@ -35,7 +35,7 @@ If you haven't already:
 2. Click **Add Webhook**
 3. Enter webhook URL:
    ```
-   https://conciousnessrevolution.io/.netlify/functions/paypal-donation-webhook
+   https://consciousnessrevolution.io/.netlify/functions/paypal-donation-webhook
    ```
 4. Select these event types:
    - ✅ `PAYMENT.SALE.COMPLETED`
@@ -116,10 +116,23 @@ Netlify function receives webhook → Verifies signature → Logs donation
 ## Security Considerations
 
 1. **Always verify webhook signatures** - The handler includes signature verification
+   - ⚠️ **IMPORTANT**: Current implementation is simplified for development
+   - Before going to production, implement full signature verification using PayPal SDK
+   - See: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/#link-verifysignature
+   
 2. **Use HTTPS only** - PayPal requires HTTPS for webhooks
+
 3. **Keep credentials secret** - Never commit API keys to git
-4. **Monitor logs** - Check for suspicious webhook activity
-5. **Validate amounts** - Verify donation amounts match expectations
+
+4. **Set PAYPAL_MODE environment variable**:
+   - `sandbox` for testing (accepts webhooks with basic header validation)
+   - `live` for production (requires full signature verification - currently disabled until implemented)
+
+5. **Monitor logs** - Check for suspicious webhook activity
+
+6. **Validate amounts** - Verify donation amounts match expectations
+
+7. **Implement rate limiting** - Prevent abuse of webhook endpoint
 
 ## Troubleshooting
 
