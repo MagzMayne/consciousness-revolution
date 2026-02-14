@@ -24,14 +24,17 @@
 
     // Robot state
     let state = {
+        robotName: 'r3-d3', // Robot identity
         position: { x: 100, y: window.innerHeight - 150 },
         target: null,
         velocity: { x: 0, y: 0 },
-        animationState: 'idle', // idle, walking, thinking, speaking
+        animationState: 'idle', // idle, walking, thinking, speaking, editing
         facing: 'right', // left or right
         sessionId: null,
         lastActivity: Date.now(),
-        currentAction: 'Waiting for interactions...'
+        currentAction: 'Waiting for interactions...',
+        canEditPages: false, // Can robot autonomously edit pages
+        isEditing: false // Is robot currently editing
     };
 
     // Three.js components
@@ -65,7 +68,7 @@
         // Start autonomous behavior
         startAutonomousBehavior();
 
-        console.log('🤖 ARAYA Robot Assistant initialized');
+        console.log('🤖 R3-D3 Robot Assistant initialized');
     }
 
     /**
@@ -302,6 +305,20 @@
                     rightArm.rotation.z = -0.3 - Math.sin(time * 4) * 0.2;
                 }
                 break;
+
+            case 'editing':
+                // Rapid arm movements, tilted head, focused eye pulse
+                if (leftArm) leftArm.rotation.z = Math.sin(time * 10) * 0.5 - 0.3;
+                if (rightArm) rightArm.rotation.z = Math.sin(time * 10 + Math.PI) * 0.5 + 0.3;
+                if (head) {
+                    head.rotation.z = 0.1; // Slightly tilted
+                    head.position.y = 1.2;
+                }
+                // Fast focused eye pulse
+                if (eye) {
+                    eye.material.opacity = 0.9 + Math.sin(time * 8) * 0.1;
+                }
+                break;
         }
     }
 
@@ -466,12 +483,14 @@
      */
     function saveState() {
         const stateToSave = {
+            robotName: state.robotName,
             position: state.position,
             animationState: state.animationState,
             facing: state.facing,
             currentAction: state.currentAction,
             lastActivity: state.lastActivity,
             sessionId: state.sessionId,
+            canEditPages: state.canEditPages,
             timestamp: Date.now()
         };
 
@@ -493,16 +512,161 @@
                 
                 // Only restore if recent (within 1 hour)
                 if (Date.now() - loaded.timestamp < 3600000) {
+                    state.robotName = loaded.robotName || state.robotName;
                     state.position = loaded.position || state.position;
                     state.animationState = loaded.animationState || state.animationState;
                     state.facing = loaded.facing || state.facing;
                     state.currentAction = loaded.currentAction || state.currentAction;
                     state.sessionId = loaded.sessionId || state.sessionId;
+                    state.canEditPages = loaded.canEditPages || state.canEditPages;
                 }
             }
         } catch (e) {
             console.warn('Failed to load robot state:', e);
         }
+    }
+
+    /**
+     * Show notification to user
+     */
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `robot-notification robot-notification-${type}`;
+        notification.textContent = message;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#00ff88' : type === 'error' ? '#ff4444' : '#00f0ff'};
+            color: #000;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-family: 'Orbitron', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        // Add CSS animation
+        if (!document.getElementById('robot-notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'robot-notification-styles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOut {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+
+    /**
+     * Enable/disable autonomous editing
+     */
+    function enableAutonomousEditing(enabled) {
+        state.canEditPages = enabled;
+        saveState();
+        
+        if (enabled) {
+            showNotification('🤖 R3-D3: Autonomous editing enabled', 'success');
+        } else {
+            showNotification('🤖 R3-D3: Autonomous editing disabled', 'info');
+        }
+    }
+
+    /**
+     * Edit a page using ARAYA services
+     */
+    async function editPage(filePathOrShortcut, changeDescription) {
+        if (!state.canEditPages) {
+            showNotification('🤖 R3-D3: Editing disabled. Enable first!', 'error');
+            return { success: false, error: 'Autonomous editing is disabled' };
+        }
+        
+        state.isEditing = true;
+        setAnimationState('editing');
+        setAction('Editing page...');
+        
+        try {
+            showNotification(`🤖 R3-D3: Analyzing edit request...`, 'info');
+            
+            // Call ARAYA Bridge to parse the edit
+            const bridgeResponse = await fetch('http://localhost:5002/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_message: changeDescription,
+                    file_path: filePathOrShortcut
+                })
+            });
+            
+            if (!bridgeResponse.ok) {
+                throw new Error(`ARAYA Bridge error: ${bridgeResponse.status}`);
+            }
+            
+            const result = await bridgeResponse.json();
+            
+            if (result.success) {
+                showNotification(`🤖 R3-D3: ✅ ${result.message || 'Edit successful!'}`, 'success');
+                setAction('Edit completed!');
+                setTimeout(() => {
+                    state.isEditing = false;
+                    setAnimationState('idle');
+                }, 2000);
+                return { success: true, result: result };
+            } else {
+                throw new Error(result.error || 'Edit failed');
+            }
+        } catch (error) {
+            console.error('R3-D3 Edit Error:', error);
+            showNotification(`🤖 R3-D3: ❌ ${error.message}`, 'error');
+            setAction('Edit failed');
+            state.isEditing = false;
+            setTimeout(() => setAnimationState('idle'), 1000);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Get robot name
+     */
+    function getName() {
+        return state.robotName;
+    }
+
+    /**
+     * Check if robot is currently editing
+     */
+    function isEditingNow() {
+        return state.isEditing;
     }
 
     /**
@@ -514,6 +678,10 @@
         setAnimationState,
         setAction,
         getState: () => ({ ...state }),
+        getName,
+        isEditing: isEditingNow,
+        editPage,
+        enableAutonomousEditing,
         config: CONFIG
     };
 

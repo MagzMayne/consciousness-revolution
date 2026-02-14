@@ -11,7 +11,7 @@
 (function() {
     'use strict';
 
-    console.log('🤖 Loading ARAYA Robot Assistant...');
+    console.log('🤖 Loading R3-D3 Robot Assistant...');
 
     // Check if already loaded
     if (window._robotAssistantLoaded) {
@@ -76,7 +76,7 @@
 
             // Provide user feedback
             if (window.RobotAssistant) {
-                console.log('✨ ARAYA Robot Assistant is ready!');
+                console.log('✨ R3-D3 Robot Assistant is ready!');
                 showLoadNotification();
             }
         } catch (error) {
@@ -116,7 +116,7 @@
             animation: slideIn 0.5s ease-out, fadeOut 0.5s ease-in 2.5s;
             pointer-events: none;
         `;
-        notification.innerHTML = '🤖 Robot Assistant Activated';
+        notification.innerHTML = '🤖 R3-D3 Activated';
 
         // Add animation styles
         const style = document.createElement('style');
@@ -189,6 +189,49 @@
                 return window.RobotAssistant.getState();
             }
             return null;
+        },
+
+        /**
+         * Get robot name (r3-d3)
+         */
+        getName: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.getName();
+            }
+            return null;
+        },
+
+        /**
+         * Check if robot is currently editing
+         */
+        isEditing: () => {
+            if (window.RobotAssistant) {
+                return window.RobotAssistant.isEditing();
+            }
+            return false;
+        },
+
+        /**
+         * Edit a page autonomously
+         * @param {string} filePathOrShortcut - File path or shortcut (e.g., 'homepage', 'index.html')
+         * @param {string} changeDescription - Natural language description of the change
+         * @returns {Promise<{success: boolean, result?: any, error?: string}>}
+         */
+        editPage: async (filePathOrShortcut, changeDescription) => {
+            if (window.RobotAssistant) {
+                return await window.RobotAssistant.editPage(filePathOrShortcut, changeDescription);
+            }
+            return { success: false, error: 'Robot Assistant not loaded' };
+        },
+
+        /**
+         * Enable or disable autonomous editing
+         * @param {boolean} enabled - Whether to enable autonomous editing
+         */
+        enableAutonomousEditing: (enabled) => {
+            if (window.RobotAssistant) {
+                window.RobotAssistant.enableAutonomousEditing(enabled);
+            }
         }
     };
 
