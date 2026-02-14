@@ -158,23 +158,22 @@
                 top: 15%;
                 left: 50%;
                 transform: translateX(-50%);
-                width: 35%;
-                height: 35%;
-                background: linear-gradient(135deg, #00f0ff, #00d4ff);
-                border-radius: 50%;
-                box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+                width: 50%;
+                height: 40%;
+                font-size: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 animation: float 3s ease-in-out infinite;
+                filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.6));
+            }
+
+            .robot-head::before {
+                content: '🤖';
             }
 
             .robot-eye {
-                position: absolute;
-                top: 40%;
-                right: 25%;
-                width: 25%;
-                height: 25%;
-                background: #ffd700;
-                border-radius: 50%;
-                box-shadow: 0 0 10px #ffd700;
+                display: none;
             }
 
             .robot-torso {

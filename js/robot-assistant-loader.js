@@ -53,6 +53,12 @@
                     // Load CSS version instead
                     await loadScript('/js/robot-assistant-css.js');
                     console.log('✅ Robot Assistant loaded (CSS version)');
+                    
+                    // Load AI Brain
+                    console.log('🧠 Loading Robot AI Brain...');
+                    await loadScript('/js/robot-ai-brain.js');
+                    console.log('✅ Robot AI Brain loaded');
+                    
                     showLoadNotification();
                     return;
                 }
@@ -62,6 +68,11 @@
             console.log('🤖 Loading Robot Assistant module...');
             await loadScript('/js/robot-assistant.js');
             console.log('✅ Robot Assistant loaded (3D version)');
+
+            // Load AI Brain
+            console.log('🧠 Loading Robot AI Brain...');
+            await loadScript('/js/robot-ai-brain.js');
+            console.log('✅ Robot AI Brain loaded');
 
             // Provide user feedback
             if (window.RobotAssistant) {
