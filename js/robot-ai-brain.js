@@ -39,6 +39,7 @@
 
     // Speech bubble for robot communication
     let speechBubble = null;
+    let bubblePositionUpdaterInterval = null;
 
     /**
      * Initialize the AI Brain
@@ -201,8 +202,13 @@
      * Start continuous position updater for speech bubble
      */
     function startBubblePositionUpdater() {
+        // Clear any existing interval to prevent multiple intervals
+        if (bubblePositionUpdaterInterval) {
+            clearInterval(bubblePositionUpdaterInterval);
+        }
+        
         // Update position every 100ms to keep bubble above robot as it moves
-        setInterval(() => {
+        bubblePositionUpdaterInterval = setInterval(() => {
             if (speechBubble && speechBubble.style.display !== 'none') {
                 updateSpeechBubblePosition();
             }
@@ -546,6 +552,13 @@
                 provideContextualHelp();
             });
         }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (bubblePositionUpdaterInterval) {
+                clearInterval(bubblePositionUpdaterInterval);
+            }
+        });
     }
 
     /**
