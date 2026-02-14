@@ -116,7 +116,8 @@ class DashboardAPIHandler(BaseHTTPRequestHandler):
     
     def _get_messages(self) -> Dict:
         """Get recent message stream"""
-        messages = _message_collector.get_recent_messages(limit=50)
+        bus = get_message_bus()
+        messages = bus.get_message_history(limit=50)
         
         return {
             "timestamp": datetime.now().isoformat(),
