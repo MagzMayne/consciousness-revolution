@@ -39,6 +39,7 @@
 
     // Speech bubble for robot communication
     let speechBubble = null;
+    let bubblePositionUpdaterInterval = null;
 
     /**
      * Initialize the AI Brain
@@ -138,8 +139,6 @@
         speechBubble.id = 'robot-speech-bubble';
         speechBubble.style.cssText = `
             position: fixed;
-            bottom: 120px;
-            left: 20px;
             max-width: 320px;
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(147, 112, 219, 0.95));
             backdrop-filter: blur(10px);
@@ -153,7 +152,7 @@
             z-index: 998;
             opacity: 0;
             transform: translateY(20px);
-            transition: opacity 0.3s, transform 0.3s;
+            transition: opacity 0.3s, transform 0.3s, left 0.3s, bottom 0.3s;
             pointer-events: none;
             display: none;
         `;
@@ -173,6 +172,47 @@
         speechBubble.appendChild(tail);
         
         document.body.appendChild(speechBubble);
+        
+        // Start position update loop to keep bubble above robot
+        startBubblePositionUpdater();
+    }
+    
+    /**
+     * Update speech bubble position to be above robot's head
+     */
+    function updateSpeechBubblePosition() {
+        if (!speechBubble || !window.RobotAssistant) return;
+        
+        const state = window.RobotAssistant.getState();
+        if (!state || !state.position) return;
+        
+        // Position bubble above robot's head (robot size is 80px)
+        const robotSize = window.RobotAssistant.config?.robotSize || 80;
+        const bubbleOffset = 100; // Distance above robot's head
+        
+        // Calculate position: above the robot
+        const left = state.position.x;
+        const bottom = window.innerHeight - state.position.y + bubbleOffset;
+        
+        speechBubble.style.left = `${left}px`;
+        speechBubble.style.bottom = `${bottom}px`;
+    }
+    
+    /**
+     * Start continuous position updater for speech bubble
+     */
+    function startBubblePositionUpdater() {
+        // Clear any existing interval to prevent multiple intervals
+        if (bubblePositionUpdaterInterval) {
+            clearInterval(bubblePositionUpdaterInterval);
+        }
+        
+        // Update position every 100ms to keep bubble above robot as it moves
+        bubblePositionUpdaterInterval = setInterval(() => {
+            if (speechBubble && speechBubble.style.display !== 'none') {
+                updateSpeechBubblePosition();
+            }
+        }, 100);
     }
 
     /**
@@ -202,6 +242,9 @@
             border-top: 10px solid rgba(147, 112, 219, 0.95);
         `;
         speechBubble.appendChild(tail);
+        
+        // Update position to be above robot before showing
+        updateSpeechBubblePosition();
         
         speechBubble.style.display = 'block';
         setTimeout(() => {
@@ -509,6 +552,13 @@
                 provideContextualHelp();
             });
         }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (bubblePositionUpdaterInterval) {
+                clearInterval(bubblePositionUpdaterInterval);
+            }
+        });
     }
 
     /**
