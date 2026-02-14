@@ -234,13 +234,40 @@ MIT
 
 ---
 
+## Attribution & Support
+
+**Created by Agent R / Barbrick Design**
+
+This repository represents original work in self-healing recursion, AI consciousness interfaces, and pattern recognition systems. For full attribution details, see [ATTRIBUTION.md](ATTRIBUTION.md).
+
+### Support This Work
+
+If these tools and concepts have helped you, please consider supporting their continued development:
+
+- **Donate via PayPal**: [paypal.me/BarbrickDesign](https://www.paypal.com/paypalme/BarbrickDesign)
+- **GitHub Sponsors**: See the "Sponsor" button at the top of this page
+- **Contact**: BarbrickDesign@gmail.com
+
+### Why Support?
+
+Every donation helps:
+- Keep the platform free and accessible
+- Fund new feature development
+- Support ongoing maintenance and improvements
+- Enable deeper research into consciousness and AI
+
+**All original concepts, designs, and implementations**: Agent R / Barbrick Design
+
+---
+
 ## Contact
 
 - **Website:** [conciousnessrevolution.io](https://conciousnessrevolution.io)
-- **Email:** darrickpreble@proton.me
+- **Creator**: BarbrickDesign@gmail.com (Agent R)
+- **Platform Contact:** darrickpreble@proton.me
 - **Discord:** [discord.gg/xHRXyKkzyg](https://discord.gg/xHRXyKkzyg)
 - **Bugs:** [consciousness-bugs](https://github.com/overkor-tek/consciousness-bugs)
 
 ---
 
-**Built by [overkor-tek](https://github.com/overkor-tek)** - Pattern recognition for human consciousness.
+**Built by Agent R / Barbrick Design for [overkor-tek](https://github.com/overkor-tek)** - Pattern recognition for human consciousness.
