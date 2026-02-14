@@ -143,19 +143,29 @@
             shininess: 100
         });
 
-        // Head (sphere with glow)
-        const headGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-        const head = new THREE.Mesh(headGeometry, cyanMaterial);
+        // Head - Using emoji texture 🤖
+        const headCanvas = document.createElement('canvas');
+        headCanvas.width = 128;
+        headCanvas.height = 128;
+        const ctx = headCanvas.getContext('2d');
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.font = 'bold 100px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🤖', 64, 64);
+        
+        const headTexture = new THREE.CanvasTexture(headCanvas);
+        const headGeometry = new THREE.PlaneGeometry(1, 1);
+        const headMaterial = new THREE.MeshBasicMaterial({ 
+            map: headTexture, 
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.y = 1.2;
         head.name = 'head';
         robot.add(head);
-
-        // Eye (smaller sphere)
-        const eyeGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-        const eye = new THREE.Mesh(eyeGeometry, goldMaterial);
-        eye.position.set(0.2, 1.3, 0.4);
-        eye.name = 'eye';
-        robot.add(eye);
 
         // Body (box)
         const bodyGeometry = new THREE.BoxGeometry(0.8, 1, 0.6);
@@ -246,11 +256,9 @@
             case 'idle':
                 // Gentle bobbing
                 robot.position.y = Math.sin(time * 2) * 0.05;
-                // Gentle head tilt
-                if (head) head.rotation.z = Math.sin(time * 1.5) * 0.1;
-                // Eye pulse
-                if (eye) {
-                    eye.scale.setScalar(1 + Math.sin(time * 3) * 0.1);
+                // Gentle head rotation (emoji always faces camera)
+                if (head) {
+                    head.rotation.z = Math.sin(time * 1.5) * 0.05;
                 }
                 break;
 
@@ -275,22 +283,18 @@
                 break;
 
             case 'thinking':
-                // Head rotation (looking around)
+                // Head rotation (looking around) - keep emoji facing camera
                 if (head) {
-                    head.rotation.y = Math.sin(time * 2) * 0.3;
-                    head.rotation.x = Math.sin(time * 1.5) * 0.2;
-                }
-                // Rapid eye pulse
-                if (eye) {
-                    eye.scale.setScalar(1 + Math.sin(time * 10) * 0.2);
+                    head.rotation.z = Math.sin(time * 2) * 0.2;
+                    robot.position.y = Math.sin(time * 3) * 0.08;
                 }
                 break;
 
             case 'speaking':
                 // Head bob while speaking
                 if (head) {
-                    head.position.y = 1.2 + Math.sin(time * 5) * 0.05;
-                    head.scale.setScalar(1 + Math.sin(time * 5) * 0.02);
+                    head.position.y = 1.2 + Math.sin(time * 5) * 0.08;
+                    head.scale.setScalar(1 + Math.sin(time * 5) * 0.03);
                 }
                 // Arm gestures
                 if (leftArm && rightArm) {
