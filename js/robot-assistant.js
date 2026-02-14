@@ -24,11 +24,11 @@
 
     // Robot state
     let state = {
-        position: { x: window.innerWidth - 150, y: window.innerHeight - 150 },
+        position: { x: 100, y: window.innerHeight - 150 },
         target: null,
         velocity: { x: 0, y: 0 },
         animationState: 'idle', // idle, walking, thinking, speaking
-        facing: 'left', // left or right
+        facing: 'right', // left or right
         sessionId: null,
         lastActivity: Date.now(),
         currentAction: 'Waiting for interactions...'
@@ -78,7 +78,7 @@
         container.style.cssText = `
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 20px;
             width: ${CONFIG.robotSize}px;
             height: ${CONFIG.robotSize}px;
             z-index: 999;
