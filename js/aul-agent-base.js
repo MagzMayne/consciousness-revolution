@@ -194,9 +194,9 @@ class AULAgent {
     }
     
     async receiveMessage(message) {
+        const startTime = Date.now();
+        
         try {
-            const startTime = Date.now();
-            
             // Add to trace
             message.trace.push({
                 agent_id: this.agentId,

@@ -247,8 +247,11 @@ class AULRouter {
         if (['heartbeat', 'event'].includes(message.messageType)) {
             canHandle = true;
         }
-        
-        // Check capabilities (simplified)
+        // For other message types, broadcast to all agents if no specific recipient
+        // In production, this would check agent capabilities against message requirements
+        else if (!message.recipientId) {
+            canHandle = true;
+        }
         
         // Cache result
         this._routingCache.set(cacheKey, canHandle);

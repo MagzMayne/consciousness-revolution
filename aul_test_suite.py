@@ -2,6 +2,18 @@
 """
 AUL Protocol Test Suite
 Comprehensive tests for AI Universal Language implementation
+
+Usage:
+    python3 aul_test_suite.py
+
+Output:
+    - Console output with test results
+    - JSON file: AUL_TEST_RESULTS.json
+
+Expected Output:
+    - 35 tests total
+    - 90%+ pass rate
+    - Performance metrics validation
 """
 
 import sys

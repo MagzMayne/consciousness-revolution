@@ -251,9 +251,11 @@ class AULMessageBus:
         # All agents get heartbeats and events
         if message.message_type in ["heartbeat", "event"]:
             can_handle = True
-        
-        # Check capabilities
-        # (This is simplified - could be more sophisticated)
+        # For other message types, agent receives if no specific routing
+        # In production, this would check agent capabilities
+        # For now, broadcast non-targeted messages to all agents
+        elif not message.recipient_id:
+            can_handle = True
         
         # Cache result
         self._routing_cache[cache_key] = can_handle

@@ -8,7 +8,7 @@
 
 The Consciousness Revolution platform now includes **AUL (AI Universal Language)** - a proprietary protocol that provides:
 
-- ✅ **10x faster inter-agent communication** through optimized message routing
+- ✅ **3-5x faster inter-agent communication** through optimized message routing
 - ✅ **Universal agent interoperability** across Python, JavaScript, and any language
 - ✅ **Standardized lifecycle management** for all autonomous agents
 - ✅ **Built-in error handling** and automatic recovery
