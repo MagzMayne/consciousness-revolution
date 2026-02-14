@@ -42,27 +42,41 @@
      */
     async function init() {
         try {
-            // Load Three.js if not already loaded
+            // Try to load Three.js version first
             if (typeof THREE === 'undefined') {
                 console.log('📦 Loading Three.js...');
-                await loadScript(THREEJS_CDN);
-                console.log('✅ Three.js loaded');
+                try {
+                    await loadScript(THREEJS_CDN);
+                    console.log('✅ Three.js loaded');
+                } catch (error) {
+                    console.log('⚠️ Three.js unavailable, using CSS fallback');
+                    // Load CSS version instead
+                    await loadScript('/js/robot-assistant-css.js');
+                    console.log('✅ Robot Assistant loaded (CSS version)');
+                    showLoadNotification();
+                    return;
+                }
             }
 
-            // Load robot assistant
+            // Load Three.js robot assistant
             console.log('🤖 Loading Robot Assistant module...');
             await loadScript('/js/robot-assistant.js');
-            console.log('✅ Robot Assistant loaded');
+            console.log('✅ Robot Assistant loaded (3D version)');
 
             // Provide user feedback
             if (window.RobotAssistant) {
                 console.log('✨ ARAYA Robot Assistant is ready!');
-                
-                // Optional: Show a brief notification
                 showLoadNotification();
             }
         } catch (error) {
             console.error('❌ Failed to load Robot Assistant:', error);
+            // Try CSS fallback as last resort
+            try {
+                await loadScript('/js/robot-assistant-css.js');
+                console.log('✅ Robot Assistant loaded (CSS fallback)');
+            } catch (fallbackError) {
+                console.error('❌ All robot loading attempts failed');
+            }
         }
     }
 
