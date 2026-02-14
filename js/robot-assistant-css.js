@@ -120,6 +120,7 @@
                 z-index: 999;
                 pointer-events: none;
                 transition: left 0.3s ease-out, bottom 0.3s ease-out;
+                background: transparent;
             }
 
             .robot-body {
@@ -127,6 +128,7 @@
                 width: 100%;
                 height: 100%;
                 transform-origin: center bottom;
+                background: transparent;
             }
 
             .robot-antenna {
@@ -166,6 +168,7 @@
                 justify-content: center;
                 animation: float 3s ease-in-out infinite;
                 filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.6));
+                background: transparent;
             }
 
             .robot-head::before {
