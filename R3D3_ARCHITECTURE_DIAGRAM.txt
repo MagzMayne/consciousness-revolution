@@ -1,0 +1,430 @@
+# R3-D3 Interactive Robot - System Architecture
+
+## High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         USER BROWSER                                 │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │                    WEB PAGE (Any .html)                     │   │
+│  │                                                             │   │
+│  │  <script src="/js/robot-assistant-loader.js"></script>     │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                              ↓                                       │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │              ROBOT ASSISTANT LOADER                         │   │
+│  │              (robot-assistant-loader.js)                    │   │
+│  │                                                             │   │
+│  │  - Loads Three.js                                           │   │
+│  │  - Loads robot-assistant.js                                 │   │
+│  │  - Loads robot-ai-brain.js                                  │   │
+│  │  - Exposes RobotAssistantLoader API                         │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                              ↓                                       │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │                   R3-D3 ROBOT CORE                          │   │
+│  │                (robot-assistant.js)                         │   │
+│  │                                                             │   │
+│  │  State:                                                     │   │
+│  │  ├─ robotName: 'r3-d3'                                      │   │
+│  │  ├─ position: { x, y }                                      │   │
+│  │  ├─ animationState: idle/walking/thinking/speaking/editing │   │
+│  │  ├─ canEditPages: boolean                                   │   │
+│  │  └─ isEditing: boolean                                      │   │
+│  │                                                             │   │
+│  │  Features:                                                  │   │
+│  │  ├─ 3D Rendering (Three.js)                                │   │
+│  │  ├─ Animation System                                        │   │
+│  │  ├─ State Persistence (localStorage)                        │   │
+│  │  ├─ Notification System                                     │   │
+│  │  └─ Autonomous Editing                                      │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                              ↓                                       │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │                   AI BRAIN MODULE                           │   │
+│  │                (robot-ai-brain.js)                          │   │
+│  │                                                             │   │
+│  │  - Page discovery & tracking                                │   │
+│  │  - Tour guide system                                        │   │
+│  │  - Speech bubble communication                              │   │
+│  │  - Contextual help                                          │   │
+│  │  - Exploration scoring                                      │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓ HTTP Requests
+                              ↓ (when editing)
+┌─────────────────────────────────────────────────────────────────────┐
+│                      BACKEND SERVICES                                │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │               ARAYA BRIDGE SERVICE                          │   │
+│  │               (ARAYA_BRIDGE.py)                             │   │
+│  │                                                             │   │
+│  │  Port: 5002                                                 │   │
+│  │  Endpoint: POST /edit                                       │   │
+│  │                                                             │   │
+│  │  ┌─────────────────────────────────────────────────────┐  │   │
+│  │  │ Request:                                             │  │   │
+│  │  │ {                                                    │  │   │
+│  │  │   "user_message": "make background darker",         │  │   │
+│  │  │   "file_path": "homepage"                           │  │   │
+│  │  │ }                                                    │  │   │
+│  │  └─────────────────────────────────────────────────────┘  │   │
+│  │                        ↓                                    │   │
+│  │  ┌─────────────────────────────────────────────────────┐  │   │
+│  │  │ Parse with Claude API:                              │  │   │
+│  │  │ - Understand intent                                 │  │   │
+│  │  │ - Resolve file shortcuts                            │  │   │
+│  │  │ - Generate edit instructions                        │  │   │
+│  │  └─────────────────────────────────────────────────────┘  │   │
+│  │                        ↓                                    │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                              ↓                                       │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │            ARAYA FILE WRITER SERVICE                       │   │
+│  │            (ARAYA_FILE_WRITER.py)                          │   │
+│  │                                                             │   │
+│  │  Port: 5001                                                 │   │
+│  │  Endpoints:                                                 │   │
+│  │  - POST /write-file                                         │   │
+│  │  - POST /edit-file                                          │   │
+│  │  - POST /append-file                                        │   │
+│  │                                                             │   │
+│  │  ┌─────────────────────────────────────────────────────┐  │   │
+│  │  │ Security Checks:                                     │  │   │
+│  │  │ ├─ Verify path within allowed domains               │  │   │
+│  │  │ ├─ Validate file extensions                         │  │   │
+│  │  │ └─ Prevent path traversal                           │  │   │
+│  │  └─────────────────────────────────────────────────────┘  │   │
+│  │                        ↓                                    │   │
+│  │  ┌─────────────────────────────────────────────────────┐  │   │
+│  │  │ Execute File Operation:                             │  │   │
+│  │  │ - Write new file                                    │  │   │
+│  │  │ - Edit existing file                                │  │   │
+│  │  │ - Append to file                                    │  │   │
+│  │  └─────────────────────────────────────────────────────┘  │   │
+│  │                        ↓                                    │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                              ↓                                       │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │                   FILE SYSTEM                               │   │
+│  │                                                             │   │
+│  │  Allowed Domains:                                           │   │
+│  │  ├─ consciousness: C:/Users/dwrek/100X_DEPLOYMENT          │   │
+│  │  ├─ legal: C:/Users/dwrek/Desktop/2_BUILD/PRO_SE_SHIELD   │   │
+│  │  └─ command: C:/Users/dwrek/Desktop/1_COMMAND             │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Editing Flow Sequence
+
+```
+User Action: await RobotAssistantLoader.editPage('homepage', 'change bg to blue')
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 1: Validation                                           │
+│ - Check if canEditPages === true                            │
+│ - If false, show error and return                           │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 2: UI Feedback                                          │
+│ - Set isEditing = true                                       │
+│ - Set animationState = 'editing'                            │
+│ - Show notification: "Analyzing edit request..."            │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 3: API Call to ARAYA Bridge                            │
+│                                                              │
+│ POST http://localhost:5002/edit                             │
+│ {                                                            │
+│   "user_message": "change bg to blue",                      │
+│   "file_path": "homepage"                                   │
+│ }                                                            │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 4: ARAYA Bridge Processing                             │
+│ - Resolve "homepage" → "index.html"                         │
+│ - Call Claude API to parse intent                           │
+│ - Claude returns:                                            │
+│   {                                                          │
+│     "action": "edit",                                       │
+│     "file_path": "index.html",                              │
+│     "old_string": "background: white",                      │
+│     "new_string": "background: blue",                       │
+│     "reasoning": "Change bg color to blue"                  │
+│   }                                                          │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 5: File Writer Execution                               │
+│ - ARAYA Bridge calls File Writer                            │
+│ - POST http://localhost:5001/edit-file                      │
+│ - File Writer validates path                                │
+│ - File Writer performs string replacement                   │
+│ - Returns success/failure                                   │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Step 6: Response Handling                                    │
+│                                                              │
+│ Success Path:                                                │
+│ - Show green notification: "✅ Edit successful!"            │
+│ - Set isEditing = false                                     │
+│ - Return {success: true, result: {...}}                     │
+│                                                              │
+│ Error Path:                                                  │
+│ - Show red notification: "❌ [error message]"               │
+│ - Set isEditing = false                                     │
+│ - Return {success: false, error: "..."}                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## State Flow
+
+```
+┌──────────────────┐
+│   Page Load      │
+└────────┬─────────┘
+         ↓
+┌──────────────────┐
+│  Load State      │
+│  from localStorage│
+└────────┬─────────┘
+         ↓
+┌──────────────────┐         ┌──────────────────┐
+│  Robot Appears   │────────>│  User Enables    │
+│  (canEditPages=  │         │  Editing         │
+│   false)         │         │                  │
+└────────┬─────────┘         └────────┬─────────┘
+         │                            │
+         │                   ┌────────┴─────────┐
+         │                   │ canEditPages =   │
+         │                   │ true             │
+         │                   └────────┬─────────┘
+         │                            │
+         ↓                            ↓
+┌────────────────────────────────────────────────┐
+│              Normal Operation                   │
+│  - Walking, thinking, speaking                  │
+│  - Responding to events                         │
+│  - Providing tours and help                     │
+└────────┬───────────────────────────────────────┘
+         │
+         │  User calls editPage()
+         ↓
+┌──────────────────┐
+│  Editing State   │
+│  - isEditing=true│
+│  - animation=    │
+│    'editing'     │
+└────────┬─────────┘
+         │
+         │  API calls...
+         ↓
+┌──────────────────┐
+│  Complete        │
+│  - isEditing=    │
+│    false         │
+│  - Return to     │
+│    idle          │
+└────────┬─────────┘
+         │
+         ↓
+┌──────────────────┐
+│  Save State      │
+│  to localStorage │
+│  (every 1s)      │
+└──────────────────┘
+```
+
+## Component Relationships
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Component Hierarchy                           │
+│                                                                  │
+│  robot-assistant-loader.js (Entry Point)                        │
+│      │                                                           │
+│      ├──> Three.js (3D Library)                                 │
+│      │                                                           │
+│      ├──> robot-assistant.js (Core Robot)                       │
+│      │      │                                                    │
+│      │      ├──> Scene, Camera, Renderer (Three.js objects)     │
+│      │      ├──> Robot 3D Model (body, head, arms, legs, eye)  │
+│      │      ├──> Animation System                               │
+│      │      ├──> Movement System                                │
+│      │      ├──> State Management (localStorage)                │
+│      │      ├──> Notification System                            │
+│      │      └──> Editing System (ARAYA integration)             │
+│      │                                                           │
+│      └──> robot-ai-brain.js (Intelligence)                      │
+│           │                                                      │
+│           ├──> Page Discovery                                   │
+│           ├──> Visit Tracking                                   │
+│           ├──> Tour System                                      │
+│           ├──> Speech Bubbles                                   │
+│           └──> Help System                                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow - Editing
+
+```
+Frontend                    Backend                    File System
+────────                    ───────                    ───────────
+
+editPage()
+    │
+    │ (1) HTTP POST
+    ├────────────────────> ARAYA Bridge
+    │                          │
+    │                          │ (2) Claude API
+    │                          ├──────────────> Claude
+    │                          │
+    │                          │ <────────────── Parsed Edit
+    │                          │
+    │                          │ (3) HTTP POST
+    │                          ├──────────────> File Writer
+    │                          │                    │
+    │                          │                    │ (4) Write
+    │                          │                    ├─────────> index.html
+    │                          │                    │
+    │                          │ <──────────────────┤ Success
+    │                          │
+    │ <─────────────────────┤ Success Response
+    │
+showNotification()
+setAnimationState('idle')
+return {success: true}
+```
+
+## Security Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Security Layers                              │
+│                                                                  │
+│  Layer 1: Frontend (R3-D3)                                      │
+│  ├─ Editing disabled by default                                 │
+│  ├─ Must explicitly enable with enableAutonomousEditing(true)   │
+│  └─ No direct file system access                                │
+│                                                                  │
+│  Layer 2: ARAYA Bridge                                          │
+│  ├─ Validates request format                                    │
+│  ├─ Requires Claude API key                                     │
+│  └─ Only accepts localhost connections                          │
+│                                                                  │
+│  Layer 3: ARAYA File Writer                                     │
+│  ├─ Domain whitelist enforcement                                │
+│  ├─ Path traversal prevention                                   │
+│  ├─ File extension validation                                   │
+│  ├─ Realpath resolution checks                                  │
+│  └─ Only accepts localhost connections                          │
+│                                                                  │
+│  Layer 4: Operating System                                      │
+│  └─ Standard file system permissions                            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Local Development                             │
+│                                                                  │
+│  ┌──────────────────┐     ┌──────────────────┐                 │
+│  │  Web Browser     │     │  Terminal 1      │                 │
+│  │  localhost:8000  │     │  Port 5001       │                 │
+│  │  (or any server) │     │                  │                 │
+│  │                  │     │  python          │                 │
+│  │  R3-D3 Robot     │     │  ARAYA_FILE_     │                 │
+│  │  Interactive     │     │  WRITER.py       │                 │
+│  └──────────────────┘     └──────────────────┘                 │
+│                                                                  │
+│                           ┌──────────────────┐                 │
+│                           │  Terminal 2      │                 │
+│                           │  Port 5002       │                 │
+│                           │                  │                 │
+│                           │  python          │                 │
+│                           │  ARAYA_BRIDGE.py │                 │
+│                           └──────────────────┘                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## File Structure
+
+```
+consciousness-revolution/
+├── js/
+│   ├── robot-assistant-loader.js    (Entry point, 245 lines)
+│   ├── robot-assistant.js           (Core robot, 700 lines)
+│   └── robot-ai-brain.js            (Intelligence)
+│
+├── ARAYA_BRIDGE.py                  (Port 5002, AI parsing)
+├── ARAYA_FILE_WRITER.py             (Port 5001, File ops)
+│
+├── R3D3_INTERACTIVE_ROBOT_README.md (Technical reference)
+├── R3D3_IMPLEMENTATION_SUMMARY.md   (This summary)
+├── R3D3_ARCHITECTURE_DIAGRAM.txt    (This file)
+│
+└── robot-test.html                  (Testing interface)
+```
+
+## API Communication Protocol
+
+### Enable Editing
+```
+User ──> RobotAssistantLoader.enableAutonomousEditing(true)
+         │
+         └──> RobotAssistant.enableAutonomousEditing(true)
+              │
+              ├──> state.canEditPages = true
+              ├──> saveState()
+              └──> showNotification("Editing enabled", "success")
+```
+
+### Edit Page
+```
+User ──> RobotAssistantLoader.editPage('homepage', 'make bg blue')
+         │
+         └──> RobotAssistant.editPage('homepage', 'make bg blue')
+              │
+              ├──> Validate: canEditPages === true?
+              │    If false: return error
+              │
+              ├──> state.isEditing = true
+              ├──> setAnimationState('editing')
+              │
+              ├──> fetch('http://localhost:5002/edit', {
+              │      method: 'POST',
+              │      body: JSON.stringify({
+              │        user_message: 'make bg blue',
+              │        file_path: 'homepage'
+              │      })
+              │    })
+              │
+              └──> Handle response:
+                   ├─ Success: showNotification(green)
+                   └─ Error: showNotification(red)
+```
+
+---
+
+**Legend:**
+- `───>` Data flow direction
+- `├───` Component relationship
+- `[box]` Service/Component
+- `{obj}` Data structure
+
+**Version**: 1.0
+**Date**: February 14, 2026
