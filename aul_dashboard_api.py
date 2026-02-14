@@ -11,7 +11,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import threading
 from typing import Dict, List, Any
-from collections import deque
 import logging
 
 from aul_message_bus import get_message_bus
@@ -20,37 +19,6 @@ from aul_agent_base import AULMessage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class MessageStreamCollector:
-    """Collects and stores recent messages for dashboard display"""
-    
-    def __init__(self, max_messages: int = 100):
-        self.messages = deque(maxlen=max_messages)
-        self.lock = threading.Lock()
-        
-    def add_message(self, message: AULMessage):
-        """Add message to stream"""
-        with self.lock:
-            self.messages.append({
-                "id": message.message_id,
-                "timestamp": message.timestamp,
-                "sender_id": message.sender_id,
-                "sender_type": message.sender_type,
-                "recipient_id": message.recipient_id or "broadcast",
-                "message_type": message.message_type,
-                "priority": message.priority,
-                "payload": message.payload
-            })
-    
-    def get_recent_messages(self, limit: int = 50) -> List[Dict]:
-        """Get recent messages"""
-        with self.lock:
-            return list(self.messages)[-limit:]
-
-
-# Global message stream collector
-_message_collector = MessageStreamCollector()
 
 
 class DashboardAPIHandler(BaseHTTPRequestHandler):
@@ -151,16 +119,6 @@ class DashboardAPIHandler(BaseHTTPRequestHandler):
 
 def start_dashboard_api(port: int = 8766):
     """Start the dashboard API server"""
-    
-    # Subscribe to message bus to collect messages
-    bus = get_message_bus()
-    
-    def message_interceptor(message: AULMessage):
-        """Intercept messages for display"""
-        _message_collector.add_message(message)
-    
-    # Subscribe to all message types for monitoring
-    bus.subscribe("*", message_interceptor)
     
     # Start HTTP server
     server = HTTPServer(('', port), DashboardAPIHandler)
