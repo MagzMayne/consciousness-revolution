@@ -865,7 +865,7 @@
         brain.tourMode = false;
         brain.currentTourStep = 0;
         
-        speak(`🎊 Tour complete! You're now familiar with the main features. I'm always here if you need help navigating!`, 6000);
+        speak(`🎊 Tour complete! You're now familiar with the main features. I'm always here if you need help navigating!`, 10000);
         
         saveMemory();
     }
@@ -938,7 +938,7 @@
         
         function tourNextElement() {
             if (currentIndex >= Math.min(elements.length, CONFIG.MAX_TOUR_ELEMENTS)) {
-                speak(`🎉 Tour of this page complete! Click me to see more options or navigate to another page.`, 6000);
+                speak(`🎉 Tour of this page complete! Click me to see more options or navigate to another page.`, 10000);
                 if (window.RobotAssistant) {
                     window.RobotAssistant.setAnimationState('idle');
                 }
@@ -2096,7 +2096,7 @@
         
         hideSpeechBubble();
         
-        speak(`👍 Tour complete! I'm always here if you need help. Just click me anytime!`, 6000);
+        speak(`👍 Tour complete! I'm always here if you need help. Just click me anytime!`, 10000);
         
         saveMemory();
     }
