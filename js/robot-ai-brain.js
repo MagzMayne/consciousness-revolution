@@ -186,18 +186,24 @@
     function createSpeechBubble() {
         speechBubble = document.createElement('div');
         speechBubble.id = 'robot-speech-bubble';
+        
+        // Calculate responsive width
+        const isMobile = window.innerWidth <= 600;
+        const maxWidth = isMobile ? Math.min(window.innerWidth - 40, 350) : CONFIG.BUBBLE_MAX_WIDTH;
+        
         speechBubble.style.cssText = `
             position: fixed;
-            max-width: ${CONFIG.BUBBLE_MAX_WIDTH}px;
-            min-width: 250px;
+            max-width: ${maxWidth}px;
+            min-width: ${isMobile ? '200px' : '250px'};
+            width: ${isMobile ? 'calc(100vw - 40px)' : 'auto'};
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(147, 112, 219, 0.95));
             backdrop-filter: blur(10px);
             color: white;
-            padding: 20px 25px;
+            padding: ${isMobile ? '15px 18px' : '20px 25px'};
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 240, 255, 0.4);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 15px;
+            font-size: ${isMobile ? '14px' : '15px'};
             line-height: 1.6;
             z-index: 998;
             opacity: 0;
@@ -205,6 +211,7 @@
             transition: opacity 0.3s, transform 0.3s, left 0.3s, bottom 0.3s;
             pointer-events: none;
             display: none;
+            box-sizing: border-box;
         `;
         
         // Add speech bubble tail
@@ -222,6 +229,17 @@
         speechBubble.appendChild(tail);
         
         document.body.appendChild(speechBubble);
+        
+        // Update on window resize
+        window.addEventListener('resize', () => {
+            const isMobileNow = window.innerWidth <= 600;
+            const newMaxWidth = isMobileNow ? Math.min(window.innerWidth - 40, 350) : CONFIG.BUBBLE_MAX_WIDTH;
+            speechBubble.style.maxWidth = `${newMaxWidth}px`;
+            speechBubble.style.minWidth = isMobileNow ? '200px' : '250px';
+            speechBubble.style.width = isMobileNow ? 'calc(100vw - 40px)' : 'auto';
+            speechBubble.style.padding = isMobileNow ? '15px 18px' : '20px 25px';
+            speechBubble.style.fontSize = isMobileNow ? '14px' : '15px';
+        });
         
         // Start position update loop to keep bubble above robot
         startBubblePositionUpdater();
@@ -744,24 +762,33 @@
         const tourOffer = `
             <div>
                 <p>${message}</p>
-                <div style="margin-top: 10px;">
+                <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <button onclick="window.RobotAI.startTour()" style="
+                        flex: 1 1 120px;
+                        min-width: 120px;
                         background: white;
                         color: #9370db;
                         border: none;
-                        padding: 8px 16px;
+                        padding: 10px 16px;
                         border-radius: 5px;
-                        margin-right: 8px;
                         cursor: pointer;
                         font-weight: bold;
+                        font-size: 14px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: transparent;
                     ">Yes, show me! 🚀</button>
                     <button onclick="window.RobotAI.dismissTour()" style="
+                        flex: 1 1 120px;
+                        min-width: 120px;
                         background: rgba(255,255,255,0.2);
                         color: white;
                         border: none;
-                        padding: 8px 16px;
+                        padding: 10px 16px;
                         border-radius: 5px;
                         cursor: pointer;
+                        font-size: 14px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: transparent;
                     ">Maybe later</button>
                 </div>
             </div>
@@ -1908,27 +1935,33 @@
         const offer = `
             <div style="padding: 5px 0;">
                 Would you like to visit "${linkText}" or keep exploring this page?
-                <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                     <button onclick="window.RobotAI.navigateToLink('${href}')" style="
-                        flex: 1;
+                        flex: 1 1 120px;
+                        min-width: 120px;
                         background: white;
                         color: #9370db;
                         border: none;
-                        padding: 10px 16px;
+                        padding: 12px 16px;
                         border-radius: 8px;
                         cursor: pointer;
                         font-weight: bold;
-                        font-size: 13px;
+                        font-size: 14px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: transparent;
                     ">Visit Page 🚀</button>
                     <button onclick="window.RobotAI.continueTour()" style="
-                        flex: 1;
+                        flex: 1 1 120px;
+                        min-width: 120px;
                         background: rgba(255,255,255,0.3);
                         color: white;
                         border: none;
-                        padding: 10px 16px;
+                        padding: 12px 16px;
                         border-radius: 8px;
                         cursor: pointer;
-                        font-size: 13px;
+                        font-size: 14px;
+                        touch-action: manipulation;
+                        -webkit-tap-highlight-color: transparent;
                     ">Keep Exploring 🔍</button>
                 </div>
             </div>
@@ -1975,27 +2008,33 @@
             const offer = `
                 <div style="padding: 5px 0;">
                     🎉 Tour of this page complete! Would you like to explore another page?
-                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                    <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="window.RobotAI.exploreAnotherPage()" style="
-                            flex: 1;
+                            flex: 1 1 120px;
+                            min-width: 120px;
                             background: white;
                             color: #9370db;
                             border: none;
-                            padding: 10px 16px;
+                            padding: 12px 16px;
                             border-radius: 8px;
                             cursor: pointer;
                             font-weight: bold;
-                            font-size: 13px;
+                            font-size: 14px;
+                            touch-action: manipulation;
+                            -webkit-tap-highlight-color: transparent;
                         ">Yes, more! 🚀</button>
                         <button onclick="window.RobotAI.endTour()" style="
-                            flex: 1;
+                            flex: 1 1 120px;
+                            min-width: 120px;
                             background: rgba(255,255,255,0.3);
                             color: white;
                             border: none;
-                            padding: 10px 16px;
+                            padding: 12px 16px;
                             border-radius: 8px;
                             cursor: pointer;
-                            font-size: 13px;
+                            font-size: 14px;
+                            touch-action: manipulation;
+                            -webkit-tap-highlight-color: transparent;
                         ">That's enough 👍</button>
                     </div>
                 </div>
@@ -2071,32 +2110,150 @@
         const href = element.getAttribute('href');
         const type = element.getAttribute('type');
         const ariaLabel = element.getAttribute('aria-label');
+        const id = element.id || '';
+        const className = element.className || '';
         
-        // Use aria-label if available
+        // Use aria-label if available, fallback to text
         const displayText = ariaLabel || text || 'element';
+        const lowerText = text.toLowerCase();
+        const lowerDisplayText = displayText.toLowerCase();
+        const lowerClass = className.toLowerCase();
+        const lowerId = id.toLowerCase();
         
+        // Check for link elements
         if (tagName === 'a' && href) {
             if (href.startsWith('http')) {
                 return `🌐 Here we have the "${displayText}" link. This takes you to an external website: ${href}`;
             } else {
-                return `🔗 Here we have the "${displayText}" link. This will take you to ${href.replace('.html', '').replace('/', '')}`;
+                const pageName = href.replace('.html', '').replace('/', '').replace('-', ' ');
+                return `🔗 Here we have the "${displayText}" link. This will take you to the ${pageName} page`;
             }
-        } else if (tagName === 'button') {
-            if (text.toLowerCase().includes('submit')) {
-                return `✅ This is the "${displayText}" button. It submits the form when clicked`;
-            } else if (text.toLowerCase().includes('start')) {
-                return `🚀 This is the "${displayText}" button. Click it to start the feature`;
-            } else if (text.toLowerCase().includes('araya') || text.toLowerCase().includes('chat')) {
-                return `💬 This is the "${displayText}" button. It opens the ARAYA chat interface`;
+        } 
+        
+        // Check for button elements - provide detailed, context-aware descriptions
+        if (tagName === 'button' || element.role === 'button') {
+            // ARAYA chat-related buttons
+            if (lowerText.includes('araya') || lowerClass.includes('araya') || lowerId.includes('araya')) {
+                return `💬 This is the "${displayText}" button. Click it to open the ARAYA chat interface where you can interact with our most advanced AI assistant for consciousness development`;
             }
-            return `🔘 This is the "${displayText}" button. Click it to perform an action`;
-        } else if (element.role === 'button') {
-            return `🔘 This "${displayText}" element acts as a button`;
-        } else if (tagName === 'input') {
-            return `📝 This is a ${type || 'text'} input field. Users can enter ${type || 'text'} here`;
+            
+            // Chat or messaging buttons
+            if (lowerText.includes('chat') || lowerClass.includes('chat') || lowerId.includes('chat')) {
+                return `💬 This is the "${displayText}" button. It opens a chat or messaging interface`;
+            }
+            
+            // Login/authentication buttons
+            if (lowerText.includes('login') || lowerText.includes('log in') || lowerText.includes('sign in')) {
+                return `🔐 This is the "${displayText}" button. Click it to log into your account`;
+            }
+            
+            // Signup/registration buttons
+            if (lowerText.includes('signup') || lowerText.includes('sign up') || lowerText.includes('register') || lowerText.includes('create account')) {
+                return `✨ This is the "${displayText}" button. Click it to create a new account and join the community`;
+            }
+            
+            // Logout buttons
+            if (lowerText.includes('logout') || lowerText.includes('log out') || lowerText.includes('sign out')) {
+                return `🚪 This is the "${displayText}" button. Click it to log out of your account`;
+            }
+            
+            // Submit buttons
+            if (lowerText.includes('submit') || type === 'submit') {
+                return `✅ This is the "${displayText}" button. It submits the current form with your entered information`;
+            }
+            
+            // Start/Begin buttons
+            if (lowerText.includes('start') || lowerText.includes('begin') || lowerText.includes('launch')) {
+                return `🚀 This is the "${displayText}" button. Click it to start or launch this feature`;
+            }
+            
+            // Continue/Next buttons
+            if (lowerText.includes('continue') || lowerText.includes('next') || lowerText.includes('proceed')) {
+                return `➡️ This is the "${displayText}" button. Click it to continue to the next step`;
+            }
+            
+            // Save buttons
+            if (lowerText.includes('save')) {
+                return `💾 This is the "${displayText}" button. Click it to save your changes`;
+            }
+            
+            // Cancel/Close buttons
+            if (lowerText.includes('cancel') || lowerText.includes('close') || lowerText.includes('dismiss')) {
+                return `❌ This is the "${displayText}" button. Click it to cancel or close this dialog`;
+            }
+            
+            // Download buttons
+            if (lowerText.includes('download')) {
+                return `📥 This is the "${displayText}" button. Click it to download the file or content`;
+            }
+            
+            // Upload buttons
+            if (lowerText.includes('upload') || lowerText.includes('choose file')) {
+                return `📤 This is the "${displayText}" button. Click it to upload or select a file`;
+            }
+            
+            // Menu/Navigation buttons
+            if (lowerText.includes('menu') || lowerClass.includes('menu') || lowerClass.includes('nav')) {
+                return `🍔 This is the "${displayText}" button. Click it to open the navigation menu`;
+            }
+            
+            // Search buttons
+            if (lowerText.includes('search') || type === 'search') {
+                return `🔍 This is the "${displayText}" button. Click it to search or submit your search query`;
+            }
+            
+            // Tour/Help buttons
+            if (lowerText.includes('tour') || lowerText.includes('help') || lowerText.includes('guide')) {
+                return `❓ This is the "${displayText}" button. Click it to get help or start a guided tour`;
+            }
+            
+            // Settings buttons
+            if (lowerText.includes('settings') || lowerText.includes('preferences') || lowerText.includes('config')) {
+                return `⚙️ This is the "${displayText}" button. Click it to adjust settings or preferences`;
+            }
+            
+            // Generic button with more detail
+            return `🔘 This is the "${displayText}" button. Click it to trigger the ${displayText.toLowerCase()} action`;
+        } 
+        
+        // Input fields
+        if (tagName === 'input') {
+            const inputType = type || 'text';
+            if (inputType === 'email') {
+                return `📧 This is an email input field. Enter your email address here`;
+            } else if (inputType === 'password') {
+                return `🔒 This is a password input field. Enter your password here (it will be hidden)`;
+            } else if (inputType === 'search') {
+                return `🔍 This is a search input field. Type your search query here`;
+            } else if (inputType === 'tel' || inputType === 'phone') {
+                return `📱 This is a phone number input field. Enter your phone number here`;
+            } else if (inputType === 'url') {
+                return `🔗 This is a URL input field. Enter a website address here`;
+            } else if (inputType === 'number') {
+                return `🔢 This is a number input field. Enter a numeric value here`;
+            } else if (inputType === 'date') {
+                return `📅 This is a date input field. Select or enter a date here`;
+            } else if (inputType === 'file') {
+                return `📁 This is a file input field. Click to select a file to upload`;
+            } else if (inputType === 'checkbox') {
+                return `☑️ This is a checkbox. Click to toggle this option on or off`;
+            } else if (inputType === 'radio') {
+                return `🔘 This is a radio button. Select this option from the available choices`;
+            }
+            return `📝 This is a text input field. Users can type ${inputType} information here`;
         }
         
-        return `✨ This is "${displayText}" - an interactive element`;
+        // Textarea
+        if (tagName === 'textarea') {
+            return `📝 This is a text area for entering longer, multi-line text content`;
+        }
+        
+        // Select dropdowns
+        if (tagName === 'select') {
+            return `📋 This is a dropdown menu. Click to see and select from available options`;
+        }
+        
+        return `✨ This is "${displayText}" - an interactive element on the page`;
     }
 
     /**
