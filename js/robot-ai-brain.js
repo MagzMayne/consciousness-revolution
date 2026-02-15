@@ -2134,7 +2134,7 @@
         if (tagName === 'button' || element.role === 'button') {
             // ARAYA chat-related buttons
             if (lowerText.includes('araya') || lowerClass.includes('araya') || lowerId.includes('araya')) {
-                return `💬 This is the "${displayText}" button. Click it to open the ARAYA chat interface where you can interact with our most advanced AI assistant for consciousness development`;
+                return `💬 This is the "${displayText}" button. Click it to open the ARAYA chat interface with our advanced AI assistant`;
             }
             
             // Chat or messaging buttons
@@ -2213,7 +2213,7 @@
             }
             
             // Generic button with more detail
-            return `🔘 This is the "${displayText}" button. Click it to trigger the ${displayText.toLowerCase()} action`;
+            return `🔘 This is the "${displayText}" button. Click it to perform this action`;
         } 
         
         // Input fields
