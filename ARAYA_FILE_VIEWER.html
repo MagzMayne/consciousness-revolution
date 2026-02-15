@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA File Viewer | 100X Builder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #00ffff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ARAYA Header */
+        .araya-header {
+            background: linear-gradient(90deg, #1a1f3a 0%, #2d1b4e 100%);
+            border-bottom: 2px solid #00ffff;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .araya-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .araya-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: #0a0e27;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 0, 255, 0.8); }
+        }
+
+        .araya-title h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00ffff 0%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .araya-subtitle {
+            font-size: 0.9rem;
+            color: #ffd700;
+            margin-top: 0.25rem;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-indicator {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 1px;
+            background: #00ffff;
+        }
+
+        /* File Tree Panel */
+        .file-tree-panel {
+            width: 350px;
+            background: #0a0e27;
+            border-right: 2px solid #00ffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 1rem;
+            background: rgba(0, 255, 255, 0.1);
+            border-bottom: 1px solid #00ffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 1.2rem;
+            color: #ffd700;
+        }
+
+        .tree-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tree-btn {
+            padding: 0.5rem;
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #ffd700;
+            border-radius: 5px;
+            color: #ffd700;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .tree-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .tree-item {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: rgba(0, 255, 255, 0.05);
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tree-item:hover {
+            background: rgba(0, 255, 255, 0.15);
+            border-left-color: #00ffff;
+            transform: translateX(5px);
+        }
+
+        .tree-item.active {
+            background: rgba(255, 215, 0, 0.2);
+            border-left-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .tree-item.folder {
+            font-weight: 700;
+            color: #ffd700;
+        }
+
+        .tree-item.file {
+            color: #00ffff;
+        }
+
+        .tree-icon {
+            font-size: 1rem;
+        }
+
+        .tree-indent {
+            display: inline-block;
+        }
+
+        /* Preview Panel */
+        .preview-panel {
+            flex: 1;
+            background: #0a0e27;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-header {
+            padding: 1rem;
+            background: rgba(255, 215, 0, 0.1);
+            border-bottom: 1px solid #ffd700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-title {
+            font-size: 1.2rem;
+            color: #ffd700;
+        }
+
+        .preview-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #00ffff 0%, #0099ff 100%);
+            border: none;
+            border-radius: 25px;
+            color: #0a0e27;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .action-btn.edit {
+            background: linear-gradient(135deg, #ffd700 0%, #ff9900 100%);
+        }
+
+        .action-btn.create {
+            background: linear-gradient(135deg, #ff00ff 0%, #cc00ff 100%);
+            color: white;
+        }
+
+        .preview-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background: #000;
+        }
+
+        .code-preview {
+            background: #1e1e1e;
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            color: #00ff00;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+        }
+
+        .image-preview {
+            max-width: 100%;
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(0, 255, 255, 0.5);
+            gap: 1rem;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 1.2rem;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0e27;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #00ffff 0%, #ff00ff 100%);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #00ffff 0%, #ffd700 100%);
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 255, 255, 0.3);
+            border-top: 5px solid #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Syntax Highlighting */
+        .syntax-html { color: #ff6b6b; }
+        .syntax-css { color: #4ecdc4; }
+        .syntax-js { color: #ffe66d; }
+        .syntax-json { color: #a8dadc; }
+        .syntax-md { color: #b8b8ff; }
+        .syntax-py { color: #95e1d3; }
+        .syntax-comment { color: #6c757d; font-style: italic; }
+        .syntax-string { color: #f38181; }
+        .syntax-keyword { color: #aa96da; font-weight: bold; }
+        .syntax-function { color: #fcbad3; }
+    </style>
+</head>
+<body>
+    <!-- ARAYA Header -->
+    <div class="araya-header">
+        <div class="araya-logo">
+            <div class="araya-icon">A</div>
+            <div class="araya-title">
+                <h1>ARAYA FILE VIEWER</h1>
+                <div class="araya-subtitle">Navigate • Preview • Edit</div>
+            </div>
+        </div>
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span id="file-count">0 files loaded</span>
+            </div>
+            <div class="status-indicator">
+                <span id="current-path">/100X_DEPLOYMENT/</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- File Tree Panel -->
+        <div class="file-tree-panel">
+            <div class="panel-header">
+                <h2>📁 FILES</h2>
+                <div class="tree-controls">
+                    <button class="tree-btn" onclick="refreshFileTree()">🔄</button>
+                    <button class="tree-btn" onclick="expandAll()">▼</button>
+                    <button class="tree-btn" onclick="collapseAll()">▲</button>
+                </div>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <!-- File tree will be populated here -->
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="preview-panel">
+            <div class="preview-header">
+                <div class="preview-title" id="previewTitle">No file selected</div>
+                <div class="preview-actions">
+                    <button class="action-btn" onclick="readFile()" id="readBtn" disabled>📖 Read</button>
+                    <button class="action-btn edit" onclick="editFile()" id="editBtn" disabled>✏️ Edit</button>
+                    <button class="action-btn create" onclick="createFile()">➕ Create</button>
+                </div>
+            </div>
+            <div class="preview-content" id="previewContent">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📄</div>
+                    <div class="empty-state-text">Select a file to preview</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // State
+        let currentFile = null;
+        let fileTree = [];
+        let currentPath = '/100X_DEPLOYMENT/';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFileTree();
+        });
+
+        // Load File Tree (GitHub API)
+        async function loadFileTree() {
+            showLoading(true);
+            try {
+                // Using GitHub API to list files
+                const response = await fetch('https://api.github.com/repos/overkor-tek/consciousness-revolution/contents/100X_DEPLOYMENT');
+
+                if (!response.ok) {
+                    throw new Error('Failed to load files');
+                }
+
+                const files = await response.json();
+                fileTree = files;
+                renderFileTree(files);
+                updateFileCount(files.length);
+            } catch (error) {
+                console.error('Error loading file tree:', error);
+                renderError('Failed to load files. Using demo mode.');
+                loadDemoFiles();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Render File Tree
+        function renderFileTree(files) {
+            const treeContainer = document.getElementById('fileTree');
+            treeContainer.innerHTML = '';
+
+            // Sort: folders first, then files
+            const sorted = files.sort((a, b) => {
+                if (a.type === 'dir' && b.type !== 'dir') return -1;
+                if (a.type !== 'dir' && b.type === 'dir') return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            sorted.forEach(file => {
+                const item = createTreeItem(file, 0);
+                treeContainer.appendChild(item);
+            });
+        }
+
+        // Create Tree Item
+        function createTreeItem(file, level) {
+            const div = document.createElement('div');
+            div.className = `tree-item ${file.type === 'dir' ? 'folder' : 'file'}`;
+            div.dataset.path = file.path;
+            div.dataset.type = file.type;
+            div.dataset.url = file.download_url;
+
+            const icon = file.type === 'dir' ? '📁' : getFileIcon(file.name);
+            const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+
+            div.innerHTML = `
+                <span class="tree-indent">${indent}</span>
+                <span class="tree-icon">${icon}</span>
+                <span>${file.name}</span>
+            `;
+
+            div.onclick = () => selectFile(file, div);
+
+            return div;
+        }
+
+        // Get File Icon
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'html': '🌐',
+                'css': '🎨',
+                'js': '⚡',
+                'json': '📊',
+                'md': '📝',
+                'py': '🐍',
+                'txt': '📄',
+                'png': '🖼️',
+                'jpg': '🖼️',
+                'jpeg': '🖼️',
+                'gif': '🖼️',
+                'svg': '🎨',
+                'pdf': '📕'
+            };
+            return icons[ext] || '📄';
+        }
+
+        // Select File
+        function selectFile(file, element) {
+            // Remove active class from all items
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active class to selected item
+            element.classList.add('active');
+
+            // Update state
+            currentFile = file;
+
+            // Update preview title
+            document.getElementById('previewTitle').textContent = file.name;
+
+            // Enable action buttons
+            document.getElementById('readBtn').disabled = file.type === 'dir';
+            document.getElementById('editBtn').disabled = file.type === 'dir';
+
+            // If it's a file, preview it
+            if (file.type === 'file') {
+                previewFile(file);
+            }
+        }
+
+        // Preview File
+        async function previewFile(file) {
+            const content = document.getElementById('previewContent');
+            showLoading(true);
+
+            try {
+                // Check if it's an image
+                const ext = file.name.split('.').pop().toLowerCase();
+                const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg'];
+
+                if (imageExts.includes(ext)) {
+                    content.innerHTML = `<img src="${file.download_url}" class="image-preview" alt="${file.name}">`;
+                } else {
+                    // Fetch file content
+                    const response = await fetch(file.download_url);
+                    const text = await response.text();
+
+                    // Apply syntax highlighting
+                    const highlighted = applySyntaxHighlight(text, ext);
+                    content.innerHTML = `<div class="code-preview">${highlighted}</div>`;
+                }
+            } catch (error) {
+                console.error('Error previewing file:', error);
+                content.innerHTML = `<div class="empty-state">
+                    <div class="empty-state-icon">⚠️</div>
+                    <div class="empty-state-text">Failed to load preview</div>
+                </div>`;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Apply Syntax Highlight (basic)
+        function applySyntaxHighlight(text, ext) {
+            // Escape HTML
+            text = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // Apply basic highlighting based on file type
+            if (ext === 'html') {
+                text = text.replace(/(&lt;\/?[\w-]+)/g, '<span class="syntax-html">$1</span>');
+            } else if (ext === 'css') {
+                text = text.replace(/([\w-]+)(?=:)/g, '<span class="syntax-css">$1</span>');
+            } else if (ext === 'js') {
+                text = text.replace(/\b(function|const|let|var|if|else|return)\b/g, '<span class="syntax-keyword">$1</span>');
+            } else if (ext === 'json') {
+                text = text.replace(/"([^"]+)":/g, '<span class="syntax-json">"$1"</span>:');
+            } else if (ext === 'py') {
+                text = text.replace(/\b(def|class|import|from|if|else|return)\b/g, '<span class="syntax-keyword">$1</span>');
+            }
+
+            // Highlight strings
+            text = text.replace(/"([^"]*)"/g, '<span class="syntax-string">"$1"</span>');
+            text = text.replace(/'([^']*)'/g, '<span class="syntax-string">\'$1\'</span>');
+
+            // Highlight comments
+            text = text.replace(/\/\/.*/g, '<span class="syntax-comment">$&</span>');
+            text = text.replace(/#.*/g, '<span class="syntax-comment">$&</span>');
+
+            return text;
+        }
+
+        // Read File (full content)
+        async function readFile() {
+            if (!currentFile || currentFile.type === 'dir') return;
+
+            showLoading(true);
+            try {
+                const response = await fetch(currentFile.download_url);
+                const text = await response.text();
+
+                // Open in new window or copy to clipboard
+                const result = confirm('File content loaded. Copy to clipboard?');
+                if (result) {
+                    await navigator.clipboard.writeText(text);
+                    alert('✅ File content copied to clipboard!');
+                } else {
+                    // Open in new window
+                    const win = window.open('', '_blank');
+                    win.document.write(`<pre>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`);
+                }
+            } catch (error) {
+                alert('❌ Error reading file: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Edit File (redirect to ARAYA chat)
+        function editFile() {
+            if (!currentFile || currentFile.type === 'dir') return;
+
+            const message = `Edit file: ${currentFile.path}`;
+            const url = `/araya-chat.html?file=${encodeURIComponent(currentFile.path)}`;
+            window.location.href = url;
+        }
+
+        // Create File (redirect to ARAYA chat)
+        function createFile() {
+            const filename = prompt('Enter new filename:');
+            if (!filename) return;
+
+            const message = `Create new file: ${currentPath}${filename}`;
+            const url = `/araya-chat.html?create=${encodeURIComponent(currentPath + filename)}`;
+            window.location.href = url;
+        }
+
+        // Refresh File Tree
+        function refreshFileTree() {
+            loadFileTree();
+        }
+
+        // Expand/Collapse All
+        function expandAll() {
+            alert('Expand all - feature coming soon');
+        }
+
+        function collapseAll() {
+            alert('Collapse all - feature coming soon');
+        }
+
+        // Update File Count
+        function updateFileCount(count) {
+            document.getElementById('file-count').textContent = `${count} files loaded`;
+        }
+
+        // Show/Hide Loading
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            loading.className = show ? 'loading active' : 'loading';
+        }
+
+        // Render Error
+        function renderError(message) {
+            const treeContainer = document.getElementById('fileTree');
+            treeContainer.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">⚠️</div>
+                    <div class="empty-state-text">${message}</div>
+                </div>
+            `;
+        }
+
+        // Load Demo Files (fallback)
+        function loadDemoFiles() {
+            const demoFiles = [
+                { name: 'landing.html', type: 'file', path: '100X_DEPLOYMENT/landing.html', download_url: '#' },
+                { name: 'araya-chat.html', type: 'file', path: '100X_DEPLOYMENT/araya-chat.html', download_url: '#' },
+                { name: 'README.md', type: 'file', path: '100X_DEPLOYMENT/README.md', download_url: '#' },
+                { name: 'netlify', type: 'dir', path: '100X_DEPLOYMENT/netlify', download_url: null }
+            ];
+
+            renderFileTree(demoFiles);
+            updateFileCount(demoFiles.length);
+        }
+    </script>
+</body>
+</html>

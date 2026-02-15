@@ -18,6 +18,70 @@ const GITHUB_REPO = 'consciousness-revolution';
 const GITHUB_BRANCH = 'master';
 
 // ═══════════════════════════════════════════════════════════════
+// RAILWAY PROXY - Route heavy tasks to Railway (no timeout limit)
+// Netlify free tier = 10s timeout, Railway = unlimited
+// ═══════════════════════════════════════════════════════════════
+const RAILWAY_API_URL = 'https://gleaming-tranquility-production-abcf.up.railway.app/chat';
+
+// Detect tasks that need Railway (longer than 10s timeout)
+function shouldRouteToRailway(message, mode, attachments = []) {
+    const msgLower = (message || '').toLowerCase();
+
+    // Builder mode always goes to Railway
+    if (mode === 'builder') return true;
+
+    // Heavy file operations
+    const fileOps = ['create file', 'write file', 'edit file', 'modify file', 'update file',
+                     'write code', 'create code', 'build page', 'create page', 'make file'];
+    if (fileOps.some(op => msgLower.includes(op))) return true;
+
+    // Case building operations (complex, multi-step)
+    const caseOps = ['create case', 'build case', 'new case', 'case builder', 'create timeline',
+                     'evidence chain', 'link evidence', 'case summary', 'analyze case'];
+    if (caseOps.some(op => msgLower.includes(op))) return true;
+
+    // Multiple images to analyze (takes time)
+    if (attachments.length > 2) return true;
+
+    // Very long messages (complex analysis)
+    if (message && message.length > 1500) return true;
+
+    // Complex brain queries
+    const complexOps = ['analyze all', 'comprehensive', 'detailed analysis', 'full report',
+                        'deep search', 'search everything', 'find all', 'complete summary'];
+    if (complexOps.some(op => msgLower.includes(op))) return true;
+
+    return false;
+}
+
+// Proxy request to Railway
+async function proxyToRailway(requestBody) {
+    try {
+        console.log('[RAILWAY PROXY] Routing heavy task to Railway...');
+
+        const response = await fetch(RAILWAY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[RAILWAY PROXY] Railway error:', response.status, errorText);
+            throw new Error(`Railway error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('[RAILWAY PROXY] Railway response received successfully');
+        return { success: true, data };
+    } catch (error) {
+        console.error('[RAILWAY PROXY] Failed:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+// ═══════════════════════════════════════════════════════════════
 // SUPABASE CLIENT - For Image & Case Storage
 // ═══════════════════════════════════════════════════════════════
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -1047,6 +1111,10 @@ async function callAI(messages, useDeepSeek = true) {
 
 // Claude Vision API for image processing
 async function callClaudeVision(textPrompt, imageAttachments) {
+    console.log('[VISION] Starting Claude Vision call');
+    console.log('[VISION] API key present:', !!ANTHROPIC_API_KEY);
+    console.log('[VISION] Image count:', imageAttachments?.length || 0);
+    
     if (!ANTHROPIC_API_KEY) {
         throw new Error('No Anthropic API key configured');
     }
@@ -1055,9 +1123,24 @@ async function callClaudeVision(textPrompt, imageAttachments) {
     const content = [];
 
     // Add images first (Claude prefers images before text for analysis)
-    for (const img of imageAttachments) {
+    for (let i = 0; i < imageAttachments.length; i++) {
+        const img = imageAttachments[i];
+        console.log(`[VISION] Processing image ${i + 1}:`, {
+            hasData: !!img.data,
+            dataLength: img.data?.length || 0,
+            dataPrefix: img.data?.substring(0, 50) || 'NO DATA',
+            type: img.type,
+            name: img.name
+        });
+        
         // Extract base64 data and media type from data URL
-        const matches = img.data.match(/^data:([^;]+);base64,(.+)$/);
+        const matches = img.data?.match(/^data:([^;]+);base64,(.+)$/);
+        console.log(`[VISION] Regex match result for image ${i + 1}:`, {
+            matched: !!matches,
+            mediaType: matches?.[1] || 'NO_MATCH',
+            base64Length: matches?.[2]?.length || 0
+        });
+        
         if (matches) {
             const mediaType = matches[1];
             const base64Data = matches[2];
@@ -1069,6 +1152,9 @@ async function callClaudeVision(textPrompt, imageAttachments) {
                     data: base64Data
                 }
             });
+            console.log(`[VISION] Image ${i + 1} added to content array`);
+        } else {
+            console.log(`[VISION] WARNING: Image ${i + 1} regex FAILED - data format issue`);
         }
     }
 
@@ -1078,6 +1164,13 @@ async function callClaudeVision(textPrompt, imageAttachments) {
         text: textPrompt || 'What do you see in this image? Describe it in detail.'
     });
 
+    console.log('[VISION] Content array built:', {
+        totalItems: content.length,
+        imageCount: content.filter(c => c.type === 'image').length,
+        hasText: content.some(c => c.type === 'text')
+    });
+    
+    console.log('[VISION] Making API request to Claude...');
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -1095,12 +1188,16 @@ async function callClaudeVision(textPrompt, imageAttachments) {
         })
     });
 
+    console.log('[VISION] API response status:', response.status, response.statusText);
+    
     if (!response.ok) {
         const error = await response.text();
+        console.error('[VISION] API ERROR:', response.status, error);
         throw new Error(`Claude API error: ${response.status} - ${error}`);
     }
 
     const data = await response.json();
+    console.log('[VISION] API SUCCESS - response length:', data.content?.[0]?.text?.length || 0);
     return data.content[0].text;
 }
 
@@ -1128,6 +1225,39 @@ export async function handler(event, context) {
 
     try {
         const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
+
+
+        // ═══════════════════════════════════════════════════════════════
+        // RAILWAY ROUTING CHECK - Route heavy tasks to Railway to avoid 10s timeout
+        // ═══════════════════════════════════════════════════════════════
+        if (shouldRouteToRailway(message, mode, attachments)) {
+            console.log('[RAILWAY ROUTING] Heavy task detected, routing to Railway...');
+            console.log(`[RAILWAY ROUTING] Mode: ${mode}, Message length: ${message.length}, Attachments: ${attachments.length}`);
+
+            const railwayResult = await proxyToRailway({
+                message,
+                conversationHistory,
+                user_id,
+                mode,
+                attachments
+            });
+
+            if (railwayResult.success) {
+                console.log('[RAILWAY ROUTING] Railway handled successfully');
+                return {
+                    statusCode: 200,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Content-Type': 'application/json',
+                        'X-Routed-Via': 'Railway'
+                    },
+                    body: JSON.stringify(railwayResult.data)
+                };
+            } else {
+                // Railway failed, fall through to local processing
+                console.log('[RAILWAY ROUTING] Railway failed, falling back to Netlify processing');
+            }
+        }
 
         if (!message && attachments.length === 0) {
             return {
@@ -1665,9 +1795,20 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         messages.push(...recentHistory);
 
         // Build current message - handle attachments (images, text files)
+        console.log('[ATTACHMENTS] Raw attachments received:', {
+            count: attachments?.length || 0,
+            types: attachments?.map(a => ({ type: a.type, hasData: !!a.data, dataLength: a.data?.length || 0, name: a.name })) || []
+        });
+        
         const imageAttachments = attachments.filter(a => a.type && a.type.startsWith('image/') && a.data);
         const textAttachments = attachments.filter(a => a.type && !a.type.startsWith('image/') && (a.data || a.textContent));
         const hasImages = imageAttachments.length > 0;
+        
+        console.log('[ATTACHMENTS] After filtering:', {
+            imageCount: imageAttachments.length,
+            textCount: textAttachments.length,
+            hasImages: hasImages
+        });
 
         // Append text attachments to the message
         let fullMessage = message || '';
