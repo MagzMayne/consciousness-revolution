@@ -2,7 +2,19 @@
 
 ## Overview
 
-R3-D3 is an autonomous 3D robot assistant that provides interactive guidance and can autonomously edit pages through ARAYA's file system APIs. This is a modern evolution of the classic office assistant, powered by consciousness and AI.
+R3-D3 is an advanced autonomous 3D robot assistant that provides interactive guidance, autonomous site navigation, error detection, self-healing, and developer assistance. Connected with ARAYA's knowledge base, R3-D3 knows everything about the repository and can help with any task. This is a modern evolution of the classic office assistant, powered by consciousness and AI.
+
+## ✨ New Features (Enhanced Version)
+
+### Interactive Button Menu
+Click on R3-D3 to reveal a popup menu with powerful capabilities:
+
+- **🚀 Tour Site** - Autonomous navigation through the entire site with element descriptions
+- **💡 Help Me** - Context-aware developer assistance and Q&A
+- **🔍 Check Errors** - Comprehensive page error detection (broken links, missing images, accessibility issues)
+- **🔧 Fix Issues** - Automatic fixing of detected problems
+- **📚 Knowledge Base** - Interactive documentation browser
+- **⚙️ Settings** - Customize R3-D3's behavior and personality
 
 ## Robot Identity
 
@@ -156,6 +168,34 @@ The robot automatically:
 - Initializes 3D rendering
 - Restores previous state
 - Starts autonomous behavior
+- Shows interactive button menu on click
+
+### Using the Button Menu
+
+Simply click on the R3-D3 robot to open the interactive menu. Each button provides different functionality:
+
+```javascript
+// Programmatically open the menu
+window.RobotAI.toggleButtonMenu();
+
+// Start an enhanced tour
+window.RobotAI.startEnhancedTour();
+
+// Get developer help
+window.RobotAI.provideDeveloperHelp();
+
+// Check for errors
+window.RobotAI.checkForErrors();
+
+// Auto-fix issues (must run checkForErrors first)
+window.RobotAI.autoFixIssues();
+
+// Show knowledge base
+window.RobotAI.showKnowledgeBase();
+
+// Show settings
+window.RobotAI.showSettings();
+```
 
 ### Enabling Editing
 
@@ -177,6 +217,41 @@ await RobotAssistantLoader.editPage('index.html', 'add a welcome message at the 
 
 // Modify styling
 await RobotAssistantLoader.editPage('landing', 'increase font size of headings');
+```
+
+### Using Developer Help
+
+The help system provides context-aware assistance:
+
+```javascript
+// Activate developer help mode
+window.RobotAI.provideDeveloperHelp();
+
+// The system will:
+// 1. Analyze the current page
+// 2. Determine page type (dashboard, admin, auth, etc.)
+// 3. Provide relevant suggestions
+// 4. Open Q&A interface for questions
+```
+
+### Error Detection and Auto-Fix
+
+```javascript
+// Check for errors
+window.RobotAI.checkForErrors();
+// Returns report of:
+// - Broken links
+// - Missing images
+// - Accessibility issues
+// - Performance warnings
+
+// Auto-fix detected issues
+window.RobotAI.autoFixIssues();
+// Attempts to fix:
+// - Broken anchor links
+// - Missing alt text
+// - Missing ARIA labels
+// - Failed image loading
 ```
 
 ### Disabling Editing
@@ -290,26 +365,93 @@ const CONFIG = {
 ## API Reference Summary
 
 ### RobotAssistant (window.RobotAssistant)
-- `getName()` → string
-- `isEditing()` → boolean
-- `getState()` → object
-- `moveTo(x, y)` → void
-- `setAnimationState(state)` → void
-- `setAction(action)` → void
-- `editPage(path, description)` → Promise<{success, result?, error?}>
-- `enableAutonomousEditing(enabled)` → void
+Core robot control functions:
+- `getName()` → string - Returns 'r3-d3'
+- `isEditing()` → boolean - Check if currently editing
+- `getState()` → object - Get full robot state
+- `moveTo(x, y)` → void - Move robot to position
+- `setAnimationState(state)` → void - Set animation ('idle', 'walking', 'thinking', 'speaking', 'editing')
+- `setAction(action)` → void - Set action message
+- `editPage(path, description)` → Promise<{success, result?, error?}> - Edit page autonomously
+- `enableAutonomousEditing(enabled)` → void - Enable/disable editing
 
 ### RobotAssistantLoader (window.RobotAssistantLoader)
-Same methods as above, with safe wrapper checking if robot is loaded.
+Safe wrapper around RobotAssistant with same methods. Always checks if robot is loaded before calling functions.
+
+### RobotAI (window.RobotAI)
+Advanced AI and interaction functions:
+- `init()` → void - Initialize AI brain
+- `speak(message, duration)` → void - Show speech bubble
+- `toggleButtonMenu()` → void - Toggle interactive button menu
+- `startTour()` → void - Start basic tour
+- `startEnhancedTour()` → void - Start enhanced autonomous tour
+- `dismissTour()` → void - Dismiss tour offer
+- `provideDeveloperHelp()` → void - Activate context-aware help
+- `provideContextualHelp()` → void - Provide help based on page
+- `checkForErrors()` → void - Scan page for errors
+- `autoFixIssues()` → void - Automatically fix detected issues
+- `showKnowledgeBase()` → void - Open knowledge base interface
+- `showSettings()` → void - Open settings panel
+- `answerQuestion()` → void - Answer user question from Q&A interface
+- `saveSettings()` → void - Save robot settings
+- `getExplorationScore()` → number - Get user's exploration score
+- `getVisitedPages()` → Array<string> - Get list of visited pages
+- `getAllPages()` → Array<string> - Get all discovered pages
+- `brain` → object - Direct access to brain state (advanced)
+
+## Enhanced Features Implementation
+
+### Autonomous Site Tour
+R3-D3 can now autonomously navigate through your site:
+- Detects all interactive elements (buttons, links, forms)
+- Describes each element's functionality
+- Navigates between pages
+- Provides real-time narration
+- Limited to 10 elements per page for performance
+
+### Error Detection System
+Comprehensive error checking includes:
+- **Broken Links**: Detects internal anchor links pointing to non-existent elements
+- **Missing Images**: Identifies images that failed to load
+- **Accessibility Issues**: Finds missing alt text, unlabeled inputs, and interactive elements without labels
+- **Performance Warnings**: Alerts about excessive script loading
+
+### Self-Healing Capabilities
+R3-D3 can automatically fix:
+- Broken anchor links (redirects to top)
+- Missing alt text on images (generates from filename)
+- Missing ARIA labels on buttons
+- Hides failed images
+
+### Developer Help System
+Context-aware assistance that:
+- Analyzes the current page type (dashboard, admin, auth, testing, etc.)
+- Provides relevant help based on page context
+- Offers Q&A interface for specific questions
+- Understands project architecture and patterns
+
+### Knowledge Base Integration
+Quick access to:
+- Seven Domains framework documentation
+- Pattern Recognition tools overview
+- ARAYA system architecture
+- Development guidelines
+- Direct links to key pages
 
 ## Future Enhancements
 
-- Voice interaction capability
+- ✅ Interactive button menu (COMPLETED)
+- ✅ Autonomous site tour (COMPLETED)
+- ✅ Error detection and auto-fix (COMPLETED)
+- ✅ Developer help system (COMPLETED)
+- ✅ Knowledge base browser (COMPLETED)
+- 🔄 Voice interaction capability (IN PROGRESS)
+- 🔄 Deep ARAYA integration for repository knowledge (IN PROGRESS)
 - Multi-robot coordination
 - Advanced AI personalities
 - Custom animation sequences
-- Enhanced tour system with branching paths
-- Integration with more ARAYA services
+- Performance monitoring
+- Security scanning integration
 
 ## Support
 
