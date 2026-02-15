@@ -25,10 +25,13 @@
         MAX_TOUR_ELEMENTS: 10,          // Maximum elements to tour per page
         MAX_ELEMENT_TEXT_LENGTH: 50,    // Maximum text length for element descriptions
         MAX_SCRIPTS_THRESHOLD: 20,      // Threshold for performance warnings
-        TOUR_ELEMENT_DELAY: 5000,       // Delay between tour elements (ms)
-        SPEECH_DURATION: 5000,          // Default speech bubble duration (ms)
+        TOUR_ELEMENT_DELAY: 7000,       // Delay between tour elements (ms) - increased for readability
+        SPEECH_DURATION: 8000,          // Default speech bubble duration (ms) - increased
         ERROR_CHECK_DELAY: 3500,        // Delay for error checking animation (ms)
-        HELP_ACTIVATION_DELAY: 3500     // Delay for help system activation (ms)
+        HELP_ACTIVATION_DELAY: 3500,    // Delay for help system activation (ms)
+        TYPING_SPEED: 30,               // Characters per second for typing animation
+        BUBBLE_MAX_WIDTH: 450,          // Maximum width of speech bubble in pixels (increased)
+        WALK_TO_ELEMENT_OFFSET: 20      // Offset when walking to elements
     };
 
     // AI Brain State
@@ -51,6 +54,8 @@
     // Speech bubble for robot communication
     let speechBubble = null;
     let bubblePositionUpdaterInterval = null;
+    let typingTimeout = null;
+    let isTyping = false;
     
     // Button menu for robot interaction
     let buttonMenu = null;
@@ -157,16 +162,17 @@
         speechBubble.id = 'robot-speech-bubble';
         speechBubble.style.cssText = `
             position: fixed;
-            max-width: 320px;
+            max-width: ${CONFIG.BUBBLE_MAX_WIDTH}px;
+            min-width: 250px;
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(147, 112, 219, 0.95));
             backdrop-filter: blur(10px);
             color: white;
-            padding: 15px 20px;
+            padding: 20px 25px;
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 240, 255, 0.4);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
+            font-size: 15px;
+            line-height: 1.6;
             z-index: 998;
             opacity: 0;
             transform: translateY(20px);
@@ -423,32 +429,22 @@
     }
 
     /**
-     * Show speech bubble with message
+     * Show speech bubble with message (with typing animation)
      */
-    function speak(message, duration = 5000) {
+    function speak(message, duration = 8000, enableTyping = true) {
         if (!speechBubble) return;
+        
+        // Clear any existing typing timeout
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+            typingTimeout = null;
+        }
         
         // Remove tail for new message
         const existingTail = speechBubble.querySelector('div');
         if (existingTail) {
             speechBubble.removeChild(existingTail);
         }
-        
-        speechBubble.innerHTML = message;
-        
-        // Re-add tail
-        const tail = document.createElement('div');
-        tail.style.cssText = `
-            position: absolute;
-            bottom: -10px;
-            left: 30px;
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-top: 10px solid rgba(147, 112, 219, 0.95);
-        `;
-        speechBubble.appendChild(tail);
         
         // Update position to be above robot before showing
         updateSpeechBubblePosition();
@@ -465,10 +461,88 @@
             window.RobotAssistant.setAction('Helping you...');
         }
         
-        // Hide after duration
-        setTimeout(() => {
-            hideSpeechBubble();
-        }, duration);
+        if (enableTyping) {
+            // Typing animation
+            isTyping = true;
+            typeText(message, 0, () => {
+                isTyping = false;
+                // Re-add tail after typing completes
+                addSpeechBubbleTail();
+                
+                // Hide after duration
+                typingTimeout = setTimeout(() => {
+                    hideSpeechBubble();
+                }, duration);
+            });
+        } else {
+            // Show immediately without typing
+            speechBubble.innerHTML = message;
+            addSpeechBubbleTail();
+            
+            // Hide after duration
+            typingTimeout = setTimeout(() => {
+                hideSpeechBubble();
+            }, duration);
+        }
+    }
+    
+    /**
+     * Type text character by character
+     */
+    function typeText(html, index, callback) {
+        if (!speechBubble || index >= html.length) {
+            if (callback) callback();
+            return;
+        }
+        
+        // Handle HTML tags properly
+        const remainingText = html.substring(index);
+        let nextIndex = index + 1;
+        
+        // If we hit an HTML tag, skip to the end of it
+        if (remainingText.startsWith('<')) {
+            const closeTagIndex = remainingText.indexOf('>');
+            if (closeTagIndex !== -1) {
+                nextIndex = index + closeTagIndex + 1;
+            }
+        }
+        
+        // Update the text
+        speechBubble.innerHTML = html.substring(0, nextIndex);
+        
+        // Calculate delay based on typing speed (ms per character)
+        const delay = 1000 / CONFIG.TYPING_SPEED;
+        
+        typingTimeout = setTimeout(() => {
+            typeText(html, nextIndex, callback);
+        }, delay);
+    }
+    
+    /**
+     * Add tail to speech bubble
+     */
+    function addSpeechBubbleTail() {
+        if (!speechBubble) return;
+        
+        // Remove existing tail first
+        const existingTail = speechBubble.querySelector('.speech-tail');
+        if (existingTail) {
+            existingTail.remove();
+        }
+        
+        const tail = document.createElement('div');
+        tail.className = 'speech-tail';
+        tail.style.cssText = `
+            position: absolute;
+            bottom: -10px;
+            left: 30px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid rgba(147, 112, 219, 0.95);
+        `;
+        speechBubble.appendChild(tail);
     }
 
     /**
@@ -1491,16 +1565,347 @@
     /**
      * Highlight an element on the page
      */
-    function highlightElement(element) {
+    /**
+     * Walk robot to specific element
+     */
+    function walkToElement(element, callback) {
+        if (!element) {
+            if (callback) callback();
+            return;
+        }
+        
         const rect = element.getBoundingClientRect();
         
-        // Move robot to element
+        // Calculate position near the element
+        const targetX = rect.left + rect.width / 2 - CONFIG.WALK_TO_ELEMENT_OFFSET;
+        const targetY = window.innerHeight - rect.top - rect.height / 2;
+        
+        // Set walking animation
         if (window.RobotAssistant) {
-            window.RobotAssistant.moveTo(
-                rect.left + rect.width / 2,
-                window.innerHeight - rect.top - rect.height / 2
-            );
+            window.RobotAssistant.setAnimationState('walking');
+            window.RobotAssistant.moveTo(targetX, targetY);
+            
+            // Calculate walk duration based on distance
+            const state = window.RobotAssistant.getState();
+            const dx = targetX - state.position.x;
+            const dy = targetY - state.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const walkDuration = (distance / window.RobotAssistant.config.moveSpeed) * 16; // Convert frames to ms
+            
+            // Wait for robot to reach destination
+            setTimeout(() => {
+                if (window.RobotAssistant) {
+                    window.RobotAssistant.setAnimationState('idle');
+                }
+                if (callback) callback();
+            }, Math.min(walkDuration, 3000)); // Max 3 seconds
+        } else {
+            if (callback) callback();
         }
+    }
+    
+    /**
+     * Click an element and wait for action
+     */
+    function clickElement(element) {
+        if (!element) return;
+        
+        // Highlight the element
+        element.style.outline = '3px solid #FFD700';
+        element.style.outlineOffset = '4px';
+        element.style.transition = 'outline 0.3s';
+        
+        setTimeout(() => {
+            element.style.outline = '';
+            element.style.outlineOffset = '';
+        }, 2000);
+        
+        // Trigger click event
+        element.click();
+    }
+    
+    /**
+     * Enhanced tour with user interaction
+     */
+    function startEnhancedTour() {
+        brain.tourMode = true;
+        brain.currentTourStep = 0;
+        
+        hideSpeechBubble();
+        
+        setTimeout(() => {
+            speak(`🚀 Let's start the tour! I'll show you around and explain everything.`, 4000);
+            
+            setTimeout(() => {
+                performInteractiveTour();
+            }, 5000);
+        }, 500);
+        
+        saveMemory();
+    }
+    
+    /**
+     * Perform interactive tour with user choices
+     */
+    async function performInteractiveTour() {
+        const elements = detectInteractiveElements();
+        
+        if (elements.length === 0) {
+            speak(`🤔 I don't see many interactive elements on this page. Let me find another page to explore...`, 5000);
+            setTimeout(() => {
+                findAndNavigateToNextPage();
+            }, 6000);
+            return;
+        }
+        
+        // Tour through elements with user interaction
+        tourElement(elements, 0);
+    }
+    
+    /**
+     * Tour a single element with user interaction
+     */
+    function tourElement(elements, index) {
+        if (index >= Math.min(elements.length, CONFIG.MAX_TOUR_ELEMENTS)) {
+            // Tour complete for this page
+            offerPageNavigation();
+            return;
+        }
+        
+        const element = elements[index];
+        
+        // Walk to the element
+        walkToElement(element, () => {
+            // Describe the element
+            const description = describeElementDetailed(element);
+            
+            // Show description with typing animation
+            speak(description, CONFIG.SPEECH_DURATION);
+            
+            // Highlight the element
+            highlightElement(element);
+            
+            // Ask if user wants to continue or interact
+            setTimeout(() => {
+                const elementType = element.tagName.toLowerCase();
+                const isNavigationElement = elementType === 'a' && element.getAttribute('href');
+                
+                if (isNavigationElement) {
+                    // Offer to navigate to the linked page
+                    offerNavigation(element, () => {
+                        // Continue tour
+                        setTimeout(() => tourElement(elements, index + 1), 1000);
+                    });
+                } else {
+                    // Continue to next element
+                    setTimeout(() => tourElement(elements, index + 1), CONFIG.TOUR_ELEMENT_DELAY);
+                }
+            }, CONFIG.SPEECH_DURATION + 500);
+        });
+    }
+    
+    /**
+     * Offer navigation to a linked page
+     */
+    function offerNavigation(linkElement, continueCallback) {
+        const href = linkElement.getAttribute('href');
+        const linkText = linkElement.textContent?.trim().substring(0, 30) || 'this page';
+        
+        const offer = `
+            <div style="padding: 5px 0;">
+                Would you like to visit "${linkText}" or keep exploring this page?
+                <div style="margin-top: 12px; display: flex; gap: 8px;">
+                    <button onclick="window.RobotAI.navigateToLink('${href}')" style="
+                        flex: 1;
+                        background: white;
+                        color: #9370db;
+                        border: none;
+                        padding: 10px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        font-size: 13px;
+                    ">Visit Page 🚀</button>
+                    <button onclick="window.RobotAI.continueTour()" style="
+                        flex: 1;
+                        background: rgba(255,255,255,0.3);
+                        color: white;
+                        border: none;
+                        padding: 10px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 13px;
+                    ">Keep Exploring 🔍</button>
+                </div>
+            </div>
+        `;
+        
+        speak(offer, 20000, false); // Don't use typing for interactive prompts
+        speechBubble.style.pointerEvents = 'auto';
+        
+        // Store continue callback for later
+        brain.tourContinueCallback = continueCallback;
+    }
+    
+    /**
+     * Navigate to a link during tour
+     */
+    function navigateToLink(href) {
+        speak(`🚀 Navigating to the page...`, 2000, false);
+        setTimeout(() => {
+            window.location.href = href;
+        }, 2500);
+    }
+    
+    /**
+     * Continue tour after user choice
+     */
+    function continueTour() {
+        hideSpeechBubble();
+        if (brain.tourContinueCallback) {
+            brain.tourContinueCallback();
+            brain.tourContinueCallback = null;
+        }
+    }
+    
+    /**
+     * Offer page navigation after completing tour of current page
+     */
+    function offerPageNavigation() {
+        const links = Array.from(document.querySelectorAll('a[href]')).filter(a => {
+            const href = a.getAttribute('href');
+            return href && href.endsWith('.html') && !href.startsWith('http');
+        });
+        
+        if (links.length > 0) {
+            const offer = `
+                <div style="padding: 5px 0;">
+                    🎉 Tour of this page complete! Would you like to explore another page?
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button onclick="window.RobotAI.exploreAnotherPage()" style="
+                            flex: 1;
+                            background: white;
+                            color: #9370db;
+                            border: none;
+                            padding: 10px 16px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-weight: bold;
+                            font-size: 13px;
+                        ">Yes, more! 🚀</button>
+                        <button onclick="window.RobotAI.endTour()" style="
+                            flex: 1;
+                            background: rgba(255,255,255,0.3);
+                            color: white;
+                            border: none;
+                            padding: 10px 16px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 13px;
+                        ">That's enough 👍</button>
+                    </div>
+                </div>
+            `;
+            
+            speak(offer, 30000, false);
+            speechBubble.style.pointerEvents = 'auto';
+        } else {
+            endTour();
+        }
+    }
+    
+    /**
+     * Explore another page
+     */
+    function exploreAnotherPage() {
+        findAndNavigateToNextPage();
+    }
+    
+    /**
+     * Find and navigate to next page
+     */
+    function findAndNavigateToNextPage() {
+        const links = Array.from(document.querySelectorAll('a[href]')).filter(a => {
+            const href = a.getAttribute('href');
+            return href && href.endsWith('.html') && !href.startsWith('http');
+        });
+        
+        if (links.length === 0) {
+            speak(`🤔 No more pages to explore from here. Click me anytime for a tour!`, 5000);
+            endTour();
+            return;
+        }
+        
+        // Pick a random link
+        const randomLink = links[Math.floor(Math.random() * links.length)];
+        const linkText = randomLink.textContent?.trim().substring(0, 30) || 'next page';
+        
+        speak(`📍 Let's go to "${linkText}"...`, 3000, false);
+        
+        // Walk to the link and click it
+        walkToElement(randomLink, () => {
+            highlightElement(randomLink);
+            setTimeout(() => {
+                clickElement(randomLink);
+            }, 1500);
+        });
+    }
+    
+    /**
+     * End the tour
+     */
+    function endTour() {
+        brain.tourMode = false;
+        brain.currentTourStep = 0;
+        hideSpeechBubble();
+        
+        speak(`👍 Tour complete! I'm always here if you need help. Just click me anytime!`, 6000);
+        
+        saveMemory();
+    }
+    
+    /**
+     * Describe an element in detail
+     */
+    function describeElementDetailed(element) {
+        const tagName = element.tagName.toLowerCase();
+        const text = element.textContent?.trim().substring(0, 40) || '';
+        const href = element.getAttribute('href');
+        const type = element.getAttribute('type');
+        const ariaLabel = element.getAttribute('aria-label');
+        
+        // Use aria-label if available
+        const displayText = ariaLabel || text || 'element';
+        
+        if (tagName === 'a' && href) {
+            if (href.startsWith('http')) {
+                return `🌐 Here we have the "${displayText}" link. This takes you to an external website: ${href}`;
+            } else {
+                return `🔗 Here we have the "${displayText}" link. This will take you to ${href.replace('.html', '').replace('/', '')}`;
+            }
+        } else if (tagName === 'button') {
+            if (text.toLowerCase().includes('submit')) {
+                return `✅ This is the "${displayText}" button. It submits the form when clicked`;
+            } else if (text.toLowerCase().includes('start')) {
+                return `🚀 This is the "${displayText}" button. Click it to start the feature`;
+            } else if (text.toLowerCase().includes('araya') || text.toLowerCase().includes('chat')) {
+                return `💬 This is the "${displayText}" button. It opens the ARAYA chat interface`;
+            }
+            return `🔘 This is the "${displayText}" button. Click it to perform an action`;
+        } else if (element.role === 'button') {
+            return `🔘 This "${displayText}" element acts as a button`;
+        } else if (tagName === 'input') {
+            return `📝 This is a ${type || 'text'} input field. Users can enter ${type || 'text'} here`;
+        }
+        
+        return `✨ This is "${displayText}" - an interactive element`;
+    }
+
+    /**
+     * Highlight an element
+     */
+    function highlightElement(element) {
+        if (!element) return;
         
         // Add highlight effect
         element.style.outline = '3px solid #00f0ff';
@@ -1678,6 +2083,11 @@
         showSettings,
         answerQuestion,
         saveSettings,
+        // New tour functions
+        navigateToLink,
+        continueTour,
+        exploreAnotherPage,
+        endTour,
         brain
     };
 
