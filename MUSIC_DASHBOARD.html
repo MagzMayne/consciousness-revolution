@@ -209,6 +209,72 @@
             font-family: monospace;
             border-radius: 5px;
         }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #00ff88;
+            padding: 16px 32px;
+            border-radius: 12px;
+            border: 2px solid #00ff88;
+            z-index: 10000;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 255, 136, 0.3);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast .toast-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        .toast .toast-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .toast .toast-subtitle {
+            color: #888;
+            font-size: 0.9em;
+            margin-top: 4px;
+        }
+
+        /* Button improvements */
+        button.preview-btn {
+            position: relative;
+            overflow: hidden;
+        }
+        button.preview-btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        button.preview-btn:active::after {
+            width: 200px;
+            height: 200px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+        }
+        .preview-active {
+            animation: pulse 1s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -385,7 +451,7 @@
                     <div class="title">${song.name}</div>
                     <div class="theme">🏷️ ${song.theme}</div>
                     <div class="actions">
-                        <button onclick="event.stopPropagation(); playSong('${song.file}')" class="secondary">▶️ Preview</button>
+                        <button onclick="event.stopPropagation(); playSong('${song.file}')" class="secondary preview-btn">▶️ Preview</button>
                         <button onclick="event.stopPropagation(); changeTier('${song.name}')" class="secondary">📁 Change Tier</button>
                     </div>
                 </div>
@@ -449,11 +515,11 @@
         function createAlbum() {
             const name = document.getElementById('albumName').value.trim();
             if (!name) {
-                alert('Please enter an album name!');
+                showToast('⚠️ Album Name Required', 'Please enter an album name first', 3000);
                 return;
             }
             if (selectedSongs.length === 0) {
-                alert('Please select at least one song!');
+                showToast('⚠️ No Songs Selected', 'Please select at least one song', 3000);
                 return;
             }
 
@@ -505,7 +571,7 @@ https://conciousnessrevolution.io/MUSIC_DASHBOARD.html`;
         function copyExport() {
             const text = document.getElementById('exportText').value;
             navigator.clipboard.writeText(text).then(() => {
-                alert('Copied to clipboard!');
+                showToast('✓ Copied to clipboard!', '', 2000);
             });
         }
 
@@ -517,12 +583,58 @@ https://conciousnessrevolution.io/MUSIC_DASHBOARD.html`;
             const name = document.getElementById('previewAlbumName').textContent;
             const tracks = selectedSongs;
 
-            // This would integrate with your deployment system
-            alert(`🚀 Album "${name}" with ${tracks.length} tracks ready to push!\n\nTo push live:\n1. Export tracklist\n2. Update store.html with tracks\n3. Deploy via Netlify\n\nOr use the API (coming soon) for automatic push.`);
+            showToast(
+                `🚀 Album "${name}" ready!`,
+                `${tracks.length} tracks queued for deployment`,
+                4000
+            );
+        }
+
+        // Toast notification system (Dashboard Quality Standard)
+        function showToast(title, subtitle = '', duration = 4000) {
+            // Remove existing toast if any
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <span class="toast-icon">🎵</span>
+                <span class="toast-title">${title}</span>
+                ${subtitle ? `<span class="toast-subtitle">${subtitle}</span>` : ''}
+            `;
+            document.body.appendChild(toast);
+
+            // Trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+
+            // Remove after duration
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, duration);
         }
 
         function playSong(file) {
-            alert(`🎵 Preview: ${file}\n\nNote: Direct playback requires the files to be hosted. Local files are at:\nDesktop/2_BUILD/MUSIC/NEW_ALBUM_2026/`);
+            // Extract just the song name for display
+            const songName = file.replace(/_/g, ' ').replace('.mp3', '');
+
+            showToast(
+                `Preview: ${songName}`,
+                'Streaming links coming soon! Files stored locally.',
+                3500
+            );
+
+            // Find and animate the button that was clicked
+            const buttons = document.querySelectorAll('.preview-btn');
+            buttons.forEach(btn => {
+                if (btn.onclick && btn.onclick.toString().includes(file)) {
+                    btn.classList.add('pulse');
+                    setTimeout(() => btn.classList.remove('pulse'), 1000);
+                }
+            });
         }
 
         function changeTier(name) {

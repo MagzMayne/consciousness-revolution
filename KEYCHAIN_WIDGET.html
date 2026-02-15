@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keychain Widget - Master Navigation</title>
+    <style>
+        /* ==========================================
+           KEYCHAIN WIDGET - GTA × RETRO-FUTURE × CYBERPUNK
+           Embed this component on ANY dashboard
+           ========================================== */
+
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --kw-bg-dark: #0a0a0f;
+            --kw-bg-panel: rgba(10, 10, 20, 0.95);
+            --kw-cyan: #00ffff;
+            --kw-magenta: #ff00ff;
+            --kw-gold: #ffd700;
+            --kw-green: #00ff41;
+            --kw-red: #ff0040;
+            --kw-border: rgba(0, 255, 255, 0.3);
+            --kw-glow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+
+        /* === SCANLINE OVERLAY (Retro CRT Effect) === */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1) 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            opacity: 0.3;
+        }
+
+        /* === THE WIDGET CONTAINER === */
+        .keychain-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* === TOGGLE BUTTON (GTA Style Mini-Map Corner) === */
+        .kw-toggle {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: var(--kw-bg-panel);
+            border: 2px solid var(--kw-cyan);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--kw-glow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kw-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(0, 255, 255, 0.2),
+                transparent
+            );
+            animation: kw-sweep 3s infinite;
+        }
+
+        @keyframes kw-sweep {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .kw-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .kw-toggle svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--kw-cyan);
+            transition: all 0.3s ease;
+        }
+
+        .kw-toggle:hover svg {
+            fill: #fff;
+        }
+
+        /* === EXPANDED PANEL === */
+        .kw-panel {
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            width: 320px;
+            max-height: 0;
+            overflow: hidden;
+            background: var(--kw-bg-panel);
+            border: 1px solid var(--kw-border);
+            border-radius: 12px;
+            box-shadow: var(--kw-glow), 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: max-height 0.4s ease, opacity 0.3s ease;
+            opacity: 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .kw-panel.open {
+            max-height: 600px;
+            opacity: 1;
+        }
+
+        /* === PANEL HEADER === */
+        .kw-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--kw-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kw-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--kw-cyan), var(--kw-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .kw-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: var(--kw-green);
+        }
+
+        .kw-status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--kw-green);
+            border-radius: 50%;
+            animation: kw-pulse 2s infinite;
+        }
+
+        @keyframes kw-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* === SECTION TABS === */
+        .kw-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .kw-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #888;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            border-bottom: 2px solid transparent;
+        }
+
+        .kw-tab:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .kw-tab.active {
+            color: var(--kw-cyan);
+            border-bottom-color: var(--kw-cyan);
+        }
+
+        .kw-tab[data-tab="team"].active {
+            color: var(--kw-magenta);
+            border-bottom-color: var(--kw-magenta);
+        }
+
+        .kw-tab[data-tab="family"].active {
+            color: var(--kw-gold);
+            border-bottom-color: var(--kw-gold);
+        }
+
+        /* === LINK LIST === */
+        .kw-content {
+            padding: 10px;
+        }
+
+        .kw-section {
+            display: none;
+        }
+
+        .kw-section.active {
+            display: block;
+        }
+
+        .kw-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 4px 0;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            text-decoration: none;
+            color: #e0e0e0;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kw-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--kw-cyan);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+
+        .kw-link:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: var(--kw-cyan);
+            transform: translateX(5px);
+        }
+
+        .kw-link:hover::before {
+            transform: scaleY(1);
+        }
+
+        /* Team section links */
+        .kw-section[data-section="team"] .kw-link::before {
+            background: var(--kw-magenta);
+        }
+
+        .kw-section[data-section="team"] .kw-link:hover {
+            background: rgba(255, 0, 255, 0.1);
+            border-color: var(--kw-magenta);
+        }
+
+        /* Family section links */
+        .kw-section[data-section="family"] .kw-link::before {
+            background: var(--kw-gold);
+        }
+
+        .kw-section[data-section="family"] .kw-link:hover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--kw-gold);
+        }
+
+        .kw-link-num {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-right: 12px;
+            color: var(--kw-cyan);
+        }
+
+        .kw-section[data-section="team"] .kw-link-num {
+            background: rgba(255, 0, 255, 0.2);
+            color: var(--kw-magenta);
+        }
+
+        .kw-section[data-section="family"] .kw-link-num {
+            background: rgba(255, 215, 0, 0.2);
+            color: var(--kw-gold);
+        }
+
+        .kw-link-text {
+            flex: 1;
+            font-size: 0.85rem;
+        }
+
+        .kw-link-badge {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .kw-link-badge.live {
+            background: rgba(0, 255, 65, 0.2);
+            color: var(--kw-green);
+        }
+
+        .kw-link-badge.planned {
+            background: rgba(128, 128, 128, 0.2);
+            color: #888;
+        }
+
+        /* === FOOTER === */
+        .kw-footer {
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #666;
+        }
+
+        .kw-pattern {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--kw-cyan);
+        }
+
+        /* === CORNER DECORATIONS (GTA-Style) === */
+        .kw-corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--kw-cyan);
+            opacity: 0.5;
+        }
+
+        .kw-corner.tl {
+            top: 0;
+            left: 0;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .kw-corner.tr {
+            top: 0;
+            right: 0;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .kw-corner.bl {
+            bottom: 0;
+            left: 0;
+            border-right: none;
+            border-top: none;
+        }
+
+        .kw-corner.br {
+            bottom: 0;
+            right: 0;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* === DEMO PAGE CONTENT === */
+        .demo-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .demo-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--kw-cyan), var(--kw-magenta), var(--kw-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .demo-section {
+            background: var(--kw-bg-panel);
+            border: 1px solid var(--kw-border);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+
+        .demo-section h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--kw-cyan);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .demo-section pre {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.8rem;
+            color: var(--kw-green);
+        }
+
+        .demo-section p {
+            color: #aaa;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+
+    <!-- DEMO PAGE CONTENT -->
+    <div class="demo-content">
+        <h1 class="demo-title">KEYCHAIN WIDGET</h1>
+        <p style="color: #888; margin-bottom: 30px;">
+            Master Navigation Component • GTA × Retro-Future × Cyberpunk Industrial
+        </p>
+
+        <div class="demo-section">
+            <h2>// HOW TO EMBED</h2>
+            <p>Copy the widget code below into any dashboard. The widget appears in the bottom-right corner.</p>
+            <pre>&lt;!-- Add this to any dashboard --&gt;
+&lt;link rel="stylesheet" href="KEYCHAIN_WIDGET.css"&gt;
+&lt;script src="KEYCHAIN_WIDGET.js"&gt;&lt;/script&gt;
+
+&lt;!-- Or inline: copy the entire #keychain-widget block --&gt;</pre>
+        </div>
+
+        <div class="demo-section">
+            <h2>// THE 5 × 3 PATTERN</h2>
+            <p><strong style="color: var(--kw-cyan);">Personal (5)</strong> — Commander's daily drivers</p>
+            <p><strong style="color: var(--kw-magenta);">Team (5)</strong> — What builders see</p>
+            <p><strong style="color: var(--kw-gold);">Family (5)</strong> — Future expansion</p>
+            <p style="margin-top: 15px; color: var(--kw-cyan); font-family: 'Orbitron', sans-serif;">
+                3 sets × 5 dashboards = 15 interfaces → ∞
+            </p>
+        </div>
+
+        <div class="demo-section">
+            <h2>// STYLING NOTES</h2>
+            <p>• Dark industrial background with CRT scanline overlay</p>
+            <p>• Orbitron + Share Tech Mono fonts (GTA-inspired)</p>
+            <p>• Cyan / Magenta / Gold color coding</p>
+            <p>• Subtle glow effects and sweep animations</p>
+            <p>• Corner brackets (HUD-style)</p>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         THE WIDGET - COPY THIS FOR ANY DASHBOARD
+         ========================================== -->
+    <div class="keychain-widget" id="keychain-widget">
+        <!-- Toggle Button -->
+        <button class="kw-toggle" id="kw-toggle" title="Open Navigation">
+            <svg viewBox="0 0 24 24">
+                <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+            </svg>
+        </button>
+
+        <!-- Expandable Panel -->
+        <div class="kw-panel" id="kw-panel">
+            <div class="kw-corner tl"></div>
+            <div class="kw-corner tr"></div>
+            <div class="kw-corner bl"></div>
+            <div class="kw-corner br"></div>
+
+            <!-- Header -->
+            <div class="kw-header">
+                <span class="kw-title">Keychain</span>
+                <span class="kw-status">
+                    <span class="kw-status-dot"></span>
+                    ONLINE
+                </span>
+            </div>
+
+            <!-- Tabs -->
+            <div class="kw-tabs">
+                <button class="kw-tab active" data-tab="personal">Personal</button>
+                <button class="kw-tab" data-tab="team">Team</button>
+                <button class="kw-tab" data-tab="family">Family</button>
+            </div>
+
+            <!-- Content -->
+            <div class="kw-content">
+                <!-- Personal Section -->
+                <div class="kw-section active" data-section="personal">
+                    <a href="COMMANDER_COCKPIT.html" class="kw-link">
+                        <span class="kw-link-num">1</span>
+                        <span class="kw-link-text">Command Cockpit</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="BRAIN_QUERY_DASHBOARD.html" class="kw-link">
+                        <span class="kw-link-num">2</span>
+                        <span class="kw-link-text">Brain Query</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="CONSCIOUSNESS_DASHBOARD.html" class="kw-link">
+                        <span class="kw-link-num">3</span>
+                        <span class="kw-link-text">Consciousness</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="health-monitor.html" class="kw-link">
+                        <span class="kw-link-num">4</span>
+                        <span class="kw-link-text">Health Monitor</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="araya-chat.html" class="kw-link">
+                        <span class="kw-link-num">5</span>
+                        <span class="kw-link-text">ARAYA Chat</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                </div>
+
+                <!-- Team Section -->
+                <div class="kw-section" data-section="team">
+                    <a href="TEAM_COMMAND_CENTER.html" class="kw-link">
+                        <span class="kw-link-num">1</span>
+                        <span class="kw-link-text">Team Command</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="TRINITY_NEXUS_DASHBOARD.html" class="kw-link">
+                        <span class="kw-link-num">2</span>
+                        <span class="kw-link-text">Trinity Nexus</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="BUILDER_COCKPIT.html" class="kw-link">
+                        <span class="kw-link-num">3</span>
+                        <span class="kw-link-text">Builder Cockpit</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="BETA_TESTER_COCKPIT.html" class="kw-link">
+                        <span class="kw-link-num">4</span>
+                        <span class="kw-link-text">Beta Tester</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                    <a href="DOMAIN_STATUS_DASHBOARD.html" class="kw-link">
+                        <span class="kw-link-num">5</span>
+                        <span class="kw-link-text">7 Domains</span>
+                        <span class="kw-link-badge live">Live</span>
+                    </a>
+                </div>
+
+                <!-- Family Section -->
+                <div class="kw-section" data-section="family">
+                    <a href="#" class="kw-link">
+                        <span class="kw-link-num">1</span>
+                        <span class="kw-link-text">Shared Calendar</span>
+                        <span class="kw-link-badge planned">Planned</span>
+                    </a>
+                    <a href="#" class="kw-link">
+                        <span class="kw-link-num">2</span>
+                        <span class="kw-link-text">Budget Tracker</span>
+                        <span class="kw-link-badge planned">Planned</span>
+                    </a>
+                    <a href="#" class="kw-link">
+                        <span class="kw-link-num">3</span>
+                        <span class="kw-link-text">Goals Board</span>
+                        <span class="kw-link-badge planned">Planned</span>
+                    </a>
+                    <a href="#" class="kw-link">
+                        <span class="kw-link-num">4</span>
+                        <span class="kw-link-text">Memory Album</span>
+                        <span class="kw-link-badge planned">Planned</span>
+                    </a>
+                    <a href="#" class="kw-link">
+                        <span class="kw-link-num">5</span>
+                        <span class="kw-link-text">Vision Board</span>
+                        <span class="kw-link-badge planned">Planned</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="kw-footer">
+                <span class="kw-pattern">3×5=15→∞</span>
+                <span>v1.0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === KEYCHAIN WIDGET JS ===
+        (function() {
+            const toggle = document.getElementById('kw-toggle');
+            const panel = document.getElementById('kw-panel');
+            const tabs = document.querySelectorAll('.kw-tab');
+            const sections = document.querySelectorAll('.kw-section');
+
+            // Toggle panel
+            toggle.addEventListener('click', () => {
+                panel.classList.toggle('open');
+            });
+
+            // Close on outside click
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.keychain-widget')) {
+                    panel.classList.remove('open');
+                }
+            });
+
+            // Tab switching
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetSection = tab.dataset.tab;
+
+                    // Update tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    // Update sections
+                    sections.forEach(s => {
+                        s.classList.remove('active');
+                        if (s.dataset.section === targetSection) {
+                            s.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            // Keyboard shortcut: K to toggle
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'k' && !e.target.matches('input, textarea')) {
+                    panel.classList.toggle('open');
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

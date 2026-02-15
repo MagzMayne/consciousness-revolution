@@ -1127,7 +1127,7 @@ export async function handler(event, context) {
     }
 
     try {
-        const { message, conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
+        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
 
         if (!message && attachments.length === 0) {
             return {

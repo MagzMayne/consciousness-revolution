@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Upload | OVERKORE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cyan: #00ffff;
+            --magenta: #ff00ff;
+            --gold: #ffd700;
+            --green: #00ff00;
+            --red: #ff3333;
+            --dark: #0a0a0f;
+            --darker: #050508;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--darker);
+            color: #e0e0e0;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* CRT Scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                transparent 0px,
+                rgba(0,0,0,0.1) 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(0,255,255,0.1), rgba(255,0,255,0.05));
+            border-bottom: 1px solid rgba(0,255,255,0.3);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--green); }
+            50% { opacity: 0.5; box-shadow: 0 0 15px var(--green); }
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            background: rgba(0,255,255,0.03);
+            border: 2px dashed rgba(0,255,255,0.3);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--cyan);
+            background: rgba(0,255,255,0.1);
+        }
+
+        .upload-zone.uploading {
+            border-color: var(--gold);
+            background: rgba(255,215,0,0.05);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: var(--cyan);
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .select-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, var(--cyan), var(--magenta));
+            border: none;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .select-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Progress Section */
+        .progress-section {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .progress-section.active {
+            display: block;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .file-icon {
+            font-size: 2rem;
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: #fff;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .file-size {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .progress-bar-container {
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 8px;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: #fff;
+            text-shadow: 0 0 5px #000;
+        }
+
+        /* Method Status */
+        .method-status {
+            margin-top: 15px;
+        }
+
+        .method-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            color: var(--gold);
+            margin-bottom: 10px;
+        }
+
+        .method-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .method-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .method-item.trying {
+            border: 1px solid var(--gold);
+            background: rgba(255,215,0,0.1);
+        }
+
+        .method-item.success {
+            border: 1px solid var(--green);
+            background: rgba(0,255,0,0.1);
+        }
+
+        .method-item.failed {
+            border: 1px solid var(--red);
+            background: rgba(255,0,0,0.05);
+            opacity: 0.6;
+        }
+
+        .method-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #444;
+        }
+
+        .method-item.trying .method-indicator {
+            background: var(--gold);
+            animation: pulse 1s infinite;
+        }
+
+        .method-item.success .method-indicator {
+            background: var(--green);
+        }
+
+        .method-item.failed .method-indicator {
+            background: var(--red);
+        }
+
+        /* Result Section */
+        .result-section {
+            display: none;
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(0,255,0,0.05);
+            border: 1px solid var(--green);
+            border-radius: 12px;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .result-section.error {
+            background: rgba(255,0,0,0.05);
+            border-color: var(--red);
+        }
+
+        .result-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--green);
+            margin-bottom: 10px;
+        }
+
+        .result-section.error .result-title {
+            color: var(--red);
+        }
+
+        .result-details {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .result-link {
+            display: inline-block;
+            padding: 12px 25px;
+            background: rgba(0,255,0,0.2);
+            border: 1px solid var(--green);
+            border-radius: 6px;
+            color: var(--green);
+            text-decoration: none;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .result-link:active {
+            background: rgba(0,255,0,0.3);
+        }
+
+        .retry-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid var(--cyan);
+            border-radius: 6px;
+            color: var(--cyan);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Upload History */
+        .history-section {
+            margin-top: auto;
+        }
+
+        .history-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .history-item .status-icon {
+            font-size: 1rem;
+        }
+
+        .history-item .name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item .method {
+            font-size: 0.7rem;
+            color: var(--gold);
+            padding: 2px 6px;
+            background: rgba(255,215,0,0.1);
+            border-radius: 4px;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            .upload-zone {
+                padding: 30px 15px;
+            }
+
+            .upload-icon {
+                font-size: 3rem;
+            }
+
+            .select-btn {
+                width: 100%;
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">MOBILE UPLOAD</div>
+        <div class="status-badge">
+            <span class="status-dot"></span>
+            <span id="connectionStatus">ONLINE</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="uploadZone">
+            <span class="upload-icon">📤</span>
+            <div class="upload-text">DROP FILE OR TAP TO SELECT</div>
+            <div class="upload-subtext">Any file size • Multiple methods • Auto-retry</div>
+            <button class="select-btn" onclick="document.getElementById('fileInput').click()">
+                SELECT FILE
+            </button>
+            <input type="file" id="fileInput" onchange="handleFileSelect(event)">
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="file-info">
+                <span class="file-icon" id="fileIcon">📄</span>
+                <div class="file-details">
+                    <div class="file-name" id="fileName">filename.ext</div>
+                    <div class="file-size" id="fileSize">0 KB</div>
+                </div>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+
+            <div class="method-status">
+                <div class="method-title">UPLOAD METHODS (trying until success)</div>
+                <div class="method-list" id="methodList">
+                    <div class="method-item" data-method="supabase">
+                        <span class="method-indicator"></span>
+                        <span>Supabase Storage</span>
+                    </div>
+                    <div class="method-item" data-method="netlify">
+                        <span class="method-indicator"></span>
+                        <span>Netlify Blob</span>
+                    </div>
+                    <div class="method-item" data-method="direct">
+                        <span class="method-indicator"></span>
+                        <span>Direct Upload</span>
+                    </div>
+                    <div class="method-item" data-method="chunked">
+                        <span class="method-indicator"></span>
+                        <span>Chunked Transfer</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="result-section" id="resultSection">
+            <span class="result-icon" id="resultIcon">✅</span>
+            <div class="result-title" id="resultTitle">UPLOAD COMPLETE</div>
+            <div class="result-details" id="resultDetails">File uploaded successfully via Supabase</div>
+            <a href="#" class="result-link" id="resultLink" style="display:none;">COPY LINK</a>
+            <button class="retry-btn" onclick="resetUpload()">UPLOAD ANOTHER</button>
+        </div>
+
+        <!-- Upload History -->
+        <div class="history-section">
+            <div class="history-title">
+                <span>📋</span>
+                <span>RECENT UPLOADS</span>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            // Supabase PAUSED - using Netlify Blobs as primary
+            supabase: {
+                available: false,  // Project paused - needs payment
+                url: 'https://your-project.supabase.co',
+                key: 'your-anon-key',
+                bucket: 'uploads'
+            },
+            netlify: {
+                endpoint: '/.netlify/functions/file-upload'
+            },
+            chunkSize: 5 * 1024 * 1024 // 5MB chunks
+        };
+
+        // Upload methods in order of preference (Netlify FIRST since Supabase paused)
+        const UPLOAD_METHODS = [
+            { id: 'netlify', name: 'Netlify Blob', fn: uploadToNetlify },
+            { id: 'netlify-json', name: 'Netlify Base64', fn: uploadToNetlifyBase64 },
+            { id: 'direct', name: 'Direct Upload', fn: uploadDirect },
+            { id: 'chunked', name: 'Chunked Transfer', fn: uploadChunked }
+        ];
+
+        let currentFile = null;
+        let uploadHistory = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setupDragDrop();
+            renderHistory();
+            checkConnection();
+        });
+
+        function setupDragDrop() {
+            const zone = document.getElementById('uploadZone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+                zone.addEventListener(event, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+
+            zone.addEventListener('dragenter', () => zone.classList.add('dragover'));
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', (e) => {
+                zone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    startUpload(files[0]);
+                }
+            });
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                startUpload(files[0]);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                pdf: '📕', doc: '📘', docx: '📘', txt: '📝',
+                jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️',
+                mp4: '🎬', mov: '🎬', avi: '🎬', mkv: '🎬',
+                mp3: '🎵', wav: '🎵', m4a: '🎵',
+                zip: '📦', rar: '📦', '7z': '📦',
+                js: '💻', py: '💻', html: '💻', css: '💻'
+            };
+            return icons[ext] || '📄';
+        }
+
+        async function startUpload(file) {
+            currentFile = file;
+
+            // Update UI
+            document.getElementById('uploadZone').style.display = 'none';
+            document.getElementById('progressSection').classList.add('active');
+            document.getElementById('resultSection').classList.remove('active');
+
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileIcon').textContent = getFileIcon(file.name);
+
+            // Reset method indicators
+            document.querySelectorAll('.method-item').forEach(item => {
+                item.className = 'method-item';
+            });
+
+            // Try each method
+            let success = false;
+            let successMethod = null;
+            let resultUrl = null;
+
+            for (const method of UPLOAD_METHODS) {
+                const methodEl = document.querySelector(`[data-method="${method.id}"]`);
+                methodEl.classList.add('trying');
+
+                try {
+                    console.log(`Trying ${method.name}...`);
+                    resultUrl = await method.fn(file, updateProgress);
+
+                    if (resultUrl) {
+                        methodEl.classList.remove('trying');
+                        methodEl.classList.add('success');
+                        success = true;
+                        successMethod = method.name;
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`${method.name} failed:`, error);
+                    methodEl.classList.remove('trying');
+                    methodEl.classList.add('failed');
+                }
+            }
+
+            // Show result
+            showResult(success, successMethod, resultUrl, file);
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+        }
+
+        function showResult(success, method, url, file) {
+            document.getElementById('progressSection').classList.remove('active');
+            const resultSection = document.getElementById('resultSection');
+            resultSection.classList.add('active');
+
+            if (success) {
+                resultSection.classList.remove('error');
+                document.getElementById('resultIcon').textContent = '✅';
+                document.getElementById('resultTitle').textContent = 'UPLOAD COMPLETE';
+                document.getElementById('resultDetails').textContent = `Uploaded via ${method}`;
+
+                if (url) {
+                    const linkEl = document.getElementById('resultLink');
+                    linkEl.style.display = 'inline-block';
+                    linkEl.onclick = (e) => {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(url);
+                        linkEl.textContent = 'COPIED!';
+                        setTimeout(() => linkEl.textContent = 'COPY LINK', 2000);
+                    };
+                }
+
+                // Add to history
+                addToHistory({
+                    name: file.name,
+                    size: file.size,
+                    method: method,
+                    url: url,
+                    timestamp: Date.now()
+                });
+            } else {
+                resultSection.classList.add('error');
+                document.getElementById('resultIcon').textContent = '❌';
+                document.getElementById('resultTitle').textContent = 'UPLOAD FAILED';
+                document.getElementById('resultDetails').textContent = 'All methods failed. Check connection and try again.';
+                document.getElementById('resultLink').style.display = 'none';
+            }
+        }
+
+        function resetUpload() {
+            document.getElementById('uploadZone').style.display = 'block';
+            document.getElementById('progressSection').classList.remove('active');
+            document.getElementById('resultSection').classList.remove('active');
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            document.getElementById('fileInput').value = '';
+            currentFile = null;
+        }
+
+        // Upload Methods - REAL IMPLEMENTATIONS using Netlify Blobs
+
+        async function uploadToNetlify(file, onProgress) {
+            // Primary method: Netlify Functions blob upload via FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('filename', file.name);
+            formData.append('uploadedBy', 'mobile-widget');
+
+            try {
+                // Start progress indicator
+                onProgress(10);
+
+                const response = await fetch(CONFIG.netlify.endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                onProgress(80);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.details || 'Netlify upload failed');
+                }
+
+                const data = await response.json();
+                onProgress(100);
+
+                console.log('Upload success:', data);
+                return data.url;
+            } catch (error) {
+                console.error('Netlify FormData upload failed:', error);
+                throw error;
+            }
+        }
+
+        async function uploadToNetlifyBase64(file, onProgress) {
+            // Fallback: Base64 JSON upload
+            try {
+                onProgress(10);
+
+                // Read file as base64
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64String = reader.result.split(',')[1];
+                        resolve(base64String);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+
+                onProgress(40);
+
+                const response = await fetch(CONFIG.netlify.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        data: base64,
+                        contentType: file.type || 'application/octet-stream',
+                        uploadedBy: 'mobile-widget-base64'
+                    })
+                });
+
+                onProgress(80);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.details || 'Base64 upload failed');
+                }
+
+                const data = await response.json();
+                onProgress(100);
+
+                console.log('Base64 upload success:', data);
+                return data.url;
+            } catch (error) {
+                console.error('Netlify Base64 upload failed:', error);
+                throw error;
+            }
+        }
+
+        async function uploadDirect(file, onProgress) {
+            // Third fallback: Raw binary upload with query params
+            try {
+                onProgress(10);
+
+                const arrayBuffer = await file.arrayBuffer();
+
+                onProgress(30);
+
+                const url = `${CONFIG.netlify.endpoint}?filename=${encodeURIComponent(file.name)}&uploadedBy=mobile-widget-direct`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': file.type || 'application/octet-stream'
+                    },
+                    body: arrayBuffer
+                });
+
+                onProgress(80);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.details || 'Direct upload failed');
+                }
+
+                const data = await response.json();
+                onProgress(100);
+
+                console.log('Direct upload success:', data);
+                return data.url;
+            } catch (error) {
+                console.error('Direct upload failed:', error);
+                throw error;
+            }
+        }
+
+        async function uploadChunked(file, onProgress) {
+            // Fourth fallback: Chunked upload for large files
+            // For now, falls back to base64 for smaller chunks
+            const chunkSize = CONFIG.chunkSize;
+
+            // If file is small enough, just use base64
+            if (file.size <= chunkSize) {
+                return uploadToNetlifyBase64(file, onProgress);
+            }
+
+            // For large files, upload in chunks (simplified - uploads whole file)
+            // Full chunked implementation would require server-side chunk assembly
+            try {
+                onProgress(5);
+                console.log(`Large file detected: ${(file.size / 1024 / 1024).toFixed(2)}MB - attempting upload...`);
+
+                // Try FormData first for large files
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('filename', file.name);
+                formData.append('uploadedBy', 'mobile-widget-chunked');
+
+                const response = await fetch(CONFIG.netlify.endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                onProgress(90);
+
+                if (!response.ok) {
+                    throw new Error('Large file upload failed');
+                }
+
+                const data = await response.json();
+                onProgress(100);
+
+                console.log('Large file upload success:', data);
+                return data.url;
+            } catch (error) {
+                console.error('Chunked upload failed:', error);
+                throw error;
+            }
+        }
+
+        // Simulation helper (kept for testing, not used in production)
+        async function simulateUpload(onProgress) {
+            return new Promise((resolve, reject) => {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        onProgress(100);
+                        resolve();
+                    } else {
+                        onProgress(progress);
+                    }
+                }, 200);
+            });
+        }
+
+        // History
+        function addToHistory(entry) {
+            uploadHistory.unshift(entry);
+            uploadHistory = uploadHistory.slice(0, 10); // Keep last 10
+            localStorage.setItem('uploadHistory', JSON.stringify(uploadHistory));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+
+            if (uploadHistory.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#666; padding:20px; font-size:0.8rem;">No uploads yet</div>';
+                return;
+            }
+
+            list.innerHTML = uploadHistory.map(item => `
+                <div class="history-item">
+                    <span class="status-icon">${getFileIcon(item.name)}</span>
+                    <span class="name">${item.name}</span>
+                    <span class="method">${item.method?.split(' ')[0] || 'LOCAL'}</span>
+                </div>
+            `).join('');
+        }
+
+        // Connection check
+        async function checkConnection() {
+            const statusEl = document.getElementById('connectionStatus');
+            const dotEl = document.querySelector('.status-dot');
+
+            try {
+                await fetch('https://httpbin.org/get', { mode: 'no-cors' });
+                statusEl.textContent = 'ONLINE';
+                dotEl.style.background = 'var(--green)';
+            } catch {
+                statusEl.textContent = 'OFFLINE';
+                dotEl.style.background = 'var(--red)';
+            }
+        }
+
+        // Check connection periodically
+        setInterval(checkConnection, 30000);
+    </script>
+</body>
+</html>
