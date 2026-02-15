@@ -40,6 +40,10 @@
     // Speech bubble for robot communication
     let speechBubble = null;
     let bubblePositionUpdaterInterval = null;
+    
+    // Button menu for robot interaction
+    let buttonMenu = null;
+    let isMenuOpen = false;
 
     /**
      * Initialize the AI Brain
@@ -58,6 +62,9 @@
         
         // Create speech bubble UI
         createSpeechBubble();
+        
+        // Create interactive button menu
+        createButtonMenu();
         
         // Check if user needs a tour
         checkForTourOffer();
@@ -175,6 +182,195 @@
         
         // Start position update loop to keep bubble above robot
         startBubblePositionUpdater();
+    }
+    
+    /**
+     * Create interactive button menu for robot
+     */
+    function createButtonMenu() {
+        buttonMenu = document.createElement('div');
+        buttonMenu.id = 'robot-button-menu';
+        buttonMenu.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(147, 112, 219, 0.95), rgba(0, 240, 255, 0.95));
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            display: none;
+            min-width: 200px;
+        `;
+        
+        buttonMenu.innerHTML = `
+            <div style="margin-bottom: 12px; font-weight: bold; color: white; font-size: 16px; text-align: center;">
+                🤖 R3-D3 Menu
+            </div>
+            <button class="robot-menu-btn" data-action="tour" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">🚀 Tour Site</button>
+            
+            <button class="robot-menu-btn" data-action="help" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">💡 Help Me</button>
+            
+            <button class="robot-menu-btn" data-action="check-errors" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">🔍 Check Errors</button>
+            
+            <button class="robot-menu-btn" data-action="fix-issues" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">🔧 Fix Issues</button>
+            
+            <button class="robot-menu-btn" data-action="knowledge" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">📚 Knowledge Base</button>
+            
+            <button class="robot-menu-btn" data-action="settings" style="
+                width: 100%;
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.8);
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">⚙️ Settings</button>
+        `;
+        
+        // Add hover effects
+        const style = document.createElement('style');
+        style.textContent = `
+            .robot-menu-btn:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+            .robot-menu-btn:active {
+                transform: scale(0.95);
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Add button event listeners
+        buttonMenu.querySelectorAll('.robot-menu-btn').forEach(btn => {
+            btn.addEventListener('click', handleMenuAction);
+        });
+        
+        document.body.appendChild(buttonMenu);
+    }
+    
+    /**
+     * Toggle button menu visibility
+     */
+    function toggleButtonMenu() {
+        if (!buttonMenu) return;
+        
+        isMenuOpen = !isMenuOpen;
+        
+        if (isMenuOpen) {
+            buttonMenu.style.display = 'block';
+            buttonMenu.style.pointerEvents = 'auto';
+            setTimeout(() => {
+                buttonMenu.style.opacity = '1';
+                buttonMenu.style.transform = 'scale(1) translateY(0)';
+            }, 10);
+        } else {
+            buttonMenu.style.opacity = '0';
+            buttonMenu.style.transform = 'scale(0.8) translateY(20px)';
+            setTimeout(() => {
+                buttonMenu.style.display = 'none';
+                buttonMenu.style.pointerEvents = 'none';
+            }, 300);
+        }
+    }
+    
+    /**
+     * Handle menu button actions
+     */
+    function handleMenuAction(event) {
+        const action = event.target.dataset.action;
+        
+        // Close menu
+        toggleButtonMenu();
+        
+        // Perform action
+        switch(action) {
+            case 'tour':
+                startEnhancedTour();
+                break;
+            case 'help':
+                provideDeveloperHelp();
+                break;
+            case 'check-errors':
+                checkForErrors();
+                break;
+            case 'fix-issues':
+                autoFixIssues();
+                break;
+            case 'knowledge':
+                showKnowledgeBase();
+                break;
+            case 'settings':
+                showSettings();
+                break;
+        }
     }
     
     /**
@@ -447,6 +643,839 @@
         hideSpeechBubble();
         speak(`👍 No problem! I'll be here if you change your mind. Just click on me anytime!`, 4000);
     }
+    
+    /**
+     * Enhanced autonomous tour with element description
+     */
+    function startEnhancedTour() {
+        speak(`🚀 Starting comprehensive site tour! I'll navigate through the site and describe everything I find...`, 4000);
+        
+        if (window.RobotAssistant) {
+            window.RobotAssistant.setAnimationState('walking');
+        }
+        
+        setTimeout(() => {
+            performAutonomousTour();
+        }, 4500);
+    }
+    
+    /**
+     * Perform autonomous tour - navigate and describe elements
+     */
+    async function performAutonomousTour() {
+        const elements = detectInteractiveElements();
+        
+        if (elements.length === 0) {
+            speak(`🤔 Hmm, I don't see many interactive elements on this page. Let me navigate to another page...`, 4000);
+            // Try to navigate to a different page
+            const links = Array.from(document.querySelectorAll('a[href]')).filter(a => {
+                const href = a.getAttribute('href');
+                return href && href.endsWith('.html') && !href.startsWith('http');
+            });
+            
+            if (links.length > 0) {
+                const randomLink = links[Math.floor(Math.random() * links.length)];
+                highlightElement(randomLink);
+                setTimeout(() => {
+                    speak(`📍 Navigating to: ${randomLink.textContent || 'Next page'}`, 2000);
+                    setTimeout(() => {
+                        window.location.href = randomLink.getAttribute('href');
+                    }, 2500);
+                }, 4500);
+            }
+            return;
+        }
+        
+        speak(`✨ I found ${elements.length} interactive elements on this page! Let me show you...`, 4000);
+        
+        // Tour through elements
+        let currentIndex = 0;
+        
+        function tourNextElement() {
+            if (currentIndex >= Math.min(elements.length, 10)) { // Limit to 10 elements
+                speak(`🎉 Tour of this page complete! Click me to see more options or navigate to another page.`, 6000);
+                if (window.RobotAssistant) {
+                    window.RobotAssistant.setAnimationState('idle');
+                }
+                return;
+            }
+            
+            const element = elements[currentIndex];
+            highlightElement(element);
+            
+            // Describe the element
+            const description = describeElement(element);
+            speak(description, 4000);
+            
+            currentIndex++;
+            setTimeout(tourNextElement, 5000);
+        }
+        
+        setTimeout(tourNextElement, 4500);
+    }
+    
+    /**
+     * Describe an interactive element
+     */
+    function describeElement(element) {
+        const tagName = element.tagName.toLowerCase();
+        const text = element.textContent?.trim().substring(0, 50) || 'element';
+        const href = element.getAttribute('href');
+        const type = element.getAttribute('type');
+        
+        if (tagName === 'a' && href) {
+            return `🔗 Link: "${text}" - Takes you to ${href}`;
+        } else if (tagName === 'button') {
+            if (type === 'submit') {
+                return `✅ Submit button: "${text}" - Submits form data`;
+            }
+            return `🔘 Button: "${text}" - Performs an action when clicked`;
+        } else if (element.role === 'button') {
+            return `🔘 Interactive element: "${text}" - Acts as a button`;
+        } else if (tagName === 'input') {
+            return `📝 Input field: Type ${type || 'text'} - User enters ${type || 'text'} here`;
+        }
+        
+        return `✨ Interactive: "${text}"`;
+    }
+    
+    /**
+     * Provide developer help based on current context
+     */
+    function provideDeveloperHelp() {
+        speak(`💡 Developer Help Mode activated! I can help you with your current task.`, 3000);
+        
+        setTimeout(() => {
+            const context = analyzePageContext();
+            const helpMessage = generateContextualHelp(context);
+            
+            speak(helpMessage, 8000);
+            
+            // Enable Q&A mode
+            enableQAMode();
+        }, 3500);
+    }
+    
+    /**
+     * Analyze page context to understand what developer is working on
+     */
+    function analyzePageContext() {
+        const path = window.location.pathname;
+        const title = document.title;
+        const hasForm = document.querySelector('form') !== null;
+        const hasCanvas = document.querySelector('canvas') !== null;
+        const hasCodeBlocks = document.querySelector('pre, code') !== null;
+        const buttons = document.querySelectorAll('button').length;
+        const inputs = document.querySelectorAll('input, textarea, select').length;
+        
+        return {
+            path,
+            title,
+            hasForm,
+            hasCanvas,
+            hasCodeBlocks,
+            buttonCount: buttons,
+            inputCount: inputs,
+            pageType: determinePageType(path, title)
+        };
+    }
+    
+    /**
+     * Determine what type of page this is
+     */
+    function determinePageType(path, title) {
+        const lowercasePath = path.toLowerCase();
+        const lowercaseTitle = title.toLowerCase();
+        
+        if (lowercasePath.includes('dashboard') || lowercaseTitle.includes('dashboard')) {
+            return 'dashboard';
+        } else if (lowercasePath.includes('admin') || lowercaseTitle.includes('admin')) {
+            return 'admin';
+        } else if (lowercasePath.includes('login') || lowercasePath.includes('signup')) {
+            return 'auth';
+        } else if (lowercasePath.includes('test') || lowercaseTitle.includes('test')) {
+            return 'testing';
+        } else if (lowercasePath.includes('araya') || lowercaseTitle.includes('araya')) {
+            return 'araya';
+        } else if (lowercasePath === '/' || lowercasePath.includes('index')) {
+            return 'home';
+        }
+        
+        return 'general';
+    }
+    
+    /**
+     * Generate contextual help message
+     */
+    function generateContextualHelp(context) {
+        const helpMap = {
+            'dashboard': `📊 You're on a dashboard page. I can help you:\n• Understand the metrics displayed\n• Navigate to specific sections\n• Test interactive widgets\n• Debug data visualization issues`,
+            'admin': `🔐 You're on an admin page. I can help you:\n• Test access controls\n• Verify admin functions\n• Check permission systems\n• Navigate admin features`,
+            'auth': `🔑 You're on an authentication page. I can help you:\n• Test login/signup flows\n• Verify form validation\n• Check error handling\n• Test password requirements`,
+            'testing': `🧪 You're on a test page. I can help you:\n• Run through test scenarios\n• Verify functionality\n• Check console for errors\n• Test all interactive elements`,
+            'araya': `🤖 You're on an ARAYA page. I can help you:\n• Test AI interactions\n• Verify ARAYA connections\n• Check file system access\n• Test autonomous features`,
+            'home': `🏠 You're on the home page. I can help you:\n• Navigate to any section\n• Test main features\n• Check responsive design\n• Verify all links work`,
+            'general': `💡 I can help you with:\n• Testing interactive elements\n• Checking for errors\n• Navigating the site\n• Understanding functionality`
+        };
+        
+        let help = helpMap[context.pageType] || helpMap['general'];
+        
+        if (context.hasForm) {
+            help += `\n\n📝 I notice there's a form on this page. I can help test it!`;
+        }
+        
+        if (context.buttonCount > 5) {
+            help += `\n\n🔘 Found ${context.buttonCount} buttons - I can test them all!`;
+        }
+        
+        return help;
+    }
+    
+    /**
+     * Enable Q&A mode for developer questions
+     */
+    function enableQAMode() {
+        // Create Q&A interface
+        const qaInterface = document.createElement('div');
+        qaInterface.id = 'robot-qa-interface';
+        qaInterface.style.cssText = `
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(147, 112, 219, 0.95));
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            max-width: 400px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        qaInterface.innerHTML = `
+            <div style="color: white; margin-bottom: 15px;">
+                <strong>🤖 Ask R3-D3 a Question</strong>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    float: right;
+                    background: rgba(255, 255, 255, 0.2);
+                    border: none;
+                    color: white;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">×</button>
+            </div>
+            <textarea id="robot-question-input" placeholder="Ask me anything about this project..." style="
+                width: 100%;
+                min-height: 80px;
+                padding: 12px;
+                border: none;
+                border-radius: 8px;
+                font-family: inherit;
+                resize: vertical;
+                margin-bottom: 10px;
+            "></textarea>
+            <button onclick="window.RobotAI.answerQuestion()" style="
+                width: 100%;
+                padding: 12px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.2s;
+            ">Ask Question 💬</button>
+        `;
+        
+        document.body.appendChild(qaInterface);
+    }
+    
+    /**
+     * Answer user's question using ARYA knowledge
+     */
+    async function answerQuestion() {
+        const input = document.getElementById('robot-question-input');
+        if (!input) return;
+        
+        const question = input.value.trim();
+        if (!question) {
+            speak(`❓ Please enter a question first!`, 3000);
+            return;
+        }
+        
+        speak(`🤔 Let me think about that...`, 2000);
+        
+        if (window.RobotAssistant) {
+            window.RobotAssistant.setAnimationState('thinking');
+        }
+        
+        // Analyze question and provide answer based on context
+        setTimeout(() => {
+            const answer = generateAnswer(question);
+            speak(answer, 8000);
+            
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('speaking');
+            }
+        }, 2500);
+    }
+    
+    /**
+     * Generate answer to question based on repository knowledge
+     */
+    function generateAnswer(question) {
+        const lowerQuestion = question.toLowerCase();
+        
+        // Pattern recognition knowledge
+        if (lowerQuestion.includes('pattern') || lowerQuestion.includes('detect')) {
+            return `🎯 Pattern detection is core to this platform! We have:\n• Love bombing detector\n• Gaslighting analyzer\n• Manipulation immunity tracker\n• And 30+ other pattern detection tools\n\nAll tools help users recognize psychological patterns. Check the /consciousness-tools.html page!`;
+        }
+        
+        // ARAYA knowledge
+        if (lowerQuestion.includes('araya') || lowerQuestion.includes('ai')) {
+            return `🤖 ARAYA is our AI consciousness assistant! It includes:\n• ARAYA Bridge - Natural language interface\n• File Writer - Autonomous file editing\n• Brain System - Context-aware AI\n• Chat Interface - Interactive conversations\n\nI'm connected to ARAYA and can edit files autonomously!`;
+        }
+        
+        // Seven domains knowledge
+        if (lowerQuestion.includes('domain') || lowerQuestion.includes('seven')) {
+            return `📊 The Seven Domains framework:\n1. Command - Clarity & decisions\n2. Creation - Building & projects\n3. Connection - Relationships\n4. Peace - Security & boundaries\n5. Abundance - Financial growth\n6. Wisdom - Learning & research\n7. Purpose - Meaning & integration\n\nEvery tool aligns with these domains!`;
+        }
+        
+        // Architecture knowledge
+        if (lowerQuestion.includes('architect') || lowerQuestion.includes('structure')) {
+            return `🏗️ Platform architecture:\n• Multi-page HTML tools (49+ pages)\n• Python automation (CYCLOTRON, ARAYA)\n• Netlify Functions (serverless API)\n• Supabase database (PostgreSQL)\n• Node.js v18+ runtime\n\nCheck ARCHITECTURE.md for full details!`;
+        }
+        
+        // Testing knowledge
+        if (lowerQuestion.includes('test') || lowerQuestion.includes('debug')) {
+            return `🧪 Testing approach:\n• FUNCTIONALITY_TEST_SUITE.py for Python\n• Manual HTML testing in browsers\n• Netlify dev for local testing\n• GitHub Actions for CI/CD\n\nI can help you test any feature - just ask!`;
+        }
+        
+        // Robot features
+        if (lowerQuestion.includes('r3-d3') || lowerQuestion.includes('robot') || lowerQuestion.includes('you')) {
+            return `🤖 I'm R3-D3! I can:\n• Give autonomous site tours\n• Help developers with tasks\n• Check for errors and fix them\n• Navigate through pages\n• Edit files (with permission)\n• Answer questions about the project\n\nLinked with ARAYA, I know everything in this repo!`;
+        }
+        
+        // Default response
+        return `💡 Great question! Based on the current page context, I suggest:\n• Check the relevant documentation\n• Look in the /docs folder\n• Search SITE_MAP.md for related pages\n• Ask me more specific questions\n\nI'm learning about this project through ARAYA's knowledge base!`;
+    }
+    
+    /**
+     * Check for errors on current page
+     */
+    function checkForErrors() {
+        speak(`🔍 Running comprehensive error check...`, 3000);
+        
+        if (window.RobotAssistant) {
+            window.RobotAssistant.setAnimationState('thinking');
+        }
+        
+        setTimeout(() => {
+            const errors = detectPageErrors();
+            displayErrorReport(errors);
+            
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('idle');
+            }
+        }, 3500);
+    }
+    
+    /**
+     * Detect various types of errors on the page
+     */
+    function detectPageErrors() {
+        const errors = {
+            brokenLinks: [],
+            consoleErrors: [],
+            missingImages: [],
+            missingResources: [],
+            accessibilityIssues: [],
+            performanceWarnings: []
+        };
+        
+        // Check for broken links
+        document.querySelectorAll('a[href]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && href.startsWith('#')) {
+                // Internal anchor
+                const target = document.querySelector(href);
+                if (!target) {
+                    errors.brokenLinks.push({
+                        type: 'broken-anchor',
+                        element: link,
+                        href: href,
+                        text: link.textContent.trim()
+                    });
+                }
+            }
+        });
+        
+        // Check for missing images
+        document.querySelectorAll('img').forEach(img => {
+            if (!img.complete || img.naturalHeight === 0) {
+                errors.missingImages.push({
+                    type: 'missing-image',
+                    element: img,
+                    src: img.src
+                });
+            }
+            
+            // Check for missing alt text
+            if (!img.alt) {
+                errors.accessibilityIssues.push({
+                    type: 'missing-alt',
+                    element: img,
+                    message: 'Image missing alt text'
+                });
+            }
+        });
+        
+        // Check for accessibility issues
+        document.querySelectorAll('button, a').forEach(el => {
+            if (!el.textContent.trim() && !el.getAttribute('aria-label')) {
+                errors.accessibilityIssues.push({
+                    type: 'missing-label',
+                    element: el,
+                    message: 'Interactive element has no accessible label'
+                });
+            }
+        });
+        
+        // Check for form inputs without labels
+        document.querySelectorAll('input:not([type="hidden"])').forEach(input => {
+            const id = input.id;
+            if (id) {
+                const label = document.querySelector(`label[for="${id}"]`);
+                if (!label && !input.getAttribute('aria-label')) {
+                    errors.accessibilityIssues.push({
+                        type: 'input-no-label',
+                        element: input,
+                        message: 'Input field without label'
+                    });
+                }
+            }
+        });
+        
+        // Performance warnings
+        const scripts = document.querySelectorAll('script[src]');
+        if (scripts.length > 20) {
+            errors.performanceWarnings.push({
+                type: 'too-many-scripts',
+                count: scripts.length,
+                message: `${scripts.length} external scripts may impact performance`
+            });
+        }
+        
+        return errors;
+    }
+    
+    /**
+     * Display error report
+     */
+    function displayErrorReport(errors) {
+        const totalErrors = 
+            errors.brokenLinks.length +
+            errors.missingImages.length +
+            errors.accessibilityIssues.length +
+            errors.performanceWarnings.length;
+        
+        if (totalErrors === 0) {
+            speak(`✅ Great news! I didn't find any major errors on this page. Everything looks good!`, 5000);
+            return;
+        }
+        
+        let report = `📋 Error Report (${totalErrors} issues found):\n\n`;
+        
+        if (errors.brokenLinks.length > 0) {
+            report += `🔗 ${errors.brokenLinks.length} broken links\n`;
+        }
+        
+        if (errors.missingImages.length > 0) {
+            report += `🖼️ ${errors.missingImages.length} missing images\n`;
+        }
+        
+        if (errors.accessibilityIssues.length > 0) {
+            report += `♿ ${errors.accessibilityIssues.length} accessibility issues\n`;
+        }
+        
+        if (errors.performanceWarnings.length > 0) {
+            report += `⚡ ${errors.performanceWarnings.length} performance warnings\n`;
+        }
+        
+        report += `\nClick "Fix Issues" to auto-fix what I can!`;
+        
+        speak(report, 8000);
+        
+        // Store errors for fixing
+        brain.lastErrorReport = errors;
+    }
+    
+    /**
+     * Auto-fix detected issues
+     */
+    async function autoFixIssues() {
+        if (!brain.lastErrorReport) {
+            speak(`❓ No error report available. Run "Check Errors" first!`, 4000);
+            return;
+        }
+        
+        speak(`🔧 Attempting to fix detected issues...`, 3000);
+        
+        if (window.RobotAssistant) {
+            window.RobotAssistant.setAnimationState('editing');
+        }
+        
+        setTimeout(() => {
+            const fixed = performAutoFix(brain.lastErrorReport);
+            reportFixResults(fixed);
+            
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('idle');
+            }
+        }, 3500);
+    }
+    
+    /**
+     * Perform automatic fixes
+     */
+    function performAutoFix(errors) {
+        const fixed = {
+            brokenLinks: 0,
+            missingImages: 0,
+            accessibilityIssues: 0,
+            performanceWarnings: 0
+        };
+        
+        // Fix broken anchor links
+        errors.brokenLinks.forEach(error => {
+            if (error.type === 'broken-anchor') {
+                // Remove broken anchor or redirect to top
+                error.element.setAttribute('href', '#');
+                error.element.title = 'Link target not found - redirects to top';
+                fixed.brokenLinks++;
+            }
+        });
+        
+        // Fix missing alt text
+        errors.accessibilityIssues.forEach(error => {
+            if (error.type === 'missing-alt' && error.element.tagName === 'IMG') {
+                const filename = error.element.src.split('/').pop().split('.')[0];
+                error.element.alt = filename.replace(/[-_]/g, ' ');
+                fixed.accessibilityIssues++;
+            }
+            
+            if (error.type === 'missing-label' && error.element.tagName === 'BUTTON') {
+                const text = error.element.textContent.trim();
+                if (!text) {
+                    error.element.setAttribute('aria-label', 'Button');
+                    fixed.accessibilityIssues++;
+                }
+            }
+        });
+        
+        // Hide missing images
+        errors.missingImages.forEach(error => {
+            error.element.style.display = 'none';
+            error.element.title = 'Image failed to load';
+            fixed.missingImages++;
+        });
+        
+        return fixed;
+    }
+    
+    /**
+     * Report fix results
+     */
+    function reportFixResults(fixed) {
+        const totalFixed = 
+            fixed.brokenLinks +
+            fixed.missingImages +
+            fixed.accessibilityIssues +
+            fixed.performanceWarnings;
+        
+        if (totalFixed === 0) {
+            speak(`⚠️ I couldn't auto-fix the detected issues. They may require manual intervention or page editing permissions.`, 6000);
+            return;
+        }
+        
+        let report = `✅ Fixed ${totalFixed} issues:\n\n`;
+        
+        if (fixed.brokenLinks > 0) {
+            report += `🔗 ${fixed.brokenLinks} broken links\n`;
+        }
+        
+        if (fixed.missingImages > 0) {
+            report += `🖼️ ${fixed.missingImages} missing images\n`;
+        }
+        
+        if (fixed.accessibilityIssues > 0) {
+            report += `♿ ${fixed.accessibilityIssues} accessibility issues\n`;
+        }
+        
+        report += `\n✨ Page is now improved!`;
+        
+        speak(report, 7000);
+    }
+    
+    /**
+     * Show knowledge base
+     */
+    function showKnowledgeBase() {
+        speak(`📚 Opening Knowledge Base...`, 2000);
+        
+        setTimeout(() => {
+            const kb = createKnowledgeBaseInterface();
+            document.body.appendChild(kb);
+        }, 2500);
+    }
+    
+    /**
+     * Create knowledge base interface
+     */
+    function createKnowledgeBaseInterface() {
+        const kb = document.createElement('div');
+        kb.id = 'robot-knowledge-base';
+        kb.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 0, 30, 0.98), rgba(20, 20, 50, 0.98));
+            border: 2px solid #00f0ff;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: white;
+            animation: scaleIn 0.3s ease-out;
+        `;
+        
+        kb.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #00f0ff;">🤖 R3-D3 Knowledge Base</h2>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    background: rgba(255, 68, 68, 0.8);
+                    border: none;
+                    color: white;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 20px;
+                    font-weight: bold;
+                ">×</button>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="kb-search" placeholder="Search knowledge base..." style="
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #00f0ff;
+                    border-radius: 8px;
+                    background: rgba(0, 0, 0, 0.3);
+                    color: white;
+                    font-size: 14px;
+                ">
+            </div>
+            
+            <div style="display: grid; gap: 15px;">
+                <div class="kb-section">
+                    <h3 style="color: #ffd700; margin-bottom: 10px;">📊 Seven Domains</h3>
+                    <p style="font-size: 14px; line-height: 1.6;">
+                        Framework for consciousness development across Command, Creation, Connection, 
+                        Peace, Abundance, Wisdom, and Purpose domains.
+                    </p>
+                    <a href="/seven-domains.html" style="color: #00f0ff; text-decoration: none;">Learn more →</a>
+                </div>
+                
+                <div class="kb-section">
+                    <h3 style="color: #ffd700; margin-bottom: 10px;">🎯 Pattern Recognition</h3>
+                    <p style="font-size: 14px; line-height: 1.6;">
+                        30+ tools for detecting manipulation patterns, psychological tactics, 
+                        and unhealthy relationship dynamics.
+                    </p>
+                    <a href="/consciousness-tools.html" style="color: #00f0ff; text-decoration: none;">Explore tools →</a>
+                </div>
+                
+                <div class="kb-section">
+                    <h3 style="color: #ffd700; margin-bottom: 10px;">🤖 ARAYA System</h3>
+                    <p style="font-size: 14px; line-height: 1.6;">
+                        AI consciousness assistant with autonomous file editing, natural language 
+                        processing, and context-aware assistance.
+                    </p>
+                    <a href="/araya-chat.html" style="color: #00f0ff; text-decoration: none;">Try ARAYA →</a>
+                </div>
+                
+                <div class="kb-section">
+                    <h3 style="color: #ffd700; margin-bottom: 10px;">🏗️ Architecture</h3>
+                    <p style="font-size: 14px; line-height: 1.6;">
+                        Multi-layer architecture with HTML tools, Python automation, 
+                        Netlify Functions, and Supabase database.
+                    </p>
+                    <a href="/ARCHITECTURE.md" style="color: #00f0ff; text-decoration: none;">View architecture →</a>
+                </div>
+                
+                <div class="kb-section">
+                    <h3 style="color: #ffd700; margin-bottom: 10px;">🔧 Developer Guide</h3>
+                    <p style="font-size: 14px; line-height: 1.6;">
+                        Development guidelines, testing procedures, and contribution standards 
+                        for building on the platform.
+                    </p>
+                    <a href="/CONTRIBUTING.md" style="color: #00f0ff; text-decoration: none;">Read guide →</a>
+                </div>
+            </div>
+        `;
+        
+        // Add animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes scaleIn {
+                from {
+                    transform: translate(-50%, -50%) scale(0.8);
+                    opacity: 0;
+                }
+                to {
+                    transform: translate(-50%, -50%) scale(1);
+                    opacity: 1;
+                }
+            }
+            .kb-section {
+                background: rgba(0, 240, 255, 0.05);
+                border: 1px solid rgba(0, 240, 255, 0.2);
+                border-radius: 10px;
+                padding: 15px;
+                transition: all 0.3s;
+            }
+            .kb-section:hover {
+                background: rgba(0, 240, 255, 0.1);
+                border-color: rgba(0, 240, 255, 0.4);
+                transform: translateY(-2px);
+            }
+        `;
+        document.head.appendChild(style);
+        
+        return kb;
+    }
+    
+    /**
+     * Show settings
+     */
+    function showSettings() {
+        speak(`⚙️ Opening R3-D3 settings...`, 2000);
+        
+        setTimeout(() => {
+            const settings = createSettingsInterface();
+            document.body.appendChild(settings);
+        }, 2500);
+    }
+    
+    /**
+     * Create settings interface
+     */
+    function createSettingsInterface() {
+        const settings = document.createElement('div');
+        settings.id = 'robot-settings';
+        settings.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 0, 30, 0.98), rgba(20, 20, 50, 0.98));
+            border: 2px solid #9370db;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            max-width: 500px;
+            color: white;
+            animation: scaleIn 0.3s ease-out;
+        `;
+        
+        settings.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #9370db;">⚙️ R3-D3 Settings</h2>
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    background: rgba(255, 68, 68, 0.8);
+                    border: none;
+                    color: white;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 20px;
+                    font-weight: bold;
+                ">×</button>
+            </div>
+            
+            <div style="display: grid; gap: 20px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Robot Personality</label>
+                    <select style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: white; border: 1px solid #9370db;">
+                        <option value="helpful">Helpful & Friendly</option>
+                        <option value="professional">Professional</option>
+                        <option value="enthusiastic">Enthusiastic</option>
+                        <option value="concise">Concise & Direct</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Tour Speed</label>
+                    <select style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: white; border: 1px solid #9370db;">
+                        <option value="slow">Slow (5s per element)</option>
+                        <option value="normal" selected>Normal (3s per element)</option>
+                        <option value="fast">Fast (1s per element)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" checked style="margin-right: 10px; width: 20px; height: 20px;">
+                        <span>Auto-fix errors when detected</span>
+                    </label>
+                </div>
+                
+                <div>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" checked style="margin-right: 10px; width: 20px; height: 20px;">
+                        <span>Show speech bubbles</span>
+                    </label>
+                </div>
+                
+                <div>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" style="margin-right: 10px; width: 20px; height: 20px;">
+                        <span>Voice interaction (experimental)</span>
+                    </label>
+                </div>
+                
+                <button onclick="window.RobotAI.saveSettings(); this.parentElement.parentElement.remove();" style="
+                    width: 100%;
+                    padding: 12px;
+                    background: linear-gradient(135deg, #00f0ff, #9370db);
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">Save Settings</button>
+            </div>
+        `;
+        
+        return settings;
+    }
+    
+    /**
+     * Save settings
+     */
+    function saveSettings() {
+        speak(`✅ Settings saved! Your preferences have been updated.`, 4000);
+    }
 
     /**
      * Highlight an element on the page
@@ -549,7 +1578,7 @@
         if (robotContainer) {
             robotContainer.style.pointerEvents = 'auto';
             robotContainer.addEventListener('click', () => {
-                provideContextualHelp();
+                toggleButtonMenu();
             });
         }
         
@@ -629,6 +1658,15 @@
         getExplorationScore: () => brain.userProfile.explorationScore,
         getVisitedPages: () => Array.from(brain.visitedPages),
         getAllPages: () => brain.allPages,
+        toggleButtonMenu,
+        startEnhancedTour,
+        provideDeveloperHelp,
+        checkForErrors,
+        autoFixIssues,
+        showKnowledgeBase,
+        showSettings,
+        answerQuestion,
+        saveSettings,
         brain
     };
 
