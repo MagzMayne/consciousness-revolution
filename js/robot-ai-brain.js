@@ -31,8 +31,22 @@
         HELP_ACTIVATION_DELAY: 3500,    // Delay for help system activation (ms)
         TYPING_SPEED: 30,               // Characters per second for typing animation
         BUBBLE_MAX_WIDTH: 450,          // Maximum width of speech bubble in pixels (increased)
-        WALK_TO_ELEMENT_OFFSET: 20      // Offset when walking to elements
+        BUBBLE_DEFAULT_HEIGHT: 150,     // Default height estimate for speech bubble
+        WALK_TO_ELEMENT_OFFSET: 20,     // Offset when walking to elements
+        BOUNDARY_PADDING: 50,           // Safe padding from screen edges
+        ROBOT_TO_ELEMENT_DISTANCE: 150, // Distance robot maintains from elements
+        SAFE_BOUNDARY_WIDTH: 200,       // Safe width from right edge
+        SAFE_BOUNDARY_HEIGHT: 100,      // Safe height from top/bottom edges
+        BUBBLE_OFFSET_FROM_ROBOT: 100,  // Distance bubble appears above robot
+        SCROLL_VISIBILITY_MARGIN: 50    // Margin for scroll visibility checks
     };
+    
+    /**
+     * Helper function to clamp a value between min and max bounds
+     */
+    function clampToBounds(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
 
     // AI Brain State
     const brain = {
@@ -401,11 +415,36 @@
         
         // Position bubble above robot's head (robot size is 80px)
         const robotSize = window.RobotAssistant.config?.robotSize || 80;
-        const bubbleOffset = 100; // Distance above robot's head
         
-        // Calculate position: above the robot
-        const left = state.position.x;
-        const bottom = window.innerHeight - state.position.y + bubbleOffset;
+        // Calculate initial position: above the robot
+        let left = state.position.x;
+        let bottom = window.innerHeight - state.position.y + CONFIG.BUBBLE_OFFSET_FROM_ROBOT;
+        
+        // Get bubble dimensions (need to account for max-width)
+        const bubbleWidth = Math.min(CONFIG.BUBBLE_MAX_WIDTH, speechBubble.offsetWidth || CONFIG.BUBBLE_MAX_WIDTH);
+        const bubbleHeight = speechBubble.offsetHeight || 150;
+        
+        // Prevent bubble from going off left edge
+        if (left < 10) {
+            left = 10;
+        }
+        
+        // Prevent bubble from going off right edge
+        if (left + bubbleWidth > window.innerWidth - 10) {
+            left = window.innerWidth - bubbleWidth - 10;
+        }
+        
+        // Prevent bubble from going off top edge
+        const topPosition = window.innerHeight - bottom;
+        if (topPosition < 10) {
+            bottom = window.innerHeight - bubbleHeight - 10;
+        }
+        
+        // Prevent bubble from going off bottom edge
+        if (bottom < 10) {
+            // Position below robot instead
+            bottom = state.position.y - robotSize - 20;
+        }
         
         speechBubble.style.left = `${left}px`;
         speechBubble.style.bottom = `${bottom}px`;
@@ -641,23 +680,8 @@
      * Start the guided tour
      */
     function startTour() {
-        brain.tourMode = true;
-        brain.currentTourStep = 0;
-        
-        // Build tour sequence based on page categories
-        brain.tourSequence = buildTourSequence();
-        
-        hideSpeechBubble();
-        
-        setTimeout(() => {
-            speak(`🎉 Awesome! Let's start the tour. I'll walk you through the key features...`, 3000);
-            
-            setTimeout(() => {
-                nextTourStep();
-            }, 3500);
-        }, 500);
-        
-        saveMemory();
+        // Use enhanced tour instead of multi-page navigation
+        startEnhancedTour();
     }
 
     /**
@@ -733,15 +757,24 @@
      * Enhanced autonomous tour with element description
      */
     function startEnhancedTour() {
-        speak(`🚀 Starting comprehensive site tour! I'll navigate through the site and describe everything I find...`, 4000);
+        brain.tourMode = true;
+        brain.currentTourStep = 0;
         
-        if (window.RobotAssistant) {
-            window.RobotAssistant.setAnimationState('walking');
-        }
+        hideSpeechBubble();
         
         setTimeout(() => {
-            performAutonomousTour();
-        }, 4500);
+            speak(`🚀 Starting comprehensive site tour! I'll navigate through the site and describe everything I find...`, 4000);
+            
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('thinking');
+            }
+            
+            setTimeout(() => {
+                performAutonomousTour();
+            }, 4500);
+        }, 500);
+        
+        saveMemory();
     }
     
     /**
@@ -760,18 +793,20 @@
             
             if (links.length > 0) {
                 const randomLink = links[Math.floor(Math.random() * links.length)];
-                highlightElement(randomLink);
-                setTimeout(() => {
+                walkToElement(randomLink, () => {
+                    highlightElement(randomLink);
                     speak(`📍 Navigating to: ${randomLink.textContent || 'Next page'}`, 2000);
                     setTimeout(() => {
                         window.location.href = randomLink.getAttribute('href');
                     }, 2500);
-                }, 4500);
+                });
+            } else {
+                endTour();
             }
             return;
         }
         
-        speak(`✨ I found ${elements.length} interactive elements on this page! Let me show you...`, 4000);
+        speak(`✨ I found ${elements.length} interactive elements on this page! Let me show you with fly mode activated...`, 5000);
         
         // Tour through elements
         let currentIndex = 0;
@@ -782,21 +817,27 @@
                 if (window.RobotAssistant) {
                     window.RobotAssistant.setAnimationState('idle');
                 }
+                endTour();
                 return;
             }
             
             const element = elements[currentIndex];
-            highlightElement(element);
             
-            // Describe the element
-            const description = describeElement(element);
-            speak(description, 4000);
-            
-            currentIndex++;
-            setTimeout(tourNextElement, CONFIG.TOUR_ELEMENT_DELAY);
+            // Walk to element with fly mode
+            walkToElement(element, () => {
+                // Highlight the element
+                highlightElement(element);
+                
+                // Describe the element
+                const description = describeElement(element);
+                speak(description, 5000);
+                
+                currentIndex++;
+                setTimeout(tourNextElement, CONFIG.TOUR_ELEMENT_DELAY);
+            });
         }
         
-        setTimeout(tourNextElement, 4500);
+        setTimeout(tourNextElement, 5500);
     }
     
     /**
@@ -1566,7 +1607,7 @@
      * Highlight an element on the page
      */
     /**
-     * Walk robot to specific element
+     * Walk robot to specific element with fly mode and auto-scroll
      */
     function walkToElement(element, callback) {
         if (!element) {
@@ -1574,33 +1615,85 @@
             return;
         }
         
-        const rect = element.getBoundingClientRect();
+        // Scroll element into view first to ensure it's visible
+        element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'center'
+        });
         
-        // Calculate position near the element
-        const targetX = rect.left + rect.width / 2 - CONFIG.WALK_TO_ELEMENT_OFFSET;
-        const targetY = window.innerHeight - rect.top - rect.height / 2;
-        
-        // Set walking animation
-        if (window.RobotAssistant) {
-            window.RobotAssistant.setAnimationState('walking');
-            window.RobotAssistant.moveTo(targetX, targetY);
+        // Wait for scroll to complete
+        setTimeout(() => {
+            const rect = element.getBoundingClientRect();
             
-            // Calculate walk duration based on distance
-            const state = window.RobotAssistant.getState();
-            const dx = targetX - state.position.x;
-            const dy = targetY - state.position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            const walkDuration = (distance / window.RobotAssistant.config.moveSpeed) * 16; // Convert frames to ms
+            // Calculate safe position near the element
+            // Position robot to the left of the element, at element's vertical center
+            let targetX = Math.max(rect.left - CONFIG.ROBOT_TO_ELEMENT_DISTANCE, CONFIG.BOUNDARY_PADDING);
+            let targetY = window.innerHeight - (rect.top + rect.height / 2);
             
-            // Wait for robot to reach destination
-            setTimeout(() => {
-                if (window.RobotAssistant) {
-                    window.RobotAssistant.setAnimationState('idle');
-                }
+            // Ensure target is within safe bounds using clampToBounds helper
+            targetX = clampToBounds(
+                targetX,
+                CONFIG.BOUNDARY_PADDING,
+                window.innerWidth - CONFIG.SAFE_BOUNDARY_WIDTH
+            );
+            targetY = clampToBounds(
+                targetY,
+                CONFIG.BOUNDARY_PADDING + CONFIG.SAFE_BOUNDARY_HEIGHT,
+                window.innerHeight - CONFIG.BOUNDARY_PADDING - CONFIG.SAFE_BOUNDARY_HEIGHT
+            );
+            
+            // Set walking animation and move (fly mode)
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('walking');
+                window.RobotAssistant.moveTo(targetX, targetY);
+                
+                // Calculate walk duration based on distance
+                const state = window.RobotAssistant.getState();
+                const dx = targetX - state.position.x;
+                const dy = targetY - state.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const walkDuration = (distance / window.RobotAssistant.config.moveSpeed) * 16; // Convert frames to ms
+                
+                // Wait for robot to reach destination
+                setTimeout(() => {
+                    if (window.RobotAssistant) {
+                        window.RobotAssistant.setAnimationState('idle');
+                    }
+                    
+                    // Ensure robot and bubble are visible after movement
+                    ensureRobotVisible();
+                    
+                    if (callback) callback();
+                }, Math.min(walkDuration, 3000)); // Max 3 seconds
+            } else {
                 if (callback) callback();
-            }, Math.min(walkDuration, 3000)); // Max 3 seconds
-        } else {
-            if (callback) callback();
+            }
+        }, 500); // Wait for scroll animation
+    }
+    
+    /**
+     * Ensure robot and speech bubble are visible on screen
+     */
+    function ensureRobotVisible() {
+        if (!window.RobotAssistant) return;
+        
+        const state = window.RobotAssistant.getState();
+        const robotSize = window.RobotAssistant.config?.robotSize || 80;
+        const bubbleHeight = speechBubble?.offsetHeight || CONFIG.BUBBLE_DEFAULT_HEIGHT;
+        
+        // Calculate how much to scroll to keep robot + bubble visible
+        const robotBottom = window.innerHeight - state.position.y;
+        const bubbleTop = robotBottom + CONFIG.BUBBLE_OFFSET_FROM_ROBOT + bubbleHeight;
+        
+        // If bubble would be off top of screen, scroll down to show it
+        if (bubbleTop > window.innerHeight - CONFIG.SCROLL_VISIBILITY_MARGIN) {
+            // Add SAFE_BOUNDARY_HEIGHT to ensure bubble has comfortable padding from top
+            const scrollAmount = bubbleTop - window.innerHeight + CONFIG.SAFE_BOUNDARY_HEIGHT;
+            window.scrollBy({
+                top: scrollAmount,
+                behavior: 'smooth'
+            });
         }
     }
     
@@ -1945,7 +2038,14 @@
         
         return [...buttons, ...links].filter(el => {
             const rect = el.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
+            // Filter out hidden elements and elements too close to top/bottom edges
+            const isVisible = rect.width > 0 && rect.height > 0;
+            const notTooHigh = rect.top > 50; // At least 50px from top
+            const notTooLow = rect.bottom < window.innerHeight - 50; // At least 50px from bottom
+            const notRobotMenu = !el.classList.contains('robot-menu-btn') && 
+                                 !el.closest('#robot-button-menu');
+            
+            return isVisible && notTooHigh && notTooLow && notRobotMenu;
         });
     }
 
