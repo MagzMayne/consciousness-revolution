@@ -31,6 +31,7 @@
         HELP_ACTIVATION_DELAY: 3500,    // Delay for help system activation (ms)
         TYPING_SPEED: 30,               // Characters per second for typing animation
         BUBBLE_MAX_WIDTH: 450,          // Maximum width of speech bubble in pixels (increased)
+        BUBBLE_DEFAULT_HEIGHT: 150,     // Default height estimate for speech bubble
         WALK_TO_ELEMENT_OFFSET: 20,     // Offset when walking to elements
         BOUNDARY_PADDING: 50,           // Safe padding from screen edges
         ROBOT_TO_ELEMENT_DISTANCE: 150, // Distance robot maintains from elements
@@ -39,6 +40,13 @@
         BUBBLE_OFFSET_FROM_ROBOT: 100,  // Distance bubble appears above robot
         SCROLL_VISIBILITY_MARGIN: 50    // Margin for scroll visibility checks
     };
+    
+    /**
+     * Helper function to clamp a value between min and max bounds
+     */
+    function clampToBounds(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
 
     // AI Brain State
     const brain = {
@@ -1623,11 +1631,17 @@
             let targetX = Math.max(rect.left - CONFIG.ROBOT_TO_ELEMENT_DISTANCE, CONFIG.BOUNDARY_PADDING);
             let targetY = window.innerHeight - (rect.top + rect.height / 2);
             
-            // Ensure target is within safe bounds
-            targetX = Math.max(CONFIG.BOUNDARY_PADDING, 
-                Math.min(window.innerWidth - CONFIG.SAFE_BOUNDARY_WIDTH, targetX));
-            targetY = Math.max(CONFIG.BOUNDARY_PADDING + CONFIG.SAFE_BOUNDARY_HEIGHT, 
-                Math.min(window.innerHeight - CONFIG.BOUNDARY_PADDING - CONFIG.SAFE_BOUNDARY_HEIGHT, targetY));
+            // Ensure target is within safe bounds using clampToBounds helper
+            targetX = clampToBounds(
+                targetX,
+                CONFIG.BOUNDARY_PADDING,
+                window.innerWidth - CONFIG.SAFE_BOUNDARY_WIDTH
+            );
+            targetY = clampToBounds(
+                targetY,
+                CONFIG.BOUNDARY_PADDING + CONFIG.SAFE_BOUNDARY_HEIGHT,
+                window.innerHeight - CONFIG.BOUNDARY_PADDING - CONFIG.SAFE_BOUNDARY_HEIGHT
+            );
             
             // Set walking animation and move (fly mode)
             if (window.RobotAssistant) {
@@ -1666,7 +1680,7 @@
         
         const state = window.RobotAssistant.getState();
         const robotSize = window.RobotAssistant.config?.robotSize || 80;
-        const bubbleHeight = speechBubble?.offsetHeight || 150;
+        const bubbleHeight = speechBubble?.offsetHeight || CONFIG.BUBBLE_DEFAULT_HEIGHT;
         
         // Calculate how much to scroll to keep robot + bubble visible
         const robotBottom = window.innerHeight - state.position.y;
@@ -1674,6 +1688,7 @@
         
         // If bubble would be off top of screen, scroll down to show it
         if (bubbleTop > window.innerHeight - CONFIG.SCROLL_VISIBILITY_MARGIN) {
+            // Add SAFE_BOUNDARY_HEIGHT to ensure bubble has comfortable padding from top
             const scrollAmount = bubbleTop - window.innerHeight + CONFIG.SAFE_BOUNDARY_HEIGHT;
             window.scrollBy({
                 top: scrollAmount,
