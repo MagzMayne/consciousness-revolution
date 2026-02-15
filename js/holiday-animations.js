@@ -22,8 +22,8 @@ class HolidayAnimations {
         const month = this.currentDate.getMonth() + 1; // 1-12
         const day = this.currentDate.getDate();
 
-        // Valentine's Week - Feb 13-15
-        if (month === 2 && day >= 13 && day <= 15) {
+        // Valentine's Day - February 14 only
+        if (month === 2 && day === 14) {
             return 'valentines';
         }
 
@@ -32,13 +32,13 @@ class HolidayAnimations {
             return 'newyear';
         }
 
-        // Halloween Week - Oct 29-31
-        if (month === 10 && day >= 29 && day <= 31) {
+        // Halloween - October 31 only
+        if (month === 10 && day === 31) {
             return 'halloween';
         }
 
-        // Christmas Week - Dec 23-26
-        if (month === 12 && day >= 23 && day <= 26) {
+        // Christmas - December 25 only
+        if (month === 12 && day === 25) {
             return 'christmas';
         }
 
