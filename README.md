@@ -100,6 +100,38 @@ consciousness-revolution/
 
 ---
 
+## 🪙 Cryptocurrency Integration
+
+The platform now features the **Overkill Kulture (OVERKILL)** token on Solana blockchain for developer rewards, community contributions, and platform investment.
+
+### Token Details
+- **Symbol:** OVERKILL
+- **Network:** Solana (SPL Token)
+- **Address:** `CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump`
+- **Trading:** [Pump.Fun Platform](https://join.pump.fun/HSag/ecrkgkhe)
+
+### Features
+- **🎁 Developer Rewards** - Earn 10-2000 tokens for contributions (bugs, features, docs, testing)
+- **📈 Investment** - Buy/sell tokens to support platform development
+- **🌟 Community Rewards** - Earn tokens for helping others, creating content, engagement
+- **📺 Live Streaming** - Watch behind-the-scenes development on Pump.Fun
+
+### Quick Start
+```bash
+# View crypto dashboard
+open crypto-dashboard.html
+
+# Track rewards (Python)
+python3 CRYPTO_REWARDS_TRACKER.py
+
+# Read documentation
+cat CRYPTO_INTEGRATION.md
+```
+
+**Dashboard:** [crypto-dashboard.html](/crypto-dashboard.html) | **Trade:** [Pump.Fun](https://join.pump.fun/HSag/ecrkgkhe)
+
+---
+
 ## The Ecosystem
 
 | Repo | Purpose | Status |
