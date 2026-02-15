@@ -31,7 +31,8 @@
         HELP_ACTIVATION_DELAY: 3500,    // Delay for help system activation (ms)
         TYPING_SPEED: 30,               // Characters per second for typing animation
         BUBBLE_MAX_WIDTH: 450,          // Maximum width of speech bubble in pixels (increased)
-        WALK_TO_ELEMENT_OFFSET: 20      // Offset when walking to elements
+        WALK_TO_ELEMENT_OFFSET: 20,     // Offset when walking to elements
+        BOUNDARY_PADDING: 50            // Safe padding from screen edges
     };
 
     // AI Brain State
@@ -804,7 +805,7 @@
                 if (window.RobotAssistant) {
                     window.RobotAssistant.setAnimationState('idle');
                 }
-                brain.tourMode = false;
+                endTour();
                 return;
             }
             
@@ -1615,14 +1616,14 @@
             
             // Calculate safe position near the element
             // Position robot to the left of the element, at element's vertical center
-            let targetX = Math.max(rect.left - 150, CONFIG.boundaryPadding);
+            let targetX = Math.max(rect.left - 150, CONFIG.BOUNDARY_PADDING);
             let targetY = window.innerHeight - (rect.top + rect.height / 2);
             
             // Ensure target is within safe bounds
-            targetX = Math.max(CONFIG.boundaryPadding, 
+            targetX = Math.max(CONFIG.BOUNDARY_PADDING, 
                 Math.min(window.innerWidth - 200, targetX));
-            targetY = Math.max(CONFIG.boundaryPadding + 100, 
-                Math.min(window.innerHeight - CONFIG.boundaryPadding - 100, targetY));
+            targetY = Math.max(CONFIG.BOUNDARY_PADDING + 100, 
+                Math.min(window.innerHeight - CONFIG.BOUNDARY_PADDING - 100, targetY));
             
             // Set walking animation and move (fly mode)
             if (window.RobotAssistant) {
@@ -2025,7 +2026,7 @@
             const notRobotMenu = !el.classList.contains('robot-menu-btn') && 
                                  !el.closest('#robot-button-menu');
             
-            return isVisible && notTooHigh && notRobotMenu;
+            return isVisible && notTooHigh && notTooLow && notRobotMenu;
         });
     }
 
