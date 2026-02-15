@@ -28,7 +28,7 @@
         position: { x: 100, y: window.innerHeight - 150 },
         target: null,
         velocity: { x: 0, y: 0 },
-        animationState: 'idle', // idle, walking, thinking, speaking, editing
+        animationState: 'idle', // idle, walking, thinking, speaking, editing, pointing
         facing: 'right', // left or right
         sessionId: null,
         lastActivity: Date.now(),
@@ -332,6 +332,28 @@
                 if (eye) {
                     eye.material.opacity = 0.9 + Math.sin(time * 8) * 0.1;
                 }
+                break;
+
+            case 'pointing':
+                // Point with right arm extended, stable body position
+                if (rightArm) {
+                    // Extend right arm forward and slightly up (pointing gesture)
+                    rightArm.rotation.z = -1.0; // Point outward horizontally
+                    rightArm.rotation.x = -0.3; // Slight upward angle
+                    rightArm.position.set(0.5, 0.5, 0); // Raise arm slightly
+                }
+                if (leftArm) {
+                    // Keep left arm at side in neutral position
+                    leftArm.rotation.z = 0.2;
+                    leftArm.rotation.x = 0;
+                }
+                // Head looks in pointing direction with slight emphasis motion
+                if (head) {
+                    head.rotation.z = Math.sin(time * 3) * 0.05; // Subtle nod
+                    head.position.y = 1.2;
+                }
+                // Stable body with slight emphasis bob
+                robot.position.y = Math.sin(time * 4) * 0.03;
                 break;
         }
     }
