@@ -103,7 +103,7 @@ Home → Transcend → Araya Chat → Conversation History
       <a href="ABOUT.html" class="nav-link">About</a>
     </div>
     <p class="footer-text">
-      © 2025 Consciousness Revolution
+      © 2025 Consciousness Revolution Developer Collective
     </p>
   </div>
 </footer>
@@ -305,7 +305,7 @@ Home → Transcend → Araya Chat → Conversation History
         <a href="consciousness-tools.html" class="nav-link">Tools</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
@@ -363,7 +363,7 @@ Home → Transcend → Araya Chat → Conversation History
         <a href="index.html" class="nav-link">Home</a>
         <a href="ABOUT.html" class="nav-link">About</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
@@ -422,7 +422,7 @@ Home → Transcend → Araya Chat → Conversation History
         <a href="SEVEN_DOMAINS_DASHBOARD.html" class="nav-link">Command</a>
         <a href="araya-chat.html" class="nav-link">Araya</a>
       </div>
-      <p class="footer-text">© 2025 Consciousness Revolution</p>
+      <p class="footer-text">© 2025 Consciousness Revolution Developer Collective</p>
     </div>
   </footer>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>

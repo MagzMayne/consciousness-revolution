@@ -204,8 +204,34 @@
             <p>Identify red flags and unfair terms in agreements</p>
         </div>
 
+        <!-- How to Use Section -->
+        <div class="input-section" style="margin-bottom: 20px; padding: 16px; background: rgba(102, 126, 234, 0.1);">
+            <h3 style="font-size: 14px; margin-bottom: 10px; color: #667eea;">💡 How to Use This Tool</h3>
+            <ul style="font-size: 12px; line-height: 1.6; opacity: 0.9; padding-left: 20px;">
+                <li style="margin-bottom: 6px;"><strong>Paste any contract:</strong> Employment agreements, Terms of Service, rental leases, NDAs, service contracts</li>
+                <li style="margin-bottom: 6px;"><strong>Get instant analysis:</strong> Tool scans for 10+ common red flags like arbitration clauses, auto-renewal, and vague terms</li>
+                <li style="margin-bottom: 6px;"><strong>Risk assessment:</strong> See LOW, MEDIUM, or HIGH risk rating based on unfair terms detected</li>
+                <li style="margin-bottom: 6px;"><strong>Ask these questions:</strong> Get specific questions to ask the other party about concerning clauses</li>
+                <li><strong>Get legal review:</strong> For HIGH risk contracts, always consult a lawyer before signing. This tool is educational, not legal advice.</li>
+            </ul>
+        </div>
+
         <div class="input-section">
             <textarea class="contract-input" id="contract" placeholder="Paste contract text, terms of service, or agreement language to analyze..."></textarea>
+            
+            <!-- Document Upload Section -->
+            <div style="margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 2px dashed rgba(255,255,255,0.2);">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span style="font-size: 32px;">📄</span>
+                    <p style="margin: 10px 0; font-size: 14px; opacity: 0.8;">Or upload a document</p>
+                </div>
+                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.rtf" style="display: none;" onchange="handleFileUpload(event)">
+                <button class="analyze-btn" onclick="document.getElementById('fileInput').click()" style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);">
+                    Choose File (PDF, DOC, TXT)
+                </button>
+                <div id="fileStatus" style="margin-top: 10px; font-size: 12px; text-align: center; color: #4ECDC4;"></div>
+            </div>
+            
             <button class="analyze-btn" onclick="analyze()">Analyze Contract</button>
         </div>
 
@@ -404,8 +430,73 @@
 
             return advice.slice(0, 5);
         }
+
+        // Document upload functionality
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const statusEl = document.getElementById('fileStatus');
+            statusEl.textContent = `📤 Uploading ${file.name}...`;
+            statusEl.style.color = '#4ECDC4';
+            
+            // Try backend API first
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('domain', 'legal');
+                formData.append('tool', 'CONTRACT_ANALYZER');
+                
+                const response = await fetch('http://localhost:5555/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('contract').value = result.extracted_text;
+                    statusEl.textContent = `✅ Loaded ${file.name} (${result.text_length} chars)`;
+                    statusEl.style.color = '#2ecc71';
+                    
+                    // If backend analysis is available, use it
+                    if (result.analysis) {
+                        displayBackendAnalysis(result.analysis);
+                    }
+                } else {
+                    throw new Error('Backend not available');
+                }
+            } catch (error) {
+                // Fallback to client-side file reading
+                console.log('Backend not available, using client-side processing');
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    document.getElementById('contract').value = text;
+                    statusEl.textContent = `✅ Loaded ${file.name} (${text.length} chars)`;
+                    statusEl.style.color = '#2ecc71';
+                };
+                reader.onerror = function() {
+                    statusEl.textContent = '❌ Error reading file';
+                    statusEl.style.color = '#e74c3c';
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function displayBackendAnalysis(analysis) {
+            // If backend provides enhanced analysis, we can display it
+            if (analysis.risk_score !== undefined) {
+                const contract = document.getElementById('contract').value;
+                if (contract) {
+                    // Trigger standard analysis
+                    analyze();
+                }
+            }
+        }
     </script>
     <script src="/js/bug-widget.js"></script>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
+    <script src="/js/robot-assistant-loader.js"></script>
 </body>
 </html>

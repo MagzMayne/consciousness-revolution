@@ -412,5 +412,98 @@ SEVEN_DOMAINS.html (Entry Point)
             </p>
         </div>
     </div>
+
+    <script>
+        const API_URL = 'http://localhost:5002';
+
+        async function analyze() {
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                console.warn('Please describe your situation');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_URL}/api/domains`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                showResults(data.result);
+            } catch (error) {
+                console.warn('Error analyzing domains: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function showResults(result) {
+            document.getElementById('results').style.display = 'block';
+
+            // Animate balance score
+            let score = 0;
+            const target = Math.round(result.balance_score);
+            const interval = setInterval(() => {
+                score += Math.ceil(target / 30);
+                if (score >= target) {
+                    score = target;
+                    clearInterval(interval);
+                }
+                document.getElementById('balanceScore').textContent = score;
+            }, 20);
+
+            // Render domain cards
+            const grid = document.getElementById('domainsGrid');
+            grid.innerHTML = '';
+
+            for (const [domain, value] of Object.entries(result.domain_scores)) {
+                const isStrongest = domain === result.strongest;
+                const isWeakest = domain === result.weakest;
+
+                const card = document.createElement('div');
+                card.className = `domain-card ${isStrongest ? 'strongest' : ''} ${isWeakest ? 'weakest' : ''}`;
+                card.innerHTML = `
+                    <div class="domain-name">${domain}</div>
+                    <div class="domain-bar">
+                        <div class="domain-fill" style="width: ${value}%"></div>
+                    </div>
+                    <div class="domain-value">${Math.round(value)}%</div>
+                `;
+                grid.appendChild(card);
+            }
+
+            // Show strongest/weakest
+            document.getElementById('strongest').textContent = result.strongest || '-';
+            document.getElementById('weakest').textContent = result.weakest || '-';
+
+            // Show integration opportunities
+            const opps = document.getElementById('opportunities');
+            if (result.integration_opportunities && result.integration_opportunities.length > 0) {
+                opps.innerHTML = result.integration_opportunities
+                    .map(o => `<div class="opportunity">${o}</div>`)
+                    .join('');
+            } else {
+                opps.innerHTML = '<div style="opacity: 0.7;">Your domains are well balanced!</div>';
+            }
+        }
+
+        function reset() {
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('inputText').value = '';
+        }
+    </script>
+    <script src="/js/bug-widget.js"></script>
+    <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>
+    <script src="/js/robot-assistant-loader.js"></script>
 </body>
 </html>

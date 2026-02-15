@@ -1,0 +1,102 @@
+name: Autonomous Restore Points
+
+on:
+  # Create restore point on every successful production deployment
+  workflow_run:
+    workflows: ["Deploy to Netlify"]
+    types:
+      - completed
+    branches: [master, main]
+
+  # Create restore point weekly
+  schedule:
+    # Every Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for creating restore point'
+        required: false
+        default: 'Manual backup'
+        type: string
+
+permissions:
+  contents: write  # Need write permission for creating tags
+
+jobs:
+  create-restore-point:
+    name: Create Restore Point
+    runs-on: ubuntu-latest
+
+    # Only run on successful deployments or scheduled/manual runs
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Fetch all history for proper tagging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Determine reason for restore point
+        id: reason
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "reason=${{ github.event.inputs.reason }}" >> \
+              $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "reason=Weekly automatic backup" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "reason=Post-deployment backup" >> $GITHUB_OUTPUT
+          else
+            echo "reason=Automatic backup" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create restore point
+        run: |
+          python create_restore_point.py \
+            --create --reason "${{ steps.reason.outputs.reason }}"
+
+      - name: Push tags to repository
+        run: |
+          git push origin --tags
+
+      - name: List restore points
+        run: |
+          echo "Current restore points:"
+          python create_restore_point.py --list
+
+      - name: Create summary
+        run: |
+          echo "## Restore Point Created ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          rp_reason="${{ steps.reason.outputs.reason }}"
+          echo "**Reason:** $rp_reason" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> \
+            $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> \
+            $GITHUB_STEP_SUMMARY
+          timestamp="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "**Timestamp:** $timestamp" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Available Restore Points" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          python create_restore_point.py --list >> \
+            $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

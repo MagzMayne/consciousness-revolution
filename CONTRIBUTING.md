@@ -70,6 +70,14 @@ git checkout -b feature/your-feature-name
 - Consider the ripple effects of your changes
 - Test with various consciousness states (focused, flowing, integrating)
 
+**Joy Guidelines:**
+- Build sustainably - rest is sacred, not optional
+- If you're forcing it, take a break
+- Celebrate small wins and progress
+- Ask for help when needed - community support brings joy
+- Remember: This work should bring joy to you AND to users
+- See [JOY_PRINCIPLES.md](JOY_PRINCIPLES.md) for detailed joy practices
+
 ### 4. ✅ Test Your Changes
 
 ```bash
