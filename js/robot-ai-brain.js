@@ -32,7 +32,12 @@
         TYPING_SPEED: 30,               // Characters per second for typing animation
         BUBBLE_MAX_WIDTH: 450,          // Maximum width of speech bubble in pixels (increased)
         WALK_TO_ELEMENT_OFFSET: 20,     // Offset when walking to elements
-        BOUNDARY_PADDING: 50            // Safe padding from screen edges
+        BOUNDARY_PADDING: 50,           // Safe padding from screen edges
+        ROBOT_TO_ELEMENT_DISTANCE: 150, // Distance robot maintains from elements
+        SAFE_BOUNDARY_WIDTH: 200,       // Safe width from right edge
+        SAFE_BOUNDARY_HEIGHT: 100,      // Safe height from top/bottom edges
+        BUBBLE_OFFSET_FROM_ROBOT: 100,  // Distance bubble appears above robot
+        SCROLL_VISIBILITY_MARGIN: 50    // Margin for scroll visibility checks
     };
 
     // AI Brain State
@@ -402,11 +407,10 @@
         
         // Position bubble above robot's head (robot size is 80px)
         const robotSize = window.RobotAssistant.config?.robotSize || 80;
-        const bubbleOffset = 100; // Distance above robot's head
         
         // Calculate initial position: above the robot
         let left = state.position.x;
-        let bottom = window.innerHeight - state.position.y + bubbleOffset;
+        let bottom = window.innerHeight - state.position.y + CONFIG.BUBBLE_OFFSET_FROM_ROBOT;
         
         // Get bubble dimensions (need to account for max-width)
         const bubbleWidth = Math.min(CONFIG.BUBBLE_MAX_WIDTH, speechBubble.offsetWidth || CONFIG.BUBBLE_MAX_WIDTH);
@@ -1616,14 +1620,14 @@
             
             // Calculate safe position near the element
             // Position robot to the left of the element, at element's vertical center
-            let targetX = Math.max(rect.left - 150, CONFIG.BOUNDARY_PADDING);
+            let targetX = Math.max(rect.left - CONFIG.ROBOT_TO_ELEMENT_DISTANCE, CONFIG.BOUNDARY_PADDING);
             let targetY = window.innerHeight - (rect.top + rect.height / 2);
             
             // Ensure target is within safe bounds
             targetX = Math.max(CONFIG.BOUNDARY_PADDING, 
-                Math.min(window.innerWidth - 200, targetX));
-            targetY = Math.max(CONFIG.BOUNDARY_PADDING + 100, 
-                Math.min(window.innerHeight - CONFIG.BOUNDARY_PADDING - 100, targetY));
+                Math.min(window.innerWidth - CONFIG.SAFE_BOUNDARY_WIDTH, targetX));
+            targetY = Math.max(CONFIG.BOUNDARY_PADDING + CONFIG.SAFE_BOUNDARY_HEIGHT, 
+                Math.min(window.innerHeight - CONFIG.BOUNDARY_PADDING - CONFIG.SAFE_BOUNDARY_HEIGHT, targetY));
             
             // Set walking animation and move (fly mode)
             if (window.RobotAssistant) {
@@ -1666,11 +1670,11 @@
         
         // Calculate how much to scroll to keep robot + bubble visible
         const robotBottom = window.innerHeight - state.position.y;
-        const bubbleTop = robotBottom + 100 + bubbleHeight; // bubble offset + bubble height
+        const bubbleTop = robotBottom + CONFIG.BUBBLE_OFFSET_FROM_ROBOT + bubbleHeight;
         
         // If bubble would be off top of screen, scroll down to show it
-        if (bubbleTop > window.innerHeight - 50) {
-            const scrollAmount = bubbleTop - window.innerHeight + 100;
+        if (bubbleTop > window.innerHeight - CONFIG.SCROLL_VISIBILITY_MARGIN) {
+            const scrollAmount = bubbleTop - window.innerHeight + CONFIG.SAFE_BOUNDARY_HEIGHT;
             window.scrollBy({
                 top: scrollAmount,
                 behavior: 'smooth'
