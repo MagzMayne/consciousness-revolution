@@ -19,6 +19,17 @@
         tourProgress: 'araya_robot_tour_progress',
         lastInteraction: 'araya_robot_last_interaction'
     };
+    
+    // Configuration constants
+    const CONFIG = {
+        MAX_TOUR_ELEMENTS: 10,          // Maximum elements to tour per page
+        MAX_ELEMENT_TEXT_LENGTH: 50,    // Maximum text length for element descriptions
+        MAX_SCRIPTS_THRESHOLD: 20,      // Threshold for performance warnings
+        TOUR_ELEMENT_DELAY: 5000,       // Delay between tour elements (ms)
+        SPEECH_DURATION: 5000,          // Default speech bubble duration (ms)
+        ERROR_CHECK_DELAY: 3500,        // Delay for error checking animation (ms)
+        HELP_ACTIVATION_DELAY: 3500     // Delay for help system activation (ms)
+    };
 
     // AI Brain State
     const brain = {
@@ -692,7 +703,7 @@
         let currentIndex = 0;
         
         function tourNextElement() {
-            if (currentIndex >= Math.min(elements.length, 10)) { // Limit to 10 elements
+            if (currentIndex >= Math.min(elements.length, CONFIG.MAX_TOUR_ELEMENTS)) {
                 speak(`🎉 Tour of this page complete! Click me to see more options or navigate to another page.`, 6000);
                 if (window.RobotAssistant) {
                     window.RobotAssistant.setAnimationState('idle');
@@ -708,7 +719,7 @@
             speak(description, 4000);
             
             currentIndex++;
-            setTimeout(tourNextElement, 5000);
+            setTimeout(tourNextElement, CONFIG.TOUR_ELEMENT_DELAY);
         }
         
         setTimeout(tourNextElement, 4500);
@@ -719,7 +730,7 @@
      */
     function describeElement(element) {
         const tagName = element.tagName.toLowerCase();
-        const text = element.textContent?.trim().substring(0, 50) || 'element';
+        const text = element.textContent?.trim().substring(0, CONFIG.MAX_ELEMENT_TEXT_LENGTH) || 'element';
         const href = element.getAttribute('href');
         const type = element.getAttribute('type');
         
@@ -1060,7 +1071,7 @@
         
         // Performance warnings
         const scripts = document.querySelectorAll('script[src]');
-        if (scripts.length > 20) {
+        if (scripts.length > CONFIG.MAX_SCRIPTS_THRESHOLD) {
             errors.performanceWarnings.push({
                 type: 'too-many-scripts',
                 count: scripts.length,
