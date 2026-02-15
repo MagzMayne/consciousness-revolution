@@ -74,6 +74,9 @@
     // Button menu for robot interaction
     let buttonMenu = null;
     let isMenuOpen = false;
+    
+    // End tour button
+    let endTourButton = null;
 
     /**
      * Initialize the AI Brain
@@ -96,8 +99,17 @@
         // Create interactive button menu
         createButtonMenu();
         
-        // Check if user needs a tour
-        checkForTourOffer();
+        // Create end tour button
+        createEndTourButton();
+        
+        // Check if tour was active and resume it
+        if (brain.tourMode) {
+            console.log('🔄 Resuming active tour...');
+            setTimeout(() => resumeTour(), 2000);
+        } else {
+            // Check if user needs a tour
+            checkForTourOffer();
+        }
         
         // Setup event listeners
         setupEventListeners();
@@ -402,6 +414,92 @@
                 showSettings();
                 break;
         }
+    }
+    
+    /**
+     * Create end tour button
+     */
+    function createEndTourButton() {
+        endTourButton = document.createElement('button');
+        endTourButton.id = 'end-tour-button';
+        endTourButton.textContent = '❌ End Tour';
+        endTourButton.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.4);
+            z-index: 10000;
+            transition: all 0.3s ease;
+            display: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+        
+        // Add hover effect
+        endTourButton.addEventListener('mouseenter', () => {
+            endTourButton.style.transform = 'scale(1.05)';
+            endTourButton.style.boxShadow = '0 6px 20px rgba(255, 68, 68, 0.6)';
+        });
+        
+        endTourButton.addEventListener('mouseleave', () => {
+            endTourButton.style.transform = 'scale(1)';
+            endTourButton.style.boxShadow = '0 4px 15px rgba(255, 68, 68, 0.4)';
+        });
+        
+        // Add click handler
+        endTourButton.addEventListener('click', () => {
+            endTour();
+        });
+        
+        document.body.appendChild(endTourButton);
+    }
+    
+    /**
+     * Show end tour button
+     */
+    function showEndTourButton() {
+        if (endTourButton) {
+            endTourButton.style.display = 'block';
+            setTimeout(() => {
+                endTourButton.style.opacity = '1';
+            }, 10);
+        }
+    }
+    
+    /**
+     * Hide end tour button
+     */
+    function hideEndTourButton() {
+        if (endTourButton) {
+            endTourButton.style.opacity = '0';
+            setTimeout(() => {
+                endTourButton.style.display = 'none';
+            }, 300);
+        }
+    }
+    
+    /**
+     * Resume tour after page navigation
+     */
+    function resumeTour() {
+        console.log('🔄 Resuming tour on new page...');
+        
+        // Show end tour button
+        showEndTourButton();
+        
+        // Resume the interactive tour
+        speak(`✨ I'm continuing the tour on this page! Let me show you what's here...`, 4000);
+        
+        setTimeout(() => {
+            performInteractiveTour();
+        }, 5000);
     }
     
     /**
@@ -1724,6 +1822,9 @@
         brain.tourMode = true;
         brain.currentTourStep = 0;
         
+        // Show end tour button
+        showEndTourButton();
+        
         hideSpeechBubble();
         
         setTimeout(() => {
@@ -1950,6 +2051,10 @@
     function endTour() {
         brain.tourMode = false;
         brain.currentTourStep = 0;
+        
+        // Hide end tour button
+        hideEndTourButton();
+        
         hideSpeechBubble();
         
         speak(`👍 Tour complete! I'm always here if you need help. Just click me anytime!`, 6000);
