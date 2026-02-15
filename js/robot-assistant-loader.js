@@ -58,6 +58,11 @@
                     console.log('🧠 Loading Robot AI Brain...');
                     await loadScript('/js/robot-ai-brain.js');
                     console.log('✅ Robot AI Brain loaded');
+
+                    // Load AUL Agent Connector
+                    console.log('🔌 Loading AUL Agent Connector...');
+                    await loadScript('/js/robot-aul-connector.js');
+                    console.log('✅ AUL Agent Connector loaded');
                     
                     showLoadNotification();
                     return;
@@ -73,6 +78,11 @@
             console.log('🧠 Loading Robot AI Brain...');
             await loadScript('/js/robot-ai-brain.js');
             console.log('✅ Robot AI Brain loaded');
+
+            // Load AUL Agent Connector
+            console.log('🔌 Loading AUL Agent Connector...');
+            await loadScript('/js/robot-aul-connector.js');
+            console.log('✅ AUL Agent Connector loaded');
 
             // Provide user feedback
             if (window.RobotAssistant) {
