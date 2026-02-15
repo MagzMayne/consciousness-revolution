@@ -345,6 +345,7 @@
             <button class="robot-menu-btn" data-action="settings" style="
                 width: 100%;
                 padding: 10px;
+                margin-bottom: 8px;
                 background: rgba(255, 255, 255, 0.8);
                 color: #9370db;
                 border: none;
@@ -354,6 +355,20 @@
                 font-size: 14px;
                 transition: all 0.2s;
             ">⚙️ Settings</button>
+            
+            <button class="robot-menu-btn" data-action="demo-all" style="
+                width: 100%;
+                padding: 10px;
+                background: linear-gradient(135deg, #ffd700, #ff8c00);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+                box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+            ">✨ Show All Features</button>
         `;
         
         // Add hover effects
@@ -430,6 +445,9 @@
                 break;
             case 'settings':
                 showSettings();
+                break;
+            case 'demo-all':
+                demonstrateAllFeatures();
                 break;
         }
     }
@@ -1897,31 +1915,43 @@
         
         // Walk to the element
         walkToElement(element, () => {
-            // Describe the element
-            const description = describeElementDetailed(element);
+            // Point at the element with arm
+            if (window.RobotAssistant) {
+                window.RobotAssistant.setAnimationState('pointing');
+            }
             
-            // Show description with typing animation
-            speak(description, CONFIG.SPEECH_DURATION);
-            
-            // Highlight the element
-            highlightElement(element);
-            
-            // Ask if user wants to continue or interact
+            // Describe the element after a brief pointing delay
             setTimeout(() => {
-                const elementType = element.tagName.toLowerCase();
-                const isNavigationElement = elementType === 'a' && element.getAttribute('href');
+                const description = describeElementDetailed(element);
                 
-                if (isNavigationElement) {
-                    // Offer to navigate to the linked page
-                    offerNavigation(element, () => {
-                        // Continue tour
-                        setTimeout(() => tourElement(elements, index + 1), 1000);
-                    });
-                } else {
-                    // Continue to next element
-                    setTimeout(() => tourElement(elements, index + 1), CONFIG.TOUR_ELEMENT_DELAY);
+                // Switch to speaking while describing
+                if (window.RobotAssistant) {
+                    window.RobotAssistant.setAnimationState('speaking');
                 }
-            }, CONFIG.SPEECH_DURATION + 500);
+                
+                // Show description with typing animation
+                speak(description, CONFIG.SPEECH_DURATION);
+                
+                // Highlight the element
+                highlightElement(element);
+                
+                // Ask if user wants to continue or interact
+                setTimeout(() => {
+                    const elementType = element.tagName.toLowerCase();
+                    const isNavigationElement = elementType === 'a' && element.getAttribute('href');
+                    
+                    if (isNavigationElement) {
+                        // Offer to navigate to the linked page
+                        offerNavigation(element, () => {
+                            // Continue tour
+                            setTimeout(() => tourElement(elements, index + 1), 1000);
+                        });
+                    } else {
+                        // Continue to next element
+                        setTimeout(() => tourElement(elements, index + 1), CONFIG.TOUR_ELEMENT_DELAY);
+                    }
+                }, CONFIG.SPEECH_DURATION + 500);
+            }, 1200); // Brief delay for pointing gesture to be visible
         });
     }
     
@@ -2099,6 +2129,85 @@
         speak(`👍 Tour complete! I'm always here if you need help. Just click me anytime!`, 10000);
         
         saveMemory();
+    }
+    
+    /**
+     * Demonstrate all R3-D3 features sequentially
+     */
+    function demonstrateAllFeatures() {
+        speak(`✨ Let me show you ALL my capabilities! This will be a quick demo of everything I can do.`, 4000);
+        
+        // Sequence of demonstrations with delays
+        setTimeout(() => {
+            speak(`🚀 First, I can give you a tour of any page, walking to each element and explaining it in detail!`, 5000);
+            
+            setTimeout(() => {
+                // Point animation demo
+                if (window.RobotAssistant) {
+                    window.RobotAssistant.setAnimationState('pointing');
+                }
+                speak(`👉 See? I can point with my arm at things I'm talking about - like a real tour guide!`, 5000);
+                
+                setTimeout(() => {
+                    if (window.RobotAssistant) {
+                        window.RobotAssistant.setAnimationState('idle');
+                    }
+                    speak(`💡 I can provide context-aware help based on what page you're on. Just ask me anything!`, 5000);
+                    
+                    setTimeout(() => {
+                        if (window.RobotAssistant) {
+                            window.RobotAssistant.setAnimationState('thinking');
+                        }
+                        speak(`🔍 I can check for errors on the page - broken links, missing images, accessibility issues...`, 5000);
+                        
+                        setTimeout(() => {
+                            if (window.RobotAssistant) {
+                                window.RobotAssistant.setAnimationState('editing');
+                            }
+                            speak(`🔧 And I can automatically fix many of those issues! I'll repair broken links, add alt text, and more.`, 5000);
+                            
+                            setTimeout(() => {
+                                if (window.RobotAssistant) {
+                                    window.RobotAssistant.setAnimationState('speaking');
+                                }
+                                speak(`📚 I have access to a complete knowledge base about this platform - Seven Domains, Pattern Recognition, ARAYA, and more!`, 6000);
+                                
+                                setTimeout(() => {
+                                    if (window.RobotAssistant) {
+                                        window.RobotAssistant.setAnimationState('walking');
+                                    }
+                                    speak(`🚶 I can fly around the screen to any element, following you or exploring autonomously!`, 5000);
+                                    
+                                    setTimeout(() => {
+                                        if (window.RobotAssistant) {
+                                            window.RobotAssistant.setAnimationState('idle');
+                                        }
+                                        speak(`⚙️ You can customize my behavior, speed, and personality in the Settings menu!`, 5000);
+                                        
+                                        setTimeout(() => {
+                                            const finalMessage = `
+                                                <div style="text-align: center; padding: 10px;">
+                                                    <strong>✅ Demo Complete!</strong><br><br>
+                                                    🎯 <strong>What I can do:</strong><br>
+                                                    • Tour pages with pointing gestures<br>
+                                                    • Provide contextual help<br>
+                                                    • Detect & fix errors<br>
+                                                    • Access knowledge base<br>
+                                                    • Navigate autonomously<br>
+                                                    • Customize settings<br><br>
+                                                    Click me anytime to open my menu!
+                                                </div>
+                                            `;
+                                            speak(finalMessage, 15000, false);
+                                        }, 6000);
+                                    }, 6000);
+                                }, 7000);
+                            }, 6000);
+                        }, 6000);
+                    }, 6000);
+                }, 6000);
+            }, 5000);
+        }, 5000);
     }
     
     /**
@@ -2450,6 +2559,7 @@
         continueTour,
         exploreAnotherPage,
         endTour,
+        demonstrateAllFeatures, // NEW: Show all features demo
         brain
     };
 
