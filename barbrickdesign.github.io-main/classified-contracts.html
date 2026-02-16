@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classified Contracts - Security Clearance Required</title>
+    
+    <!-- Wallet Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.8/lib/index.iiffe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
+    <script src="src/core/contractor-registry.js"></script>
+    <script src="src/systems/crypto-bidding-system.js"></script>
+    <script src="src/utils/samgov-integration.js"></script>
+    <!-- Universal Auth System (Session + Time Tracking) -->
+    <script src="src/core/universal-wallet-auth.js"></script>
+    <script src="src/core/auth-integration.js"></script>
+    <script src="src/core/security-clearance-auth.js"></script>
+    
+    <!-- Google Data Integration System -->
+    <script src="google-data-integration.js"></script>
+    
+    <!-- Shared Systems -->
+    <script src="src/utils/shared-utilities.js"></script>
+    <script src="src/utils/shared-wallet-system.js"></script>
+    <script src="src/utils/shared-agent-system.js"></script>
+    
+    <link rel="stylesheet" href="src/ui/mobile-responsive.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: #000;
+            color: #ff0000;
+            min-height: 100vh;
+        }
+        
+        .classified-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(0deg, transparent 24%, rgba(255,0,0,.03) 25%, rgba(255,0,0,.03) 26%, transparent 27%),
+                linear-gradient(90deg, transparent 24%, rgba(255,0,0,.03) 25%, rgba(255,0,0,.03) 26%, transparent 27%);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: -1;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: perspective(500px) rotateX(60deg) translateZ(0); }
+            100% { transform: perspective(500px) rotateX(60deg) translateZ(50px); }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(180deg, rgba(255,0,0,0.1), transparent);
+            border: 2px solid rgba(255,0,0,0.5);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255,0,0,0.8);
+            margin-bottom: 10px;
+        }
+        
+        .warning-banner {
+            background: rgba(255,0,0,0.2);
+            border: 2px solid #ff0000;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .warning-text {
+            color: #ff6666;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .auth-section {
+            background: linear-gradient(135deg, rgba(20,0,0,0.9), rgba(40,0,0,0.9));
+            border: 2px solid rgba(255,0,0,0.3);
+            border-radius: 15px;
+            padding: 40px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .card-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+        }
+        
+        .auth-btn {
+            padding: 20px 50px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2em;
+            font-weight: 700;
+            background: linear-gradient(90deg, #ff0000, #ff6666);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .auth-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255,0,0,0.6);
+        }
+        
+        .auth-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .auth-method-btn {
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(20,20,20,0.9), rgba(40,40,40,0.9));
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 150px;
+        }
+        
+        .auth-method-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255,255,255,0.2);
+            border-color: #ffaa00;
+        }
+        
+        .auth-method-btn.selected {
+            border-color: #ffaa00;
+            background: linear-gradient(135deg, rgba(255,170,0,0.1), rgba(255,170,0,0.05));
+        }
+        
+        .method-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .method-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #ffaa00;
+            margin-bottom: 5px;
+        }
+        
+        .method-desc {
+            font-size: 0.9em;
+            color: #cccccc;
+        }
+        
+        .samgov-btn {
+            background: linear-gradient(90deg, #0066cc, #0099ff);
+            color: #fff;
+        }
+        
+        .samgov-btn:hover {
+            box-shadow: 0 0 30px rgba(0, 153, 255, 0.6);
+        }
+        
+        .setup-step {
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 120px;
+        }
+        
+        .setup-step:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-color: #00ff00;
+            transform: translateY(-2px);
+        }
+        
+        .setup-step.active {
+            background: rgba(0, 255, 0, 0.3);
+            border-color: #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        
+        .step-number {
+            font-size: 1.5em;
+            font-weight: 900;
+            color: #00ff00;
+            margin-bottom: 8px;
+        }
+        
+        .step-title {
+            font-size: 1em;
+            font-weight: 700;
+            color: #66ff66;
+            margin-bottom: 5px;
+        }
+        
+        .step-desc {
+            font-size: 0.8em;
+            color: #99ff99;
+        }
+        
+        .clearance-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 700;
+            margin: 10px;
+        }
+        
+        .badge-ts-sci {
+            background: rgba(139,0,0,0.3);
+            color: #ff0000;
+            border: 2px solid #8b0000;
+        }
+        
+        .badge-top-secret {
+            background: rgba(255,69,0,0.3);
+            color: #ff4500;
+            border: 2px solid #ff4500;
+        }
+        
+        .badge-secret {
+            background: rgba(255,165,0,0.3);
+            color: #ffa500;
+            border: 2px solid #ffa500;
+        }
+        
+        .badge-confidential {
+            background: rgba(255,255,0,0.3);
+            color: #ffff00;
+            border: 2px solid #ffff00;
+        }
+        
+        .contracts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .contract-card {
+            background: linear-gradient(135deg, rgba(20,0,0,0.9), rgba(30,0,0,0.9));
+            border: 2px solid rgba(255,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.3s;
+        }
+        
+        .contract-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255,0,0,0.4);
+            border-color: #ff0000;
+        }
+        
+        .contract-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .contract-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #ff6666;
+        }
+        
+        .contract-value {
+            font-size: 1.5em;
+            font-weight: 900;
+            color: #ff0000;
+            text-shadow: 0 0 10px rgba(255,0,0,0.6);
+            margin: 15px 0;
+        }
+        
+        .contract-details {
+            color: #ff9999;
+            line-height: 1.8;
+            margin: 10px 0;
+        }
+        
+        .contract-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .meta-tag {
+            padding: 5px 12px;
+            background: rgba(255,0,0,0.2);
+            border: 1px solid rgba(255,0,0,0.4);
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+        
+        .access-denied {
+            background: rgba(139,0,0,0.3);
+            border: 2px solid #8b0000;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .access-denied h2 {
+            color: #ff0000;
+            margin-bottom: 15px;
+        }
+        
+        .user-info {
+            background: rgba(0,50,0,0.3);
+            border: 2px solid rgba(0,255,0,0.5);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .user-info h3 {
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,255,0,0.2);
+        }
+        
+        .info-label {
+            color: #66ff66;
+        }
+        
+        .info-value {
+            color: #00ff00;
+            font-weight: 700;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: rgba(20,0,0,0.8);
+            border: 2px solid rgba(255,0,0,0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: 900;
+            color: #ff0000;
+            text-shadow: 0 0 15px rgba(255,0,0,0.6);
+        }
+        
+        .stat-label {
+            color: #ff9999;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        .match-indicator {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid;
+        }
+        
+        .match-excellent {
+            border-left-color: #00ff00;
+            background: rgba(0,255,0,0.1);
+        }
+        
+        .match-good {
+            border-left-color: #66ff66;
+            background: rgba(0,255,0,0.05);
+        }
+        
+        .match-fair {
+            border-left-color: #ffaa00;
+            background: rgba(255,170,0,0.05);
+        }
+        
+        .match-poor {
+            border-left-color: #ff6666;
+            background: rgba(255,0,0,0.05);
+        }
+        
+        .match-score {
+            font-size: 2em;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+        
+        .match-reasons {
+            font-size: 0.85em;
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            .contracts-grid { grid-template-columns: 1fr; }
+
+            /* Header Layout */
+            header {
+                padding: 20px 15px;
+                margin-bottom: 20px;
+            }
+
+            .warning-banner {
+                padding: 15px;
+                margin: 15px 0;
+            }
+
+            .warning-text {
+                font-size: 0.85em;
+            }
+
+            /* Auth Section */
+            .auth-section {
+                padding: 25px 20px;
+            }
+
+            .card-icon {
+                font-size: 3.5em;
+            }
+
+            .auth-btn {
+                padding: 15px 30px;
+                font-size: 1em;
+            }
+
+            /* Auth Method Buttons */
+            .auth-method-btn {
+                min-width: 120px;
+                padding: 15px;
+            }
+
+            .method-icon {
+                font-size: 2em;
+            }
+
+            .method-title {
+                font-size: 1em;
+            }
+
+            .method-desc {
+                font-size: 0.8em;
+            }
+
+            /* User Info */
+            .user-info {
+                padding: 15px;
+            }
+
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            /* Stats Grid */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+                padding: 0 15px;
+            }
+
+            .stat-card {
+                padding: 1rem;
+            }
+
+            .stat-value {
+                font-size: 1.8em;
+            }
+
+            /* Contract Cards */
+            .contract-card {
+                padding: 20px;
+            }
+
+            .contract-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .contract-title {
+                font-size: 1.1em;
+            }
+
+            .contract-value {
+                font-size: 1.2em;
+                margin: 10px 0;
+            }
+
+            .contract-details {
+                font-size: 0.9em;
+                line-height: 1.6;
+            }
+
+            .contract-meta {
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .meta-tag {
+                font-size: 0.8em;
+                padding: 4px 10px;
+            }
+
+            /* Clearance Badge */
+            .clearance-badge {
+                padding: 8px 15px;
+                font-size: 0.9em;
+                margin: 8px;
+            }
+
+            /* Match Indicator */
+            .match-indicator {
+                padding: 12px;
+                margin: 12px 0;
+            }
+
+            .match-score {
+                font-size: 1.5em;
+            }
+
+            .match-reasons {
+                font-size: 0.8em;
+            }
+
+            /* Access Denied */
+            .access-denied {
+                padding: 20px;
+            }
+
+            /* Compensation Section */
+            #compensationSection {
+                padding: 20px 15px;
+                margin: 20px 15px;
+            }
+
+            /* Location Filter */
+            #locationFilterSection {
+                padding: 20px 15px;
+                margin: 20px 15px;
+            }
+
+            #locationSearchInput {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            /* Setup Steps */
+            #setupSteps {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .setup-step {
+                min-width: 100%;
+                padding: 12px;
+            }
+
+            .step-number {
+                font-size: 1.2em;
+            }
+
+            .step-title {
+                font-size: 0.9em;
+            }
+
+            .step-desc {
+                font-size: 0.75em;
+            }
+
+            /* Footer Links */
+            .container > div:last-child {
+                padding: 20px 15px;
+            }
+
+            /* Modals */
+            .modal-content {
+                padding: 25px 15px;
+                max-width: 95vw;
+                width: 95vw;
+            }
+
+            /* SAM.gov Input */
+            #samGovApiKeyInput {
+                width: 100%;
+                max-width: 250px;
+                margin: 8px 0;
+            }
+
+            /* Bid Modal */
+            #bidModal {
+                padding: 15px;
+            }
+
+            #bidModal .modal-content {
+                padding: 20px 15px;
+            }
+
+            /* Buttons */
+            button {
+                font-size: 0.9em;
+            }
+        }
+
+        /* Extra Small Mobile */
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5em; }
+
+            header {
+                padding: 15px 10px;
+            }
+
+            .auth-section {
+                padding: 20px 15px;
+            }
+
+            .card-icon {
+                font-size: 3em;
+            }
+
+            .auth-btn {
+                padding: 12px 25px;
+                font-size: 0.9em;
+            }
+
+            .auth-method-btn {
+                min-width: 100px;
+                padding: 12px;
+            }
+
+            .method-icon {
+                font-size: 1.8em;
+            }
+
+            .method-title {
+                font-size: 0.9em;
+            }
+
+            .method-desc {
+                font-size: 0.75em;
+            }
+
+            .warning-banner {
+                padding: 12px;
+                margin: 10px 0;
+            }
+
+            .warning-text {
+                font-size: 0.8em;
+            }
+
+            .user-info {
+                padding: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 0.8rem;
+            }
+
+            .stat-card {
+                padding: 0.8rem;
+            }
+
+            .stat-value {
+                font-size: 1.5em;
+            }
+
+            .contract-card {
+                padding: 15px;
+            }
+
+            .contract-title {
+                font-size: 1em;
+            }
+
+            .contract-value {
+                font-size: 1.1em;
+            }
+
+            .contract-details {
+                font-size: 0.85em;
+            }
+
+            .meta-tag {
+                font-size: 0.75em;
+                padding: 3px 8px;
+            }
+
+            .clearance-badge {
+                padding: 6px 12px;
+                font-size: 0.8em;
+                margin: 6px;
+            }
+
+            .match-indicator {
+                padding: 10px;
+                margin: 10px 0;
+            }
+
+            .match-score {
+                font-size: 1.3em;
+            }
+
+            .match-reasons {
+                font-size: 0.75em;
+            }
+
+            #compensationSection {
+                padding: 15px 10px;
+                margin: 15px 10px;
+            }
+
+            #locationFilterSection {
+                padding: 15px 10px;
+                margin: 15px 10px;
+            }
+
+            #samGovApiKeyInput {
+                max-width: 200px;
+            }
+
+            .setup-step {
+                padding: 10px;
+            }
+
+            .step-number {
+                font-size: 1.1em;
+            }
+
+            .modal-content {
+                padding: 15px 10px;
+            }
+
+            .container > div:last-child {
+                padding: 15px 10px;
+            }
+        }
+
+        /* Tablet Layout */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .contracts-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .contract-card {
+                padding: 20px;
+            }
+
+            #setupSteps {
+                justify-content: space-around;
+            }
+
+            .setup-step {
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="classified-grid"></div>
+    
+    <div class="container">
+        <header>
+            <h1>🔒 CLASSIFIED CONTRACTS ACCESS</h1>
+            <p style="color: #ff6666; margin-top: 10px;">Security Clearance Required</p>
+        </header>
+
+        <div class="warning-banner">
+            <p class="warning-text">
+                <strong>⚠️ WARNING ⚠️</strong><br>
+                This system contains classified information requiring appropriate security clearance.<br>
+                Unauthorized access is prohibited and punishable under federal law.<br>
+                All access attempts are logged and monitored.
+            </p>
+        </div>
+
+        <div style="background: rgba(0,100,255,0.15); border: 2px solid #0066ff; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+            <p style="color: #66ccff; font-weight: 700; margin-bottom: 8px;">👥 CONTRACTOR REGISTRATION</p>
+            <p style="color: #99ddff; font-size: 0.9em;">
+                Not registered yet? <a href="contractor-registration.html" style="color: #00ff99; text-decoration: underline;">Click here to register as a contractor</a><br>
+                Already registered? Connect your wallet to access classified contracts.
+            </p>
+        </div>
+
+        <div style="background: rgba(0,255,0,0.15); border: 2px solid #00ff00; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: center;">
+            <p style="color: #66ff66; font-weight: 700; margin-bottom: 8px;">🏛️ LIVE SAM.GOV OPPORTUNITIES</p>
+            <p style="color: #99ff99; font-size: 0.9em;">
+                Access real-time government contract opportunities from SAM.gov<br>
+                <strong>API Key Required:</strong> Enter your SAM.gov API key below for live data integration.
+            </p>
+            <input type="password" id="samGovApiKeyInput" placeholder="Enter SAM.gov API Key" style="margin: 10px; padding: 8px; background: rgba(0,0,0,0.5); border: 2px solid #00ff00; border-radius: 5px; color: #00ff00; width: 300px;">
+            <button onclick="setSamGovApiKey()" style="padding: 8px 15px; background: #00ff00; color: #000; border: none; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', sans-serif;">Set API Key</button>
+                </p>
+            </div>
+                ✅ Clearance registry check<br>
+                ✅ Access level determination
+            </p>
+            <p id="authStatus" style="margin-top: 20px; color: #ff9999;"></p>
+        </div>
+
+        <div id="authenticatedSection" style="display: none;">
+            <!-- SAM.gov Welcome Banner -->
+            <div id="samgovWelcome" style="display: none; background: linear-gradient(135deg, rgba(0,100,255,0.2), rgba(0,150,255,0.1)); border: 2px solid rgba(0,150,255,0.5); padding: 25px; border-radius: 15px; margin-bottom: 30px; text-align: center;">
+                <h2 style="color: #66ccff; margin-bottom: 15px;">🏛️ Welcome, SAM.gov User!</h2>
+                <p style="color: #99ddff; line-height: 1.8; margin-bottom: 20px;">
+                    Your SAM.gov profile has been automatically synced with our platform.<br>
+                    <strong>Benefits:</strong> No wallet required • Automatic profile sync • Government-standard security<br>
+                    <strong>Next Steps:</strong> Review your synced profile below and start exploring contracts
+                </p>
+                <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                    <button onclick="scrollToContracts()" style="padding: 10px 20px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        📋 View Contracts
+                    </button>
+                    <button onclick="scrollToProfile()" style="padding: 10px 20px; background: rgba(255,215,0,0.2); border: 2px solid #ffd700; border-radius: 8px; color: #ffdd66; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        👤 Review Profile
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Setup Wizard for New Users -->
+            <div id="quickSetupWizard" style="display: none; background: linear-gradient(135deg, rgba(0,255,0,0.1), rgba(0,150,0,0.1)); border: 2px solid rgba(0,255,0,0.3); padding: 25px; border-radius: 15px; margin-bottom: 30px;">
+                <h2 style="color: #66ff66; margin-bottom: 15px;">🚀 Quick Setup Wizard</h2>
+                <p style="color: #99ff99; margin-bottom: 20px;">Let's get you started with government contracting in just a few steps:</p>
+
+                <div id="setupSteps" style="display: flex; justify-content: space-around; margin: 20px 0;">
+                    <div class="setup-step" data-step="1" onclick="goToSetupStep(1)">
+                        <div class="step-number">1</div>
+                        <div class="step-title">Profile Setup</div>
+                        <div class="step-desc">Complete your contractor profile</div>
+                    </div>
+                    <div class="setup-step" data-step="2" onclick="goToSetupStep(2)">
+                        <div class="step-number">2</div>
+                        <div class="step-title">GitHub Sync</div>
+                        <div id="authSection" style="display: block;">
+            <h2 style="color: #ff6666; margin-bottom: 20px; text-align: center;">🔐 AUTHENTICATION REQUIRED</h2>
+            
+            <!-- Authentication Method Selection -->
+            <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; margin-bottom: 30px;">
+                <div class="auth-method-btn" id="walletAuthBtn" onclick="selectAuthMethod('wallet')">
+                    <div class="method-icon">🔑</div>
+                    <div class="method-title">Crypto Wallet + PIV/CAC</div>
+                    <div class="method-desc">Connect wallet with security clearance verification</div>
+                </div>
+                
+                <div class="auth-method-btn samgov-btn" id="samgovAuthBtn" onclick="selectAuthMethod('samgov')">
+                    <div class="method-icon">🏛️</div>
+                    <div class="method-title">SAM.gov SSO</div>
+                    <div class="method-desc">Government-standard authentication</div>
+                </div>
+            </div>
+
+            <!-- Wallet Authentication Section -->
+            <div id="walletAuthSection" style="display: none;">
+                <div class="card-icon">🔑</div>
+                <p style="color: #ff9999; margin: 20px 0; text-align: center; line-height: 1.8;">
+                    🔐 <strong>CRYPTO WALLET + PIV/CAC AUTHENTICATION</strong><br>
+                    Connect your crypto wallet and provide PIV/CAC card credentials for classified contract access.<br>
+                    This method requires wallet connection + security clearance verification.
+                </p>
+                
+                <button id="authBtn" class="auth-btn" onclick="authenticateWallet()">
+                    🔓 CONNECT WALLET & VERIFY CLEARANCE
+                </button>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <p style="color: #ff9999; font-size: 0.9em; line-height: 1.6;">
+                        ✅ Wallet signature verification<br>
+                        ✅ PIV/CAC credential validation<br>
+                        ✅ Clearance level assessment<br>
+                        ✅ Access level determination
+                    </p>
+                </div>
+            </div>
+
+            <!-- SAM.gov Authentication Section -->
+            <div id="samgovAuthSection" style="display: none;">
+                <div class="card-icon">🏛️</div>
+                <p style="color: #66ccff; margin: 20px 0; text-align: center; line-height: 1.8;">
+                    🏛️ <strong>SAM.GOV SINGLE SIGN-ON</strong><br>
+                    Authenticate using your SAM.gov government credentials.<br>
+                    This provides government-standard security with automatic profile sync.
+                </p>
+                
+                <button id="samgovAuthBtn" class="auth-btn samgov-btn" onclick="authenticateWithSAMGov()">
+                    🏛️ AUTHENTICATE WITH SAM.GOV
+                </button>
+                
+                <div id="samgovAuthStatus" style="margin-top: 20px; text-align: center; color: #66ccff;"></div>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <p style="color: #99ddff; font-size: 0.9em; line-height: 1.6;">
+                        ✅ Government-standard security<br>
+                        ✅ Automatic profile synchronization<br>
+                        ✅ No wallet required<br>
+                        ✅ Enterprise-grade authentication
+                    </p>
+                </div>
+            </div>
+            
+            <p id="authStatus" style="margin-top: 20px; color: #ff9999;"></p>
+        </div> style="background: rgba(0,255,0,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                        <div id="progressBar" style="background: #00ff00; height: 100%; width: 25%; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="setupStatus" style="color: #66ff66; margin-top: 10px; font-size: 0.9em;">Step 1 of 4: Setting up your profile</p>
+                </div>
+            </div>
+
+            <div class="user-info">
+                <h3>✅ AUTHENTICATED USER</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value" id="userName">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Organization:</span>
+                    <span class="info-value" id="userOrg">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Clearance Level:</span>
+                    <span class="info-value" id="userClearance">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Special Access:</span>
+                    <span class="info-value" id="userCaveats">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Card Expiration:</span>
+                    <span class="info-value" id="userExpiration">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Authentication Method:</span>
+                    <span class="info-value" id="userAuthMethod">-</span>
+                </div>
+
+                <!-- SAM.gov Sync Section -->
+                <div id="samgovSyncSection" style="margin-top: 20px; padding: 15px; background: rgba(0,100,255,0.1); border: 2px solid rgba(0,150,255,0.3); border-radius: 8px; display: none;">
+                    <div class="info-row">
+                        <span class="info-label">SAM.gov Entity:</span>
+                        <span class="info-value" id="userSAMGovEntity">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Sync:</span>
+                        <span class="info-value" id="userLastSync">-</span>
+                    </div>
+                    <button onclick="syncSAMGovProfile()" style="margin-top: 10px; padding: 8px 15px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        🔄 Sync SAM.gov Profile
+                    </button>
+                    <div id="syncStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+                </div>
+
+                <button onclick="logout()" style="margin-top: 15px; padding: 10px 20px; background: #8b0000; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', sans-serif;">
+                    🔓 LOGOUT
+                </button>
+            </div>
+                <h3>✅ AUTHENTICATED USER</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value" id="userName">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Organization:</span>
+                    <span class="info-value" id="userOrg">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Clearance Level:</span>
+                    <span class="info-value" id="userClearance">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Special Access:</span>
+                    <span class="info-value" id="userCaveats">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Card Expiration:</span>
+                    <span class="info-value" id="userExpiration">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Authentication Method:</span>
+                    <span class="info-value" id="userAuthMethod">-</span>
+                </div>
+
+                <!-- SAM.gov Sync Section -->
+                <div id="samgovSyncSection" style="margin-top: 20px; padding: 15px; background: rgba(0,100,255,0.1); border: 2px solid rgba(0,150,255,0.3); border-radius: 8px; display: none;">
+                    <div class="info-row">
+                        <span class="info-label">SAM.gov Entity:</span>
+                        <span class="info-value" id="userSAMGovEntity">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Sync:</span>
+                        <span class="info-value" id="userLastSync">-</span>
+                    </div>
+                    <button onclick="syncSAMGovProfile()" style="margin-top: 10px; padding: 8px 15px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        🔄 Sync SAM.gov Profile
+                    </button>
+                    <div id="syncStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+                </div>
+
+                <button onclick="logout()" style="margin-top: 15px; padding: 10px 20px; background: #8b0000; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', sans-serif;">
+                    🔓 LOGOUT
+                </button>
+            </div>
+                <h3>✅ AUTHENTICATED USER</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value" id="userName">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Organization:</span>
+                    <span class="info-value" id="userOrg">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Clearance Level:</span>
+                    <span class="info-value" id="userClearance">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Special Access:</span>
+                    <span class="info-value" id="userCaveats">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Card Expiration:</span>
+                    <span class="info-value" id="userExpiration">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Authentication Method:</span>
+                    <span class="info-value" id="userAuthMethod">-</span>
+                </div>
+
+                <!-- SAM.gov Sync Section -->
+                <div id="samgovSyncSection" style="margin-top: 20px; padding: 15px; background: rgba(0,100,255,0.1); border: 2px solid rgba(0,150,255,0.3); border-radius: 8px; display: none;">
+                    <div class="info-row">
+                        <span class="info-label">SAM.gov Entity:</span>
+                        <span class="info-value" id="userSAMGovEntity">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Sync:</span>
+                        <span class="info-value" id="userLastSync">-</span>
+                    </div>
+                    <button onclick="syncSAMGovProfile()" style="margin-top: 10px; padding: 8px 15px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        🔄 Sync SAM.gov Profile
+                    </button>
+                    <div id="syncStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
+                </div>
+
+                <button onclick="logout()" style="margin-top: 15px; padding: 10px 20px; background: #8b0000; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', sans-serif;">
+                    🔓 LOGOUT
+                </button>
+            </div>
+
+            <h2 style="color: #ff6666; margin: 40px 0 20px 0; text-align: center;">ACCESSIBLE CLASSIFIED CONTRACTS</h2>
+            
+            <div class="stats-grid" id="statsGrid"></div>
+            
+            <!-- Compensation Claims Section -->
+            <div id="compensationSection" style="background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,170,0,0.1)); border: 2px solid rgba(255,215,0,0.3); padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #ffdd66; margin-bottom: 20px; text-align: center;">💰 Developer Compensation Claims</h3>
+                <p style="color: #ffcc99; text-align: center; margin-bottom: 20px;">
+                    Check if your GitHub projects may have been used in government contracts and claim compensation.
+                </p>
+
+                <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button onclick="scanGitHubProjects()" style="padding: 10px 20px; background: rgba(255,215,0,0.2); border: 2px solid #ffd700; border-radius: 8px; color: #ffdd66; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        🔍 Scan GitHub Projects
+                    </button>
+                    <button onclick="showCompensationClaims()" style="padding: 10px 20px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        📋 View Claims
+                    </button>
+                    <button onclick="submitCompensationClaim()" style="padding: 10px 20px; background: linear-gradient(90deg, #00ff00, #66ff66); border: none; border-radius: 8px; color: #000; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        ➕ Submit Claim
+                    </button>
+                </div>
+
+                <div id="compensationStatus" style="text-align: center; color: #ffcc99; font-size: 0.9em;"></div>
+            <div id="compensationResults" style="margin-top: 20px;"></div>
+            </div>
+            
+            <!-- Google Location-Based Filtering -->
+            <div id="locationFilterSection" style="background: linear-gradient(135deg, rgba(0,150,255,0.1), rgba(0,100,200,0.1)); border: 2px solid rgba(0,150,255,0.3); padding: 25px; border-radius: 15px; margin: 30px 0;">
+                <h3 style="color: #66ccff; margin-bottom: 20px; text-align: center;">📍 Location-Based Contract Discovery</h3>
+                <p style="color: #99ddff; text-align: center; margin-bottom: 20px;">
+                    Find government contracts near your location using Google Places integration.<br>
+                    Enter your location to see contracts with nearby performance requirements.
+                </p>
+
+                <div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <input type="text" id="locationSearchInput" placeholder="Enter city, state, or zip code..." style="padding: 12px; background: rgba(0,0,0,0.6); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; width: 300px;">
+                    <button onclick="searchNearbyContracts()" style="padding: 12px 20px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                        🔍 Find Nearby Contracts
+                    </button>
+                </div>
+
+                <div id="locationResults" style="margin-top: 20px;">
+                    <div id="locationStatus" style="text-align: center; color: #99ddff; font-size: 0.9em;">Enter a location above to discover contracts in your area</div>
+                </div>
+            </div>
+            
+            <div class="contracts-grid" id="contractsGrid"></div>
+        </div>
+
+        <div style="margin-top: 60px; padding: 30px; text-align: center; border-top: 2px solid rgba(255,0,0,0.3);">
+            <p style="color: #ff6666; margin-bottom: 15px;">
+                <a href="contractor-leaderboard.html" style="color: #00ff99; padding: 10px 20px; background: rgba(0,255,153,0.1); border: 1px solid #00ff99; border-radius: 8px; text-decoration: none; display: inline-block; margin: 5px;">
+                    💎 Contractor Leaderboard & Bidding
+                </a>
+                <a href="contractor-registration.html" style="color: #66ccff; padding: 10px 20px; background: rgba(0,150,255,0.1); border: 1px solid #66ccff; border-radius: 8px; text-decoration: none; display: inline-block; margin: 5px;">
+                    📝 Register as Contractor
+                </a>
+                <a href="admin-contractor-dashboard.html" style="color: #ffd700; padding: 10px 20px; background: rgba(255,215,0,0.1); border: 1px solid #ffd700; border-radius: 8px; text-decoration: none; display: inline-block; margin: 5px;">
+                    ⚡ Admin Dashboard (System Architect Only)
+                </a>
+            </p>
+            <p style="color: #ff6666;">
+                <a href="index.html" style="color: #ff0000;">← Back to Main Hub</a>
+            </p>
+            <p style="color: #ff9999; margin-top: 10px; font-size: 0.9em;">
+                All access logged | Monitored 24/7 | Unauthorized use prohibited
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Anti-flicker wallet state management
+        let isWalletConnected = false;
+        let currentWalletAddress = null;
+        let lastUIUpdate = 0;
+        const UI_UPDATE_DEBOUNCE = 500; // 500ms minimum between UI updates
+
+        // Initialize Universal Auth System
+        window.addEventListener('DOMContentLoaded', async () => {
+            console.log('🔒 Initializing Classified Contracts with Wallet Integration...');
+            
+            try {
+                // Initialize with custom handlers and debouncing
+                await window.authIntegration.init({
+                    requireAuth: false,  // Don't force redirect yet
+                    showUI: false,  // We have custom UI
+                    onAuthSuccess: (authInfo) => debouncedUpdate(handleWalletConnected, authInfo),
+                    onAuthFail: () => debouncedUpdate(handleWalletDisconnected)
+                });
+            } catch (error) {
+                console.error('❌ Universal auth initialization failed:', error);
+            }
+        });
+
+        // Debounced UI update function
+        function debouncedUpdate(callback, ...args) {
+            const now = Date.now();
+            if (now - lastUIUpdate < UI_UPDATE_DEBOUNCE) {
+                // Schedule update after debounce period
+                setTimeout(() => {
+                    if (Date.now() - lastUIUpdate >= UI_UPDATE_DEBOUNCE) {
+                        callback(...args);
+                    }
+                }, UI_UPDATE_DEBOUNCE - (now - lastUIUpdate));
+                return;
+            }
+            
+            lastUIUpdate = now;
+            callback(...args);
+        }
+
+        // Handle wallet connection with stability checks
+        async function handleWalletConnected(authInfo) {
+            if (!authInfo || !authInfo.address) return;
+            
+            // Prevent duplicate processing
+            if (isWalletConnected && currentWalletAddress === authInfo.address) {
+                return; // Already connected to this wallet
+            }
+            
+            console.log('🔗 Classified contracts wallet connected:', authInfo.address);
+            isWalletConnected = true;
+            currentWalletAddress = authInfo.address;
+            
+            // Small delay to prevent rapid UI updates
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Use security-clearance-auth for contract access logic
+            const result = await window.securityClearanceAuth.autoAuthenticate();
+            
+            if (result && result.success) {
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('authenticatedSection').style.display = 'block';
+                displayUserInfo(result.user);
+                loadClassifiedContracts();
+            }
+        }
+
+        // Handle wallet disconnection with stability checks
+        function handleWalletDisconnected() {
+            // Prevent duplicate processing
+            if (!isWalletConnected) {
+                return; // Already disconnected
+            }
+            
+            console.log('🔌 Classified contracts wallet disconnected');
+            isWalletConnected = false;
+            currentWalletAddress = null;
+            
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('authenticatedSection').style.display = 'none';
+        }
+    
+        function selectAuthMethod(method) {
+            // Remove selected class from all buttons
+            document.querySelectorAll('.auth-method-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Add selected class to chosen method
+            if (method === 'wallet') {
+                document.getElementById('walletAuthBtn').classList.add('selected');
+                document.getElementById('walletAuthSection').style.display = 'block';
+                document.getElementById('samgovAuthSection').style.display = 'none';
+            } else if (method === 'samgov') {
+                document.getElementById('samgovAuthBtn').classList.add('selected');
+                document.getElementById('samgovAuthSection').style.display = 'block';
+                document.getElementById('walletAuthSection').style.display = 'none';
+            }
+        }
+
+        async function authenticateWallet() {
+            // Prevent multiple concurrent connection attempts
+            if (window.authenticatingWallet) return;
+            window.authenticatingWallet = true;
+            
+            const btn = document.getElementById('authBtn');
+            const status = document.getElementById('authStatus');
+            
+            try {
+                btn.disabled = true;
+                status.textContent = '⏳ Connecting wallet...';
+                status.style.color = '#ffff00';
+                
+                // Use universal auth to connect
+                const authInfo = await window.universalWalletAuth.connect();
+                
+                if (!authInfo) {
+                    throw new Error('Wallet connection failed');
+                }
+                
+                // Use security-clearance-auth for clearance verification
+                const result = await window.securityClearanceAuth.authenticateWithWallet();
+                
+                if (result.success) {
+                    status.textContent = '✅ Authentication successful!';
+                    status.style.color = '#00ff00';
+                    
+                    // Hide auth section, show authenticated content
+                    setTimeout(() => {
+                        document.getElementById('authSection').style.display = 'none';
+                        document.getElementById('authenticatedSection').style.display = 'block';
+                        displayUserInfo(result.user);
+                        loadClassifiedContracts();
+                    }, 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                status.textContent = '❌ ' + error.message;
+                status.style.color = '#ff0000';
+                btn.disabled = false;
+            } finally {
+                window.authenticatingWallet = false;
+            }
+        }
+
+        async function authenticateWithSAMGov() {
+            // Prevent multiple concurrent auth attempts
+            if (window.authenticatingSAMGov) return;
+            window.authenticatingSAMGov = true;
+            
+            const btn = document.getElementById('samgovAuthBtn');
+            const status = document.getElementById('samgovAuthStatus');
+            
+            try {
+                btn.disabled = true;
+                status.textContent = '🏛️ Redirecting to SAM.gov...';
+                status.style.color = '#66ccff';
+                
+                // Initiate SAM.gov SSO
+                const result = await window.securityClearanceAuth.authenticateWithSAMGov();
+                
+                if (result.success) {
+                    // Redirect happens automatically, but show success message
+                    status.textContent = '✅ Redirecting to SAM.gov for authentication...';
+                    status.style.color = '#00ff00';
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                status.textContent = '❌ ' + error.message;
+                status.style.color = '#ff6666';
+                btn.disabled = false;
+            } finally {
+                window.authenticatingSAMGov = false;
+            }
+        }
+    
+        async function authenticateCard() {
+            // Prevent multiple concurrent card auth attempts
+            if (window.authenticatingCard) return;
+            window.authenticatingCard = true;
+            
+            const btn = document.getElementById('authBtn');
+            const status = document.getElementById('authStatus');
+            
+            try {
+                btn.disabled = true;
+                status.textContent = '⏳ Connecting wallet...';
+                status.style.color = '#ffff00';
+                
+                // Use universal auth to connect
+                const authInfo = await window.universalWalletAuth.connect();
+                
+                if (!authInfo) {
+                    throw new Error('Wallet connection failed');
+                }
+                
+                // Use security-clearance-auth for clearance verification
+                const result = await window.securityClearanceAuth.authenticateWithWallet();
+                
+                if (result.success) {
+                    status.textContent = '✅ Authentication successful!';
+                    status.style.color = '#00ff00';
+                    
+                    // Hide auth section, show authenticated content
+                    setTimeout(() => {
+                        document.getElementById('authSection').style.display = 'none';
+                        document.getElementById('authenticatedSection').style.display = 'block';
+                        displayUserInfo(result.user);
+                        loadClassifiedContracts();
+                    }, 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                status.textContent = '❌ ' + error.message;
+                status.style.color = '#ff0000';
+                btn.disabled = false;
+            } finally {
+                window.authenticatingCard = false;
+            }
+        }
+
+        function displayUserInfo(user) {
+            document.getElementById('userName').textContent = user.commonName;
+            document.getElementById('userOrg').textContent = user.organization;
+            document.getElementById('userClearance').textContent = user.clearanceLevel.replace('_', '/');
+            document.getElementById('userCaveats').textContent = user.caveatCodes.join(', ') || 'None';
+            document.getElementById('userExpiration').textContent = user.expirationDate;
+
+            // Show authentication method
+            if (user.samGovAuthenticated) {
+                document.getElementById('userAuthMethod').textContent = 'SAM.gov SSO';
+                document.getElementById('samgovSyncSection').style.display = 'block';
+                document.getElementById('samgovWelcome').style.display = 'block';
+
+                // Show SAM.gov entity info
+                document.getElementById('userSAMGovEntity').textContent = user.samGovProfile?.legalBusinessName || 'Not available';
+                document.getElementById('userLastSync').textContent = user.lastSync ? new Date(user.lastSync).toLocaleString() : 'Never';
+
+                // Show sync status
+                document.getElementById('syncStatus').textContent = '✅ Profile synced with SAM.gov';
+                document.getElementById('syncStatus').style.color = '#00ff00';
+
+                // Show setup wizard for new SAM.gov users
+                if (!user.profile?.setupComplete) {
+                    document.getElementById('quickSetupWizard').style.display = 'block';
+                    initializeSetupWizard();
+                }
+            } else {
+                document.getElementById('userAuthMethod').textContent = 'Crypto Wallet + PIV/CAC';
+                document.getElementById('samgovSyncSection').style.display = 'none';
+                document.getElementById('samgovWelcome').style.display = 'none';
+                document.getElementById('quickSetupWizard').style.display = 'none';
+            }
+        }
+
+        function initializeSetupWizard() {
+            const steps = document.querySelectorAll('.setup-step');
+            steps.forEach((step, index) => {
+                step.classList.toggle('active', index === 0);
+            });
+
+            // Update progress
+            updateSetupProgress(1);
+        }
+
+        function goToSetupStep(stepNumber) {
+            // Update active step
+            document.querySelectorAll('.setup-step').forEach((step, index) => {
+                step.classList.toggle('active', index + 1 === stepNumber);
+            });
+
+            // Update progress
+            updateSetupProgress(stepNumber);
+
+            // Handle step actions
+            handleSetupStep(stepNumber);
+        }
+
+        function updateSetupProgress(stepNumber) {
+            const progressBar = document.getElementById('progressBar');
+            const setupStatus = document.getElementById('setupStatus');
+
+            const progress = (stepNumber / 4) * 100;
+            progressBar.style.width = `${progress}%`;
+
+            const stepTexts = [
+                'Setting up your profile',
+                'Connecting your projects',
+                'Finding matching opportunities',
+                'Ready to start bidding'
+            ];
+
+            setupStatus.textContent = `Step ${stepNumber} of 4: ${stepTexts[stepNumber - 1]}`;
+        }
+
+        function handleSetupStep(stepNumber) {
+            switch (stepNumber) {
+                case 1:
+                    // Profile setup - scroll to profile section
+                    scrollToProfile();
+                    break;
+                case 2:
+                    // GitHub sync - would trigger GitHub integration
+                    if (window.githubIntegration) {
+                        window.githubIntegration.getUserRepositories().then(repos => {
+                            if (repos.length > 0) {
+                                alert(`✅ Found ${repos.length} GitHub repositories! Your projects are now synced.`);
+                            } else {
+                                alert('No public repositories found. You can connect private repositories later.');
+                            }
+                        });
+                    }
+                    break;
+                case 3:
+                    // Contract matching - would trigger SAM.gov integration
+                    loadClassifiedContracts();
+                    break;
+                case 4:
+                    // Ready to bid - hide wizard and show contracts
+                    document.getElementById('quickSetupWizard').style.display = 'none';
+                    scrollToContracts();
+                    break;
+            }
+        }
+
+        function scanGitHubProjects() {
+            const status = document.getElementById('compensationStatus');
+
+            if (!window.githubIntegration?.githubToken) {
+                status.innerHTML = '<p style="color: #ff6666;">GitHub token required. Please connect your GitHub account first.</p>';
+                return;
+            }
+
+            status.innerHTML = '<p style="color: #66ccff;">🔍 Scanning your GitHub repositories...</p>';
+
+            window.githubIntegration.getUserRepositories().then(repos => {
+                if (repos.length === 0) {
+                    status.innerHTML = '<p style="color: #ff6666;">No public repositories found. Make sure your repositories are public or connect with a token that has access to private repos.</p>';
+                    return;
+                }
+
+                // Analyze repositories for potential government usage
+                return window.githubContractDetector.batchAnalyzeRepositories(repos);
+            }).then(analyses => {
+                if (analyses && analyses.length > 0) {
+                    displayCompensationMatches(analyses);
+                } else {
+                    status.innerHTML = '<p style="color: #ffaa00;">No potential government contract matches found in your repositories.</p>';
+                }
+            }).catch(error => {
+                console.error('Error scanning GitHub projects:', error);
+                status.innerHTML = '<p style="color: #ff6666;">Error scanning repositories. Please try again.</p>';
+            });
+        }
+
+        function displayCompensationMatches(analyses) {
+            const resultsDiv = document.getElementById('compensationResults');
+            resultsDiv.innerHTML = '';
+
+            analyses.forEach(analysis => {
+                const repo = analysis.repository;
+                const matches = analysis.samGovMatches;
+
+                if (matches.length > 0) {
+                    const matchCard = document.createElement('div');
+                    matchCard.className = 'contract-card';
+                    matchCard.innerHTML = `
+                        <div class="contract-header">
+                            <div class="contract-title">🔗 ${repo.name} - Potential Government Usage</div>
+                        </div>
+                        <div class="contract-value">$${(matches[0].compensationEstimate.estimatedAmount / 1000000).toFixed(1)}M Potential</div>
+                        <div class="contract-details">
+                            <strong>Repository:</strong> ${repo.full_name}<br>
+                            <strong>Language:</strong> ${repo.language}<br>
+                            <strong>Stars:</strong> ${repo.stargazers_count}<br>
+                            <strong>Last Updated:</strong> ${new Date(repo.updated_at).toLocaleDateString()}
+                        </div>
+                        <p style="color: #ff9999; margin: 15px 0;">${matches[0].matchReasons.join('<br>')}</p>
+
+                        <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid rgba(255, 215, 0, 0.3); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4 style="color: #ffdd66; margin-bottom: 10px;">💰 Compensation Estimate</h4>
+                            <p><strong>Estimated Value:</strong> $${matches[0].compensationEstimate.estimatedAmount.toLocaleString()}</p>
+                            <p><strong>Confidence:</strong> ${matches[0].compensationEstimate.confidence}</p>
+                            <p><strong>Evidence Strength:</strong> ${matches[0].matchScore}/100</p>
+                        </div>
+
+                        <button onclick="claimCompensation('${repo.full_name}', '${matches[0].opportunity.id}')" style="width: 100%; padding: 12px; background: linear-gradient(90deg, #00ff00, #66ff66); border: none; border-radius: 8px; color: #000; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                            💰 Submit Compensation Claim
+                        </button>
+                    `;
+
+                    resultsDiv.appendChild(matchCard);
+                }
+            });
+
+            status.innerHTML = `<p style="color: #00ff00;">✅ Found ${analyses.length} potential matches! Review the results below.</p>`;
+        }
+
+        async function claimCompensation(repoFullName, contractId) {
+            const user = window.securityClearanceAuth.currentUser;
+
+            if (!user.samGovAuthenticated) {
+                alert('Please authenticate with SAM.gov first to submit compensation claims.');
+                return;
+            }
+
+            // Create compensation claim
+            const claimData = {
+                repositoryUrl: `https://github.com/${repoFullName}`,
+                repositoryOwner: repoFullName.split('/')[0],
+                repositoryName: repoFullName.split('/')[1],
+                contractId: contractId,
+                claimantAddress: user.walletAddress || user.samGovProfile?.ueiSAM,
+                claimantName: user.commonName,
+                description: `Compensation claim for GitHub repository ${repoFullName} potentially used in government contract ${contractId}`,
+                requestedAmount: 500000, // Default amount - would be calculated based on analysis
+                evidence: [{
+                    type: 'github_repository',
+                    strength: 'strong',
+                    description: `GitHub repository ${repoFullName} contains code potentially used in government contract`
+                }]
+            };
+
+            try {
+                const result = await window.compensationClaimSystem.submitCompensationClaim(claimData);
+
+                if (result.success) {
+                    alert(`✅ Compensation claim submitted successfully! Claim ID: ${result.claimId}`);
+                    showCompensationClaims(); // Refresh the claims view
+                } else {
+                    alert(`❌ Error submitting claim: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error submitting compensation claim:', error);
+                alert('Error submitting claim. Please try again.');
+            }
+        }
+
+        function showCompensationClaims() {
+            const claims = window.compensationClaimSystem.getCompensationClaims();
+            const resultsDiv = document.getElementById('compensationResults');
+
+            if (claims.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: #ffaa00; text-align: center; padding: 40px;">No compensation claims submitted yet.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '';
+
+            claims.forEach(claim => {
+                const claimCard = document.createElement('div');
+                claimCard.className = 'contract-card';
+                claimCard.innerHTML = `
+                    <div class="contract-header">
+                        <div class="contract-title">💰 Claim: ${claim.repository.name}</div>
+                    </div>
+                    <div class="contract-details">
+                        <strong>Status:</strong> ${claim.status.toUpperCase()}<br>
+                        <strong>Repository:</strong> ${claim.repository.url}<br>
+                        <strong>Contract:</strong> ${claim.samGovContract.title}<br>
+                        <strong>Requested:</strong> $${claim.claimDetails.requestedAmount.toLocaleString()}<br>
+                        <strong>Submitted:</strong> ${new Date(claim.submittedAt).toLocaleDateString()}
+                    </div>
+                    ${claim.status === 'approved' && claim.payoutAmount ?
+                        `<div style="background: rgba(0,255,0,0.1); border: 2px solid #00ff00; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h4 style="color: #00ff00;">✅ Claim Approved!</h4>
+                            <p><strong>Payout Amount:</strong> $${claim.payoutAmount.toLocaleString()}</p>
+                            <p><strong>Resolution Date:</strong> ${new Date(claim.resolvedAt).toLocaleDateString()}</p>
+                        </div>` : ''
+                    }
+                `;
+
+                resultsDiv.appendChild(claimCard);
+            });
+        }
+
+        async function submitCompensationClaim() {
+            // This would open a modal for manual claim submission
+            alert('Manual claim submission feature coming soon. Use the scan feature to auto-detect potential claims.');
+        }
+
+        async function syncSAMGovProfile() {
+            const syncStatus = document.getElementById('syncStatus');
+
+            try {
+                syncStatus.textContent = '⏳ Syncing with SAM.gov...';
+                syncStatus.style.color = '#66ccff';
+
+                const result = await window.securityClearanceAuth.syncWithSAMGov();
+
+                if (result.success) {
+                    syncStatus.textContent = '✅ Profile synced successfully!';
+                    syncStatus.style.color = '#00ff00';
+
+                    // Update displayed info
+                    document.getElementById('userSAMGovEntity').textContent = result.profile.organization;
+                    document.getElementById('userLastSync').textContent = new Date().toLocaleString();
+
+                    // Refresh contracts if profile changed
+                    setTimeout(() => {
+                        loadClassifiedContracts();
+                    }, 1000);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                syncStatus.textContent = '❌ Sync failed: ' + error.message;
+                syncStatus.style.color = '#ff6666';
+            }
+        }
+
+        async function loadClassifiedContracts() {
+            try {
+                const contracts = await window.securityClearanceAuth.getClassifiedContracts();
+                const summary = window.securityClearanceAuth.getAccessSummary();
+                const user = window.securityClearanceAuth.currentUser;
+                
+                // Load live SAM.gov opportunities if API key is set
+                await loadLiveOpportunities();
+                
+                // Display stats
+                displayStats(summary);
+                
+                // Display contracts
+                const grid = document.getElementById('contractsGrid');
+                grid.innerHTML = '';
+                
+                if (contracts.length === 0) {
+                    grid.innerHTML = '<div class="access-denied"><h2>⛔ NO ACCESSIBLE CONTRACTS</h2><p>No contracts match your current clearance level.</p></div>';
+                    return;
+                }
+                
+                // If contractor (not System Architect), show AI-matched contracts
+                let displayContracts = contracts;
+                if (user.profile && window.contractorRegistry) {
+                    console.log('🤖 Running AI contract matching...');
+                    const matches = window.contractorRegistry.matchContractsToContractor(user.walletAddress, contracts);
+                    displayContracts = matches;
+                }
+                
+                displayContracts.forEach(item => {
+                    const contract = item.contract || item;
+                    const hasMatching = item.score !== undefined;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'contract-card';
+                    card.innerHTML = `
+                        ${hasMatching ? `
+                            <div class="match-indicator match-${item.matchQuality}">
+                                <div class="match-score" style="color: ${getMatchColor(item.matchQuality)};">
+                                    ${item.score}/100 - ${item.matchQuality.toUpperCase()} MATCH
+                                </div>
+                                <div style="color: #66ff66; font-weight: 700;">${item.recommendation}</div>
+                                <div class="match-reasons" style="color: #99ff99;">
+                                    ${item.reasons.join('<br>')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        <div class="contract-header">
+                            <div class="contract-title">${contract.title}</div>
+                        </div>
+                        <div class="clearance-badge badge-${contract.classification.toLowerCase().replace('_', '-')}">
+                            ${contract.classification.replace('_', '/')}
+                        </div>
+                        <div class="contract-value">$${(contract.value / 1000000).toFixed(1)}M</div>
+                        <div class="contract-details">
+                            <strong>Agency:</strong> ${contract.agency}<br>
+                            <strong>ID:</strong> ${contract.id}<br>
+                            <strong>Deadline:</strong> ${contract.deadline}<br>
+                            <strong>Status:</strong> ${contract.status}
+                        </div>
+                        <p style="color: #ff9999; margin: 15px 0;">${contract.description}</p>
+                        <div class="contract-meta">
+                            ${contract.requirements.map(req => 
+                                `<span class="meta-tag">${req}</span>`
+                            ).join('')}
+                        </div>
+                        ${contract.caveats.length > 0 ? 
+                            `<div style="margin-top: 15px; padding: 10px; background: rgba(139,0,0,0.3); border-radius: 5px;">
+                                <strong style="color: #ff6666;">Caveats:</strong> ${contract.caveats.join(', ')}
+                            </div>` : ''
+                        }
+                        ${!user.systemArchitect ? `
+                            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                                <button onclick="viewBids('${contract.id}')" style="flex: 1; padding: 12px; background: rgba(0,150,255,0.2); border: 2px solid #0099ff; border-radius: 8px; color: #66ccff; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                                    👁️ View Bids
+                                </button>
+                                <button onclick="openBidModal('${contract.id}', '${contract.title}', ${contract.value})" style="flex: 1; padding: 12px; background: linear-gradient(90deg, #00ff00, #66ff66); border: none; border-radius: 8px; color: #000; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                                    💰 Place Bid
+                                </button>
+                            </div>
+                        ` : `
+                            <div style="margin-top: 20px;">
+                                <button onclick="viewBids('${contract.id}')" style="width: 100%; padding: 12px; background: rgba(255,215,0,0.2); border: 2px solid #ffd700; border-radius: 8px; color: #ffdd66; font-family: 'Orbitron', sans-serif; cursor: pointer; font-weight: 700;">
+                                    ⚡ Manage Bids (System Architect)
+                                </button>
+                            </div>
+                        `}
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading contracts:', error);
+                document.getElementById('contractsGrid').innerHTML = 
+                    '<div class="access-denied"><h2>❌ ERROR</h2><p>' + error.message + '</p></div>';
+            }
+        }
+        
+        function setSamGovApiKey() {
+            const input = document.getElementById('samGovApiKeyInput');
+            const status = document.getElementById('samGovStatus');
+            
+            if (input.value.trim()) {
+                localStorage.setItem('samGovApiKey', input.value.trim());
+                status.textContent = '✅ API Key set successfully! Live opportunities will be available.';
+                status.style.color = '#00ff00';
+                
+                // Reinitialize SAM.gov integration
+                window.samGovIntegration = new SAMGovIntegration();
+            } else {
+                status.textContent = '❌ Please enter a valid API key.';
+                status.style.color = '#ff6666';
+            }
+        }
+        
+        async function loadLiveOpportunities() {
+            try {
+                // Load live opportunities from SAM.gov
+                const opportunities = await window.samGovIntegration.findOpportunities(['cybersecurity', 'web3', 'blockchain'], ['software']);
+                
+                if (opportunities.length > 0) {
+                    const liveGrid = document.createElement('div');
+                    liveGrid.className = 'contracts-grid';
+                    liveGrid.id = 'liveOpportunitiesGrid';
+                    
+                    opportunities.slice(0, 3).forEach(opp => {
+                        const card = document.createElement('div');
+                        card.className = 'contract-card';
+                        card.innerHTML = `
+                            <div class="contract-header">
+                                <div class="contract-title">${opp.title}</div>
+                            </div>
+                            <div class="clearance-badge badge-confidential">LIVE SAM.GOV</div>
+                            <div class="contract-value">$${(opp.estimatedValue / 1000000).toFixed(1)}M</div>
+                            <div class="contract-details">
+                                <strong>Agency:</strong> ${opp.agency}<br>
+                                <strong>Deadline:</strong> ${opp.deadline}<br>
+                                <strong>Status:</strong> ${opp.status}
+                            </div>
+                            <p style="color: #ff9999; margin: 15px 0;">${opp.description || 'Real-time opportunity from SAM.gov'}</p>
+                            <div class="contract-meta">
+                                ${opp.requirements.map(req => `<span class="meta-tag">${req}</span>`).join('')}
+                            </div>
+                        `;
+                        liveGrid.appendChild(card);
+                    });
+                    
+                    // Insert before the main contracts grid
+                    const mainGrid = document.getElementById('contractsGrid');
+                    mainGrid.parentNode.insertBefore(liveGrid, mainGrid);
+                    
+                    // Add header for live opportunities
+                    const header = document.createElement('h3');
+                    header.textContent = '🔴 LIVE SAM.GOV OPPORTUNITIES';
+                    header.style.color = '#00ff00';
+                    header.style.margin = '40px 0 20px 0';
+                    header.style.textAlign = 'center';
+                    mainGrid.parentNode.insertBefore(header, liveGrid);
+                }
+            } catch (error) {
+                console.log('No live opportunities available or API key not set');
+            }
+        }
+        
+        function getMatchColor(quality) {
+            switch(quality) {
+                case 'excellent': return '#00ff00';
+                case 'good': return '#66ff66';
+                case 'fair': return '#ffaa00';
+                case 'poor': return '#ff6666';
+                default: return '#ffffff';
+            }
+        }
+
+        function displayStats(summary) {
+            const grid = document.getElementById('statsGrid');
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${summary.totalContracts}</div>
+                    <div class="stat-label">Accessible Contracts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">$${(summary.totalValue / 1000000).toFixed(1)}M</div>
+                    <div class="stat-label">Total Contract Value</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${summary.clearanceLevel.replace('_', '/')}</div>
+                    <div class="stat-label">Your Clearance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${summary.caveats.length || 0}</div>
+                    <div class="stat-label">Special Access Programs</div>
+                </div>
+            `;
+        }
+
+        function logout() {
+            window.securityClearanceAuth.logout();
+            document.getElementById('authenticatedSection').style.display = 'none';
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('authBtn').disabled = false;
+            document.getElementById('authStatus').textContent = '';
+        }
+        
+        // Bidding functions
+        function openBidModal(contractId, contractTitle, contractValue) {
+            const user = window.securityClearanceAuth.currentUser;
+            
+            // Get performance score
+            const performance = window.cryptoBiddingSystem.calculatePerformanceScore(user.walletAddress);
+            
+            const modal = document.createElement('div');
+            modal.id = 'bidModal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; overflow-y: auto; padding: 20px;';
+            
+            modal.innerHTML = `
+                <div style="max-width: 800px; margin: 50px auto; background: linear-gradient(135deg, rgba(0,50,0,0.95), rgba(0,80,0,0.95)); border: 2px solid #00ff00; border-radius: 15px; padding: 40px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h2 style="color: #00ff00; font-size: 2em;">💰 Place Your Bid</h2>
+                        <span onclick="closeBidModal()" style="font-size: 2em; color: #ff6666; cursor: pointer;">&times;</span>
+                    </div>
+                    
+                    <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                        <h3 style="color: #66ff66; margin-bottom: 10px;">Contract: ${contractTitle}</h3>
+                        <p style="color: #99ff99;">Estimated Value: $${(contractValue / 1000000).toFixed(1)}M</p>
+                    </div>
+                    
+                    <div style="background: rgba(0,100,255,0.1); padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid rgba(0,150,255,0.3);">
+                        <h3 style="color: #66ccff; margin-bottom: 15px;">📊 Your Performance Score</h3>
+                        <div style="font-size: 2.5em; color: #00ff00; font-weight: 900; margin: 10px 0;">${performance.score}/100</div>
+                        <div style="color: #66ff66; margin-bottom: 10px;"><strong>Reputation:</strong> ${performance.reputation}</div>
+                        <div style="color: #99ff99; font-size: 0.9em;">
+                            ✅ Completed Projects: ${performance.totalProjects}<br>
+                            ⏱️ On-Time Rate: ${performance.onTimeRate}%<br>
+                            ⭐ Avg Quality: ${performance.avgQuality}/5.0
+                        </div>
+                    </div>
+                    
+                    <form id="bidForm" onsubmit="submitBid(event, '${contractId}', '${contractTitle}', ${contractValue})">
+                        <div style="margin-bottom: 20px;">
+                            <label style="color: #66ff66; display: block; margin-bottom: 8px; font-weight: 700;">Bid Amount (USD)</label>
+                            <input type="number" id="bidAmount" required step="0.01" placeholder="Enter your bid in USD" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 2px solid rgba(0,255,0,0.3); border-radius: 8px; color: #00ff00; font-family: 'Orbitron', sans-serif; font-size: 1.1em;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="color: #66ff66; display: block; margin-bottom: 8px; font-weight: 700;">Cryptocurrency</label>
+                            <select id="bidCrypto" required style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 2px solid rgba(0,255,0,0.3); border-radius: 8px; color: #00ff00; font-family: 'Orbitron', sans-serif; font-size: 1.1em;">
+                                <option value="ETH">⟠ Ethereum (ETH)</option>
+                                <option value="SOL">◎ Solana (SOL)</option>
+                                <option value="USDC">$ USD Coin (USDC)</option>
+                                <option value="USDT">$ Tether (USDT)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="color: #66ff66; display: block; margin-bottom: 8px; font-weight: 700;">Timeline (Days)</label>
+                            <input type="number" id="bidTimeline" required placeholder="Project duration in days" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 2px solid rgba(0,255,0,0.3); border-radius: 8px; color: #00ff00; font-family: 'Orbitron', sans-serif; font-size: 1.1em;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="color: #66ff66; display: block; margin-bottom: 8px; font-weight: 700;">Project Approach</label>
+                            <textarea id="bidApproach" required rows="4" placeholder="Describe your approach to this project..." style="width: 100%; padding: 12px; background: rgba(0,0,0,0.5); border: 2px solid rgba(0,255,0,0.3); border-radius: 8px; color: #00ff00; font-family: 'Orbitron', sans-serif; font-size: 1em; resize: vertical;"></textarea>
+                        </div>
+                        
+                        <button type="submit" style="width: 100%; padding: 15px; background: linear-gradient(90deg, #00ff00, #66ff66); border: none; border-radius: 10px; color: #000; font-family: 'Orbitron', sans-serif; font-size: 1.2em; font-weight: 700; cursor: pointer;">
+                            🚀 Submit Bid
+                        </button>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        function closeBidModal() {
+            const modal = document.getElementById('bidModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        async function submitBid(event, contractId, contractTitle, contractValue) {
+            event.preventDefault();
+            
+            const user = window.securityClearanceAuth.currentUser;
+            
+            const bidData = {
+                contractId: contractId,
+                walletAddress: user.walletAddress,
+                contractorName: user.commonName,
+                organization: user.organization,
+                bidAmount: parseFloat(document.getElementById('bidAmount').value),
+                crypto: document.getElementById('bidCrypto').value,
+                timeline: document.getElementById('bidTimeline').value + ' days',
+                approach: document.getElementById('bidApproach').value,
+                teamMembers: user.profile?.teamSize || 'Not specified',
+                milestones: [
+                    { name: 'Project Start', amount: 0.1, percentage: 10 },
+                    { name: 'Mid-Point Delivery', amount: 0.4, percentage: 40 },
+                    { name: 'Final Delivery', amount: 0.5, percentage: 50 }
+                ]
+            };
+            
+            const result = await window.cryptoBiddingSystem.submitBid(bidData);
+            
+            if (result.success) {
+                alert('✅ Bid submitted successfully! Bid ID: ' + result.bidId);
+                closeBidModal();
+            } else {
+                alert('❌ Error submitting bid: ' + result.error);
+            }
+        }
+    </script>
+</body>
+</html>

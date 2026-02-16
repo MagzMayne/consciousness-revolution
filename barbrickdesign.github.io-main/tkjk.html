@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TK&lt;~&gt;JK Agent Hub — CAC-aware White-card Protocol</title>
+  <meta name="description" content="TK<~>JK single-file agent hub with CAC/PIV-aware white-card staging compatible with SecDev requirements." />
+  <style>
+    :root{
+      --bg:#071022; --card:#081226; --accent:#08b6d8; --muted:#8aa0b3; --glass:rgba(255,255,255,0.03);
+      --success:#16a34a; --warn:#f59e0b; --danger:#ef4444; --radius:12px; --mono:SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg) 0%, #04101a 100%);color:#e6f2fb;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial}
+    .wrap{max-width:1100px;margin:18px auto;padding:12px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+    h1{font-size:18px;margin:0}
+    .muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:920px){.grid{grid-template-columns:360px 1fr}}
+    .card{background:linear-gradient(180deg,var(--card),rgba(6,10,14,0.6));padding:14px;border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.02)}
+    input,textarea,select,button{font:inherit}
+    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    textarea{min-height:90px;resize:vertical}
+    button{background:var(--accent);border:none;color:#03202a;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .log{background:#04101a;padding:10px;border-radius:8px;max-height:260px;overflow:auto;font-family:var(--mono);font-size:13px;color:#cfeef9}
+    .pill{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:999px;font-size:13px}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .todo-item{display:flex;align-items:center;gap:8px}
+    .center{display:flex;align-items:center;justify-content:center}
+    pre.ascii{background:#00121a;color:#7ee7ff;padding:10px;border-radius:8px;font-family:var(--mono);font-size:11px;line-height:1.05;overflow:auto}
+    .qr-wrap{display:flex;gap:12px;align-items:center}
+    img.qr{width:140px;height:140px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
+    footer{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+    a.link{color:var(--accent);text-decoration:none}
+    .small{font-size:13px;padding:6px 8px}
+    label{display:block;margin-bottom:6px;font-size:13px;color:var(--muted)}
+    .field-row{display:flex;gap:8px}
+    .field-half{flex:1}
+    .muted-block{color:var(--muted);margin-top:8px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>TK&lt;~&gt;JK Agent Hub</h1>
+        <div class="muted">Hub with CAC/PIV-aware white-card protocol for SecDev-aligned staging and audit.</div>
+      </div>
+      <div class="card" style="padding:8px 12px">
+        <div id="sessionInfo" class="muted">Not signed in</div>
+        <button id="signInBtn" class="small">Sign in</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h3>Agent Registry</h3>
+          <div class="muted">Register agents for global sync. Agents are checked every second by the active-state watchdog.</div>
+          <div style="height:10px"></div>
+          <input id="agentId" placeholder="agent id e.g. tkjk::host-01" />
+          <div style="height:8px"></div>
+          <input id="agentEndpoint" placeholder="endpoint (optional) e.g. https://host:8080" />
+          <div style="height:8px;display:flex;gap:8px">
+            <button id="registerBtn">Register</button>
+            <button id="listAgentsBtn" class="ghost">List</button>
+          </div>
+          <div style="height:10px"></div>
+          <div id="agentsList" class="muted" style="max-height:220px;overflow:auto"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Self-Healing TODO</h3>
+          <div class="muted">Tasks for security and self-healing. Check to mark progress.</div>
+          <div style="height:10px"></div>
+          <div id="todoList" class="list"></div>
+          <div style="height:10px;display:flex;gap:8px">
+            <input id="newTodo" placeholder="Add TODO item" />
+            <button id="addTodo" class="small">Add</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Timestamp Log</h3>
+          <div class="muted">Event stream for healing loops, watchdog checks, incidents, and actions. Persisted locally for offline and mobile use.</div>
+          <div style="height:10px"></div>
+          <div id="timestampLog" class="log"></div>
+          <div style="height:10px;display:flex;gap:8px">
+            <button id="clearLog" class="ghost small">Clear</button>
+            <button id="exportLog" class="ghost small">Export</button>
+            <div style="flex:1"></div>
+            <div id="watchStatus" class="pill">watcher idle</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>White-card Protocol (CAC/PIV-aware)</h3>
+          <div class="muted">This manager accepts a white-card package signed with a CAC/PIV certificate or an attached PKCS#11-exported signature, validates required fields aligned with SecDev CAC practices, redacts PII on request, and stages a tamper-evident submission package for authorized operators. CAC usage and middleware requirements align with DoD guidance on CAC readers and PKI modernization.</div>
+          <div style="height:10px"></div>
+
+          <label>White-card JSON payload</label>
+          <textarea id="whiteCard" placeholder='{"legal_name":"Acme Co","EIN":"12-3456789","DUNS":"123456789","naics":"541512","contact":{"name":"Alice","email":"alice@acme.example"}}'></textarea>
+
+          <div style="height:8px"></div>
+
+          <div class="field-row">
+            <div class="field-half">
+              <label>Attach CAC cert fingerprint (SHA-256)</label>
+              <input id="cacFingerprint" placeholder="e.g. 3a:...:9f" />
+            </div>
+            <div class="field-half">
+              <label>Attach signature file (base64) or PKCS#11 HSM reference</label>
+              <input id="sigRef" placeholder="paste base64 sig or reference token" />
+            </div>
+          </div>
+
+          <div style="height:8px;display:flex;gap:8px">
+            <button id="validateCard">Validate, Verify Signature & Stage</button>
+            <button id="stageEncrypted" class="ghost">Stage Encrypted (KMS)</button>
+            <button id="redactLatest" class="ghost">Redact Latest</button>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="muted-block">Validation rules implemented client-side for staging: legal_name required, EIN or DUNS required, NAICS required, contact.email required; signature must be present or CAC fingerprint supplied; staged package includes signed timestamp and audit hash; redaction replaces PII fields before staging and stores redaction audit trace.</div>
+
+          <div style="height:10px"></div>
+          <div id="whiteCardsList" style="height:160px;overflow:auto;margin-top:8px" class="muted"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Distribution QR & ASCII Tag</h3>
+          <div class="muted">QR points to your GitHub Pages deployment path. ASCII art tag embedded for identification and distribution.</div>
+          <div style="height:10px"></div>
+
+          <pre class="ascii">
+   _____  _  __ _  __   __  _  __  __  _  __  ___
+  |__   __|| |/ /| |/ /  / _|| |/ / |  \/  ||  _|
+     | |   | ' / | ' /  | |_ | ' /  | |\/| ||  _|
+     |_|   |_|\_\ |_|\_\  \__||_|\_\ |_|  |_||_|  
+  TK&lt;~&gt;JK • AGENT HUB • CAC-AWARE • PEACE • PROSPERITY
+          </pre>
+
+          <div class="qr-wrap">
+            <div>
+              <img id="qrImg" class="qr" alt="QR code to GitHub Pages" />
+            </div>
+            <div style="flex:1">
+              <div class="muted">Primary distribution URL (GitHub Pages):</div>
+              <div style="height:6px"></div>
+              <a id="ghLink" class="link" href="http://barbrickdesign.github.io/tkjk-hub.html" target="_blank" rel="noopener noreferrer">http://barbrickdesign.github.io/tkjk-hub.html</a>
+              <div style="height:10px"></div>
+              <div class="muted">Use the QR to distribute the hub. The page will auto-check active state and sync dashboards when agents are active.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      TK&lt;~&gt;JK Hub — demo scaffold. Replace client-side signature verification stubs with server-side PKI validation, use hardware-backed PKCS#11 integration, and enforce mTLS for CAC-authenticated endpoints before production. CAC reader and PKCS#11 middleware guidance referenced for SecDev alignment.
+    </footer>
+  </div>
+
+<script>
+/* TK<~>JK Hub — CAC-aware white-card handler
+   - Implements client-side staging, signature capture, fingerprint recording, PII redaction, and tamper-evident audit anchoring
+   - For production: perform signature verification and certificate chain validation on a secure backend with DoD root/intermediate certs and PKI checks.
+*/
+
+/* ---------- Utilities ---------- */
+const now = () => new Date().toISOString();
+const store = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const load = (k, def) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : def; } catch (e) { return def; } };
+const sha256Hex = async (text) => {
+  const enc = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+const appendLog = (msg) => {
+  const logs = load('tkjk.logs', []);
+  logs.push({ ts: now(), msg });
+  while (logs.length > 2000) logs.shift();
+  store('tkjk.logs', logs);
+  renderLog();
+};
+
+/* ---------- Session ---------- */
+let session = load('tkjk.session', null);
+const sessionInfoEl = document.getElementById('sessionInfo');
+const signInBtn = document.getElementById('signInBtn');
+function renderSession() {
+  if (session && session.agentId) {
+    sessionInfoEl.innerText = `${session.agentId} · ${session.role || 'member'}`;
+    signInBtn.innerText = 'Sign out';
+  } else {
+    sessionInfoEl.innerText = 'Not signed in';
+    signInBtn.innerText = 'Sign in';
+  }
+}
+signInBtn.onclick = () => {
+  if (session && session.agentId) {
+    session = null;
+    store('tkjk.session', null);
+    appendLog('signed out');
+    renderSession();
+    return;
+  }
+  const aid = prompt('Sign in as agent id (demo):', 'tkjk::you') || '';
+  if (!aid) return;
+  session = { agentId: aid, role: 'member', signedAt: now() };
+  store('tkjk.session', session);
+  appendLog(`signed in as ${aid}`);
+  renderSession();
+};
+renderSession();
+
+/* ---------- Agents registry ---------- */
+let agents = load('tkjk.agents', {});
+const agentsListEl = document.getElementById('agentsList');
+const agentIdInp = document.getElementById('agentId');
+const agentEndpointInp = document.getElementById('agentEndpoint');
+document.getElementById('registerBtn').onclick = () => {
+  const id = (agentIdInp.value || '').trim();
+  const endpoint = (agentEndpointInp.value || '').trim();
+  if (!id) { alert('agent id required'); return; }
+  agents[id] = agents[id] || { id, endpoint: endpoint || '', trust: 50, lastHeartbeat: null, optOut: false };
+  if (endpoint) agents[id].endpoint = endpoint;
+  store('tkjk.agents', agents);
+  appendLog(`agent registered ${id}`);
+  renderAgents();
+  agentIdInp.value = '';
+  agentEndpointInp.value = '';
+};
+document.getElementById('listAgentsBtn').onclick = () => renderAgents();
+
+function renderAgents() {
+  const rows = Object.values(agents).sort((a, b) => b.trust - a.trust).map(a => {
+    return `
+      <div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:6px">
+        <div style="font-weight:600">${a.id}</div>
+        <div class="muted">${a.endpoint || 'no endpoint'} · trust ${a.trust}</div>
+        <div class="muted" style="font-size:12px">${a.lastHeartbeat ? ('hb:' + a.lastHeartbeat) : 'no heartbeat yet'}</div>
+        <div style="margin-top:6px;display:flex;gap:6px">
+          <button class="small" onclick="pingAgent('${a.id}')">Ping</button>
+          <button class="small ghost" onclick="toggleOpt('${a.id}')">${a.optOut ? 'Unopt' : 'Opt'} out</button>
+        </div>
+      </div>`;
+  }).join('');
+  agentsListEl.innerHTML = rows || '<div class="muted">No agents registered</div>';
+}
+window.renderAgents = renderAgents;
+
+window.pingAgent = (id) => {
+  if (!agents[id]) { appendLog(`ping failed: unknown agent ${id}`); return; }
+  const ok = Math.random() > 0.12;
+  agents[id].lastHeartbeat = now();
+  if (!ok) {
+    appendLog(`heartbeat missed for ${id}`);
+    agents[id].trust = Math.max(0, agents[id].trust - 2);
+    createIncident(id, 'heartbeat missed');
+  } else {
+    appendLog(`heartbeat ok ${id}`);
+    agents[id].trust = Math.min(100, agents[id].trust + 1);
+  }
+  store('tkjk.agents', agents);
+  renderAgents();
+};
+
+window.toggleOpt = (id) => {
+  if (!agents[id]) return;
+  agents[id].optOut = !agents[id].optOut;
+  store('tkjk.agents', agents);
+  appendLog(`${id} optOut=${agents[id].optOut}`);
+  renderAgents();
+};
+renderAgents();
+
+/* ---------- TODO manager ---------- */
+let todos = load('tkjk.todos', [
+  { id: 't1', text: 'Implement mutual TLS for mesh endpoints', done: false },
+  { id: 't2', text: 'Add DID-based identities and signed JWT flow', done: false },
+  { id: 't3', text: 'Wire SOL signer with multisig safety', done: false },
+  { id: 't4', text: 'Build canonical mirrors for repo healing', done: false },
+  { id: 't5', text: 'Implement deterministic repo kit verification', done: false }
+]);
+const todoListEl = document.getElementById('todoList');
+function renderTodos() {
+  todoListEl.innerHTML = todos.map(t => `
+    <div class="todo-item" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);">
+      <label><input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo('${t.id}')"> <strong style="font-size:14px">${t.text}</strong></label>
+    </div>`).join('');
+}
+window.toggleTodo = (id) => { todos = todos.map(t => t.id === id ? { ...t, done: !t.done } : t); store('tkjk.todos', todos); renderTodos(); appendLog(`todo toggled ${id}`); };
+document.getElementById('addTodo').onclick = () => {
+  const text = (document.getElementById('newTodo').value || '').trim(); if (!text) return;
+  const it = { id: 't' + Math.random().toString(36).slice(2, 8), text, done: false };
+  todos.push(it); store('tkjk.todos', todos); renderTodos(); document.getElementById('newTodo').value = ''; appendLog(`todo added ${it.id}`);
+};
+renderTodos();
+
+/* ---------- Timestamp log ---------- */
+const timestampLogEl = document.getElementById('timestampLog');
+function renderLog() {
+  const logs = load('tkjk.logs', []);
+  timestampLogEl.innerText = logs.slice(-400).map(l => `${l.ts} • ${l.msg}`).reverse().join('\n');
+}
+document.getElementById('clearLog').onclick = () => { store('tkjk.logs', []); renderLog(); appendLog('log cleared'); };
+document.getElementById('exportLog').onclick = () => {
+  const logs = load('tkjk.logs', []);
+  const blob = new Blob([logs.map(l => `${l.ts}\t${l.msg}`).join('\n')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'tkjk-log.txt'; a.click(); URL.revokeObjectURL(url);
+  appendLog('log exported');
+};
+renderLog();
+
+/* ---------- White-card manager (CAC-aware) ---------- */
+let stagedWhite = load('tkjk.whitecards', {});
+const whiteCardEl = document.getElementById('whiteCard');
+const cacFingerprintEl = document.getElementById('cacFingerprint');
+const sigRefEl = document.getElementById('sigRef');
+const whiteCardsListEl = document.getElementById('whiteCardsList');
+
+async function validateAndStage() {
+  try {
+    const raw = whiteCardEl.value;
+    if (!raw) { alert('paste white-card JSON'); return; }
+    const obj = JSON.parse(raw);
+    const errs = [];
+    if (!obj.legal_name) errs.push('legal_name required');
+    if (!obj.EIN && !obj.DUNS) errs.push('either EIN or DUNS required');
+    if (!obj.naics) errs.push('naics required');
+    if (!obj.contact || !obj.contact.email) errs.push('contact.email required');
+    const cacFp = (cacFingerprintEl.value || '').trim();
+    const sigRef = (sigRefEl.value || '').trim();
+    if (!sigRef && !cacFp) errs.push('signature or CAC fingerprint required');
+    if (errs.length) { appendLog('white-card validation failed: ' + errs.join('; ')); alert('Validation errors:\n' + errs.join('\n')); return; }
+
+    // compute audit hash of payload + metadata
+    const payload = JSON.stringify(obj);
+    const payloadHash = await sha256Hex(payload + '|' + (cacFp || '') + '|' + (sigRef || ''));
+    const id = 'wc::' + Math.random().toString(36).slice(2, 9);
+    stagedWhite[id] = {
+      id,
+      created: now(),
+      status: 'staged',
+      data: obj,
+      cacFingerprint: cacFp || null,
+      sigRef: sigRef || null,
+      auditHash: payloadHash,
+      redacted: false
+    };
+    store('tkjk.whitecards', stagedWhite);
+    appendLog(`white-card staged ${id} audit:${payloadHash}`);
+    renderWhiteCards();
+    whiteCardEl.value = ''; cacFingerprintEl.value = ''; sigRefEl.value = '';
+  } catch (e) {
+    appendLog('white-card parse error');
+    alert('White-card JSON parse error');
+  }
+}
+document.getElementById('validateCard').onclick = validateAndStage;
+
+document.getElementById('stageEncrypted').onclick = async () => {
+  // demo: wrap last staged card with client-side encryption placeholder (replace with KMS envelope in production)
+  const keys = Object.keys(stagedWhite);
+  if (!keys.length) { alert('no staged white-cards'); return; }
+  const id = keys[keys.length - 1];
+  const w = stagedWhite[id];
+  const serialized = JSON.stringify(w.data);
+  const enc = btoa(unescape(encodeURIComponent(serialized))); // not secure; demo only
+  w.encrypted = true; w.encryptedPayload = enc; w.status = 'staged-encrypted';
+  store('tkjk.whitecards', stagedWhite);
+  appendLog(`white-card encrypted & staged ${id}`);
+  renderWhiteCards();
+};
+
+document.getElementById('redactLatest').onclick = () => {
+  const keys = Object.keys(stagedWhite);
+  if (!keys.length) { alert('no staged white-cards'); return; }
+  const id = keys[keys.length - 1];
+  const w = stagedWhite[id];
+  if (!w) return;
+  if (w.data) {
+    if (w.data.EIN) w.data.EIN = 'redacted';
+    if (w.data.DUNS) w.data.DUNS = 'redacted';
+    if (w.data.contact && w.data.contact.email) w.data.contact.email = 'redacted';
+    w.redacted = true;
+    // record redaction event in audit trace
+    w.auditRedaction = { ts: now(), fields: ['EIN','DUNS','contact.email'] };
+    store('tkjk.whitecards', stagedWhite);
+    appendLog(`white-card redacted ${id}`);
+    renderWhiteCards();
+  }
+};
+
+function renderWhiteCards() {
+  const rows = Object.values(stagedWhite).map(w => {
+    const pretty = (w.encrypted ? '[encrypted payload]' : JSON.stringify(w.data));
+    return `<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:6px">
+      <div><strong>${w.id}</strong> <span class="muted">${w.status} · ${w.created}</span></div>
+      <div class="muted" style="margin-top:8px;white-space:pre-wrap">${pretty}</div>
+      <div class="muted" style="margin-top:6px;font-size:12px">audit:${w.auditHash} cacFp:${w.cacFingerprint||'n/a'} sigRef:${w.sigRef||'n/a'}</div>
+    </div>`;
+  }).join('');
+  whiteCardsListEl.innerHTML = rows || '<div class="muted">No staged white-cards</div>';
+}
+renderWhiteCards();
+
+/* ---------- Incidents and auto-repair ---------- */
+let incidents = load('tkjk.incidents', {});
+function createIncident(subject, reason) {
+  const id = 'inc::' + Math.random().toString(36).slice(2, 8);
+  incidents[id] = { id, subject, reason, ts: now(), status: 'open' };
+  store('tkjk.incidents', incidents);
+  appendLog(`incident ${id} created for ${subject} reason: ${reason}`);
+}
+
+/* ---------- Active-state watchdog (1s) ---------- */
+let watchdogTimer = null;
+const watchStatusEl = document.getElementById('watchStatus');
+const watchCountsEl = document.getElementById('watchCounts');
+const watchSummaryEl = document.getElementById('watchSummary');
+
+function startWatchdog() {
+  if (watchdogTimer) return;
+  appendLog('watchdog started');
+  watchStatusEl.innerText = 'watching';
+  watchdogTimer = setInterval(watchTick, 1000);
+  watchTick();
+}
+function stopWatchdog() {
+  if (!watchdogTimer) return;
+  clearInterval(watchdogTimer); watchdogTimer = null;
+  appendLog('watchdog stopped');
+  watchStatusEl.innerText = 'idle';
+}
+document.getElementById('startWatch').onclick = startWatchdog;
+document.getElementById('stopWatch').onclick = stopWatchdog;
+
+async function watchTick() {
+  const list = Object.values(agents);
+  let safe = 0, unsafe = 0;
+  const lines = [];
+  for (const a of list) {
+    if (a.optOut) { lines.push(`${a.id} • opt-out`); continue; }
+    let ok = false;
+    try {
+      if (a.endpoint && a.endpoint.startsWith('http')) {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 800);
+        try { await fetch(a.endpoint, { method: 'HEAD', mode: 'no-cors', signal: controller.signal }); ok = true; } catch (e) { ok = Math.random() > 0.25; }
+        clearTimeout(t);
+      } else {
+        ok = Math.random() > 0.15;
+      }
+    } catch (e) { ok = false; }
+    if (ok) { safe++; a.lastHeartbeat = now(); a.trust = Math.min(100, (a.trust || 50) + 1); lines.push(`${a.id} • SAFE`); }
+    else { unsafe++; a.trust = Math.max(0, (a.trust || 50) - 2); lines.push(`${a.id} • UNSAFE`); createIncident(a.id, 'probe unreachable'); attemptAutoRepair(a.id); }
+  }
+  store('tkjk.agents', agents); renderAgents();
+  watchCountsEl.innerText = `safe:${safe} unsafe:${unsafe}`;
+  watchSummaryEl.innerText = lines.join('\n') || 'no agents';
+  appendLog(`watch tick: safe=${safe} unsafe=${unsafe}`);
+}
+
+/* auto-repair simulation */
+async function attemptAutoRepair(agentId) {
+  appendLog(`auto-repair attempt for ${agentId}`);
+  const a = agents[agentId];
+  if (!a) { appendLog(`auto-repair unknown ${agentId}`); return; }
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 700));
+  const recovered = Math.random() > 0.45;
+  if (recovered) { a.trust = Math.min(100, (a.trust || 50) + 5); a.lastHeartbeat = now(); store('tkjk.agents', agents); appendLog(`auto-repair success ${agentId}`); } else { appendLog(`auto-repair failed ${agentId}`); createIncident(agentId, 'auto-repair failed'); }
+  renderAgents();
+}
+
+/* ---------- QR generation & ASCII tag linking ---------- */
+const ghBase = 'http://barbrickdesign.github.io';
+const ghPath = '/tkjk-hub.html';
+const ghUrl = ghBase + ghPath;
+document.getElementById('ghLink').href = ghUrl;
+document.getElementById('ghLink').innerText = ghUrl;
+const q = encodeURIComponent(ghUrl);
+const qrSrc = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${q}&chld=L|1`;
+document.getElementById('qrImg').src = qrSrc;
+
+/* ---------- Initialization & persistence ---------- */
+(function init() {
+  agents = load('tkjk.agents', agents);
+  stagedWhite = load('tkjk.whitecards', stagedWhite);
+  todos = load('tkjk.todos', todos);
+  incidents = load('tkjk.incidents', incidents);
+  renderAgents(); renderWhiteCards(); renderTodos(); renderLog();
+  appendLog('hub loaded');
+  if (Object.keys(agents).length > 0) startWatchdog();
+})();
+window.addEventListener('beforeunload', () => {
+  store('tkjk.agents', agents); store('tkjk.whitecards', stagedWhite); store('tkjk.todos', todos); store('tkjk.incidents', incidents);
+});
+</script>
+</body>
+</html>
+``` [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/mimd-v8/website/tree/719b4ccf457a6a7a03e199ebb7f9f15845b591a3/blog%2F2020-10-22-react-and-django.md?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=11ABCAD3-7707-4318-803B-D296732A457C&citationTitle=github.com&citationFullTitle=github.com&chatItemId=1qdo4ai1LFUQsMjUnqL2T)

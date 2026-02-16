@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>EnAIcc Toolkit — Responsive Pilot</title>
+<meta name="description" content="EnAIcc Toolkit single-file pilot: local-first capture, annotation, SHA-256 audit log, export. Responsive for all devices." />
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --muted:#6b7280; --accent:#0b5fff; --accent-2:#4f46e5;
+    --danger:#dc2626; --glass: rgba(255,255,255,0.6); --max-width:1100px;
+    --gap:16px; --radius:12px; --shadow: 0 8px 30px rgba(12,18,36,0.06);
+    --tap:48px;
+  }
+
+  /* Reset / base */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale}
+  body{background:linear-gradient(180deg,#eef2ff 0%,var(--bg) 100%);color:#0f172a;padding:20px;display:flex;justify-content:center}
+  .wrap{width:100%;max-width:var(--max-width);}
+
+  /* Layout */
+  header{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+  .logo{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent-2));flex:0 0 56px}
+  header h1{margin:0;font-size:18px}
+  .lead{color:var(--muted);margin-top:6px;font-size:14px}
+
+  main.grid{display:grid;grid-template-columns:1fr 360px;gap:var(--gap);align-items:start}
+  .card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
+
+  /* Responsive - stack on smaller screens */
+  @media (max-width:980px){
+    main.grid{grid-template-columns:1fr; padding-bottom:12px}
+    .aside-sticky{position:static}
+  }
+
+  /* Forms */
+  label{display:block;font-weight:600;margin:10px 0 6px;font-size:14px}
+  input[type=text],input[type=email],select,textarea{width:100%;padding:12px;border:1px solid #e6e9f2;border-radius:10px;font-size:15px;background:linear-gradient(180deg,#fff,#fbfdff)}
+  textarea{min-height:100px;resize:vertical}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;justify-content:center;height:var(--tap);padding:0 14px;border-radius:10px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600;font-size:15px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(11,95,255,0.14)}
+  .btn.ghost.secondary{background:#fff;border:1px solid #e6eefb;color:#0f172a}
+  .small{font-size:13px;color:var(--muted)}
+  .muted{color:var(--muted);font-size:14px}
+  .module-item{padding:12px;border-radius:10px;background:#fbfdff;border:1px dashed #e6eefb;font-size:14px}
+
+  /* Lists / boxes */
+  .modules-list{display:flex;flex-direction:column;gap:10px}
+  .consent-box{border-radius:10px;padding:12px;background:#fffef9;border:1px solid #fff1d6;font-size:13px}
+
+  /* Image preview */
+  .img-preview{max-width:100%;border-radius:10px;margin-top:10px;display:block}
+
+  /* Log */
+  .log{font-family:monospace;font-size:13px;background:#0b1220;color:#e6f0ff;padding:12px;border-radius:10px;overflow:auto;max-height:220px}
+
+  /* Controls */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .meta-row{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}
+  .chip{background:#eef2ff;padding:6px 10px;border-radius:999px;font-weight:700;color:var(--accent);font-size:13px}
+  .danger{background:rgba(220,38,38,0.06);color:var(--danger);padding:6px 8px;border-radius:8px;font-weight:700}
+
+  /* Accessibility / touch */
+  input[type=file]{font-size:14px}
+  button{touch-action:manipulation}
+  a{color:inherit}
+
+  /* Small helpers */
+  .hr{height:1px;background:#eef2f8;margin:12px 0;border-radius:2px}
+  details summary{cursor:pointer;font-size:14px;color:var(--muted)}
+  .footer{margin-top:14px;color:var(--muted);font-size:13px}
+
+  /* Make aside sticky on large screens */
+  .aside-sticky{position:sticky;top:20px}
+  @media (max-width:520px){
+    :root{--gap:12px}
+    .logo{width:48px;height:48px}
+    header h1{font-size:16px}
+    .btn{height:44px;font-size:15px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true">E</div>
+    <div>
+      <h1>EnAIcc Toolkit — Responsive Pilot</h1>
+      <div class="lead">Local-first capture, annotation, cryptographic audit, and export — usable on any device and screen size.</div>
+    </div>
+  </header>
+
+  <main class="grid" role="main">
+    <section class="card" aria-labelledby="captureTitle">
+      <h2 id="captureTitle">Data Capture</h2>
+      <div class="muted">Collect participant info, optional image uploads, and consented notes. Data stays local until exported.</div>
+
+      <form id="captureForm" onsubmit="return false;" autocomplete="off" style="margin-top:12px">
+        <label for="participantId">Participant ID</label>
+        <input id="participantId" name="participantId" type="text" inputmode="text" placeholder="site-001-p0001" required aria-required="true" />
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="text" inputmode="numeric" placeholder="e.g., 58" />
+          </div>
+          <div style="flex:1;min-width:160px">
+            <label for="cancerType">Cancer type</label>
+            <select id="cancerType" name="cancerType" aria-label="Cancer type">
+              <option value="">-- choose --</option>
+              <option>Breast</option>
+              <option>Lung</option>
+              <option>Prostate</option>
+              <option>Colorectal</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="notes">Clinical notes (optional)</label>
+        <textarea id="notes" name="notes" placeholder="Short summary for this capture"></textarea>
+
+        <label for="imageUpload">Image upload (optional)</label>
+        <input id="imageUpload" name="imageUpload" type="file" accept="image/*" aria-label="Image upload" />
+
+        <div class="meta-row" style="margin-top:12px">
+          <div class="controls">
+            <button class="btn" id="saveCapture" type="button">Save capture</button>
+            <button class="btn ghost secondary" id="clearForm" type="button">Clear</button>
+            <button class="btn ghost" id="demoLoad" type="button">Load demo capture</button>
+          </div>
+          <div class="small">Local-first: saved to your browser; exportable JSON</div>
+        </div>
+      </form>
+
+      <div class="hr"></div>
+
+      <h2>Annotation & Curation</h2>
+      <div class="muted">In-browser labeling to build model-ready examples quickly.</div>
+
+      <div style="margin-top:10px">
+        <label for="selectCapture">Load capture to annotate</label>
+        <select id="selectCapture" aria-label="Select capture to annotate"><option value="">-- none --</option></select>
+
+        <div id="annotationBlock" class="hide" style="margin-top:10px">
+          <div id="imgContainer" aria-live="polite"></div>
+
+          <label for="labelSelect">Annotation label</label>
+          <select id="labelSelect" name="labelSelect" aria-label="Annotation label">
+            <option>Normal</option>
+            <option>Tumor</option>
+            <option>Unclear</option>
+          </select>
+
+          <label for="annotNotes">Annotator notes</label>
+          <textarea id="annotNotes" name="annotNotes" placeholder="Observations, quality issues"></textarea>
+
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="saveAnnotation" type="button">Save annotation</button>
+            <button class="btn ghost" id="resetAnnotation" type="button">Reset</button>
+            <div style="flex:1"></div>
+            <div class="small">Annotator: <span class="chip" id="annotatorName">local_user</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h2>Export & Sharing</h2>
+      <div class="muted">Export captures, annotations, and the immutable audit log as a single JSON bundle.</div>
+
+      <div style="margin-top:8px">
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn" id="exportJson" type="button">Export JSON</button>
+          <button class="btn ghost" id="downloadJson" disabled type="button">Download export</button>
+          <button class="btn ghost" id="clearAll" type="button">Clear local data</button>
+          <button class="btn ghost" id="showStorage" type="button">Show stored counts</button>
+        </div>
+
+        <div>
+          <div><strong>Audit log (SHA-256 anchored):</strong></div>
+          <div id="logArea" class="log" aria-live="polite"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <button class="btn" id="computeSummary" type="button">Compute dataset summary</button>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="small">Demo build — for production integrate secure servers, IRB-approved consent, authentication, and encryption at rest and in transit.</div>
+      </div>
+    </section>
+
+    <aside class="card aside-sticky" aria-labelledby="modulesTitle" style="min-width:0">
+      <h3 id="modulesTitle">Modules</h3>
+      <div class="modules-list" style="margin-top:8px">
+        <div class="module-item"><strong>Data Collection</strong>; mobile-first; offline cache</div>
+        <div class="module-item"><strong>Annotation</strong>; multi-rater-ready; simple labels</div>
+        <div class="module-item"><strong>Privacy</strong>; explicit consent; local-first storage</div>
+        <div class="module-item"><strong>Audit</strong>; SHA-256 hashes per save</div>
+        <div class="module-item"><strong>Export</strong>; JSON bundle for ingest</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Consent</h3>
+      <div class="consent-box small">
+        By contributing data you confirm informed consent for de-identified, purpose-limited research use, right to withdraw, and that data remains stored locally until exported or deliberately shared.
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>Quick actions</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" id="quickDemo" type="button">Add demo</button>
+        <button class="btn ghost" id="downloadJsonAside" disabled type="button">Download last export</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <h3>About</h3>
+      <div class="small">Single-file pilot: capture, lightweight annotation, cryptographic audit hashing, and export. Use as a starting point for multi-site or production pilots.</div>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* Responsive EnAIcc Toolkit JS
+   Same lightweight features as before with accessibility cues and responsive-ready UI
+*/
+const STORE_KEY = 'enaicc_captures_v1';
+const LOG_KEY = 'enaicc_audit_v1';
+const EXPORT_KEY = 'enaicc_last_export';
+
+function nowISO(){ return new Date().toISOString(); }
+
+async function sha256Hex(str){
+  const enc = new TextEncoder();
+  const data = enc.encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(hash);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* storage helpers */
+function loadStore(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') }catch(e){ return [] } }
+function saveStore(arr){ localStorage.setItem(STORE_KEY, JSON.stringify(arr)) }
+function loadLog(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY) || '[]') }catch(e){ return [] } }
+function saveLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)) }
+function pushLog(entry){
+  const log = loadLog();
+  log.push(entry);
+  saveLog(log);
+  renderLog();
+}
+function renderLog(){
+  const log = loadLog();
+  const el = document.getElementById('logArea');
+  if(!el) return;
+  if(log.length===0){ el.textContent = 'No audit entries yet.'; return; }
+  el.textContent = log.map(l=>\`\${l.ts} | \${l.type} | id:\${l.id} | hash:\${l.hash}\`).reverse().join('\\n');
+}
+
+/* UI wiring */
+const saveCaptureBtn = document.getElementById('saveCapture');
+const clearFormBtn = document.getElementById('clearForm');
+const selectCapture = document.getElementById('selectCapture');
+const annotationBlock = document.getElementById('annotationBlock');
+const imgContainer = document.getElementById('imgContainer');
+const imageUpload = document.getElementById('imageUpload');
+const saveAnnotationBtn = document.getElementById('saveAnnotation');
+const exportJsonBtn = document.getElementById('exportJson');
+const clearAllBtn = document.getElementById('clearAll');
+const demoLoadBtn = document.getElementById('demoLoad');
+const downloadJsonBtn = document.getElementById('downloadJson');
+const computeSummaryBtn = document.getElementById('computeSummary');
+const showStorageBtn = document.getElementById('showStorage');
+const quickDemoBtn = document.getElementById('quickDemo');
+const downloadJsonAsideBtn = document.getElementById('downloadJsonAside');
+const resetAnnotationBtn = document.getElementById('resetAnnotation');
+
+function refreshCaptureSelect(){
+  const items = loadStore();
+  selectCapture.innerHTML = '<option value="">-- none --</option>';
+  items.forEach((it, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    const idText = it.participantId || '(no id)';
+    const date = (it.ts && it.ts.split('T')[0]) || '';
+    opt.textContent = \`\${idText} — \${date}\`;
+    selectCapture.appendChild(opt);
+  });
+}
+
+/* form helpers */
+function resetForm(){
+  document.getElementById('participantId').value = '';
+  document.getElementById('age').value = '';
+  document.getElementById('cancerType').value = '';
+  document.getElementById('notes').value = '';
+  imageUpload.value = '';
+}
+
+/* Save capture with optional image DataURL */
+saveCaptureBtn.addEventListener('click', async ()=>{
+  const participantId = document.getElementById('participantId').value.trim();
+  if(!participantId){ alert('Participant ID required'); return; }
+  const age = document.getElementById('age').value.trim();
+  const cancerType = document.getElementById('cancerType').value;
+  const notes = document.getElementById('notes').value.trim();
+  const ts = nowISO();
+  const file = imageUpload.files && imageUpload.files[0];
+  let imageData = null;
+  if(file){
+    // limit max size to keep localStorage reasonable (convert large images to smaller canvas)
+    imageData = await fileToDataURLResized(file, 1600, 1600);
+  }
+  const capture = { id: 'cap-'+Math.random().toString(36).slice(2,10), participantId, age, cancerType, notes, ts, imageData, annotations:[] };
+  const store = loadStore();
+  store.push(capture);
+  saveStore(store);
+  const hash = await sha256Hex(JSON.stringify(capture));
+  pushLog({ ts, type:'capture_saved', id:capture.id, hash });
+  refreshCaptureSelect();
+  resetForm();
+  announce('Capture saved locally');
+});
+
+/* Clear form */
+clearFormBtn.addEventListener('click', ()=> resetForm());
+
+/* Demo load */
+demoLoadBtn.addEventListener('click', ()=> addDemo());
+quickDemoBtn.addEventListener('click', ()=> addDemo());
+
+async function addDemo(){
+  const ts = nowISO();
+  const demo = {
+    id: 'cap-demo-'+Math.random().toString(36).slice(2,6),
+    participantId: 'demo-001',
+    age: '62',
+    cancerType: 'Breast',
+    notes: 'Demo capture for testing',
+    ts,
+    imageData: await sampleImageDataURL(),
+    annotations: []
+  };
+  const store = loadStore();
+  store.push(demo);
+  saveStore(store);
+  const hash = await sha256Hex(JSON.stringify(demo));
+  pushLog({ ts, type:'capture_saved_demo', id:demo.id, hash });
+  refreshCaptureSelect();
+  announce('Demo capture added');
+}
+
+/* Load capture for annotation */
+selectCapture.addEventListener('change', (e)=>{
+  const idx = e.target.value;
+  if(idx === ''){ annotationBlock.classList.add('hide'); imgContainer.innerHTML=''; return; }
+  const store = loadStore();
+  const cap = store[idx];
+  annotationBlock.classList.remove('hide');
+  imgContainer.innerHTML = '';
+  if(cap.imageData){
+    const img = document.createElement('img');
+    img.src = cap.imageData;
+    img.className = 'img-preview';
+    img.alt = 'Capture preview';
+    imgContainer.appendChild(img);
+  } else {
+    imgContainer.innerHTML = '<div class="small muted">No image for this capture</div>';
+  }
+});
+
+/* Save annotation */
+saveAnnotationBtn && saveAnnotationBtn.addEventListener('click', async ()=>{
+  const idx = selectCapture.value;
+  if(idx === ''){ alert('Select a capture first'); return; }
+  const labelEl = document.getElementById('labelSelect');
+  const label = labelEl ? labelEl.value : 'Unlabeled';
+  const notes = document.getElementById('annotNotes').value.trim();
+  const store = loadStore();
+  const cap = store[idx];
+  const ann = { id:'ann-'+Math.random().toString(36).slice(2,10), label, notes, ts: nowISO(), annotator: 'local_user' };
+  cap.annotations.push(ann);
+  store[idx] = cap;
+  saveStore(store);
+  const hash = await sha256Hex(JSON.stringify({captureId:cap.id, annotation:ann}));
+  pushLog({ ts:ann.ts, type:'annotation_saved', id:ann.id, parent:cap.id, hash });
+  document.getElementById('annotNotes').value = '';
+  announce('Annotation saved locally');
+});
+
+/* Reset annotation fields */
+resetAnnotationBtn && resetAnnotationBtn.addEventListener('click', ()=>{
+  document.getElementById('annotNotes').value = '';
+  document.getElementById('labelSelect').selectedIndex = 0;
+});
+
+/* Export JSON bundle */
+exportJsonBtn.addEventListener('click', async ()=>{
+  const store = loadStore();
+  const log = loadLog();
+  const bundle = { meta:{ exportedAt: nowISO(), tool:'enaicc_demo_singlefile_responsive' }, captures: store, audit: log };
+  const text = JSON.stringify(bundle, null, 2);
+  const hash = await sha256Hex(text);
+  localStorage.setItem(EXPORT_KEY, text);
+  downloadJsonBtn.disabled = false;
+  downloadJsonAsideBtn.disabled = false;
+  pushLog({ ts: nowISO(), type:'exported_bundle', id:'export-'+Math.random().toString(36).slice(2,8), hash });
+  announce('Export created and stored locally');
+});
+
+/* Download last export */
+downloadJsonBtn.addEventListener('click', ()=> downloadExport());
+downloadJsonAsideBtn.addEventListener('click', ()=> downloadExport());
+
+function downloadExport(){
+  const text = localStorage.getItem(EXPORT_KEY);
+  if(!text){ alert('No export found'); return; }
+  const blob = new Blob([text], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'enaicc_export.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  announce('Download started');
+}
+
+/* Clear all local data */
+clearAllBtn.addEventListener('click', ()=>{
+  if(!confirm('Clear all local captures, annotations, and audit log? This cannot be undone.')) return;
+  localStorage.removeItem(STORE_KEY);
+  localStorage.removeItem(LOG_KEY);
+  localStorage.removeItem(EXPORT_KEY);
+  refreshCaptureSelect();
+  renderLog();
+  announce('Local data cleared');
+});
+
+/* Compute dataset summary */
+computeSummaryBtn.addEventListener('click', ()=>{
+  const store = loadStore();
+  const summary = {
+    captures: store.length,
+    withImage: store.filter(s=>s.imageData).length,
+    annotations: store.reduce((acc,s)=>acc + (s.annotations? s.annotations.length:0), 0),
+    cancers: [...new Set(store.map(s=>s.cancerType).filter(Boolean))]
+  };
+  alert('Dataset summary:\\n' + JSON.stringify(summary, null, 2));
+});
+
+/* Show stored counts */
+showStorageBtn.addEventListener('click', ()=>{
+  const store = loadStore();
+  const log = loadLog();
+  alert(\`Stored captures: \${store.length}\\nAudit entries: \${log.length}\`);
+});
+
+/* utility: file -> dataURL with optional resizing to limit localStorage size */
+function fileToDataURLResized(file, maxW=1200, maxH=1200){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        let w = img.width, h = img.height;
+        if(w > maxW || h > maxH){
+          const ratio = Math.min(maxW/w, maxH/h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* small embedded sample image (SVG) */
+async function sampleImageDataURL(){
+  const svg = encodeURIComponent(\`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720"><rect width="100%" height="100%" fill="#ffffff"/><rect x="24" y="24" width="1152" height="672" rx="16" fill="#f8fafc"/><text x="60" y="120" font-family="sans-serif" font-size="48" fill="#0b5fff">EnAIcc demo image</text><circle cx="1020" cy="560" r="80" fill="#fee2e2"/><text x="960" y="568" font-size="20" fill="#b91c1c">tumor</text></svg>\`);
+  return 'data:image/svg+xml;utf8,' + svg;
+}
+
+/* init */
+(function init(){
+  refreshCaptureSelect();
+  renderLog();
+  if(loadLog().length===0){
+    pushLog({ ts: nowISO(), type:'tool_init', id:'tool-'+Math.random().toString(36).slice(2,6), hash:'-' });
+  }
+})();
+
+/* tiny accessibility announcer */
+function announce(msg){
+  // visible alert fallback for broad compatibility
+  if('speechSynthesis' in window){
+    // don't auto-speak; use visual alert for clarity
+  }
+  // simple non-intrusive toast-like alert using aria-live region
+  const prev = document.getElementById('enaicc_announce');
+  if(prev) prev.remove();
+  const div = document.createElement('div');
+  div.id = 'enaicc_announce';
+  div.setAttribute('aria-live','polite');
+  div.style.position='fixed';div.style.left='8px';div.style.bottom='8px';
+  div.style.background='rgba(11,95,255,0.95)';div.style.color='#fff';div.style.padding='8px 12px';
+  div.style.borderRadius='8px';div.style.zIndex=9999;fontSize='13px';
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>{ div.remove(); }, 2000);
+}
+</script>
+</body>
+</html>
+``` [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/surajpaul/testGlamyo/tree/f2a4b1204fbd789dccb3fbb4a648267620600ca8/resources%2Fviews%2Fauth%2Fregister.blade.php?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=2319FB96-FAFE-4549-BDB2-665FCDA09622&citationTitle=github.com&citationFullTitle=github.com&chatItemId=hoK8YrAD567YE4X8Cp1bq)

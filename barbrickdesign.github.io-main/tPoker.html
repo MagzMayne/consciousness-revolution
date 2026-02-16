@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TRON POKER — Simple Player-First Table</title>
+<meta name="theme-color" content="#0b0f1a"/>
+<style>
+:root{--bg:#0b0f1a;--panel:#111625;--accent:#00e5ff;--accent2:#7cffd4;--text:#e6f7ff;--muted:#89a1b0;--danger:#ff4d6d;--success:#54ffbd}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:radial-gradient(1200px at 50% 10%,#0b132b 0%,var(--bg) 60%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text)}
+.app{max-width:1100px;margin:16px auto;padding:12px}
+.brand{display:flex;align-items:center;justify-content:space-between}
+.logo{font-weight:800;letter-spacing:1px;color:var(--accent);text-shadow:0 0 16px rgba(0,229,255,0.28)}
+.panel{background:linear-gradient(180deg,rgba(17,22,37,0.95),rgba(12,16,28,0.95));border:1px solid rgba(0,229,255,0.12);border-radius:12px;padding:12px;margin:12px 0}
+.row{display:flex;gap:8px;align-items:center}
+.row.space{justify-content:space-between}
+.label{color:var(--muted);font-size:12px}
+.value{font-weight:700}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:10px 14px;border-radius:10px;font-weight:800;color:#04222a;cursor:pointer;box-shadow:0 0 18px rgba(0,229,255,0.12)}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.16);padding:8px 12px;border-radius:8px;color:var(--accent)}
+.kbd{background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.12);padding:4px 8px;border-radius:8px;font-family:ui-monospace}
+.three-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(124,255,212,0.08)}
+#threeCanvas{width:100%;height:420px;display:block;background:radial-gradient(800px at 50% 50%, rgba(0,229,255,0.03), rgba(0,0,0,0) 80%)}
+.cardsHud{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap}
+.cardHud{background:rgba(0,0,0,0.36);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);font-weight:800}
+.seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.seat{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;border:1px solid rgba(0,229,255,0.06);text-align:center;transition:box-shadow .2s,border-color .2s}
+.seat .name{font-weight:800}
+.seat.win{border-color:rgba(84,255,189,0.8);box-shadow:0 0 18px rgba(84,255,189,0.08)}
+.seat.lose{border-color:rgba(255,77,109,0.85);box-shadow:0 0 18px rgba(255,77,109,0.06)}
+.footer{color:var(--muted);font-size:13px;text-align:center;margin-top:8px}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:40}
+.modal .box{background:#07101a;padding:16px;border-radius:10px;border:1px solid rgba(0,229,255,0.08);min-width:260px;text-align:center}
+.small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="brand">
+    <div class="logo">TRON POKER</div>
+    <div class="kbd">Trust Donations: <span id="globalPool">$0</span></div>
+  </div>
+
+  <div class="panel three-wrap">
+    <canvas id="threeCanvas"></canvas>
+    <div class="cardsHud" id="cardsHud"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row space">
+      <div>
+        <div class="label">Table</div>
+        <div class="value" id="tableTitle">No table selected</div>
+      </div>
+      <div>
+        <div class="label">Status</div>
+        <div class="kbd" id="statusPill">Idle</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="row" id="controlsRow">
+      <select id="variant"><option>Texas Hold'em</option></select>
+      <select id="tableSelect"><option value="bot-6">6-player table (open)</option><option value="bot-9">9-player table (open)</option></select>
+      <button class="btn" id="startGame">Start game</button>
+      <button class="btn-outline" id="joinMatch">Join</button>
+      <button class="btn-outline" id="donateBtn">Donate (Venmo)</button>
+      <input id="donateAmt" placeholder="10" style="width:80px" />
+    </div>
+
+    <div style="margin-top:12px" class="row" id="actionRow">
+      <button class="btn-outline" id="checkBtn">Check</button>
+      <button class="btn-outline" id="callBtn">Call</button>
+      <input id="betSize" type="number" placeholder="10" style="width:90px" />
+      <button class="btn" id="betBtn">Bet</button>
+      <button class="btn-outline" id="foldBtn">Fold</button>
+      <button class="btn-outline" id="showdownBtn">Showdown</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row space">
+      <div>
+        <div class="label">Seats & balances</div>
+      </div>
+      <div>
+        <div class="label">Pot</div>
+        <div class="value" id="pot">$0</div>
+      </div>
+    </div>
+    <div class="seatsGrid" id="seatsGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="label small">Ticket (optional)</div>
+    <div class="row" style="margin-top:8px">
+      <input id="paypalEmail" placeholder="paypal@example.com" style="width:220px" />
+      <input id="venmoHandle" placeholder="@venmo" style="width:140px" />
+      <button class="btn-outline" id="genTicket">Generate</button>
+      <button class="btn-outline" id="markPaid">Mark Paid</button>
+    </div>
+    <div style="margin-top:8px" class="small">If you mark paid while playing bots, you will not lose; your funds go to the trust pool for future payouts.</div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Log</div>
+    <pre id="log" style="max-height:220px;overflow:auto;color:#9df;background:transparent;border:none;margin:8px 0"></pre>
+  </div>
+
+  <div class="footer">Players join a table, press Start game. If no human players are available, the table fills with masked "players" so a match is always available.</div>
+</div>
+
+<!-- turn modal -->
+<div class="modal" id="turnModal"><div class="box"><div class="value">Your turn</div><div class="small" style="margin-top:8px">Choose an action</div><div style="margin-top:12px"><button class="btn-outline" id="turnOk">OK</button></div></div></div>
+
+<!-- Three.js -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+/*
+  Purpose:
+  - startGame starts the selected table (bot table if no other users)
+  - button reads "In game" while a match is active
+  - bots are masked as normal players
+  - if player marked paid while playing bots, they will not lose: guaranteed win at showdown; donation added to global pool
+  - pot chips and seat balances update; winner resolved at showdown and chips distributed
+*/
+
+(function(){
+  // --- state
+  const state = {
+    inGame: false,
+    tableId: null,
+    seats: [], // {n, userLabel, isHuman:boolean, stack:number, folded:boolean, paid:boolean, ticketUsed:boolean}
+    deck: [],
+    community: [],
+    myHole: [],
+    pot: 0,
+    globalPool: 0,
+    ticket: null,
+    renderer: null, scene: null, camera: null, cardMeshes: [],
+    actionIndex: -1 // who acts (index in seats array of active players)
+  };
+
+  // DOM helpers
+  const $ = id => document.getElementById(id);
+  const log = (s) => { const t = new Date().toLocaleTimeString(); $('log').textContent += `[${t}] ${s}\n`; $('log').scrollTop = $('log').scrollHeight; };
+  const setStatus = s => { $('statusPill').textContent = s; };
+
+  // small RNG + deck utils
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  const canonicalDeck = () => suits.flatMap(s => ranks.map(r => `${r}${s}`));
+
+  function shuffleArray(arr, seed) {
+    // simple xorshift seeded shuffle (deterministic if seed used)
+    let x = seed || Math.floor(Math.random()*4294967295);
+    const rand = () => { x ^= x<<13; x ^= x>>>17; x ^= x<<5; return (x>>>0)/4294967295; };
+    for (let i = arr.length-1; i>0; i--){
+      const j = Math.floor(rand()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  // Three.js minimal setup for visuals (cards + pot chips)
+  function initThree(){
+    const canvas = $('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6));
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x071018);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+    camera.position.set(0,6,9); camera.lookAt(0,0,0);
+    const ambient = new THREE.AmbientLight(0x88ffff, 0.6); scene.add(ambient);
+    const spot = new THREE.SpotLight(0x00e5ff,1); spot.position.set(8,10,8); scene.add(spot);
+    const tableGeo = new THREE.CylinderGeometry(6,6,0.4,64);
+    const tableMat = new THREE.MeshStandardMaterial({ color:0x102233, emissive:0x002233, metalness:0.2, roughness:0.7});
+    const tableMesh = new THREE.Mesh(tableGeo, tableMat); tableMesh.position.y = -0.2; scene.add(tableMesh);
+    // ring
+    const ringGeo = new THREE.RingGeometry(6.2,6.5,64);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color:0x00e5ff, side:THREE.DoubleSide })); ring.rotation.x = -Math.PI/2; ring.position.y = 0.01; scene.add(ring);
+
+    state.renderer = renderer; state.scene = scene; state.camera = camera;
+    requestAnimationFrame(function render(){ tableMesh.rotation.y += 0.001; renderer.render(scene,camera); requestAnimationFrame(render); });
+  }
+
+  function clearCards3D(){
+    state.cardMeshes.forEach(m=>state.scene.remove(m));
+    state.cardMeshes = [];
+  }
+
+  function spawnCard3D(text,x,z,tilt=0,delay=0){
+    // small plane with drawn text
+    const geo = new THREE.PlaneGeometry(0.6,0.88);
+    const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=372;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#07111a'; ctx.fillRect(0,0,256,372);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,352);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 56px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(text,128,186);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.3 });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(0,-1,-6); m.rotation.x = -Math.PI/2; m.rotation.z = tilt; m.scale.set(0.01,0.01,0.01);
+    state.scene.add(m); state.cardMeshes.push(m);
+    const start = { x:0, z:-6, s:0.01 };
+    const target = { x, z, s:1 };
+    const t0 = performance.now() + delay*120;
+    function anim(now){
+      const t = Math.min(1,(now - t0)/500);
+      m.position.x = start.x + (target.x - start.x)*t;
+      m.position.z = start.z + (target.z - start.z)*t;
+      const s = start.s + (target.s - start.s)*t;
+      m.scale.set(s,s,s);
+      if (t < 1) requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+  }
+
+  function layoutCards(){
+    clearCards3D();
+    // community center row
+    const spacing = 1.28;
+    const startX = -((state.community.length-1)*spacing)/2;
+    state.community.forEach((c,i)=>spawnCard3D(c,startX + i*spacing,0,0,i));
+    // player's hole near camera
+    const hole = state.myHole || [];
+    const holeSpacing = 1.2;
+    const startHX = -((hole.length-1)*holeSpacing)/2;
+    hole.forEach((c,i)=>spawnCard3D(c, startHX + i*holeSpacing, 3.0, (i===0?-0.28:0.28), i));
+  }
+
+  // --- seat rendering (DOM)
+  function renderSeats(){
+    const container = $('seatsGrid'); container.innerHTML = '';
+    state.seats.forEach((s, idx) => {
+      const div = document.createElement('div'); div.className='seat';
+      if (s.win) div.classList.add('win'); else if (s.lose) div.classList.add('lose');
+      const name = s.userLabel;
+      const paid = s.paid ? '✓' : '•';
+      div.innerHTML = `<div class="name">${name}</div><div class="small label">Chips: <strong>${s.stack}</strong></div><div class="small label">Paid: ${paid}</div>`;
+      container.appendChild(div);
+    });
+  }
+
+  // --- game lifecycle utilities
+  function resetTableForStart(tableId, seatsCount){
+    state.tableId = tableId;
+    state.seats = [];
+    // seat 1 is player
+    state.seats.push({ n:1, userLabel: state.meLabel || 'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    // fill other seats with masked players (they are bots but labeled as "Player X")
+    for (let i=2;i<=seatsCount;i++){
+      state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    }
+    renderSeats();
+    setStatus('Table ready — press Start game');
+    $('tableTitle').textContent = `${tableId} • ${seatsCount}-seat`;
+  }
+
+  // --- simple deterministic shuffle for single-player (seedless okay) ---
+  function dealNewDeck(){
+    state.deck = canonicalDeck();
+    shuffleArray(state.deck);
+    // community top 5
+    state.community = state.deck.slice(0,5);
+    // player's hole from index 5
+    state.myHole = state.deck.slice(5,7); // 2-card hold'em
+    layoutCards();
+    $('pot').textContent = `$${state.pot}`;
+  }
+
+  // --- Start / Join / In-game UI logic ---
+  const startBtn = $('startGame');
+  function setInGame(flag){
+    state.inGame = !!flag;
+    if (state.inGame){
+      startBtn.textContent = 'In game';
+      startBtn.disabled = true;
+      $('joinMatch').disabled = true;
+    } else {
+      startBtn.textContent = 'Start game';
+      startBtn.disabled = false;
+      $('joinMatch').disabled = false;
+    }
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    if (state.inGame) return;
+    // create table, fill with masked bot players if needed
+    const sel = $('tableSelect').value;
+    const seats = sel.includes('9') ? 9 : 6;
+    const tableId = `T-${Math.random().toString(36).slice(2,8)}`;
+    resetTableForStart(tableId, seats);
+    // automatically start match
+    setInGame(true);
+    setStatus('Dealing');
+    state.pot = 0;
+    dealNewDeck();
+    // show first turn alert to player
+    setTimeout(()=>{ showTurnModal(); log('Game started. Your turn first.'); }, 750);
+  });
+
+  $('joinMatch').addEventListener('click', ()=>{
+    // join will behave like start if no existing pool of humans; simplified: join triggers start if not inGame
+    if (!state.inGame){ startBtn.click(); }
+  });
+
+  // --- Donations (trust pool) ---
+  $('donateBtn').addEventListener('click', ()=>{
+    const amt = Math.max(0, parseInt($('donateAmt').value || '0', 10));
+    if (!amt){ alert('Enter donation amount'); return; }
+    state.globalPool += amt;
+    $('globalPool').textContent = `$${state.globalPool}`;
+    log(`Donation received: $${amt} (trusted). Funds added to pool.`);
+    // if user is in-game vs bots and marks as paid, they are protected: we don't deduct net loss
+  });
+
+  // --- turn modal
+  function showTurnModal(){ $('turnModal').style.display='flex'; }
+  $('turnOk').addEventListener('click', ()=>{ $('turnModal').style.display='none'; });
+
+  // --- action handlers (player) ---
+  $('betBtn').addEventListener('click', ()=>{
+    if (!state.inGame){ log('No active game.'); return; }
+    const amt = Math.max(1, parseInt($('betSize').value||'10',10));
+    const seat = state.seats[0];
+    if (seat.stack < amt){ log('Insufficient chips'); return; }
+    seat.stack -= amt;
+    state.pot += amt;
+    addChipsToPot(amt);
+    renderSeats();
+    log(`You bet $${amt}`);
+    // bots respond (but if ticket paid and opponents are bots, bots will never beat player at showdown)
+    botsActAfterPlayer();
+  });
+
+  $('callBtn').addEventListener('click', ()=>{ if (!state.inGame){ log('No active game'); return; } log('You called'); botsActAfterPlayer(); });
+  $('checkBtn').addEventListener('click', ()=>{ if (!state.inGame){ log('No active game'); return; } log('You checked'); botsActAfterPlayer(); });
+  $('foldBtn').addEventListener('click', ()=>{ if (!state.inGame){ log('No active game'); return; } state.seats[0].folded=true; log('You folded'); botsActAfterPlayer(); });
+
+  // --- bots actions (simple) ---
+  function botsActAfterPlayer(){
+    // each bot takes a small randomized action and contributes chips to pot if they bet/call
+    for (let i=1;i<state.seats.length;i++){
+      const s = state.seats[i];
+      if (s.folded) continue;
+      const r = Math.random();
+      if (r < 0.18){ s.folded=true; log(`${s.userLabel} folded`); }
+      else if (r < 0.55){
+        // small bet or call
+        const amt = Math.min(10 + Math.floor(Math.random()*25), s.stack);
+        if (amt>0){
+          s.stack -= amt;
+          state.pot += amt;
+          addChipsToPot(amt);
+          log(`${s.userLabel} bet $${amt}`);
+        } else { log(`${s.userLabel} checked`); }
+      } else {
+        log(`${s.userLabel} checked`);
+      }
+    }
+    $('pot').textContent = `$${state.pot}`;
+    renderSeats();
+  }
+
+  // --- pot visual (3D chip stack) ---
+  state.chipMeshes = [];
+  function clearChipMeshes(){ state.chipMeshes.forEach(m=>state.scene.remove(m)); state.chipMeshes = []; }
+  function addChipsToPot(amount){
+    // represent chips as thin cylinders stacked at table center
+    const denomColors = {25:0x54ffbd,10:0x00a2ff,5:0xff4d6d};
+    let remaining = amount;
+    let y = state.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28,0.28,0.08,24);
+      const mat = new THREE.MeshStandardMaterial({ color: denomColors[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.scene.add(chip);
+      state.chipMeshes.push(chip);
+      remaining -= denom;
+      y += 0.12;
+    }
+  }
+
+  function clearPotVisual(){
+    state.chipMeshes.forEach(m=>state.scene.remove(m));
+    state.chipMeshes = [];
+  }
+
+  // --- showdown / winner logic ---
+  function evaluateHandForSeat(seat){
+    // simplified evaluator: convert ranks to numeric and use high card + simple pair detection
+    const board = state.community;
+    let hole;
+    if (seat.isHuman) hole = state.myHole.slice();
+    else {
+      // assign deterministic bot hole (hidden; not rendered)
+      const base = 10 + (seat.n*3);
+      hole = state.deck.slice(base, base+2);
+    }
+    const all = hole.concat(board);
+    // simple 5-card strength: count pairs / triples / high cards
+    const vals = all.map(c => parseInt(c.slice(0,-1).replace('A','14').replace('K','13').replace('Q','12').replace('J','11')));
+    const counts = {};
+    vals.forEach(v => counts[v] = (counts[v]||0)+1);
+    const pairs = Object.values(counts).filter(v=>v===2).length;
+    const trips = Object.values(counts).filter(v=>v===3).length;
+    const quads = Object.values(counts).filter(v=>v===4).length;
+    const high = Math.max(...vals);
+    // score tuple
+    const score = (quads?700: trips?600: pairs>=2?500: pairs?300:100) + high;
+    return { score, hole, seat };
+  }
+
+  // determine winner; but if player has marked ticket paid (and opponents are bots), guarantee player wins
+  function determineWinnerAndPayout(){
+    if (!state.inGame){ log('No active match'); return; }
+    // collect contenders
+    const contenders = state.seats.filter(s=>!s.folded);
+    if (contenders.length === 0){ log('All folded — no payout'); return; }
+    // if player marked paid (ticket used true) AND all opponents are masked bots (isHuman false), player wins by rule:
+    const playerSeat = state.seats[0];
+    const opponentsAreAllBots = state.seats.slice(1).every(s=>!s.isHuman);
+    if (playerSeat.paid && opponentsAreAllBots){
+      // award pot to player and also add donated funds to global pool (already added on donate)
+      playerSeat.stack += state.pot;
+      log(`You (paid) automatically win $${state.pot} vs bots. (Funds routed to pool for future payouts)`);
+      // pot goes to player; mark ticket used
+      playerSeat.ticketUsed = true;
+      state.pot = 0;
+      $('pot').textContent = `$0`;
+      clearPotVisual();
+      renderSeats();
+      highlightWinner(playerSeat.n);
+      return;
+    }
+
+    // normal evaluation
+    const scored = contenders.map(s => evaluateHandForSeat(s));
+    scored.sort((a,b)=>b.score - a.score);
+    const top = scored[0];
+    const winners = scored.filter(x => x.score === top.score).map(x => x.seat);
+    const share = Math.floor(state.pot / winners.length);
+    winners.forEach(w => { w.stack += share; log(`${w.userLabel} wins $${share}`); });
+    state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+    // highlight winners
+    state.seats.forEach(s => s.win = s.lose = false);
+    winners.forEach(w => { state.seats[w.n - 1].win = true; });
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  $('showdownBtn').addEventListener('click', determineWinnerAndPayout);
+
+  function highlightWinner(seatNumber){
+    state.seats.forEach(s => s.win = s.lose = false);
+    state.seats[seatNumber - 1].win = true;
+    state.seats.forEach((s,i) => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  // --- ticket flow (generate + mark paid) ---
+  $('genTicket').addEventListener('click', ()=>{
+    const pp = $('paypalEmail').value.trim();
+    const v = $('venmoHandle').value.trim();
+    if (!pp && !v){ alert('Add PayPal email or Venmo handle to generate a ticket'); return; }
+    state.ticket = { id: 'T-'+Math.random().toString(36).slice(2,9), paypal:pp || null, venmo:v || null, created: new Date().toISOString(), used:false };
+    log(`Ticket generated ${state.ticket.id}`);
+    alert(`Ticket ${state.ticket.id} generated (saved locally). Mark Paid when you donate.`);
+  });
+
+  $('markPaid').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket generated'); return; }
+    if (state.ticket.used){ alert('Ticket already used'); return; }
+    // mark player's seat paid and ticket used; also add donate amount to globalPool if donateAmt has value
+    const amt = Math.max(0, parseInt($('donateAmt').value || '0', 10));
+    if (amt > 0){ state.globalPool += amt; $('globalPool').textContent = `$${state.globalPool}`; log(`Donation $${amt} recorded to pool`); }
+    state.ticket.used = true;
+    state.seats[0].paid = true;
+    state.seats[0].ticketUsed = true;
+    renderSeats();
+    log(`Ticket ${state.ticket.id} marked paid. You will not lose funds this match vs bots.`);
+  });
+
+  // init three and default table
+  function init(){
+    initThree();
+    // default reset to a bot table (6 seats)
+    resetTableForStart('BOT-6',6);
+    setInGame(false);
+    $('pot').textContent = '$0';
+    $('globalPool').textContent = `$${state.globalPool}`;
+    log('Ready. Select a table and press Start game.');
+  }
+
+  // expose simple keyboard shortcuts for quick testing
+  window.addEventListener('keydown', (e)=>{ if (e.key === 'd') $('betBtn').click(); if (e.key === 's') startBtn.click(); });
+
+  init();
+
+})();
+</script>
+</body>
+</html>

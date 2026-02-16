@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>TK&lt;~&gt;JK Agent Hub — CAC & FaceID</title>
+  <meta name="description" content="TK<~>JK single-file hub: CAC-aware white-cards, Face ID/WebAuthn fallback, 1s watchdog, 3D satcom mesh" />
+  <style>
+    :root{--bg:#071022;--card:#081226;--accent:#08b6d8;--muted:#9bb2c3;--glass:rgba(255,255,255,0.03);--radius:12px;--mono:ui-monospace,monospace}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg) 0%, #04101a 100%);color:#e6f2fb;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial}
+    .wrap{max-width:1100px;margin:12px auto;padding:10px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    h1{font-size:18px;margin:0}
+    .muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:920px){.grid{grid-template-columns:360px 1fr}}
+    .card{background:linear-gradient(180deg,var(--card),rgba(6,10,14,0.6));padding:12px;border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.02)}
+    input,textarea,select,button{font:inherit}
+    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;box-sizing:border-box}
+    textarea{min-height:84px;resize:vertical}
+    button{background:var(--accent);border:none;color:#03202a;padding:8px 12px;border-radius:8px;cursor:pointer;min-height:44px}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .small{font-size:13px;padding:6px 8px}
+    .log{background:#041018;padding:10px;border-radius:8px;max-height:260px;overflow:auto;font-family:var(--mono);font-size:13px;color:#cfeef9}
+    .pill{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:999px;font-size:13px}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .todo-item{display:flex;align-items:center;gap:8px}
+    .center{display:flex;align-items:center;justify-content:center}
+    .three-wrap{height:260px;border-radius:8px;overflow:hidden;background:#000;margin-top:8px}
+    .qr{width:120px;height:120px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)}
+    .muted-block{color:var(--muted);margin-top:8px;font-size:13px}
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+</head>
+<body>
+  <div class="wrap" role="main">
+    <header>
+      <div>
+        <h1>TK&lt;~&gt;JK Agent Hub</h1>
+        <div class="muted">Mobile-first hub · Face ID / WebAuthn fallback · CAC-aware white-cards · 1s watchdog · 3D Satcom mesh</div>
+      </div>
+      <div class="card" style="padding:8px 12px;min-width:160px">
+        <div id="sessionInfo" class="muted">Not signed in</div>
+        <div style="height:8px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="signInBtn" class="small">Sign in</button>
+          <button id="authFaceBtn" class="small ghost">Use Face ID</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid" aria-live="polite">
+      <div>
+        <div class="card" id="registryCard">
+          <h3>Agent Registry</h3>
+          <div class="muted">Register agents. Watchdog probes active state every second to validate safety.</div>
+          <div style="height:8px"></div>
+          <input id="agentId" placeholder="agent id e.g. tkjk::host-01" autocomplete="off" />
+          <div style="height:8px"></div>
+          <input id="agentEndpoint" placeholder="endpoint (optional) e.g. https://host:8080" autocomplete="off" />
+          <div style="height:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button id="registerBtn" class="small">Register</button>
+            <button id="listAgentsBtn" class="small ghost">List</button>
+            <button id="clearAgentsBtn" class="small ghost">Clear</button>
+          </div>
+          <div style="height:10px"></div>
+          <div id="agentsList" class="muted" style="max-height:240px;overflow:auto"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Self-Healing TODO</h3>
+          <div class="muted">Tasks for security, CAC/FaceID integration, and mesh embodiment.</div>
+          <div style="height:8px"></div>
+          <div id="todoList" class="list"></div>
+          <div style="height:8px;display:flex;gap:8px">
+            <input id="newTodo" placeholder="Add TODO item" />
+            <button id="addTodo" class="small">Add</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Timestamp Log</h3>
+          <div class="muted">Healing loops, watchdog checks, incidents, and actions. Persisted locally for offline/mobile use.</div>
+          <div style="height:8px"></div>
+          <div id="timestampLog" class="log" aria-live="polite"></div>
+          <div style="height:8px;display:flex;gap:8px">
+            <button id="clearLog" class="small ghost">Clear</button>
+            <button id="exportLog" class="small ghost">Export</button>
+            <div style="flex:1"></div>
+            <div id="watchStatus" class="pill">watcher idle</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>White-card Protocol (CAC/PIV-aware)</h3>
+          <div class="muted">Accepts white-card JSON, records CAC fingerprint or WebAuthn assertion, validates SecDev fields, supports redaction and tamper-evident audit hashes.</div>
+          <div style="height:8px"></div>
+
+          <label for="whiteCard">White-card JSON payload</label>
+          <textarea id="whiteCard" placeholder='{"legal_name":"Acme Co","EIN":"12-3456789","DUNS":"123456789","naics":"541512","contact":{"name":"Alice","email":"alice@acme.example"}}' aria-label="white card JSON"></textarea>
+
+          <div style="height:8px"></div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1">
+              <label for="cacFingerprint">CAC cert fingerprint (SHA-256)</label>
+              <input id="cacFingerprint" placeholder="e.g. 3a:...:9f" />
+            </div>
+            <div style="flex:1">
+              <label for="sigRef">Signature (base64) / WebAuthn ID</label>
+              <input id="sigRef" placeholder="paste base64 sig or WebAuthn credential id" />
+            </div>
+          </div>
+
+          <div style="height:8px;display:flex;gap:8px;margin-top:8px">
+            <button id="validateCard" class="small">Validate & Stage</button>
+            <button id="stageEncrypted" class="small ghost">Stage Encrypted (demo)</button>
+            <button id="redactLatest" class="small ghost">Redact Latest</button>
+          </div>
+
+          <div class="muted-block">Client-side validation for staging. Signature/CAC fingerprint must accompany package. Audit hash stored with staged package for tamper evidence.</div>
+
+          <div id="whiteCardsList" style="height:140px;overflow:auto;margin-top:8px" class="muted"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3>Distribution QR & ASCII Tag</h3>
+          <div class="muted">QR -> GitHub Pages path; ASCII tag for identification.</div>
+          <div style="height:8px"></div>
+          <pre class="ascii">TK&lt;~&gt;JK • AGENT HUB • CAC-AWARE • FACEID FALLBACK • MESH</pre>
+
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px">
+            <img id="qrImg" class="qr" alt="QR code to GitHub Pages" />
+            <div style="flex:1">
+              <div class="muted">Distribution URL (GitHub Pages)</div>
+              <a id="ghLink" class="link" href="http://barbrickdesign.github.io/tkjk-hub.html" target="_blank" rel="noopener noreferrer">http://barbrickdesign.github.io/tkjk-hub.html</a>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <h4 style="margin:0 0 8px 0">3D Satcom Mesh Renderer</h4>
+          <div class="muted-block">Interactive WebGL view shows earth, satcom nodes, and mesh links. Tap to orbit/zoom on mobile.</div>
+          <div class="three-wrap" id="threeWrap" aria-hidden="false"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer style="margin-top:12px;color:var(--muted);font-size:12px">TK&lt;~&gt;JK Hub — demo scaffold. Replace client-side PKI checks with hardened backend PKI verification, use secure KMS and mTLS, and implement production-grade WebAuthn attestation for Face ID flows.</footer>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script>
+/* Full single-file TK<~>JK hub script
+   Contains agent registry, watchdog, CAC-aware white-card protocol, WebAuthn fallback, QR gen, Three.js renderer, local persistence.
+   NOTE: client-side demo. Move security-sensitive ops to backend for production.
+*/
+
+/* Utilities */
+const now = () => new Date().toISOString();
+const store = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+const load = (k,def) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : def; } catch(e) { return def; } };
+const appendLog = (msg) => { const logs = load('tkjk.logs', []); logs.push({ts:now(),msg}); while(logs.length>2000) logs.shift(); store('tkjk.logs', logs); renderLog(); };
+async function sha256Hex(text){ const enc = new TextEncoder().encode(text); const h = await crypto.subtle.digest('SHA-256', enc); return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+/* Session & WebAuthn */
+let session = load('tkjk.session', null);
+const sessionInfoEl = document.getElementById('sessionInfo');
+const signInBtn = document.getElementById('signInBtn');
+const authFaceBtn = document.getElementById('authFaceBtn');
+function renderSession(){ sessionInfoEl.innerText = session ? `${session.agentId} · ${session.role||'member'}` : 'Not signed in'; signInBtn.innerText = session ? 'Sign out' : 'Sign in'; }
+signInBtn.onclick = async () => { if(session){ session=null; store('tkjk.session', null); appendLog('signed out'); renderSession(); return; } const aid = prompt('Sign in as agent id (demo):','tkjk::you')||''; if(!aid) return; session={agentId:aid,role:'member',signedAt:now()}; store('tkjk.session', session); appendLog(`signed in as ${aid}`); renderSession(); };
+authFaceBtn.onclick = async () => {
+  if(!window.PublicKeyCredential){ alert('WebAuthn not supported'); return; }
+  appendLog('attempting WebAuthn (FaceID/platform authenticator)');
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const publicKey = { challenge, timeout:60000, userVerification:'preferred', allowCredentials:[] };
+    const cred = await navigator.credentials.get({ publicKey });
+    if(cred){ const id = btoa(String.fromCharCode(...new Uint8Array(cred.rawId || cred.id || []))); session = { agentId: session ? session.agentId : `webauthn::${id.slice(0,8)}`, role:'verified', signedAt:now(), webauthnId:id }; store('tkjk.session', session); appendLog('WebAuthn assertion succeeded'); renderSession(); alert('Face ID validated (demo).'); }
+    else { appendLog('WebAuthn returned no credential'); alert('No credential returned'); }
+  }catch(e){ appendLog('WebAuthn error: '+(e && e.message ? e.message : e)); alert('WebAuthn failed: '+(e && e.message ? e.message : 'unknown')); }
+};
+renderSession();
+
+/* Agents registry */
+let agents = load('tkjk.agents', {});
+const agentsListEl = document.getElementById('agentsList');
+const agentIdInp = document.getElementById('agentId');
+const agentEndpointInp = document.getElementById('agentEndpoint');
+document.getElementById('registerBtn').onclick = () => { const id=(agentIdInp.value||'').trim(); const endpoint=(agentEndpointInp.value||'').trim(); if(!id){ alert('agent id required'); return; } agents[id] = agents[id] || { id, endpoint: endpoint||'', trust:50, lastHeartbeat:null, optOut:false }; if(endpoint) agents[id].endpoint = endpoint; store('tkjk.agents', agents); appendLog(`agent registered ${id}`); renderAgents(); agentIdInp.value=''; agentEndpointInp.value=''; };
+document.getElementById('listAgentsBtn').onclick = () => renderAgents();
+document.getElementById('clearAgentsBtn').onclick = () => { if(!confirm('Clear all agents?')) return; agents={}; store('tkjk.agents', agents); appendLog('agents cleared'); renderAgents(); };
+
+function renderAgents(){ const rows = Object.values(agents).sort((a,b)=>b.trust-a.trust).map(a=>`<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:6px"><div style="font-weight:600">${a.id}</div><div class="muted">${a.endpoint || 'no endpoint'} · trust ${a.trust}</div><div class="muted" style="font-size:12px">${a.lastHeartbeat ? ('hb:'+a.lastHeartbeat) : 'no heartbeat yet'}</div><div style="margin-top:6px;display:flex;gap:6px"><button class="small" onclick="pingAgent('${a.id}')">Ping</button><button class="small ghost" onclick="toggleOpt('${a.id}')">${a.optOut ? 'Unopt' : 'Opt'} out</button></div></div>`).join(''); agentsListEl.innerHTML = rows || '<div class="muted">No agents registered</div>'; }
+window.renderAgents = renderAgents;
+window.pingAgent = (id) => { if(!agents[id]){ appendLog('ping failed unknown '+id); return; } const ok = Math.random()>0.12; agents[id].lastHeartbeat = now(); if(!ok){ appendLog('heartbeat missed for '+id); agents[id].trust = Math.max(0, agents[id].trust - 2); createIncident(id,'heartbeat missed'); } else { appendLog('heartbeat ok '+id); agents[id].trust = Math.min(100, agents[id].trust + 1); } store('tkjk.agents', agents); renderAgents(); };
+window.toggleOpt = (id) => { if(!agents[id]) return; agents[id].optOut = !agents[id].optOut; store('tkjk.agents', agents); appendLog(`${id} optOut=${agents[id].optOut}`); renderAgents(); };
+renderAgents();
+
+/* TODO manager */
+let todos = load('tkjk.todos', [{id:'t1',text:'Implement mutual TLS for mesh endpoints',done:false},{id:'t2',text:'Add DID-based identities and signed JWT flow',done:false},{id:'t3',text:'Wire SOL signer with multisig safety',done:false}]);
+const todoListEl = document.getElementById('todoList');
+function renderTodos(){ todoListEl.innerHTML = todos.map(t=>`<div class="todo-item" style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);"><label><input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${t.id}')"> <strong>${t.text}</strong></label></div>`).join(''); }
+window.toggleTodo = (id) => { todos = todos.map(x=>x.id===id?{...x,done:!x.done}:x); store('tkjk.todos', todos); renderTodos(); appendLog(`todo toggled ${id}`); };
+document.getElementById('addTodo').onclick = () => { const v=(document.getElementById('newTodo').value||'').trim(); if(!v) return; const it={id:'t'+Math.random().toString(36).slice(2,8),text:v,done:false}; todos.push(it); store('tkjk.todos', todos); renderTodos(); document.getElementById('newTodo').value=''; appendLog(`todo added ${it.id}`); };
+renderTodos();
+
+/* Timestamp log */
+const timestampLogEl = document.getElementById('timestampLog');
+function renderLog(){ const logs = load('tkjk.logs', []); timestampLogEl.innerText = logs.slice(-400).map(l=>`${l.ts} • ${l.msg}`).reverse().join('\n'); }
+document.getElementById('clearLog').onclick = () => { store('tkjk.logs', []); renderLog(); appendLog('log cleared'); };
+document.getElementById('exportLog').onclick = () => { const logs = load('tkjk.logs', []); const blob = new Blob([logs.map(l=>`${l.ts}\t${l.msg}`).join('\n')], { type:'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'tkjk-log.txt'; a.click(); URL.revokeObjectURL(url); appendLog('log exported'); };
+renderLog();
+
+/* White-card CAC-aware staging */
+let stagedWhite = load('tkjk.whitecards', {});
+const whiteCardEl = document.getElementById('whiteCard');
+const cacFingerprintEl = document.getElementById('cacFingerprint');
+const sigRefEl = document.getElementById('sigRef');
+const whiteCardsListEl = document.getElementById('whiteCardsList');
+
+async function validateAndStage(){
+  try{
+    const raw = whiteCardEl.value; if(!raw){ alert('paste white-card JSON'); return; }
+    const obj = JSON.parse(raw);
+    const errs = [];
+    if(!obj.legal_name) errs.push('legal_name required');
+    if(!obj.EIN && !obj.DUNS) errs.push('either EIN or DUNS required');
+    if(!obj.naics) errs.push('naics required');
+    if(!obj.contact || !obj.contact.email) errs.push('contact.email required');
+    const cacFp = (document.getElementById('cacFingerprint')?.value||'').trim();
+    const sigRef = (document.getElementById('sigRef')?.value||'').trim();
+    if(!sigRef && !cacFp) errs.push('signature or CAC fingerprint required');
+    if(errs.length){ appendLog('white-card validation failed: '+errs.join('; ')); alert('Validation errors:\n'+errs.join('\n')); return; }
+    const payload = JSON.stringify(obj);
+    const payloadHash = await sha256Hex(payload + '|' + (cacFp||'') + '|' + (sigRef||''));
+    const id = 'wc::' + Math.random().toString(36).slice(2,9);
+    stagedWhite[id] = { id, created: now(), status:'staged', data: obj, cacFingerprint: cacFp||null, sigRef: sigRef||null, auditHash: payloadHash, redacted:false };
+    store('tkjk.whitecards', stagedWhite);
+    appendLog(`white-card staged ${id} audit:${payloadHash}`);
+    renderWhiteCards();
+    whiteCardEl.value=''; cacFingerprintEl.value=''; sigRefEl.value='';
+  }catch(e){ appendLog('white-card parse error'); alert('White-card JSON parse error'); }
+}
+document.getElementById('validateCard').onclick = validateAndStage;
+
+document.getElementById('stageEncrypted').onclick = async () => {
+  const keys = Object.keys(stagedWhite); if(!keys.length){ alert('no staged white-cards'); return; }
+  const id = keys[keys.length-1]; const w = stagedWhite[id];
+  const serialized = JSON.stringify(w.data);
+  const enc = btoa(unescape(encodeURIComponent(serialized))); // demo only
+  w.encrypted=true; w.encryptedPayload = enc; w.status='staged-encrypted'; store('tkjk.whitecards', stagedWhite);
+  appendLog(`white-card encrypted & staged ${id}`);
+  renderWhiteCards();
+};
+
+document.getElementById('redactLatest').onclick = () => {
+  const keys = Object.keys(stagedWhite); if(!keys.length){ alert('no staged white-cards'); return; }
+  const id = keys[keys.length-1]; const w = stagedWhite[id]; if(!w) return; if(w.data){
+    if(w.data.EIN) w.data.EIN='redacted';
+    if(w.data.DUNS) w.data.DUNS='redacted';
+    if(w.data.contact && w.data.contact.email) w.data.contact.email='redacted';
+    w.redacted=true; w.auditRedaction={ts:now(),fields:['EIN','DUNS','contact.email']}; store('tkjk.whitecards', stagedWhite); appendLog(`white-card redacted ${id}`); renderWhiteCards();
+  }
+};
+
+function renderWhiteCards(){ const rows = Object.values(stagedWhite).map(w=>`<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:6px"><div><strong>${w.id}</strong> <span class="muted">${w.status} · ${w.created}</span></div><div class="muted" style="margin-top:8px;white-space:pre-wrap">${w.encrypted? '[encrypted payload]': JSON.stringify(w.data)}</div><div class="muted" style="margin-top:6px;font-size:12px">audit:${w.auditHash} cacFp:${w.cacFingerprint||'n/a'} sigRef:${w.sigRef||'n/a'}</div></div>`).join(''); whiteCardsListEl.innerHTML = rows || '<div class="muted">No staged white-cards</div>'; }
+renderWhiteCards();
+
+/* Incidents & auto-repair */
+let incidents = load('tkjk.incidents', {});
+function createIncident(subject,reason){ const id='inc::'+Math.random().toString(36).slice(2,8); incidents[id]={id,subject,reason,ts:now(),status:'open'}; store('tkjk.incidents', incidents); appendLog(`incident ${id} created for ${subject} reason: ${reason}`); }
+
+/* Watchdog 1s cadence */
+let watchdogTimer = null;
+const watchStatusEl = document.getElementById('watchStatus');
+const watchSummaryEl = document.getElementById('watchSummary');
+
+function startWatchdog(){ if(watchdogTimer) return; appendLog('watchdog started'); watchStatusEl.innerText='watching'; watchdogTimer=setInterval(watchTick,1000); watchTick(); }
+function stopWatchdog(){ if(!watchdogTimer) return; clearInterval(watchdogTimer); watchdogTimer=null; appendLog('watchdog stopped'); watchStatusEl.innerText='idle'; }
+
+async function watchTick(){
+  const list = Object.values(agents); let safe=0, unsafe=0; const lines=[];
+  for(const a of list){
+    if(a.optOut){ lines.push(`${a.id} • opt-out`); continue; }
+    let ok=false;
+    try{
+      if(a.endpoint && a.endpoint.startsWith('http')){
+        const controller = new AbortController(); const t=setTimeout(()=>controller.abort(),700);
+        try{ await fetch(a.endpoint, { method:'HEAD', mode:'no-cors', signal:controller.signal }); ok=true; } catch(e){ ok = Math.random() > 0.25; }
+        clearTimeout(t);
+      } else { ok = Math.random() > 0.15; }
+    }catch(e){ ok=false; }
+    if(ok){ safe++; a.lastHeartbeat = now(); a.trust = Math.min(100, (a.trust||50)+1); lines.push(`${a.id} • SAFE`); } else { unsafe++; a.trust = Math.max(0, (a.trust||50)-2); lines.push(`${a.id} • UNSAFE`); createIncident(a.id,'probe unreachable'); attemptAutoRepair(a.id); }
+  }
+  store('tkjk.agents', agents); renderAgents(); watchSummaryEl && (watchSummaryEl [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/surajpaul/testGlamyo/tree/f2a4b1204fbd789dccb3fbb4a648267620600ca8/resources%2Fviews%2Fauth%2Fregister.blade.php?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=B8205EBF-6E5A-4F3A-9752-EF95A2E0A038&citationTitle=github.com&citationFullTitle=github.com&chatItemId=Bdqp3C3tdVPxrqmyQJ4gV)

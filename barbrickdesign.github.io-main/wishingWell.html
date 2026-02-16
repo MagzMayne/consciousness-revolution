@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Magical Wishing Well</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { margin: 0; background: black; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; }
+    canvas { display:block; position:fixed; top:0; left:0; z-index:0; }
+    #ui {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; z-index: 10;
+    }
+    input, button {
+      padding: 16px 20px; border-radius: 12px; border: none;
+      font-weight: 600; font-size: 18px;
+    }
+    input { width: 260px; background: rgba(255,255,255,0.92); color:#111; }
+    button { background: #79b8ff; color: #03142f; cursor: pointer; }
+    #wishLog {
+      margin-top: 100px; padding: 16px; max-width: 600px;
+      margin-left: auto; margin-right: auto; position: relative; z-index: 5;
+    }
+    .wishEntry {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      padding: 12px; margin-bottom: 12px;
+      backdrop-filter: blur(2px);
+    }
+    .wishEntry button {
+      font-size: 15px; padding: 8px 12px;
+      background: #ffd700; color: #111; border-radius: 8px;
+      border: none; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div id="ui">
+  <input id="wish" placeholder="Make a wish..." />
+  <button id="drop">Drop coin</button>
+</div>
+<div id="wishLog"></div>
+
+<audio id="crickets" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8f7f4f7c3f.mp3?filename=crickets-ambient-110397.mp3" autoplay loop></audio>
+<audio id="splash" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_9f7f4f7c3f.mp3?filename=water-splash-110398.mp3"></audio>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+/* Scene setup */
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, 6, 14); // pulled back for wider framing
+camera.lookAt(0, 1, 0);
+
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* Background stars */
+const starGeo = new THREE.BufferGeometry();
+const starPositions = [];
+for (let i=0; i<1000; i++) {
+  starPositions.push((Math.random()-0.5)*200,
+                     (Math.random()-0.5)*200,
+                     (Math.random()-0.5)*200);
+}
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions,3));
+const starMat = new THREE.PointsMaterial({color:0xffffff, size:0.7});
+scene.add(new THREE.Points(starGeo, starMat));
+
+/* Lights */
+scene.add(new THREE.AmbientLight(0x404040, 1.6));
+let moon = new THREE.DirectionalLight(0xa4e8ff, 1.2);
+moon.position.set(5,10,5);
+scene.add(moon);
+
+/* Ground */
+let ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(50,50),
+  new THREE.MeshStandardMaterial({color:0x1c2a1c})
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+/* Well walls (open at top) */
+const texLoader = new THREE.TextureLoader();
+const stoneTex = texLoader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
+let well = new THREE.Mesh(
+  new THREE.CylinderGeometry(2,2,2,32,1,true), // openEnded:true
+  new THREE.MeshStandardMaterial({map: stoneTex, roughness:0.9, side:THREE.DoubleSide})
+);
+well.position.y = 1;
+scene.add(well);
+
+/* Water surface (visible) */
+let water = new THREE.Mesh(
+  new THREE.CircleGeometry(1.9, 64),
+  new THREE.MeshPhongMaterial({
+    color:0x2f5cff,
+    transparent:true,
+    opacity:0.78,
+    emissive:0x1c376f,
+    shininess:60
+  })
+);
+water.rotation.x = -Math.PI/2;
+water.position.y = 1.01;
+scene.add(water);
+
+/* Collections */
+let coins = [];
+let orbs = [];
+let fireflies = [];
+let pumpkins = []; // emoji sprites
+let sparkles = []; // sparkle bursts (Points)
+
+/* Ambient fireflies */
+function initFireflies() {
+  for (let i=0; i<16; i++) {
+    let geo = new THREE.SphereGeometry(0.07,8,8);
+    let mat = new THREE.MeshBasicMaterial({color:0xffff99, transparent:true, opacity:0.95});
+    mat.blending = THREE.AdditiveBlending;
+    let f = new THREE.Mesh(geo, mat);
+    f.position.set((Math.random()-0.5)*6, 2+Math.random()*3, (Math.random()-0.5)*6);
+    f.userData = {vx:(Math.random()-0.5)*0.01, vy:(Math.random()-0.5)*0.01, vz:(Math.random()-0.5)*0.01};
+    scene.add(f);
+    fireflies.push(f);
+  }
+}
+initFireflies();
+
+/* Wish log (max 3) */
+function logWish(text) {
+  const log = document.getElementById('wishLog');
+  const entry = document.createElement('div');
+  entry.className = 'wishEntry';
+  entry.innerHTML = `
+    <div>${text}</div>
+    <form action="https://www.paypal.com/donate" method="post" target="_blank">
+      <input type="hidden" name="business" value="barbrickdesign@gmail.com">
+      <input type="hidden" name="item_name" value="Contribute to this wish">
+      <button type="submit">Donate</button>
+    </form>
+  `;
+  log.prepend(entry);
+  while (log.children.length > 1) log.removeChild(log.lastChild);
+}
+
+/* Coin drop */
+function dropCoin(text) {
+  const metals = [
+    {color:0xc0c0c0, metalness:0.9, roughness:0.3},
+    {color:0xf5c974, metalness:0.9, roughness:0.3},
+    {color:0xb87333, metalness:0.9, roughness:0.4}
+  ];
+  const choice = metals[Math.floor(Math.random()*metals.length)];
+  let coin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.2,0.2,0.05,32),
+    new THREE.MeshStandardMaterial(choice)
+  );
+  coin.position.set((Math.random()-0.5)*1, 5, (Math.random()-0.5)*1);
+  coin.rotation.y = Math.random()*Math.PI;
+  coin.userData = {vy:0, text};
+  scene.add(coin);
+  coins.push(coin);
+  logWish(text);
+}
+
+/* Orb splash */
+function spawnOrbSplash() {
+  for (let i=0; i<8; i++) {
+    let orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.14,12,12),
+      new THREE.MeshBasicMaterial({color:0x66ccff, transparent:true, opacity:0.9})
+    );
+    orb.material.blending = THREE.AdditiveBlending;
+    orb.position.set(0,1.2,0);
+    orb.userData = {life:0, vy:0.02+Math.random()*0.03, vx:(Math.random()-0.5)*0.02, vz:(Math.random()-0.5)*0.02};
+    scene.add(orb);
+    orbs.push(orb);
+  }
+  spawnSparkleBurst(new THREE.Vector3(0,1.1,0));
+  spawnPumpkinEmoji();
+}
+
+/* Sparkle burst (particles) */
+function spawnSparkleBurst(center) {
+  const count = 60;
+  const positions = new Float32Array(count*3);
+  const velocities = [];
+  for (let i=0; i<count; i++) {
+    const dir = new THREE.Vector3(Math.random()-0.5, Math.random(), Math.random()-0.5).normalize();
+    const speed = 0.03 + Math.random()*0.06;
+    velocities.push(dir.multiplyScalar(speed));
+    positions[i*3+0] = center.x;
+    positions[i*3+1] = center.y;
+    positions[i*3+2] = center.z;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({color:0xfff6b3, size:0.05, transparent:true, opacity:1});
+  mat.blending = THREE.AdditiveBlending;
+  const points = new THREE.Points(geo, mat);
+  points.userData = {velocities, life:0};
+  scene.add(points);
+  sparkles.push(points);
+}
+
+/* Pumpkin emoji sprite + clustered fireflies */
+function spawnPumpkinEmoji() {
+  const canvas = document.createElement('canvas');
+  const size = 128;
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,size,size);
+  ctx.font = "100px serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("🎃", size/2, size/2);
+  const texture = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map: texture, transparent:true});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.2,1.2,1.2);
+  sprite.position.set((Math.random()-0.5)*6, 0.55, (Math.random()-0.5)*6);
+  scene.add(sprite);
+  pumpkins.push(sprite);
+
+  for (let j=0;j<6;j++){
+    let f = new THREE.Mesh(
+      new THREE.SphereGeometry(0.06,8,8),
+      new THREE.MeshBasicMaterial({color:0xffff99, transparent:true, opacity:0.95})
+    );
+    f.material.blending = THREE.AdditiveBlending;
+    f.position.copy(sprite.position).add(new THREE.Vector3(
+      (Math.random()-0.5)*1.2,
+      0.4+Math.random()*0.6,
+      (Math.random()-0.5)*1.2
+    ));
+    f.userData = {vx:(Math.random()-0.5)*0.012, vy:(Math.random()-0.5)*0.012, vz:(Math.random()-0.5)*0.012};
+    scene.add(f);
+    fireflies.push(f);
+  }
+}
+
+/* Animate loop */
+function animate() {
+  requestAnimationFrame(animate);
+
+  // Gentle water glimmer
+  water.material.shininess = 50 + Math.sin(performance.now()*0.001)*20;
+
+  // Coins falling
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i];
+    c.userData.vy -= 0.01;            // gravity
+    c.position.y += c.userData.vy;
+    c.rotation.y += 0.08;             // spin
+    if (c.position.y <= 1.05) {
+      c.position.y = 1.05;
+      c.userData.vy = 0;
+      spawnOrbSplash();
+      const splash = document.getElementById('splash');
+      if (splash) splash.play();
+      setTimeout(()=>{ scene.remove(c); }, 1000);
+      coins.splice(i,1);
+    }
+  }
+
+  // Orbs rise and fade
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i];
+    o.position.y += o.userData.vy;
+    o.position.x += o.userData.vx;
+    o.position.z += o.userData.vz;
+    o.userData.life += 1;
+    o.material.opacity = Math.max(0, 1 - o.userData.life/90);
+    if (o.userData.life > 90) {
+      scene.remove(o);
+      orbs.splice(i,1);
+    }
+  }
+
+  // Sparkles expand and fade
+  for (let i = sparkles.length - 1; i >= 0; i--) {
+    const s = sparkles[i];
+    const pos = s.geometry.getAttribute('position');
+    const vels = s.userData.velocities;
+    for (let j=0; j<vels.length; j++) {
+      pos.setX(j, pos.getX(j) + vels[j].x);
+      pos.setY(j, pos.getY(j) + vels[j].y);
+      pos.setZ(j, pos.getZ(j) + vels[j].z);
+    }
+    pos.needsUpdate = true;
+    s.userData.life += 1;
+    s.material.opacity = Math.max(0, 1 - s.userData.life/55);
+    if (s.userData.life > 55) {
+      scene.remove(s);
+      sparkles.splice(i,1);
+    }
+  }
+
+  // Fireflies wander
+  fireflies.forEach(f=>{
+    f.position.x += f.userData.vx;
+    f.position.y += f.userData.vy;
+    f.position.z += f.userData.vz;
+    if (Math.random()<0.02) {
+      f.userData.vx = (Math.random()-0.5)*0.02;
+      f.userData.vy = (Math.random()-0.5)*0.02;
+      f.userData.vz = (Math.random()-0.5)*0.02;
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+animate();
+
+/* UI */
+document.getElementById('drop').onclick = ()=>{
+  const text = document.getElementById('wish').value.trim() || "A gentle wish";
+  dropCoin(text);
+  document.getElementById('wish').value = "";
+};
+</script>
+</body>
+</html>

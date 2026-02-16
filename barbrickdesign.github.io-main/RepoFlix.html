@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>RepoFlix — View GitHub repos like Netflix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --fg: #e8e8ea;
+      --muted: #a6a6ad;
+      --card: #1a1a1f;
+      --accent: #6ea8fe;
+      --accent-2: #9e77ff;
+      --danger: #ff6b6b;
+      --ok: #77dd77;
+      --shadow: rgba(0,0,0,0.35);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f7fa;
+        --fg: #1b1b1f;
+        --muted: #5c5d66;
+        --card: #ffffff;
+        --accent: #3b6ef3;
+        --accent-2: #6842ff;
+        --danger: #d64545;
+        --ok: #228b22;
+        --shadow: rgba(0,0,0,0.15);
+      }
+    }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    header {
+      display: grid; gap: 12px; padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
+    }
+    header .title {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .brand {
+      font-weight: 700; letter-spacing: 0.4px; font-size: 1.2rem;
+    }
+    .controls {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    input, select, button {
+      background: var(--card); color: var(--fg); border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 10px; border-radius: 8px; font-size: 0.95rem;
+    }
+    button {
+      cursor: pointer; border-color: transparent; background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color: white; font-weight: 600;
+    }
+    button.secondary { background: var(--card); border: 1px solid rgba(255,255,255,0.16); color: var(--fg); }
+    .hint { color: var(--muted); font-size: 0.9rem; }
+    main { padding: 16px 20px; display: grid; gap: 28px; }
+    .row {
+      display: grid; gap: 12px;
+    }
+    .row h2 {
+      margin: 0; font-size: 1.1rem; font-weight: 700;
+    }
+    .carousel {
+      display: grid; grid-auto-flow: column; grid-auto-columns: 200px;
+      gap: 12px; overflow-x: auto; padding-bottom: 8px;
+      scroll-snap-type: x mandatory;
+    }
+    .card {
+      scroll-snap-align: start;
+      background: var(--card); border-radius: 12px; box-shadow: 0 8px 20px var(--shadow);
+      display: grid; grid-template-rows: 120px auto; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .thumb {
+      background: linear-gradient(135deg, rgba(110,168,254,0.25), rgba(158,119,255,0.25));
+      display: grid; place-items: center; color: var(--fg); font-weight: 700; font-size: 1.1rem;
+    }
+    .meta {
+      display: grid; gap: 8px; padding: 10px;
+    }
+    .meta .name { font-weight: 700; font-size: 0.98rem; }
+    .meta .desc { color: var(--muted); font-size: 0.88rem; line-height: 1.25; max-height: 2.6em; overflow: hidden; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 0.75rem; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.14);
+      color: var(--muted);
+    }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .actions a, .actions button {
+      font-size: 0.82rem; border-radius: 8px; padding: 6px 8px; text-decoration: none;
+    }
+    .footer { color: var(--muted); font-size: 0.85rem; padding: 8px 20px 20px; }
+    .error { color: var(--danger); }
+    .success { color: var(--ok); }
+    .right { margin-left: auto; }
+    .toggle { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <div class="brand">RepoFlix</div>
+      <div class="hint">View GitHub repos in a time-ordered, Netflix-style gallery</div>
+      <button class="secondary toggle" id="themeBtn">Toggle theme</button>
+    </div>
+    <div class="controls">
+      <input id="username" placeholder="GitHub username (e.g., torvalds)" />
+      <select id="sortBy">
+        <option value="pushed_at" selected>Sort by last update</option>
+        <option value="created_at">Sort by creation date</option>
+      </select>
+      <button id="loadBtn">Load repos</button>
+      <input id="repoName" placeholder="Optional: specific repo (e.g., Hello-World)" />
+      <button class="secondary" id="inspectBtn">Inspect single repo</button>
+    </div>
+    <div id="status" class="hint"></div>
+  </header>
+
+  <main id="content">
+    <div class="row">
+      <h2>Getting started</h2>
+      <div class="hint">Enter a username to see their repositories. Click “Preview” on any card to open index.html if available.</div>
+    </div>
+  </main>
+
+  <div class="footer">
+    <span>Client-only prototype using GitHub’s public API. For heavy use, add a token in code.</span>
+    <span class="right">Made for quick testing and deployment.</span>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const status = el('status');
+    const content = el('content');
+    const themeBtn = el('themeBtn');
+
+    themeBtn.addEventListener('click', () => {
+      const light = getComputedStyle(document.documentElement).getPropertyValue('--bg') === '#f7f7fa';
+      document.documentElement.style.setProperty('--bg', light ? '#0f0f12' : '#f7f7fa');
+      document.documentElement.style.setProperty('--fg', light ? '#e8e8ea' : '#1b1b1f');
+      // Simple toggle; for a production app, use classes and full palettes.
+    });
+
+    const API = {
+      async userRepos(user, sortKey) {
+        const url = `https://api.github.com/users/${encodeURIComponent(user)}/repos?per_page=100&sort=updated`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Failed to load repos: ${res.status}`);
+        const data = await res.json();
+        return data.sort((a, b) => new Date(b[sortKey]) - new Date(a[sortKey]));
+      },
+      async repoContents(owner, repo, path='') {
+        const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path}`;
+        const res = await fetch(url);
+        if (!res.ok) return null; // missing path is fine
+        return res.json();
+      },
+      previewLink(owner, repo, branch, path) {
+        // htmlpreview renders raw HTML from GitHub
+        // Example: https://htmlpreview.github.io/?https://github.com/owner/repo/blob/branch/index.html
+        return `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
+      }
+    };
+
+    function row(title, cards) {
+      const section = document.createElement('div');
+      section.className = 'row';
+      const h2 = document.createElement('h2');
+      h2.textContent = title;
+      section.appendChild(h2);
+
+      const carousel = document.createElement('div');
+      carousel.className = 'carousel';
+      cards.forEach(c => carousel.appendChild(c));
+      section.appendChild(carousel);
+      return section;
+    }
+
+    function repoCard(repo, previewUrl) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.textContent = repo.name;
+      card.appendChild(thumb);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = repo.full_name;
+      meta.appendChild(name);
+
+      const desc = document.createElement('div');
+      desc.className = 'desc';
+      desc.textContent = repo.description || 'No description';
+      meta.appendChild(desc);
+
+      const tags = document.createElement('div');
+      tags.className = 'tags';
+
+      const lang = document.createElement('span');
+      lang.className = 'tag';
+      lang.textContent = repo.language || 'Mixed';
+      tags.appendChild(lang);
+
+      const stars = document.createElement('span');
+      stars.className = 'tag';
+      stars.textContent = `★ ${repo.stargazers_count}`;
+      tags.appendChild(stars);
+
+      const updated = document.createElement('span');
+      updated.className = 'tag';
+      const date = new Date(repo.pushed_at || repo.updated_at || repo.created_at);
+      updated.textContent = `Updated: ${date.toLocaleDateString()}`;
+      tags.appendChild(updated);
+
+      meta.appendChild(tags);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const openRepo = document.createElement('a');
+      openRepo.href = repo.html_url;
+      openRepo.target = '_blank';
+      openRepo.rel = 'noopener';
+      openRepo.className = 'secondary';
+      openRepo.textContent = 'Repo';
+      actions.appendChild(openRepo);
+
+      const preview = document.createElement('a');
+      preview.href = previewUrl || repo.homepage || repo.html_url;
+      preview.target = '_blank';
+      preview.rel = 'noopener';
+      preview.textContent = previewUrl ? 'Preview' : (repo.homepage ? 'Homepage' : 'Open');
+      actions.appendChild(preview);
+
+      meta.appendChild(actions);
+      card.appendChild(meta);
+      return card;
+    }
+
+    async function findPreview(owner, repo, defaultBranch) {
+      // Try common web entry points in priority order
+      const candidates = [
+        'index.html',
+        'docs/index.html',
+        'public/index.html',
+      ];
+      for (const path of candidates) {
+        const found = await API.repoContents(owner, repo, path);
+        if (found && !found.message) {
+          return API.previewLink(owner, repo, defaultBranch, path);
+        }
+      }
+      return null;
+    }
+
+    async function loadRepos() {
+      const user = el('username').value.trim();
+      const sortKey = el('sortBy').value;
+      if (!user) {
+        status.innerHTML = '<span class="error">Enter a GitHub username.</span>';
+        return;
+      }
+      status.textContent = 'Loading…';
+      try {
+        const repos = await API.userRepos(user, sortKey);
+        const cards = [];
+        for (const r of repos) {
+          const preview = await findPreview(r.owner.login, r.name, r.default_branch);
+          cards.push(repoCard(r, preview));
+        }
+        content.innerHTML = '';
+        content.appendChild(row(`Repos for ${user} (${repos.length})`, cards));
+        status.innerHTML = `<span class="success">Loaded ${repos.length} repos.</span>`;
+      } catch (e) {
+        status.innerHTML = `<span class="error">${e.message}</span>`;
+      }
+    }
+
+    async function inspectRepo() {
+      const user = el('username').value.trim();
+      const name = el('repoName').value.trim();
+      if (!user || !name) {
+        status.innerHTML = '<span class="error">Enter both username and repo name.</span>';
+        return;
+      }
+      status.textContent = 'Inspecting…';
+      try {
+        const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(user)}/${encodeURIComponent(name)}`);
+        if (!res.ok) throw new Error(`Repo not found: ${res.status}`);
+        const r = await res.json();
+        const preview = await findPreview(r.owner.login, r.name, r.default_branch);
+        content.innerHTML = '';
+        content.appendChild(row(`Inspecting ${r.full_name}`, [repoCard(r, preview)]));
+        status.innerHTML = preview
+          ? '<span class="success">Preview entry point found.</span>'
+          : '<span class="hint">No index.html found. Try opening the repo or homepage.</span>';
+      } catch (e) {
+        status.innerHTML = `<span class="error">${e.message}</span>`;
+      }
+    }
+
+    el('loadBtn').addEventListener('click', loadRepos);
+    el('inspectBtn').addEventListener('click', inspectRepo);
+  </script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Mapper Tool (Quantized + RLE)</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#0a0f1c; color:#e6f7ff; display:flex; flex-direction:column; align-items:center; padding:20px; }
+  canvas { border:1px solid #2bd8ff; margin-top:12px; max-width:90vw; }
+  #status { margin-top:12px; font-size:14px; color:#9fdfff; }
+  textarea { width:90%; height:320px; margin-top:12px; font-family:monospace; background:#051423; color:#9fdfff; border:1px solid #2bd8ff; padding:8px; overflow:auto; }
+  button { background:#103045; color:#d8f6ff; border:1px solid #2bd8ff; border-radius:8px; padding:8px 12px; cursor:pointer; margin-top:12px; }
+  .row { display:flex; gap:8px; align-items:center; margin-top:12px; }
+  label { font-size:14px; }
+  input[type="number"] { width:80px; }
+</style>
+</head>
+<body>
+  <h1>Pixel Mapper Tool (Quantized + RLE)</h1>
+  <input type="file" id="upload" accept="image/*">
+  <div class="row">
+    <label>Max colors:</label>
+    <input type="number" id="maxColors" min="2" max="256" value="256">
+    <label>Dither:</label>
+    <input type="checkbox" id="dither" checked>
+  </div>
+  <canvas id="canvas"></canvas>
+  <button id="extract">Extract & Compress</button>
+  <div id="status">No extraction yet.</div>
+  <textarea id="output" placeholder="Full compressed HTML will appear here..."></textarea>
+
+<script>
+const upload = document.getElementById('upload');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const output = document.getElementById('output');
+const maxColorsInput = document.getElementById('maxColors');
+const ditherInput = document.getElementById('dither');
+let img = new Image();
+
+// Load image
+upload.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      status.textContent = `Image loaded: ${img.width} × ${img.height} (${img.width * img.height} pixels)`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Utilities
+function clamp(v, min, max){ return v < min ? min : v > max ? max : v; }
+function toKey(r,g,b,a){ return (r<<24)|(g<<16)|(b<<8)|a; }
+function fromKey(key){ return [(key>>>24)&255,(key>>>16)&255,(key>>>8)&255,key&255]; }
+
+// Simple median-cut style quantization
+function quantize(data, maxColors){
+  // Sample to build histogram (downsample if huge)
+  const hist = new Map();
+  const len = data.length;
+  const step = len > 4e6 ? 8 : 4; // sample fewer for large images
+  for (let i = 0; i < len; i += step) {
+    const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+    const key = toKey(r,g,b,a);
+    hist.set(key, (hist.get(key)||0)+1);
+  }
+  // Buckets by value ranges
+  let colors = Array.from(hist.keys());
+  let buckets = [{ keys: colors, rMin:0, rMax:255, gMin:0, gMax:255, bMin:0, bMax:255, aMin:0, aMax:255 }];
+
+  function splitBucket(bucket){
+    const keys = bucket.keys;
+    if (keys.length <= 1) return [bucket];
+    // Find widest channel
+    let rMin=255,rMax=0,gMin=255,gMax=0,bMin=255,bMax=0,aMin=255,aMax=0;
+    for (let k of keys){
+      const [r,g,b,a] = fromKey(k);
+      if (r<rMin) rMin=r; if (r>rMax) rMax=r;
+      if (g<gMin) gMin=g; if (g>gMax) gMax=g;
+      if (b<bMin) bMin=b; if (b>bMax) bMax=b;
+      if (a<aMin) aMin=a; if (a>aMax) aMax=a;
+    }
+    const widths = [
+      {ch:'r', w:rMax-rMin},
+      {ch:'g', w:gMax-gMin},
+      {ch:'b', w:bMax-bMin},
+      {ch:'a', w:aMax-aMin}
+    ].sort((x,y)=>y.w-x.w);
+    const channel = widths[0].ch;
+    // Sort by chosen channel
+    keys.sort((k1,k2)=>fromKey(k1)[{r:0,g:1,b:2,a:3}[channel]] - fromKey(k2)[{r:0,g:1,b:2,a:3}[channel]]);
+    const mid = keys.length>>1;
+    const left = keys.slice(0,mid);
+    const right = keys.slice(mid);
+    return [
+      { keys:left }, 
+      { keys:right }
+    ];
+  }
+
+  // Iteratively split to reach maxColors
+  while (buckets.length < maxColors) {
+    // Choose bucket with most keys
+    buckets.sort((a,b)=> (b.keys?.length||0) - (a.keys?.length||0));
+    const b = buckets.shift();
+    if (!b || (b.keys?.length||0) <= 1) { buckets.push(b); break; }
+    const [b1,b2] = splitBucket(b);
+    buckets.push(b1,b2);
+    // Stop if cannot split further
+    if ((b1.keys?.length||0) <= 1 && (b2.keys?.length||0) <= 1) break;
+  }
+
+  // Create palette (average per bucket)
+  const palette = [];
+  const mapKeyToIndex = new Map();
+  buckets.forEach((b, idx)=>{
+    const keys = b.keys||[];
+    if (keys.length === 0) {
+      palette.push([0,0,0,0]); return;
+    }
+    let rSum=0,gSum=0,bSum=0,aSum=0;
+    for (let k of keys){
+      const [r,g,bb,a] = fromKey(k);
+      rSum+=r; gSum+=g; bSum+=bb; aSum+=a;
+    }
+    const r = Math.round(rSum/keys.length);
+    const g = Math.round(gSum/keys.length);
+    const bb= Math.round(bSum/keys.length);
+    const a = Math.round(aSum/keys.length);
+    const palColor = [r,g,bb,a];
+    palette.push(palColor);
+    for (let k of keys){ mapKeyToIndex.set(k, idx); }
+  });
+
+  // Map pixels to nearest palette index
+  const indices = new Uint8Array((data.length/4));
+  for (let p = 0, i = 0; i < data.length; i += 4, p++){
+    const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+    const key = toKey(r,g,b,a);
+    let idx = mapKeyToIndex.get(key);
+    if (idx === undefined) {
+      // Fallback: nearest by squared distance
+      let best=0, bestD=Infinity;
+      for (let j=0;j<palette.length;j++){
+        const pr=palette[j][0], pg=palette[j][1], pb=palette[j][2], pa=palette[j][3];
+        const dr=r-pr, dg=g-pg, db=b-pb, da=a-pa;
+        const d=dr*dr+dg*dg+db*db+da*da;
+        if (d<bestD){bestD=d; best=j;}
+      }
+      idx = best;
+    }
+    indices[p] = idx;
+  }
+  return { palette, indices };
+}
+
+// Optional Floyd–Steinberg dithering for visual fidelity
+function ditherIndices(data, palette){
+  const w = canvas.width, h = canvas.height;
+  const buf = new Float32Array(data.length);
+  for (let i=0;i<data.length;i++) buf[i] = data[i];
+  const out = new Uint8Array(data.length/4);
+  function nearestIndex(r,g,b,a){
+    let best=0, bestD=Infinity;
+    for (let j=0;j<palette.length;j++){
+      const pr=palette[j][0], pg=palette[j][1], pb=palette[j][2], pa=palette[j][3];
+      const dr=r-pr, dg=g-pg, db=b-pb, da=a-pa;
+      const d=dr*dr+dg*dg+db*db+da*da;
+      if (d<bestD){bestD=d; best=j;}
+    }
+    return best;
+  }
+  for (let y=0;y<h;y++){
+    for (let x=0;x<w;x++){
+      const i = (y*w + x)*4;
+      const r = buf[i], g = buf[i+1], b = buf[i+2], a = buf[i+3];
+      const idx = nearestIndex(r,g,b,a);
+      out[y*w + x] = idx;
+      const pr=palette[idx][0], pg=palette[idx][1], pb=palette[idx][2], pa=palette[idx][3];
+      const er = r - pr, eg = g - pg, eb = b - pb, ea = a - pa;
+      // Distribute error (FS)
+      function add(nx,ny,fr){
+        if (nx<0||nx>=w||ny<0||ny>=h) return;
+        const ii=(ny*w+nx)*4;
+        buf[ii]   = clamp(buf[ii]   + er*fr, 0, 255);
+        buf[ii+1] = clamp(buf[ii+1] + eg*fr, 0, 255);
+        buf[ii+2] = clamp(buf[ii+2] + eb*fr, 0, 255);
+        buf[ii+3] = clamp(buf[ii+3] + ea*fr, 0, 255);
+      }
+      add(x+1,y,7/16);
+      add(x-1,y+1,3/16);
+      add(x,y+1,5/16);
+      add(x+1,y+1,1/16);
+    }
+  }
+  return out;
+}
+
+// RLE encode indices (0..255)
+function rleEncode(u8){
+  const out = [];
+  for (let i=0; i<u8.length; ){
+    const val = u8[i];
+    let run = 1;
+    while (i+run < u8.length && u8[i+run] === val && run < 65535) run++;
+    // Emit: [marker=255, run_hi, run_lo, value] if run>=4, else raw bytes
+    if (run >= 4){
+      out.push(255, (run>>8)&255, run&255, val);
+      i += run;
+    } else {
+      // raw bytes segment: [marker=254, count, ...bytes]
+      let count = 0, start=i;
+      while (i<u8.length && count<250){
+        // stop before a long run to maximize compression
+        const v=u8[i];
+        let r=1; while (i+r<u8.length && u8[i+r]===v && r<65535) r++;
+        if (r>=4) break;
+        i++; count++;
+      }
+      out.push(254, count, ...u8.slice(start, start+count));
+    }
+  }
+  return new Uint8Array(out);
+}
+
+// Base64 helpers
+function toBase64(u8){
+  let binary = "";
+  for (let i=0;i<u8.length;i++) binary += String.fromCharCode(u8[i]);
+  return btoa(binary);
+}
+function fromBase64(str){
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+document.getElementById('extract').addEventListener('click', () => {
+  if (!img.src) { status.textContent = "No image loaded."; return; }
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const maxColors = clamp(parseInt(maxColorsInput.value, 10)||256, 2, 256);
+  const useDither = ditherInput.checked;
+
+  status.textContent = `Quantizing to ≤ ${maxColors} colors...`;
+  const { palette, indices: indicesRaw } = quantize(data, maxColors);
+  const indices = useDither ? ditherIndices(data, palette) : indicesRaw;
+
+  status.textContent = `Encoding indices with RLE...`;
+  const rle = rleEncode(indices);
+
+  // Pack palette as flat Uint8 (RGBA per entry)
+  const palFlat = new Uint8Array(palette.length * 4);
+  for (let i=0;i<palette.length;i++){
+    palFlat[i*4]   = palette[i][0];
+    palFlat[i*4+1] = palette[i][1];
+    palFlat[i*4+2] = palette[i][2];
+    palFlat[i*4+3] = palette[i][3];
+  }
+
+  const palB64 = toBase64(palFlat);
+  const idxB64 = toBase64(rle);
+
+  status.textContent = `Done. Palette: ${palette.length} colors. Compressed indices length: ${rle.length} bytes. Generating HTML...`;
+
+  const openScript = "<" + "script>";
+  const closeScript = "</" + "script>";
+
+  const rendererJS =
+`${openScript}
+const width = ${w}, height = ${h};
+const paletteB64 = "${palB64}";
+const indicesB64 = "${idxB64}";
+
+// Base64 decode helpers
+function fromBase64(str){ const bin=atob(str); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
+
+// RLE decode (mirror of encoder)
+function rleDecode(u8){
+  const out = new Uint8Array(${w*h});
+  let i=0, o=0;
+  while (i<u8.length){
+    const marker = u8[i++];
+    if (marker === 255){
+      const runHi = u8[i++], runLo = u8[i++], val = u8[i++];
+      const run = (runHi<<8)|runLo;
+      out.fill(val, o, o+run);
+      o += run;
+    } else if (marker === 254){
+      const count = u8[i++];
+      out.set(u8.slice(i, i+count), o);
+      i += count; o += count;
+    } else {
+      // Safety: treat as raw single byte
+      out[o++] = marker;
+    }
+  }
+  return out;
+}
+
+window.onload = () => {
+  // Decode data
+  const palFlat = fromBase64(paletteB64);
+  const idxRle  = fromBase64(indicesB64);
+  const indices = rleDecode(idxRle);
+
+  // Reconstruct RGBA
+  const pixelData = new Uint8ClampedArray(width*height*4);
+  for (let p=0; p<indices.length; p++){
+    const idx = indices[p]*4;
+    pixelData[p*4]   = palFlat[idx];
+    pixelData[p*4+1] = palFlat[idx+1];
+    pixelData[p*4+2] = palFlat[idx+2];
+    pixelData[p*4+3] = palFlat[idx+3];
+  }
+
+  // Render
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  document.body.style.margin = '0';
+  document.body.style.background = '#000';
+  document.body.style.display = 'grid';
+  document.body.style.placeItems = 'center';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const imgData = new ImageData(pixelData, width, height);
+  ctx.putImageData(imgData, 0, 0);
+};
+${closeScript}`;
+
+  const html =
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Embedded Pixel Image (Quantized + RLE)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style> body{margin:0;background:#000;display:grid;place-items:center;height:100vh;} </style>
+</head>
+<body>
+${rendererJS}
+</body>
+</html>`;
+
+  output.value = html;
+  status.textContent = "Full compressed HTML generated. Copy from textarea.";
+});
+</script>
+</body>
+</html>

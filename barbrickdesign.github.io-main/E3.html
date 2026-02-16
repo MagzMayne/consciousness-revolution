@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Ever‑Evolving Encrypted App — Single File</title>
+<style>
+  :root { --bg:#0b1020; --panel:#162047; --text:#e9f2ff; --muted:#b6c3e3; --accent:#40e0d0; --btn:#4b7bec; --err:#ff6b6b; --ok:#2ed573; }
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  header,footer{padding:12px 16px;background:#121833;}
+  main{padding:16px;max-width:1000px;margin:0 auto;}
+  .card{background:var(--panel);border-radius:12px;padding:12px;margin:10px 0;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  label{font-size:12px;opacity:.85;display:block;margin:6px 0 4px}
+  input{width:100%;padding:10px;border-radius:8px;border:0;background:#223063;color:var(--text)}
+  .btn{padding:10px 12px;border:0;border-radius:8px;background:var(--btn);color:#fff;cursor:pointer}
+  .muted{color:var(--muted);font-size:12px}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .ok{color:var(--ok)} .err{color:var(--err)}
+  pre{background:#0f1433;color:#aee;padding:10px;border-radius:8px;overflow:auto;max-height:280px}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+</style>
+
+<header>
+  <h2>Ever‑Evolving Encrypted App</h2>
+  <div class="muted">Decrypt to boot. Visible code mutates continuously. No secrets in source.</div>
+</header>
+
+<main>
+  <!-- Gate: user supplies password at runtime, never stored in file -->
+  <div class="card" id="gate">
+    <h3>Access gate</h3>
+    <label>Password</label>
+    <input id="pw" type="password" placeholder="Enter password to decrypt"/>
+    <div class="row">
+      <button class="btn" onclick="decryptAndBoot()">Unlock</button>
+      <span id="gateStatus" class="muted"></span>
+    </div>
+    <p class="muted">This file contains only encrypted code + evolving obfuscation display. Without the password, nothing is readable.</p>
+  </div>
+
+  <!-- Obfuscation theater: continuously changing mapping preview -->
+  <div class="grid">
+    <div class="card">
+      <h3>Live obfuscation (mutates every second)</h3>
+      <p class="muted">Random per‑second encoding of all characters. The visible “code” below is just evolving identifiers.</p>
+      <pre id="obfPre">// Obfuscated view</pre>
+    </div>
+    <div class="card">
+      <h3>Stable decode (for demo string)</h3>
+      <p class="muted">Internal resolver keeps logic stable; only the surface mutates.</p>
+      <pre id="decPre">// Decoded sample string</pre>
+    </div>
+  </div>
+
+  <!-- App shell appears only after successful decryption -->
+  <div class="card" id="appShell" style="display:none">
+    <h3>App shell</h3>
+    <div class="row"><span id="appInfo" class="mono"></span></div>
+    <div class="grid">
+      <div class="card">
+        <h3>Diagnostics</h3>
+        <pre id="diag">// Logs</pre>
+      </div>
+      <div class="card">
+        <h3>Notes</h3>
+        <p class="muted">Outputs must be server‑signed and watermarked with payee: <span class="mono">BarbrickDesign@gmail.com</span>. Clients verify signatures; unsigned results are rejected.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <small>Affordable energy credits via PayPal → <span class="mono">BarbrickDesign@gmail.com</span>. Source appears ever‑evolving; decrypted bundle runs only after password and integrity checks.</small>
+</footer>
+
+<script>
+/* ============================================================================
+   Section A — Ever‑evolving obfuscation (visual layer, no secrets)
+   - Regenerates a random identifier map for all characters every second.
+   - Renders a “code‑like” stream of random tokens that changes continuously.
+   - Provides a local resolver to show stable decoding of a sample string.
+   ============================================================================ */
+const CHARSET = (() => {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const digits  = "0123456789";
+  const symbols = `~!@#$%^&*()_+-={}[]|:;"'<>,.?/\\\` `;
+  return letters + digits + symbols;
+})();
+let MAP = {};
+let REV = {};
+
+function randToken() {
+  // 8–14 chars, mixed alnum with occasional underscores
+  const len = 8 + Math.floor(Math.random() * 7);
+  const al = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+  let t = "";
+  for (let i=0;i<len;i++) t += al[Math.floor(Math.random()*al.length)];
+  return t;
+}
+function generateMap() {
+  MAP = {}; REV = {};
+  for (const c of CHARSET) {
+    let token;
+    do { token = randToken(); } while (REV[token]); // ensure uniqueness
+    MAP[c] = token;
+    REV[token] = c;
+  }
+}
+function encodeString(str) {
+  // space‑separated identifiers for visual readability
+  return str.split("").map(c => MAP[c] ?? c).join(" ");
+}
+function decodeTokens(tokens) {
+  return tokens.split(" ").map(t => REV[t] ?? t).join("");
+}
+function obfTick() {
+  generateMap();
+  const sample = `function payee(){return "BarbrickDesign@gmail.com";} // credits & signatures`;
+  const encoded = encodeString(sample);
+  document.getElementById("obfPre").textContent = encoded;
+  document.getElementById("decPre").textContent = decodeTokens(encoded);
+}
+setInterval(obfTick, 1000);
+obfTick();
+
+/* ============================================================================
+   Section B — Self‑decrypting loader (no hardcoded password)
+   - PBKDF2(HMAC‑SHA256) derives AES‑GCM key from user‑entered password.
+   - Decrypts a binary JS bundle and executes it as an ES module.
+   - Verifies plaintext SHA‑256 digest before loading (integrity).
+   - The encrypted blob holds only ciphertext||tag + public metadata (salt/iv).
+   ============================================================================ */
+const ENC = {
+  alg: "AES-256-GCM",
+  kdf: "PBKDF2-HMAC-SHA256",
+  rounds: 200000,
+  // Replace these three fields with your build output:
+  salt_b64: "qqqqqqqqqqqqqqqqqqqqqQ==", // 16 bytes, base64
+  iv_b64:   "vvvvvvvvvvvvvvvvvvvvvQ==", // 12 bytes, base64
+  plaintext_sha256: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", // 64 hex chars
+  // Encrypted bundle (ciphertext concatenated with 16‑byte GCM tag), base64
+  blob_b64: "REPLACE_WITH_YOUR_BASE64_CIPHERTEXT_PLUS_TAG"
+};
+
+// Base64 → Uint8Array
+function b64u(b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+// Derive AES‑GCM key from password using PBKDF2‑SHA256
+async function deriveKey(password, salt, iterations) {
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), { name:"PBKDF2" }, false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name:"PBKDF2", hash:"SHA-256", salt, iterations },
+    material,
+    { name:"AES-GCM", length:256 },
+    false,
+    ["decrypt"]
+  );
+}
+// SHA‑256 hex
+async function sha256Hex(buf) {
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  const bytes = new Uint8Array(hash);
+  return [...bytes].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function decryptAndBoot() {
+  const status = document.getElementById("gateStatus");
+  try {
+    const pw = document.getElementById("pw").value;
+    if (!pw) { status.textContent = "Enter a password."; status.className="err"; return; }
+
+    status.textContent = "Deriving key…"; status.className="muted";
+    const salt = b64u(ENC.salt_b64);
+    const iv   = b64u(ENC.iv_b64);
+    const key  = await deriveKey(pw, salt, ENC.rounds);
+
+    status.textContent = "Decrypting…";
+    const blob = b64u(ENC.blob_b64);
+    const plain = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, blob.buffer);
+
+    status.textContent = "Verifying integrity…";
+    const digest = await sha256Hex(plain);
+    if (digest !== ENC.plaintext_sha256) {
+      status.textContent = "Integrity failed (wrong password or tampered blob).";
+      status.className = "err"; return;
+    }
+
+    status.textContent = "Loading app…"; status.className="ok";
+    const code = new TextDecoder().decode(plain);
+
+    // Execute decrypted module from memory (no readable code at rest)
+    const url = URL.createObjectURL(new Blob([code], { type:"text/javascript" }));
+    const mod = await import(url);
+    URL.revokeObjectURL(url);
+
+    // Optional: init hook from decrypted bundle
+    if (typeof mod.initApp === "function") {
+      await mod.initApp({ onLog: log, onInfo: setInfo });
+    }
+    document.getElementById("appShell").style.display = "block";
+    setInfo("Decrypted & verified. No readable script existed before unlock.");
+    log("Digest: " + digest);
+    log("KDF: " + ENC.kdf + " (" + ENC.rounds + " rounds), Cipher: " + ENC.alg);
+  } catch (e) {
+    status.textContent = "Decryption error."; status.className = "err";
+    log("Error: " + (e && e.message ? e.message : String(e)));
+  }
+}
+
+/* ============================================================================
+   Section C — Minimal anti‑tamper hints (client‑side)
+   - Freezes select prototypes to deter trivial monkey‑patching.
+   - No secrets here; real protection is encrypted bundle + server signatures.
+   ============================================================================ */
+(function antiTamper(){
+  try { Object.freeze(Object.prototype); Object.freeze(Function.prototype); } catch(e){}
+})();
+
+/* ============================================================================
+   Section D — Diagnostics helpers
+   ============================================================================ */
+function log(msg){
+  const pre = document.getElementById("diag");
+  pre.textContent += (pre.textContent.endsWith("\n") ? "" : "\n") + msg;
+}
+function setInfo(msg){
+  document.getElementById("appInfo").textContent = msg;
+}
+
+/* ============================================================================
+   Deployment notes (replace placeholders at build time):
+   - Build your app into a single JS file (the plaintext bundle).
+   - Compute SHA‑256 of that plaintext; set ENC.plaintext_sha256.
+   - Generate random salt (16B) and IV (12B); set ENC.salt_b64 and ENC.iv_b64.
+   - Derive key with PBKDF2‑SHA256 using the chosen password at runtime.
+   - Encrypt plaintext via AES‑GCM; concatenate ciphertext||tag; base64→ ENC.blob_b64.
+   - Distribute only this HTML. No passwords are embedded. Without the password,
+     the app cannot be decrypted or read.
+   - The visible “code” panel is synthetic obfuscation that mutates every second.
+     It never reveals real logic or secrets.
+   ============================================================================ */
+</script>
+</html>

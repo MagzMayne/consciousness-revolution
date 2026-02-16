@@ -1,0 +1,512 @@
+CCART — Pump.fun (Solana) + Phantom Wallet — Single-file HTML
+
+Below is a single-file, ready-to-run HTML that:
+
+• Adds Phantom wallet (Solana) connection and metadata signing via Phantom.
+• Uses Phantom for wallet-based signing of metadata before posting.
+• Keeps pump.fun posting as a client-side stub (replace base URL/token or route through your secure server for production).
+• Preserves prior one-button upload → rarity → render → archive → optional post flow.
+• Uses robust MediaRecorder probe and frames fallback, offscreen canvas rendering, IndexedDB archive, and three.js card previews with polished visuals.
+• Avoids any medical analysis or diagnostic processing; any clinical or sensitive workflows must be implemented on your secure server.
+
+
+Copy the whole file below into a single .html and open it in a modern browser (Chrome/Edge recommended). Phantom must be installed in the browser for wallet features to work.
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CCART — Pump.fun & Phantom • One-Button Flow</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+:root{--bg:#040617;--panel:#07111a;--muted:#9fb0d6;--accent:#7bead8;--card-w:360px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(900px 600px at 10% 10%, #071029, var(--bg));color:#e8eefc;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+header{display:flex;gap:12px;align-items:center;padding:14px;border-bottom:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg,rgba(7,12,18,0.85),rgba(6,8,12,0.45))}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#083248,#0b2b37);box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+main{max-width:1200px;margin:18px auto;padding:0 18px;display:grid;gap:16px}
+.panel{background:linear-gradient(180deg,var(--panel),#051017);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.02)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input,select,button,textarea{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#06111a;color:#e8eefc}
+button{cursor:pointer}
+.workspace{display:grid;grid-template-columns:1fr 380px;gap:12px}
+@media(max-width:980px){.workspace{grid-template-columns:1fr}}
+.preview{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.02);background:#000}
+canvas#preview{width:100%;height:auto;display:block}
+.progress{height:12px;background:#041526;border-radius:999px;overflow:hidden}
+.progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#84a7ff,#7bead8)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-w),1fr));gap:12px;margin-top:12px}
+@media(max-width:700px){.gallery{grid-template-columns:1fr}:root{--card-w:100%}}
+.card{border-radius:12px;padding:10px;background:linear-gradient(180deg,#07131a,#06111a);border:1px solid rgba(255,255,255,0.02);display:flex;flex-direction:column;gap:8px}
+.small{font-size:12px;color:var(--muted)}
+.log{height:160px;overflow:auto;background:linear-gradient(180deg,#041018,#051423);border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:12px;color:var(--muted)}
+.todo{font-family:monospace;background:#061320;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+.badge{background:rgba(255,255,255,0.02);padding:6px 8px;border-radius:999px;color:var(--muted)}
+.link{color:var(--accent);text-decoration:underline;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden></div>
+  <div>
+    <div style="font-weight:700">CCART — Pump.fun (Solana) + Phantom</div>
+    <div class="small">One-button creative flow • Phantom wallet signing • pump.fun posting stub</div>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><span class="badge">Solana + Phantom integration</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="consentBtn">I consent (show app)</button>
+        <div id="consentLabel" class="small">Awaiting consent</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="app" class="panel" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <div style="flex:1;min-width:260px">
+        <label class="small">Upload image</label><br/>
+        <input id="fileInput" type="file" accept="image/png,image/jpeg" />
+        <div class="small">No medical analysis; handle sensitive data on secure servers.</div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="small">Engine</label>
+        <select id="engine"><option value="kenburns">Ken Burns</option><option value="composite">Composite</option><option value="particle">Particle</option></select>
+        <label class="small">Resolution</label>
+        <select id="resolution"><option>640x640</option><option>720x720</option><option>1024x1024</option></select>
+        <label class="small">Duration</label><input id="duration" type="number" value="6" min="1" max="30" style="width:72px"/>
+        <label class="small">FPS</label><input id="fps" type="number" value="24" min="12" max="60" style="width:72px"/>
+      </div>
+    </div>
+
+    <div class="divider" style="height:12px"></div>
+
+    <div class="workspace">
+      <div>
+        <div class="preview">
+          <canvas id="preview"></canvas>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <button id="oneClick" style="font-weight:700">Create & Post to pump.fun</button>
+          <button id="connectPhantom">Connect Phantom</button>
+          <div id="walletStatus" class="small">Phantom: disconnected</div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <div style="flex:1">
+            <div class="progress"><i id="progressBar"></i></div>
+            <div id="progressText" class="small">Idle</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button id="downloadBtn" disabled>Download</button>
+            <button id="openBtn" disabled>Open</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <canvas id="luma" width="160" height="96"></canvas>
+          <canvas id="hist" width="160" height="96"></canvas>
+          <div style="flex:1">
+            <div class="small">Rarity</div>
+            <div id="rarityBadge" style="font-weight:700">—</div>
+            <div id="rarityDetails" class="small"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:8px" class="small">pump.fun base & token (client-side stub; production requires secure server)</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+          <input id="pumpBase" placeholder="https://api.pump.fun/v1/..." style="flex:1"/>
+          <input id="pumpKey" placeholder="API token" style="width:220px"/>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="panel todo">
+          <div style="font-weight:700">Conversation TODO</div>
+          <div id="todoList"></div>
+        </div>
+
+        <div class="panel">
+          <div style="font-weight:700">Archive & Gallery</div>
+          <div id="gallery" class="gallery"></div>
+        </div>
+
+        <div class="panel">
+          <div style="font-weight:700">Logs</div>
+          <div id="log" class="log"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="small">This client signs metadata with Phantom and posts media via pump.fun stub. Replace client-side posting with secure server workflows for production and clinical workflows.</div>
+  </section>
+</main>
+
+<script>
+/* CCART with Phantom + pump.fun stub
+   - Phantom connection and personal_sign (Solana-compatible signing) for metadata
+   - One-button flow: upload → rarity → render → archive → post
+   - pump.fun post is client-side; production must use a server for secure token handling
+   - No medical analysis performed
+*/
+
+/* ---------- Utilities & logging ---------- */
+const logEl = document.getElementById('log'), todoListEl = document.getElementById('todoList');
+function log(msg, level='info'){ const line = `[${new Date().toISOString()}] ${msg}`; const d = document.createElement('div'); d.textContent = line; logEl.prepend(d); if(level==='error') console.error(line); else console.log(line); }
+function addTodo(text, status='todo'){ const id = 't_' + Date.now() + '_' + Math.floor(Math.random()*1e6); const el = document.createElement('div'); el.id = id; el.style.display='flex'; el.style.justifyContent='space-between'; el.style.gap='8px'; el.innerHTML = `<div style="flex:1">${text}</div><div style="min-width:180px;text-align:right"><span class="small">${new Date().toISOString()}</span> <input type="checkbox"${status==='done'?' checked':''} onchange="document.getElementById('${id}').style.opacity=this.checked?0.6:1"></div>`; todoListEl.prepend(el); return id; }
+
+/* ---------- IndexedDB ---------- */
+const DB = (function(){
+  const NAME='ccart_phantom_v1', STORE='items'; let db;
+  function open(){ return new Promise((res,rej)=>{ if(db) return res(db); const rq=indexedDB.open(NAME,1); rq.onupgradeneeded = e => { const _db = e.target.result; if(!_db.objectStoreNames.contains(STORE)) _db.createObjectStore(STORE,{keyPath:'id'}); }; rq.onsuccess = e => { db=e.target.result; res(db); }; rq.onerror = e => rej(e.target.error); }); }
+  async function add(item){ const _db=await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(item); tx.oncomplete = ()=>res(true); tx.onerror = e=>rej(e.target.error); }); }
+  async function all(){ const _db=await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).getAll(); rq.onsuccess = ()=>res(rq.result || []); rq.onerror = e=>rej(e.target.error); }); }
+  return { add, all };
+})();
+
+/* ---------- DOM refs & state ---------- */
+const consentBtn = document.getElementById('consentBtn'), consentLabel = document.getElementById('consentLabel');
+const fileInput = document.getElementById('fileInput'), engineSel = document.getElementById('engine'), resolutionSel = document.getElementById('resolution'), durationEl = document.getElementById('duration'), fpsEl = document.getElementById('fps');
+const preview = document.getElementById('preview'), progressBar = document.getElementById('progressBar'), progressText = document.getElementById('progressText');
+const luma = document.getElementById('luma'), hist = document.getElementById('hist');
+const oneClick = document.getElementById('oneClick'), connectPhantomBtn = document.getElementById('connectPhantom'), walletStatus = document.getElementById('walletStatus');
+const pumpBase = document.getElementById('pumpBase'), pumpKey = document.getElementById('pumpKey');
+const downloadBtn = document.getElementById('downloadBtn'), openBtn = document.getElementById('openBtn');
+const rarityBadge = document.getElementById('rarityBadge'), rarityDetails = document.getElementById('rarityDetails');
+const galleryEl = document.getElementById('gallery');
+
+let state = { consent:false, sanitized:null, previewBitmap:null, lastItem:null, phantomPublicKey:null };
+
+/* ---------- Consent & initial todos ---------- */
+consentBtn.addEventListener('click', ()=>{ state.consent = true; document.getElementById('app').style.display = 'block'; consentLabel.textContent = 'Consented'; addTodo('App UI enabled', 'done'); log('User consented'); rebuildGallery(); });
+addTodo('Integrate Phantom wallet for Solana signing');
+addTodo('Implement pump.fun post stub (client-side)');
+addTodo('One-button create & post');
+
+/* ---------- Image sanitization & preview ---------- */
+async function sanitizeFile(file){
+  const allowed = ['image/png','image/jpeg'];
+  if(!allowed.includes(file.type)) throw new Error('Unsupported type');
+  if(file.size > 120 * 1024 * 1024) throw new Error('File too large');
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; const ctx = c.getContext('2d'); ctx.drawImage(bmp,0,0);
+  const blob = await new Promise(res => c.toBlob(res,'image/png',0.92));
+  const bitmap = await createImageBitmap(blob);
+  return { blob, width: bmp.width, height: bmp.height, bitmap };
+}
+
+fileInput.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    const s = await sanitizeFile(f); state.sanitized = s;
+    const [rw,rh] = resolutionSel.value.split('x').map(n=>parseInt(n,10)); preview.width = rw; preview.height = rh;
+    const ctx = preview.getContext('2d'); drawFit(ctx, s.bitmap, rw, rh); visualize(preview);
+    log('Loaded ' + f.name + ` (${s.width}x${s.height})`);
+    addTodo('Uploaded: ' + f.name, 'done');
+    computeQualityAndRarity(s);
+  }catch(err){ log('Upload failed: ' + err.message, 'error'); alert('Upload failed: ' + err.message); }
+});
+
+/* ---------- Drawing & visualization ---------- */
+function drawFit(ctx, bitmap, dstW, dstH){
+  ctx.clearRect(0,0,dstW,dstH);
+  const iw=bitmap.width, ih=bitmap.height, ir=iw/ih, dr=dstW/dstH;
+  let dw, dh; if(ir>dr){ dw=dstW; dh=Math.round(dw/ir); } else { dh=dstH; dw=Math.round(dh*ir); }
+  const dx=Math.round((dstW-dw)/2), dy=Math.round((dstH-dh)/2); ctx.drawImage(bitmap,0,0, iw, ih, dx, dy, dw, dh);
+}
+function visualize(canvasEl){
+  try{
+    const ctx = canvasEl.getContext('2d'), w = canvasEl.width, h = canvasEl.height; const data = ctx.getImageData(0,0,w,h).data;
+    const lw = Math.max(64, Math.floor(w/4)), lh = Math.max(48, Math.floor(h/4)); luma.width = lw; luma.height = lh; luma.getContext('2d').drawImage(canvasEl,0,0,lw,lh);
+    const bins = new Uint32Array(64);
+    for(let i=0;i<data.length;i+=4){ const lum = Math.floor(0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]); bins[Math.min(63, Math.floor(lum/4))]++; }
+    const hw = hist.width = 160, hh = hist.height = 96; const hctx = hist.getContext('2d'); hctx.fillStyle = '#031217'; hctx.fillRect(0,0,hw,hh);
+    const max = Math.max(...bins) || 1;
+    for(let i=0;i<bins.length;i++){ const x=Math.floor(i*hw/bins.length); const hgt=Math.floor((bins[i]/max)*(hh-6)); hctx.fillStyle='#7bead8'; hctx.fillRect(x, hh-hgt, Math.ceil(hw/bins.length)-1, hgt); }
+  }catch(e){ console.warn(e); }
+}
+
+/* ---------- Quality metrics & rarity (non-medical) ---------- */
+function computeSharpness(canvasBitmap){
+  const w = Math.min(256, canvasBitmap.width), h = Math.min(256, canvasBitmap.height);
+  const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h; const tctx = tmp.getContext('2d'); tctx.drawImage(canvasBitmap, 0,0, w, h);
+  const id = tctx.getImageData(0,0,w,h).data; const gray = new Float32Array(w*h);
+  let idx=0;
+  for(let i=0;i<id.length;i+=4){ gray[idx++] = 0.2126*id[i] + 0.7152*id[i+1] + 0.0722*id[i+2]; }
+  let sumSq=0, mean=0;
+  for(let y=1;y<h-1;y++){ for(let x=1;x<w-1;x++){ const i=y*w+x; const lap = 4*gray[i] - gray[i-1] - gray[i+1] - gray[i-w] - gray[i+w]; mean += lap; sumSq += lap*lap; } }
+  const n = (w-2)*(h-2); const variance = Math.max(0, (sumSq/n) - Math.pow(mean/n,2)); return variance;
+}
+function computeEntropy(canvasBitmap){
+  const tmp = document.createElement('canvas'); tmp.width = 128; tmp.height = 128; const tctx = tmp.getContext('2d'); tctx.drawImage(canvasBitmap,0,0,128,128);
+  const id = tctx.getImageData(0,0,128,128).data; const hist = new Uint32Array(256);
+  for(let i=0;i<id.length;i+=4){ const lum = Math.floor(0.2126*id[i] + 0.7152*id[i+1] + 0.0722*id[i+2]); hist[lum]++; }
+  const total = 128*128; let ent = 0;
+  for(let i=0;i<256;i++){ if(hist[i]===0) continue; const p = hist[i]/total; ent -= p * Math.log2(p); }
+  return ent;
+}
+function resolutionScore(w,h){ const pixels = w*h; return Math.log2(pixels)/20; }
+
+function computeQualityAndRarity(sanitized){
+  const tmp = document.createElement('canvas'); tmp.width = sanitized.bitmap.width; tmp.height = sanitized.bitmap.height; const ctx = tmp.getContext('2d'); ctx.drawImage(sanitized.bitmap,0,0);
+  const sharp = computeSharpness(tmp); const ent = computeEntropy(tmp); const res = resolutionScore(sanitized.width, sanitized.height);
+  const sharpNorm = Math.tanh(Math.log10(1 + sharp)); const entNorm = Math.tanh(ent/6); const score = Math.round((sharpNorm*0.45 + entNorm*0.35 + res*0.2) * 100);
+  let tier = 'Common'; if(score>=85) tier='Legendary'; else if(score>=75) tier='Epic'; else if(score>=60) tier='Rare'; else if(score>=40) tier='Uncommon';
+  rarityBadge.textContent = `${tier} (${score})`; rarityDetails.textContent = `sharp:${Math.round(sharpNorm*100)} ent:${Math.round(entNorm*100)} res:${Math.round(res*100)}`;
+  log(`Computed quality score=${score}`);
+  return { score, tier, components:{ sharpness: sharp, entropy: ent, resolution: res } };
+}
+
+/* ---------- Render pipeline (webm or frames fallback) ---------- */
+async function renderPipeline(sanitized, opts, onProgress){
+  const [rw,rh] = opts.res.split('x').map(n=>parseInt(n,10)); const fps = Math.max(12,Math.min(60,opts.fps||24)); const duration = Math.max(1,Math.min(60,opts.duration||6));
+  const totalFrames = Math.ceil(duration * fps);
+  const off = document.createElement('canvas'); off.width = rw; off.height = rh; const offCtx = off.getContext('2d');
+  preview.width = rw; preview.height = rh;
+
+  function drawFrame(t){
+    offCtx.fillStyle = '#000'; offCtx.fillRect(0,0,rw,rh);
+    const zoom = 1.05 + 0.12 * t; const iw = sanitized.bitmap.width, ih = sanitized.bitmap.height, ir = iw/ih, dr = rw/rh;
+    let dw, dh; if(ir>dr){ dw = rw * zoom; dh = Math.round(dw/ir); } else { dh = rh * zoom; dw = Math.round(dh*ir); }
+    const dx = Math.round((rw-dw)/2 + (t-0.5)*0.12*rw); const dy = Math.round((rh-dh)/2 + Math.sin(t*Math.PI*2)*0.03*rh);
+    offCtx.drawImage(sanitized.bitmap, 0,0, iw, ih, dx, dy, dw, dh);
+    offCtx.fillStyle = 'rgba(255,255,255,0.06)'; offCtx.font='600 14px system-ui'; offCtx.textAlign='right'; offCtx.fillText('CCART', rw-12, rh-12);
+  }
+
+  // try MediaRecorder on captureStream
+  let stream = null;
+  try{ stream = off.captureStream ? off.captureStream(fps) : null; }catch(e){ stream = null; }
+  if(stream && typeof MediaRecorder !== 'undefined' && !/iPad|iPhone|iPod/.test(navigator.userAgent)){
+    const candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+    for(const c of candidates){
+      try{
+        if(MediaRecorder.isTypeSupported && !MediaRecorder.isTypeSupported(c)) continue;
+        const rec = new MediaRecorder(stream, { mimeType: c });
+        const chunks = [];
+        rec.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+        rec.onerror = e => log('Recorder error', 'error');
+        rec.start();
+        let f=0;
+        await new Promise((res,rej)=>{
+          function step(){
+            const t = f/totalFrames;
+            drawFrame(t);
+            preview.getContext('2d').clearRect(0,0,preview.width,preview.height); preview.getContext('2d').drawImage(off,0,0);
+            if(onProgress) onProgress(Math.floor((f/totalFrames)*100));
+            f++;
+            if(f<=totalFrames) requestAnimationFrame(step); else setTimeout(()=>{ try{ rec.stop(); } catch(e){ log('rec.stop failed'); } res(); }, 60);
+          }
+          requestAnimationFrame(step);
+        });
+        const blob = new Blob(chunks, { type: c });
+        return { type: 'webm', blob };
+      }catch(e){
+        // try next candidate
+      }
+    }
+  }
+
+  // frames fallback
+  const frames = [];
+  for(let i=0;i<totalFrames;i++){
+    const t = i/totalFrames;
+    drawFrame(t);
+    preview.getContext('2d').clearRect(0,0,preview.width,preview.height); preview.getContext('2d').drawImage(off,0,0);
+    if(onProgress) onProgress(Math.floor((i/totalFrames)*100));
+    const blob = await new Promise(res=>off.toBlob(res,'image/png',0.92));
+    frames.push({ name:`frame_${String(i).padStart(4,'0')}.png`, blob });
+  }
+  if(typeof CompressionStream !== 'undefined'){
+    const cs = new CompressionStream('gzip'); const writer = cs.writable.getWriter();
+    for(const fr of frames){
+      const header = new TextEncoder().encode(`FILE:${fr.name}\nSIZE:${fr.blob.size}\n---\n`);
+      await writer.write(header);
+      const r = fr.blob.stream().getReader();
+      while(true){ const {value,done} = await r.read(); if(done) break; await writer.write(value); }
+      await writer.write(new TextEncoder().encode('\n===EOF===\n'));
+    }
+    await writer.close(); const gz = await new Response(cs.readable).blob(); return { type: 'frames-gzip', blob: gz, framesCount: frames.length };
+  } else {
+    return { type: 'frames-array', frames };
+  }
+}
+
+/* ---------- Phantom wallet connect & sign ---------- */
+async function connectPhantom(){
+  if(window.solana && window.solana.isPhantom){
+    try{
+      const res = await window.solana.connect();
+      const pubKey = res.publicKey.toString();
+      state.phantomPublicKey = pubKey;
+      walletStatus.textContent = 'Phantom: ' + pubKey.slice(0,6) + '...' + pubKey.slice(-4);
+      log('Phantom connected: ' + pubKey);
+      addTodo('Phantom connected: ' + pubKey, 'done');
+    }catch(e){ log('Phantom connect rejected', 'error'); alert('Phantom connect failed: ' + (e.message||e)); }
+  } else {
+    alert('Phantom wallet not found. Install Phantom or use a Solana provider.');
+  }
+}
+
+// sign metadata via Phantom using signMessage (base58 or Uint8Array)
+async function signMetadataWithPhantom(metadata){
+  if(!state.phantomPublicKey) throw new Error('Phantom not connected');
+  const msg = JSON.stringify(metadata);
+  const enc = new TextEncoder().encode(msg);
+  try{
+    const signed = await window.solana.signMessage(enc, 'utf8');
+    // signMessage returns signature and publicKey in Phantom
+    const signatureBase58 = (signed && signed.signature) ? btoa(String.fromCharCode(...signed.signature)) : null;
+    log('Metadata signed with Phantom');
+    return { signature: signatureBase58, publicKey: signed.publicKey.toString() };
+  }catch(e){
+    log('Phantom sign failed: ' + e.message, 'error');
+    throw e;
+  }
+}
+
+/* ---------- pump.fun post (client-side stub) ---------- */
+async function postToPumpFun(blob, meta){
+  const base = (pumpBase.value||'').trim(); if(!base) throw new Error('pump.fun base not set');
+  const token = (pumpKey.value||'').trim();
+  // client-side form; production: perform posting from secure server
+  const url = base.replace(/\/+$/,'') + '/coins/create';
+  const fd = new FormData(); fd.append('media', blob, meta.name || 'ccart_output.webm'); fd.append('title', meta.title || meta.name || 'CCART'); fd.append('description', meta.description || '');
+  if(meta.signedBy) fd.append('signedBy', meta.signedBy); if(meta.signature) fd.append('signature', meta.signature);
+  const headers = {}; if(token) headers['Authorization'] = 'Bearer ' + token;
+  log('Posting to pump.fun (client-side stub): ' + url);
+  const res = await fetch(url, { method: 'POST', headers, body: fd });
+  if(!res.ok) throw new Error('pump.fun post failed: ' + res.status);
+  const txt = await res.text();
+  log('pump.fun response: ' + txt);
+  return txt;
+}
+
+/* ---------- One-button flow ---------- */
+oneClick.addEventListener('click', async ()=>{
+  if(!state.sanitized) return alert('Upload an image first');
+  oneClick.disabled = true; progressText.textContent = 'Computing rarity...';
+  try{
+    const rarity = computeQualityAndRarity(state.sanitized);
+    addTodo(`Computed rarity ${rarity.tier} score ${rarity.score}`, 'done');
+    progressText.textContent = 'Rendering...';
+    const opts = { res: resolutionSel.value, duration: parseInt(durationEl.value,10)||6, fps: parseInt(fpsEl.value,10)||24, engine: engineSel.value };
+    const out = await renderPipeline(state.sanitized, opts, pct => { document.getElementById('progressBar').style.width = pct + '%'; progressText.textContent = 'Rendering ' + pct + '%'; });
+    let blobForArchive, name;
+    if(out.type === 'webm' && out.blob){ blobForArchive = out.blob; name = `ccart_${Date.now()}.webm`; }
+    else if(out.type === 'frames-gzip'){ blobForArchive = out.blob; name = `ccart_frames_${Date.now()}.gzip`; }
+    else if(out.type === 'frames-array'){ const parts=[]; for(const f of out.frames){ parts.push(new Blob([new TextEncoder().encode(`FILE:${f.name}\nSIZE:${f.blob.size}\n---\n`)])); parts.push(f.blob); parts.push(new Blob([new TextEncoder().encode('\n===EOF===\n')])); } blobForArchive = new Blob(parts, { type: 'application/octet-stream' }); name = `ccart_frames_${Date.now()}.bin`; } else throw new Error('Unknown render output');
+    // metadata
+    const metadata = { name, rarity: rarity.tier, score: rarity.score, engine: opts.engine, resolution: opts.res, createdAt: new Date().toISOString() };
+    if(state.phantomPublicKey){
+      try{
+        const signed = await signMetadataWithPhantom(metadata);
+        metadata.signature = signed.signature; metadata.signedBy = signed.publicKey;
+      }catch(e){ log('Signing skipped due to error', 'error'); }
+    }
+    // archive to IndexedDB
+    const buf = await blobForArchive.arrayBuffer();
+    const item = { id: 'it_' + Date.now(), name, type: blobForArchive.type || 'application/octet-stream', size: blobForArchive.size || buf.byteLength, url: URL.createObjectURL(blobForArchive), metadata, createdAt: new Date().toISOString(), blobBuffer: buf };
+    await DB.add(item);
+    state.lastItem = item;
+    downloadBtn.disabled = false; openBtn.disabled = false;
+    downloadBtn.onclick = ()=>{ const a=document.createElement('a'); a.href = item.url; a.download = item.name; a.click(); };
+    openBtn.onclick = ()=> window.open(item.url,'_blank');
+    addTodo('Archived ' + name, 'done'); progressText.textContent = 'Archived';
+    // optional client-side post
+    if(pumpBase.value && document.getElementById('autoPost') && document.getElementById('autoPost').checked){
+      try{
+        progressText.textContent = 'Posting to pump.fun...';
+        await postToPumpFun(blobForArchive, { name, title: name, description: `Rarity:${rarity.tier} score:${rarity.score}`, signature: metadata.signature, signedBy: metadata.signedBy });
+        addTodo('Posted to pump.fun', 'done'); progressText.textContent = 'Posted';
+      }catch(e){ log('Auto-post failed: ' + e.message, 'error'); progressText.textContent = 'Auto-post failed'; }
+    }
+    rebuildGallery();
+  }catch(e){ log('One-Click failed: ' + e.message, 'error'); alert('Failed: ' + e.message); }
+  finally{ oneClick.disabled = false; document.getElementById('progressBar').style.width = '0%'; }
+});
+
+/* ---------- Gallery (3D card previews) ---------- */
+async function rebuildGallery(){
+  const items = await DB.all();
+  galleryEl.innerHTML = '';
+  items.reverse().forEach(it=>{
+    const card = document.createElement('div'); card.className = 'card';
+    const title = document.createElement('div'); title.className='small'; title.style.fontWeight='700'; title.textContent = it.name; card.appendChild(title);
+    const view = document.createElement('div'); view.className = 'view'; card.appendChild(view);
+    const meta = document.createElement('div'); meta.className='small'; meta.textContent = `${it.metadata.rarity || '-'} • ${it.type} • ${Math.round(it.size/1024)} KB • ${new Date(it.createdAt).toLocaleString()}`; card.appendChild(meta);
+    const blob = new Blob([it.blobBuffer], { type: it.type });
+    const url = URL.createObjectURL(blob);
+    const isVideo = it.type.includes('webm') || it.type.includes('video');
+    createThreeCard(view, url, isVideo);
+    galleryEl.appendChild(card);
+  });
+}
+
+/* three.js card (polished) */
+function createThreeCard(container, mediaUrl, isVideo){
+  container.innerHTML = '';
+  const canvas = document.createElement('canvas'); canvas.style.width='100%'; canvas.style.height='100%';
+  container.appendChild(canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  const w = container.clientWidth, h = container.clientHeight; renderer.setSize(w,h,false);
+  const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(35, w/h, 0.1, 1000); camera.position.set(0,0,6);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.9); scene.add(hemi); const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(-6,8,4); scene.add(dir);
+  const geom = new THREE.PlaneGeometry(4,4,64,64); const pos = geom.attributes.position; for(let i=0;i<pos.count;i++){ const x=pos.getX(i), y=pos.getY(i); pos.setZ(i, Math.sin(x*0.5)*0.03 + Math.cos(y*0.5)*0.02); } pos.needsUpdate = true;
+  let texture;
+  if(isVideo){ const v=document.createElement('video'); v.src = mediaUrl; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; texture = new THREE.VideoTexture(v); v.play().catch(()=>{}); } else { const img = new Image(); img.src = mediaUrl; img.crossOrigin='anonymous'; texture = new THREE.Texture(img); img.onload = ()=> texture.needsUpdate = true; }
+  const mat = new THREE.MeshStandardMaterial({ map: texture, metalness:0.05, roughness:0.45, emissive:0x041a1d, emissiveIntensity:0.04 });
+  const mesh = new THREE.Mesh(geom, mat); scene.add(mesh);
+  let elapsed = 0; function animate(ts){ elapsed += ts/1000; mesh.rotation.y = Math.sin(elapsed*0.3)*0.12; mesh.rotation.x = Math.sin(elapsed*0.12)*0.03; renderer.render(scene, camera); requestAnimationFrame(animate); } requestAnimationFrame(animate);
+}
+
+/* ---------- Helpers & init ---------- */
+function computeQualityAndRarity(sanitized){
+  // reuse earlier metric functions
+  const tmp = document.createElement('canvas'); tmp.width = sanitized.bitmap.width; tmp.height = sanitized.bitmap.height; tmp.getContext('2d').drawImage(sanitized.bitmap,0,0);
+  const sharp = computeSharpness(tmp); const ent = computeEntropy(tmp); const res = resolutionScore(sanitized.width, sanitized.height);
+  const sharpNorm = Math.tanh(Math.log10(1 + sharp)); const entNorm = Math.tanh(ent/6); const score = Math.round((sharpNorm*0.45 + entNorm*0.35 + res*0.2) * 100);
+  let tier = 'Common'; if(score>=85) tier='Legendary'; else if(score>=75) tier='Epic'; else if(score>=60) tier='Rare'; else if(score>=40) tier='Uncommon';
+  rarityBadge.textContent = `${tier} (${score})`; rarityDetails.textContent = `sharp:${Math.round(sharpNorm*100)} ent:${Math.round(entNorm*100)} res:${Math.round(res*100)}`;
+  log('Quality computed: ' + score);
+  return { score, tier, components:{ sharpness: sharp, entropy: ent, resolution: res } };
+}
+
+/* computeSharpness, computeEntropy, resolutionScore copied inline */
+function computeSharpness(canvasBitmap){
+  const w = Math.min(256, canvasBitmap.width), h = Math.min(256, canvasBitmap.height);
+  const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h; const tctx = tmp.getContext('2d'); tctx.drawImage(canvasBitmap, 0,0, w, h);
+  const id = tctx.getImageData(0,0,w,h).data; const gray = new Float32Array(w*h);
+  let idx=0;
+  for(let i=0;i<id.length;i+=4){ gray[idx++] = 0.2126*id[i] + 0.7152*id[i+1] + 0.0722*id[i+2]; }
+  let sumSq=0, mean=0;
+  for(let y=1;y<h-1;y++){ for(let x=1;x<w-1;x++){ const i=y*w+x; const lap = 4*gray[i] - gray[i-1] - gray[i+1] - gray[i-w] - gray[i+w]; mean += lap; sumSq += lap*lap; } }
+  const n = (w-2)*(h-2); const variance = Math.max(0, (sumSq/n) - Math.pow(mean/n,2)); return variance;
+}
+function computeEntropy(canvasBitmap){
+  const tmp = document.createElement('canvas'); tmp.width = 128; tmp.height = 128; const tctx = tmp.getContext('2d'); tctx.drawImage(canvasBitmap,0,0,128,128);
+  const id = tctx.getImageData(0,0,128,128).data; const hist = new Uint32Array(256);
+  for(let i=0;i<id.length;i+=4){ const lum = Math.floor(0.2126*id[i] + 0.7152*id[i+1] + 0.0722*id[i+2]); hist[lum]++; }
+  const total = 128*128; let ent = 0;
+  for(let i=0;i<256;i++){ if(hist[i]===0) continue; const p = hist[i]/total; ent -= p * Math.log2(p); }
+  return ent;
+}
+function resolutionScore(w,h){ const pixels = w*h; return Math.log2(pixels)/20; }
+
+/* init */
+(function init(){
+  log('CCART Phantom client initialized');
+  addTodo('Phantom integration available');
+  rebuildGallery().catch(()=>{});
+})();
+</script>
+</body>
+</html>

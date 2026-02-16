@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Content Filter Mobile Bundle</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; margin:0; padding:16px; background:#fff; color:#111; }
+  header { margin-bottom:14px; }
+  h1 { font-size:18px; margin:0 0 6px; }
+  p { margin:8px 0; color:#333; }
+  .card { border-radius:10px; padding:12px; border:1px solid #ddd; margin-bottom:12px; background:rgba(250,250,250,0.95); }
+  label { display:block; margin:8px 0 4px; font-weight:600; }
+  .row { display:flex; gap:8px; align-items:center; margin:6px 0; }
+  input[type="radio"], input[type="checkbox"] { transform:scale(1.05); margin-right:6px; }
+  button, a.btn { background:#0078d4; color:#fff; border:none; padding:8px 12px; border-radius:8px; text-decoration:none; display:inline-block; font-weight:600; }
+  pre, code { background:#f3f4f6; padding:8px; border-radius:6px; overflow:auto; font-size:13px; }
+  .muted { color:#666; font-size:13px; }
+  .donation { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+  .small { font-size:13px; color:#444; }
+  .bookmarklet { word-break:break-all; background:#fff6e6; padding:8px; border-radius:6px; border:1px dashed #e0b06e; }
+  footer { margin-top:16px; font-size:12px; color:#666; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#0b0b0c; color:#e6e6e6; }
+    .card { background:#091015; border-color:#1f2937; }
+    pre, code { background:#051019; color:#cfe7ff; }
+  }
+
+  /* Injected overlay styles */
+  .ai-tag-overlay {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 999999999;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+    color: white;
+    background: rgba(200, 40, 40, 0.95);
+    pointer-events: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .ai-filter-wrapper { position: relative !important; }
+  .ai-hidden-placeholder {
+    display:flex; align-items:center; justify-content:center;
+    min-height:80px; color: #222; background: rgba(0,0,0,0.05);
+    border:1px dashed #888; border-radius:10px; padding:12px; font-size:13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .ai-hidden-placeholder { color:#ddd; background: rgba(255,255,255,0.03); border-color:#444; }
+    .ai-tag-overlay { box-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>AI Content Filter Mobile Bundle</h1>
+    <p class="small">One-file bundle for tagging or hiding AI generated images and video on mobile browsers. Use the bookmarklet below to inject the filter into any page.</p>
+  </header>
+
+  <section class="card">
+    <label>Mode</label>
+    <div class="row">
+      <label><input type="radio" name="mode" value="allow" /> Allow all</label>
+      <label><input type="radio" name="mode" value="tag" checked /> Show with tags</label>
+      <label><input type="radio" name="mode" value="hide" /> Hide AI content</label>
+    </div>
+    <label><input type="checkbox" id="aggressive" /> Aggressive detection (more false positives)</label>
+    <div style="margin-top:10px;">
+      <button id="installBookmarklet">Show Bookmarklet</button>
+      <button id="injectNow" style="margin-left:8px;">Inject now into this page</button>
+    </div>
+    <p class="muted">Tap Show Bookmarklet to reveal the bookmarklet. Add it as a bookmark and edit the URL to the bookmarklet value shown. When browsing, tap the bookmark to activate the filter on the current page.</p>
+  </section>
+
+  <section class="card">
+    <label>Bookmarklet</label>
+    <div id="bmWrap" class="bookmarklet" style="display:none;">
+      <pre id="bmCode" style="margin:0;"></pre>
+    </div>
+    <p class="small">If your browser blocks bookmarklet injection due to CSP, host this file on a server and use the bookmarklet to fetch it, or open the hosted page and tap Inject now.</p>
+  </section>
+
+  <section class="card">
+    <label>Donate</label>
+    <div class="donation">
+      <a class="btn" target="_blank" rel="noopener" href="https://www.paypal.com/donate?business=barbrickdesign@gmail.com">Donate via PayPal</a>
+      <div class="small">Crypto address: <code id="crypto">5hSWosj58ki4A6hSfQrvteQU5QvyCWmhHn4AuqgaQzqr</code> <button id="copyAddr" style="margin-left:6px;padding:6px;border-radius:6px;">Copy</button></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <label>Quick notes</label>
+    <p class="small">This is a best-effort client-side filter. It checks for metadata hints, text hints in alt/title/captions, and performs a lightweight fetch/scan of the media file header for known markers. It does not upload media anywhere. Aggressive mode increases detection sensitivity and may produce false positives.</p>
+  </section>
+
+  <footer>
+    <div class="small">Open the page you want to filter, then tap the bookmarklet or Inject now to activate the filter on that page. For persistent use add the bookmarklet to your browser bookmarks.</div>
+  </footer>
+
+<script>
+/* Mobile bundle content script embedded for both injection and bookmarklet use.
+   Save settings into localStorage and use them when injecting across pages.
+   The same code is executed when the bookmarklet runs and when Inject now is pressed.
+*/
+
+(function globalBundle(){
+  // Configuration and detection heuristics
+  const AI_KEYWORDS = [
+    'ai-generated','ai generated','ai art','stable diffusion','midjourney',
+    'dall-e','dalle','sdxl','genai','synthetic media','deepfake','ai photo',
+    'ai video','dreamstudio','leonardo ai','runway','novelai'
+  ];
+  const META_HINTS = [
+    'c2pa','content credentials','xmp','iptc','adobe:manifest','dc:creator','sd-metadata',
+    'ai_model','generator','model_name'
+  ];
+
+  // Utilities
+  function caselessIncludes(s, arr){ if(!s) return false; const t = s.toLowerCase(); return arr.some(k => t.includes(k)); }
+  function getSetting(key, fallback){
+    try { const v = localStorage.getItem('aifilter_'+key); return v === null ? fallback : JSON.parse(v); } catch(e){ return fallback; }
+  }
+  function setSetting(key, val){ try{ localStorage.setItem('aifilter_'+key, JSON.stringify(val)); }catch(e){} }
+
+  // Save UI settings from host page
+  document.querySelectorAll('[name="mode"]').forEach(r => r.addEventListener('change', ()=>{
+    const selected = document.querySelector('[name="mode"]:checked').value;
+    setSetting('mode', selected);
+  }));
+  document.getElementById('aggressive').addEventListener('change', (e)=>{
+    setSetting('aggressive', e.target.checked);
+  });
+
+  // Restore UI from storage
+  (function restoreUI(){
+    const mode = getSetting('mode','tag');
+    try { document.querySelector(`[name="mode"][value="${mode}"]`).checked = true; } catch(e){}
+    const agg = getSetting('aggressive', false);
+    document.getElementById('aggressive').checked = !!agg;
+  })();
+
+  // Core filter implementation
+  async function fetchAndScan(src){
+    if(!src || typeof src !== 'string') return { ai:false, reason:'' };
+    if(src.startsWith('data:')) return { ai:false, reason:'' };
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), 1500);
+      const res = await fetch(src, { method:'GET', cache:'force-cache', signal: controller.signal });
+      clearTimeout(timer);
+      if(!res.ok) return { ai:false, reason:'' };
+      const blob = await res.blob();
+      const slice = blob.slice(0, Math.min(64*1024, blob.size));
+      const text = await slice.text().catch(()=>'');
+      const lower = (text || '').toLowerCase();
+      const metaHit = META_HINTS.some(m => lower.includes(m));
+      const keyHit = AI_KEYWORDS.some(k => lower.includes(k));
+      const watermarkHit = lower.includes('content credentials') || lower.includes('c2pa');
+      const aggressive = getSetting('aggressive', false);
+      const ai = watermarkHit || keyHit || (aggressive && metaHit);
+      let reason = '';
+      if(watermarkHit) reason='Provenance marker';
+      else if(keyHit) reason='Keyword marker';
+      else if(metaHit && aggressive) reason='Metadata hint (aggressive)';
+      return { ai, reason };
+    } catch(e){
+      return { ai:false, reason:'' };
+    }
+  }
+
+  function ensureWrapper(el){
+    try {
+      const parent = el.parentElement;
+      if(!parent) return el;
+      const style = getComputedStyle(parent);
+      if(!['relative','absolute','fixed','sticky'].includes(style.position)){
+        parent.classList.add('ai-filter-wrapper');
+        parent.style.position = 'relative';
+      }
+      return parent;
+    } catch(e){ return el; }
+  }
+
+  function addOverlay(el, reason){
+    try {
+      const wrapper = ensureWrapper(el);
+      if(wrapper.querySelector('.ai-tag-overlay')) return;
+      const tag = document.createElement('div');
+      tag.className = 'ai-tag-overlay';
+      tag.textContent = reason || 'AI-generated';
+      wrapper.appendChild(tag);
+    } catch(e){}
+  }
+
+  function replaceWithPlaceholder(el, reason){
+    try {
+      const ph = document.createElement('div');
+      ph.className = 'ai-hidden-placeholder';
+      ph.textContent = reason || 'Filtered: AI content';
+      ph.style.width = (el.clientWidth || el.width || 320) + 'px';
+      ph.style.height = (el.clientHeight || el.height || 180) + 'px';
+      el.replaceWith(ph);
+    } catch(e){}
+  }
+
+  function isLikelyAIByAttributes(el){
+    try {
+      const attrs = [
+        el.getAttribute && el.getAttribute('alt'),
+        el.getAttribute && el.getAttribute('title'),
+        el.getAttribute && el.getAttribute('aria-label'),
+        el.getAttribute && el.getAttribute('data-ai'),
+        el.getAttribute && el.getAttribute('data-generated'),
+        el.getAttribute && el.getAttribute('data-c2pa'),
+        el.getAttribute && el.getAttribute('data-provenance')
+      ].filter(Boolean).join(' ');
+      return caselessIncludes(attrs, AI_KEYWORDS);
+    } catch(e){ return false; }
+  }
+
+  async function assessElement(el){
+    if(!el || el.dataset.aiFilterProcessed === '1') return;
+    el.dataset.aiFilterProcessed = '1';
+    let ai = false;
+    let reason = '';
+
+    if(isLikelyAIByAttributes(el)){ ai=true; reason='AI hint in attributes'; }
+
+    if(!ai){
+      const ctx = (el.closest && (el.closest('[role="article"], article, figure, .post, .tweet'))) || document;
+      const txt = ctx && ctx.textContent ? ctx.textContent : '';
+      if(caselessIncludes(txt, AI_KEYWORDS)){ ai=true; reason='Context keywords'; }
+    }
+
+    if(!ai){
+      const src = (el.tagName === 'IMG' || el.tagName === 'VIDEO') ? (el.currentSrc || el.src) : null;
+      if(src){
+        const res = await fetchAndScan(src);
+        ai = res.ai;
+        reason = res.reason || reason;
+      }
+    }
+
+    if(!ai) return;
+    const mode = getSetting('mode','tag');
+    if(mode === 'allow') return;
+    if(mode === 'tag') addOverlay(el, reason || 'AI-generated');
+    else if(mode === 'hide') replaceWithPlaceholder(el, reason || 'Filtered: AI content');
+  }
+
+  function scanExisting(){
+    const media = Array.from(document.querySelectorAll('img, video, canvas'));
+    media.forEach(m => { try{ assessElement(m); }catch(e){} });
+  }
+
+  function observeNew(){
+    try {
+      const obs = new MutationObserver((muts)=>{
+        for(const m of muts){
+          for(const node of m.addedNodes){
+            if(!(node instanceof Element)) continue;
+            if(node.matches && node.matches('img, video, canvas')) assessElement(node);
+            const nested = node.querySelectorAll && node.querySelectorAll('img, video, canvas');
+            nested && nested.forEach(el => assessElement(el));
+          }
+        }
+      });
+      obs.observe(document.documentElement || document.body, { childList: true, subtree: true });
+      return obs;
+    } catch(e){ return null; }
+  }
+
+  // Expose a simple boot function usable by bookmarklet
+  window.__aiFilterBoot = function boot(){
+    try {
+      scanExisting();
+      observeNew();
+      return { started:true };
+    } catch(e){ return { started:false, error:e && e.toString() }; }
+  };
+
+  // If the code is injected directly into a page, auto-start
+  if(location.hostname !== 'localhost' || location.protocol.indexOf('http') === 0){
+    try { setTimeout(()=>{ window.__aiFilterBoot(); }, 50); } catch(e){}
+  }
+
+  // Host page controls: Inject now into current top-level page when pressed
+  document.getElementById('injectNow').addEventListener('click', async ()=>{
+    // If this is opened as a normal page and user wants to run filter here
+    const res = window.__aiFilterBoot();
+    alert(res.started ? 'AI Filter injected on this page' : ('Injection failed: ' + (res.error || 'unknown')));
+  });
+
+  // Bookmarklet creation
+  function makeBookmarklet(){
+    // Create a URL-encoded one-liner that fetches this file and executes its code in the current page.
+    // Using fetch + eval to keep it compact for bookmarklets. If CSP prevents eval, the bookmarklet will fail.
+    const hostUrl = location.href.replace(/[#?].*$/,''); // bookmarklet will fetch current hosted file
+    const code = `(function(){fetch(${JSON.stringify(hostUrl)}).then(r=>r.text()).then(t=>{(0,eval)(t);window.__aiFilterBoot&&window.__aiFilterBoot();}).catch(e=>alert('AI Filter bookmarklet failed: '+e));})();`;
+    return 'javascript:' + encodeURIComponent(code);
+  }
+
+  document.getElementById('installBookmarklet').addEventListener('click', ()=>{
+    const bm = makeBookmarklet();
+    const wrap = document.getElementById('bmWrap');
+    const pre = document.getElementById('bmCode');
+    pre.textContent = bm;
+    wrap.style.display = 'block';
+    // advise user to create bookmark manually
+    setTimeout(()=>{ alert('Bookmarklet shown. Create a bookmark and paste the bookmarklet code into the bookmark URL.'); }, 120);
+  });
+
+  // Copy crypto address
+  document.getElementById('copyAddr').addEventListener('click', ()=>{
+    const addr = document.getElementById('crypto').textContent.trim();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(addr).then(()=>alert('Address copied.'));
+    } else {
+      prompt('Copy this address', addr);
+    }
+  });
+
+  // Save settings to storage when leaving page to persist for injected sessions
+  window.addEventListener('pagehide', ()=>{ /* left for future extension */ });
+
+})(); // end bundle IIFE
+</script>
+</body>
+</html>

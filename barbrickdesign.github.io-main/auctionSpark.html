@@ -1,0 +1,973 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AuctionSpark — Production (SES-safe, Upland-enabled, on-chain fees)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Provide favicon to avoid 404 -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2212%22 font-size=%2212%22>🔥</text></svg>">
+  <!-- CSP tuned for static hosting + MetaMask; no eval, no remote images -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://unpkg.com https://cdnjs.cloudflare.com; script-src 'self' https://unpkg.com https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <style>
+    :root { --bg:#0f1222; --panel:#171a2e; --accent:#6ee7f9; --accent2:#a78bfa; --text:#e6e8ef; --muted:#9aa0b5; --danger:#f87171; --success:#34d399; --warning:#fbbf24; --border:#2a2f4b; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+    header { position:sticky; top:0; z-index:10; background:rgba(15,18,34,0.9); backdrop-filter:blur(6px); border-bottom:1px solid var(--border); }
+    .wrap { max-width:1200px; margin:0 auto; padding:16px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand h1 { font-size:18px; margin:0; font-weight:600; letter-spacing:0.2px; }
+    .pill { padding:3px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); color:var(--muted); }
+    .btn { background:var(--accent2); color:#0b0e1b; border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; transition:transform 0.05s ease; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.secondary { background:var(--accent); color:#0b0e1b; }
+    .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--border); }
+    .btn.danger { background:var(--danger); color:#120c0c; }
+    .grid { display:grid; grid-template-columns:1fr 380px; gap:16px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+    h2 { font-size:18px; margin:0 0 8px 0; }
+    h3 { font-size:16px; margin:0 0 8px 0; color:var(--muted); }
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+    .field label { font-size:12px; color:var(--muted); }
+    .field input,.field select,.field textarea { background:#0c0f1e; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px; font-size:14px; }
+    .muted { color:var(--muted); font-size:12px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .status { display:inline-flex; align-items:center; gap:6px; font-size:12px; }
+    .dot { width:8px; height:8px; border-radius:50%; }
+    .dot.ok { background:var(--success); }
+    .dot.warn { background:var(--warning); }
+    .dot.err { background:var(--danger); }
+    .list { display:grid; gap:10px; }
+    .item { display:grid; grid-template-columns:1fr 160px 220px 160px; gap:10px; align-items:center; background:#0c0f1e; border:1px solid var(--border); border-radius:10px; padding:10px; }
+    .item h4 { margin:0; font-size:14px; }
+    .mono { font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .stack { display:flex; flex-direction:column; gap:6px; }
+    .table { width:100%; border-collapse:collapse; }
+    .table th,.table td { border-bottom:1px solid var(--border); padding:8px; font-size:12px; text-align:left; }
+    .toast { position:fixed; right:16px; bottom:16px; background:#0c0f1e; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-width:260px; box-shadow:0 6px 24px rgba(0,0,0,0.35); }
+    .toast.error { border-color:var(--danger); }
+    .toast.success { border-color:var(--success); }
+    @media (max-width:980px) { .grid{grid-template-columns:1fr;} .item{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="brand">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--accent);"></div>
+        <h1>AuctionSpark</h1>
+        <span class="pill">SES-safe</span>
+        <span class="pill">Upland-enabled</span>
+        <span class="pill">On-chain fees</span>
+      </div>
+      <div class="row">
+        <span class="status"><span class="dot warn" id="walletDot"></span><span id="walletStatus">MetaMask: Not connected</span></span>
+        <button class="btn" id="connectBtn">Connect MetaMask</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap" style="padding-top: 12px;">
+    <div class="grid">
+      <section class="card">
+        <h2>Live auctions</h2>
+        <p class="muted">Pulls real auctions from backend when available; falls back to house auctions to keep inventory visible.</p>
+        <div class="row" style="flex-wrap:wrap; margin-bottom: 10px;">
+          <div class="field" style="flex:1; min-width:220px;">
+            <label>Category</label>
+            <select id="filterType">
+              <option value="">All</option>
+              <option>Football Legits</option>
+              <option>Block Explorers</option>
+              <option>NFLPA Legits</option>
+              <option>Structure Ornaments</option>
+              <option>Legits</option>
+              <option>Racing Legits</option>
+              <option>Vehicles</option>
+              <option>Map Assets</option>
+              <option>Seeds</option>
+              <option>Property</option>
+              <option>Portfolio Lot</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1; min-width:180px;">
+            <label>City</label>
+            <select id="filterCity">
+              <option value="">All</option>
+              <option>San Francisco</option>
+              <option>Los Angeles</option>
+              <option>New York</option>
+              <option>Chicago</option>
+              <option>Nashville</option>
+              <option>Mixed</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1; min-width:180px;">
+            <label>Sort</label>
+            <select id="filterSort">
+              <option value="endAsc">Ending soon</option>
+              <option value="priceAsc">Price: Low to high</option>
+              <option value="priceDesc">Price: High to low</option>
+              <option value="newest">Newest</option>
+            </select>
+          </div>
+          <button class="btn secondary" id="applyFilters">Apply</button>
+        </div>
+        <div class="list" id="auctionList"></div>
+      </section>
+
+      <aside class="card">
+        <h2>Upland portal & globals</h2>
+        <p class="muted">Use Upland Portal for bridging Sparklet/NFTs; connect a backend for player inventory and real auctions.</p>
+
+        <div class="row" style="margin-bottom:8px;">
+          <button class="btn secondary" id="openPortal">Open Upland Portal</button>
+          <button class="btn ghost" id="portalHelp">Portal help</button>
+        </div>
+
+        <div class="field">
+          <label>Global variables</label>
+          <textarea id="globalVars" rows="8" placeholder='{
+  "backendApiBase": "",
+  "vaultAddress": "0x446f8232ba20da4ef13d230e4d55e978e3081197",
+  "poolAddress": "0x0000000000000000000000000000000000000000",
+  "burnAddress": "0x000000000000000000000000000000000000dEaD",
+  "sparkletTokenAddress": "0x0000000000000000000000000000000000000000",
+  "sparkletFeeUSD": 0.10,
+  "vaultPercent": 0.5,
+  "poolPercent": 0.3,
+  "burnPercent": 0.2
+}'></textarea>
+          <div class="row">
+            <button class="btn ghost" id="saveGlobals">Save globals</button>
+            <span class="mono" id="vaultAddr">0x446f8232ba20da4ef13d230e4d55e978e3081197</span>
+          </div>
+          <div class="muted">Configure backend, vault/pool/burn addresses, Sparklet token, and fee split. Percentages must sum to 1.0.</div>
+        </div>
+
+        <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+        <h3>Create listing</h3>
+        <div class="field">
+          <label>Category</label>
+          <select id="assetType">
+            <option>Football Legits</option><option>Block Explorers</option><option>NFLPA Legits</option><option>Structure Ornaments</option><option>Legits</option><option>Racing Legits</option><option>Vehicles</option><option>Map Assets</option><option>Seeds</option><option>Property</option><option>Portfolio Lot</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>City</label>
+          <select id="assetCity">
+            <option>San Francisco</option><option>Los Angeles</option><option>New York</option><option>Chicago</option><option>Nashville</option><option>Mixed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Asset name or address</label>
+          <input id="assetName" placeholder="e.g., 123 Market St or 'NFLPA S2 Jersey #1234'"/>
+        </div>
+        <div class="row">
+          <div class="field" style="flex:1">
+            <label>Starting price (UPX)</label>
+            <input id="startPrice" type="number" min="1" step="1" placeholder="e.g., 10000"/>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Reserve price (UPX, optional)</label>
+            <input id="reservePrice" type="number" min="0" step="1" placeholder="e.g., 12000"/>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="flex:1">
+            <label>Payout currency</label>
+            <select id="payoutCurrency"><option value="UPX">UPX</option><option value="USD">USD</option><option value="SPARKLET">Sparklet</option></select>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Auction duration (minutes)</label>
+            <input id="durationMinutes" type="number" min="5" max="720" value="60"/>
+          </div>
+        </div>
+        <div class="card" style="padding:10px; background:#0c0f1e; border-color:#2a2f4b;">
+          <h3>Auto‑relist rules</h3>
+          <div class="row"><label><input type="checkbox" id="autoRelist"/> Enable auto‑relist if unsold</label></div>
+          <div class="row">
+            <div class="field" style="flex:1">
+              <label>Max relists</label>
+              <input id="maxRelists" type="number" min="0" max="10" value="3"/>
+            </div>
+            <div class="field" style="flex:1">
+              <label>Price adjustment per relist (%)</label>
+              <input id="priceStepPct" type="number" min="-50" max="50" value="-5"/>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" id="publishAuction">Publish auction</button>
+          <button class="btn ghost" id="resetForm">Reset</button>
+        </div>
+
+        <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+        <h3>Quick sale portfolio</h3>
+        <div class="row">
+          <div class="field" style="flex:2">
+            <label>Discount from floor (%)</label>
+            <input id="quickSaleDiscount" type="number" min="0" max="50" value="10"/>
+          </div>
+          <div class="field" style="flex:1">
+            <label>Payout currency</label>
+            <select id="quickSaleCurrency"><option value="UPX">UPX</option><option value="USD">USD</option><option value="SPARKLET">Sparklet</option></select>
+          </div>
+        </div>
+        <div class="stack">
+          <div id="quickSalePreview" class="muted">Connect backend or import portfolio to compute a realistic floor.</div>
+          <div class="row">
+            <button class="btn secondary" id="computeQuickSale">Compute quick sale</button>
+            <button class="btn" id="postQuickSale">Post quick sale</button>
+          </div>
+        </div>
+
+        <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+        <h3>Reference rates</h3>
+        <table class="table">
+          <thead><tr><th>Pair</th><th>Rate</th><th>Updated</th></tr></thead>
+          <tbody id="rateTable"></tbody>
+        </table>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top: 12px;">
+      <h2>Receipts & audit log</h2>
+      <div class="row" style="margin-bottom: 8px;">
+        <button class="btn ghost" id="exportReceipts">Export receipts (JSON)</button>
+        <span class="status"><span class="dot ok"></span>Logging enabled</span>
+      </div>
+      <div id="receiptList" class="list"></div>
+    </section>
+
+    <section class="card" style="margin-top:12px;">
+      <h2>Portal actions quick links</h2>
+      <div class="row" style="flex-wrap:wrap;">
+        <button class="btn" onclick="openPortalPath('/portal')">Open portal</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/download-nft')">Download NFT</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/upload-nft')">Upload NFT</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/reclaim')">Reclaim downloaded NFTs</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/sparklet/send')">Send Sparklet from Upland</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/sparklet/bridge')">Bring Sparklet to Upland</button>
+        <button class="btn ghost" onclick="openPortalPath('/portal/sparklet/dex')">Buy/Sell Sparklet on DEX</button>
+      </div>
+      <p class="muted">Use the portal for bridging/transactions. Inventory and auctions should come from your Upland-approved backend.</p>
+    </section>
+
+    <section class="footer" style="text-align:center; font-size:12px; color:var(--muted); padding:12px;">
+      SES-safe client. Replace placeholders with real backend and token addresses. Keep Upland open in a separate tab while using AuctionSpark.
+    </section>
+  </main>
+
+  <!-- Ethers.js v5 UMD (global ethers object) + fallback; SES-safe (no eval) -->
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    (function ensureEthers(){
+      try {
+        if (window.ethers && window.ethers.providers) return;
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js';
+        document.head.appendChild(s);
+      } catch(e) { console.warn("Ethers load fallback failed", e); }
+    })();
+  </script>
+
+  <script>
+    // SES-safe helpers: no non-standard intrinsics, no prototype augmentation, no eval.
+
+    // Toast notifications
+    function toast(msg, type) {
+      var el = document.createElement("div");
+      el.className = "toast" + (type ? " " + type : "");
+      el.textContent = String(msg);
+      document.body.appendChild(el);
+      setTimeout(function(){ try { el.remove(); } catch(_){} }, 4500);
+    }
+
+    // JSON + storage (guard nulls)
+    var safeJSON = {
+      parse: function(s, def){ try { return s ? JSON.parse(s) : def; } catch(_){ return def; } },
+      stringify: function(o, pretty){ try { return JSON.stringify(o, null, pretty ? 2 : 0); } catch(_){ return "{}"; } }
+    };
+    var store = {
+      get: function(k, def){ return safeJSON.parse(localStorage.getItem(k), def); },
+      set: function(k, v){ try { localStorage.setItem(k, safeJSON.stringify(v)); } catch(e){ console.warn("Storage error", e); } }
+    };
+
+    // Global configuration (editable via UI)
+    var CONFIG = {
+      backendApiBase: "",
+      vaultAddress: "0x446f8232ba20da4ef13d230e4d55e978e3081197",
+      poolAddress: "0x0000000000000000000000000000000000000000",
+      burnAddress: "0x000000000000000000000000000000000000dEaD",
+      sparkletTokenAddress: "0x0000000000000000000000000000000000000000",
+      sparkletFeeUSD: 0.10,
+      vaultPercent: 0.5,
+      poolPercent: 0.3,
+      burnPercent: 0.2,
+      fallbackHouseAuctions: true
+    };
+
+    // App state
+    var state = {
+      wallet: { connected:false, address:null, chainId:null, provider:null, signer:null },
+      sparklet: { contract:null, decimals:18 },
+      rates: {
+        ETH_USD: { rate: 4200.00, updated: new Date().toISOString() },
+        SPARKLET_USD: { rate: 1.00, updated: new Date().toISOString() },
+        UPX_USD: { rate: 0.001, updated: new Date().toISOString() }
+      },
+      fees: { listingFlatUSD: 0.50, successFeePct: 2.0 },
+      auctions: store.get("auctions", []),
+      receipts: store.get("receipts", []),
+      portfolio: store.get("portfolio", []),
+      importedUpland: store.get("upland_import", null)
+    };
+
+    // Utils
+    var fmt = {
+      num: function(n){ return Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }); },
+      usd: function(n){ return "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+      upx: function(n){ return fmt.num(n) + " UPX"; },
+      timeLeft: function(endTs){
+        var s = Math.max(0, Math.floor((endTs - Date.now()) / 1000));
+        var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+        return h + "h " + m + "m " + ss + "s";
+      }
+    };
+    function persist(){
+      store.set("auctions", Array.isArray(state.auctions) ? state.auctions : []);
+      store.set("receipts", Array.isArray(state.receipts) ? state.receipts : []);
+      store.set("portfolio", Array.isArray(state.portfolio) ? state.portfolio : []);
+      store.set("upland_import", state.importedUpland || null);
+    }
+    function addReceipt(type, data){
+      var id = "rcpt_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+      var rec = { id:id, ts:new Date().toISOString(), type:type, data:data };
+      if (!Array.isArray(state.receipts)) state.receipts = [];
+      state.receipts.push(rec);
+      persist();
+      renderReceipts();
+    }
+    function rate(pair){ return state.rates[pair] ? state.rates[pair].rate : null; }
+    function convert(amount, from, to){
+      function toUSD(amt, cur){
+        if (cur === "USD") return amt;
+        if (cur === "UPX") return amt * rate("UPX_USD");
+        if (cur === "SPARKLET") return amt * rate("SPARKLET_USD");
+        return null;
+      }
+      function fromUSD(usdAmt, cur){
+        if (cur === "USD") return usdAmt;
+        if (cur === "UPX") return usdAmt / rate("UPX_USD");
+        if (cur === "SPARKLET") return usdAmt / rate("SPARKLET_USD");
+        return null;
+      }
+      var usd = toUSD(amount, from);
+      return fromUSD(usd, to);
+    }
+    function netProceeds(grossUSD){
+      var flat = state.fees.listingFlatUSD;
+      var pct = state.fees.successFeePct / 100;
+      var fees = flat + (grossUSD * pct);
+      var net = Math.max(0, grossUSD - fees);
+      return { netUSD:net, feesUSD:fees };
+    }
+    function twapFloorUPX(items){
+      var arr = Array.isArray(items) ? items : [];
+      var vals = arr.map(function(i){ return i.twapFloorUPX; }).filter(function(n){ return Number.isFinite(n); });
+      if (!vals.length) return 0;
+      var sum = 0; for (var i=0;i<vals.length;i++) sum += vals[i];
+      var avg = sum / vals.length;
+      return Math.round(avg * 0.95);
+    }
+
+    // MetaMask & Sparklet contract
+    var ERC20_ABI = [
+      "function decimals() view returns (uint8)",
+      "function balanceOf(address account) view returns (uint256)",
+      "function transfer(address to, uint256 amount) returns (bool)"
+    ];
+    async function ensureSparkletContract(){
+      if (!state.wallet.connected) throw new Error("Wallet not connected");
+      if (!CONFIG.sparkletTokenAddress || CONFIG.sparkletTokenAddress === "0x0000000000000000000000000000000000000000") {
+        throw new Error("Sparklet token address not configured");
+      }
+      if (!state.sparklet.contract) {
+        state.sparklet.contract = new ethers.Contract(CONFIG.sparkletTokenAddress, ERC20_ABI, state.wallet.signer);
+        state.sparklet.decimals = await state.sparklet.contract.decimals();
+      }
+      return state.sparklet.contract;
+    }
+    function toTokenUnitsFloat(amountFloat, decimals){
+      var s = Number(amountFloat).toFixed(Math.min(decimals, 6));
+      return ethers.utils.parseUnits(s, decimals);
+    }
+    async function routeSparkletFee(totalSparkletFloat, context){
+      var vPct = Number(CONFIG.vaultPercent), pPct = Number(CONFIG.poolPercent), bPct = Number(CONFIG.burnPercent);
+      var sum = vPct + pPct + bPct;
+      if (Math.abs(sum - 1.0) > 1e-6) throw new Error("Fee split percentages must sum to 1.0");
+      var contract = await ensureSparkletContract();
+      var dec = state.sparklet.decimals;
+
+      var legs = [];
+      if (!ethers.utils.isAddress(CONFIG.vaultAddress)) throw new Error("Invalid vault address");
+      legs.push({ label:"vault", to:CONFIG.vaultAddress, amt: toTokenUnitsFloat(totalSparkletFloat * vPct, dec) });
+
+      if (ethers.utils.isAddress(CONFIG.poolAddress) && CONFIG.poolAddress !== "0x0000000000000000000000000000000000000000") {
+        legs.push({ label:"pool", to:CONFIG.poolAddress, amt: toTokenUnitsFloat(totalSparkletFloat * pPct, dec) });
+      }
+      if (!ethers.utils.isAddress(CONFIG.burnAddress)) throw new Error("Invalid burn address");
+      legs.push({ label:"burn", to:CONFIG.burnAddress, amt: toTokenUnitsFloat(totalSparkletFloat * bPct, dec) });
+
+      var results = [];
+      for (var i=0;i<legs.length;i++){
+        var t = legs[i];
+        try {
+          if (t.amt.isZero()) { results.push({ label:t.label, skipped:true }); continue; }
+          var tx = await contract.transfer(t.to, t.amt);
+          toast("Sparklet " + t.label + " transfer submitted: " + tx.hash, "success");
+          var rc = await tx.wait();
+          results.push({ label:t.label, hash:tx.hash, status:rc.status });
+        } catch(e){
+          console.error(e);
+          results.push({ label:t.label, error: e && e.message ? e.message : String(e) });
+          toast("Sparklet " + t.label + " transfer failed", "error");
+        }
+      }
+      addReceipt("sparklet_fee_split", { context:context, total:totalSparkletFloat, splits:{ vault:vPct, pool:pPct, burn:bPct }, results:results });
+      return results;
+    }
+
+    async function connectWallet(){
+      try {
+        if (!window.ethereum) { toast("MetaMask not found. Install MetaMask.", "error"); return; }
+        if (!window.ethers || !ethers.providers) { toast("Wallet libs loading… try again.", "error"); return; }
+        var provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        await provider.send("eth_requestAccounts", []);
+        var signer = provider.getSigner();
+        var address = await signer.getAddress();
+        var network = await provider.getNetwork();
+        state.wallet.connected = true;
+        state.wallet.address = address;
+        state.wallet.chainId = Number(network.chainId);
+        state.wallet.provider = provider;
+        state.wallet.signer = signer;
+        document.getElementById("walletDot").className = "dot ok";
+        document.getElementById("walletStatus").textContent = address.slice(0,6)+"…"+address.slice(-4)+" on chain "+state.wallet.chainId;
+        addReceipt("wallet_connect", { address:address, chainId:state.wallet.chainId });
+        toast("Wallet connected", "success");
+        if (window.ethereum && window.ethereum.on) {
+          window.ethereum.on('accountsChanged', function(accounts){
+            state.wallet.address = accounts && accounts[0] ? accounts[0] : null;
+            document.getElementById("walletStatus").textContent = state.wallet.address ? (state.wallet.address.slice(0,6)+"…"+state.wallet.address.slice(-4)+" on chain "+state.wallet.chainId) : "Not connected";
+            addReceipt("wallet_accounts_changed", { accounts:accounts });
+          });
+          window.ethereum.on('chainChanged', function(hex){
+            var cid = parseInt(hex, 16);
+            state.wallet.chainId = cid;
+            document.getElementById("walletStatus").textContent = state.wallet.address ? (state.wallet.address.slice(0,6)+"…"+state.wallet.address.slice(-4)+" on chain "+cid) : "Not connected";
+            addReceipt("wallet_chain_changed", { chainId:cid });
+          });
+        }
+      } catch(e){
+        console.error(e);
+        toast("Wallet connection failed", "error");
+      }
+    }
+
+    // Upland portal helpers
+    function openPortal(){ window.open("https://play.upland.me/portal", "_blank"); }
+    function openPortalPath(path){ window.open("https://play.upland.me" + path, "_blank"); }
+    function portalGuide(){
+      alert(
+        "Upland Portal is for bridging/transactions (NFT download/upload, Sparklet bridge/DEX).\n" +
+        "Keep Upland game open in a separate tab for inventory.\n" +
+        "Connect a backend to fetch real auctions & player data."
+      );
+    }
+
+    // Backend auctions fetch & fallback
+    async function fetchBackendAuctions(){
+      try {
+        if (!CONFIG.backendApiBase) return [];
+        var url = CONFIG.backendApiBase.replace(/\/+$/,"") + "/auctions";
+        var res = await fetch(url, { headers: { "Accept":"application/json" } });
+        if (!res.ok) throw new Error("Backend auctions fetch failed: " + res.status);
+        var json = await res.json();
+        if (!Array.isArray(json)) return [];
+        var out = [];
+        for (var i=0;i<json.length;i++){
+          var a = json[i];
+          out.push({
+            id: a.id || ("auc_" + String(Math.random()).slice(2)),
+            createdTs: a.createdTs || Date.now(),
+            type: a.type || "Property",
+            city: a.city || "Mixed",
+            name: a.name || "Auction",
+            baseCurrency: a.baseCurrency || "UPX",
+            startingPrice: Number(a.startingPrice || 1),
+            reservePrice: a.reservePrice != null ? Number(a.reservePrice) : null,
+            payoutCurrency: a.payoutCurrency || "UPX",
+            durationMs: Number(a.durationMs || (60*60*1000)),
+            endTs: Number(a.endTs || (Date.now()+60*60*1000)),
+            bids: Array.isArray(a.bids) ? a.bids : [],
+            seller: a.seller || "user",
+            autoRelist: !!a.autoRelist,
+            relistCount: Number(a.relistCount || 0),
+            maxRelists: Number(a.maxRelists || 0),
+            priceStepPct: Number(a.priceStepPct || 0)
+          });
+        }
+        return out;
+      } catch(e){
+        console.error(e);
+        toast("Failed to load live auctions", "error");
+        return [];
+      }
+    }
+    function ensureHouseAuctionsIfEmpty(){
+      if (Array.isArray(state.auctions) && state.auctions.length) return;
+      var now = Date.now();
+      state.auctions = [
+        {
+          id: "auc_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+          createdTs: now,
+          type: "Football Legits", city: "Los Angeles", name: "Team Jersey S2 #1001",
+          baseCurrency: "UPX", startingPrice: 9500, reservePrice: null, payoutCurrency: "UPX",
+          durationMs: 45*60*1000, endTs: now + (45*60*1000), bids: [], seller: "house", autoRelist: true,
+          relistCount: 0, maxRelists: 3, priceStepPct: -5
+        },
+        {
+          id: "auc_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+          createdTs: now,
+          type: "Block Explorers", city: "San Francisco", name: "Rare Explorer #18",
+          baseCurrency: "UPX", startingPrice: 6000, reservePrice: null, payoutCurrency: "SPARKLET",
+          durationMs: 30*60*1000, endTs: now + (30*60*1000), bids: [], seller: "house", autoRelist: true,
+          relistCount: 0, maxRelists: 3, priceStepPct: -5
+        }
+      ];
+    }
+
+    // Renderers
+    function renderRates(){
+      var tbody = document.getElementById("rateTable");
+      tbody.innerHTML = "";
+      var rows = [
+        ["ETH / USD", rate("ETH_USD"), state.rates.ETH_USD.updated],
+        ["SPARKLET / USD", rate("SPARKLET_USD"), state.rates.SPARKLET_USD.updated],
+        ["UPX / USD", rate("UPX_USD"), state.rates.UPX_USD.updated]
+      ];
+      for (var i=0;i<rows.length;i++){
+        var p = rows[i][0], r = rows[i][1], u = rows[i][2];
+        var tr = document.createElement("tr");
+        tr.innerHTML = "<td>"+p+"</td><td class='mono'>"+fmt.num(r)+"</td><td>"+new Date(u).toLocaleString()+"</td>";
+        tbody.appendChild(tr);
+      }
+    }
+    function renderReceipts(){
+      var box = document.getElementById("receiptList");
+      box.innerHTML = "";
+      var list = Array.isArray(state.receipts) ? state.receipts.slice().reverse() : [];
+      for (var i=0;i<list.length;i++){
+        var rec = list[i];
+        var div = document.createElement("div");
+        div.className = "item";
+        var dataStr = safeJSON.stringify(rec.data, true);
+        div.innerHTML =
+          "<div><h4>"+rec.type+"</h4><div class='muted'>"+new Date(rec.ts).toLocaleString()+"</div></div>" +
+          "<div class='mono'>"+rec.id+"</div>" +
+          "<div class='mono'>"+dataStr.slice(0,240)+(dataStr.length>240?"…":"")+"</div>" +
+          "<div><button class='btn ghost' onclick='alert("+JSON.stringify(safeJSON.stringify(rec, null, 2))+")'>View</button></div>";
+        box.appendChild(div);
+      }
+    }
+    function applyFilters(){
+      var city = document.getElementById("filterCity").value;
+      var type = document.getElementById("filterType").value;
+      var sort = document.getElementById("filterSort").value;
+      var items = Array.isArray(state.auctions) ? state.auctions.slice() : [];
+      if (city) items = items.filter(function(i){ return i.city === city; });
+      if (type) items = items.filter(function(i){ return i.type === type; });
+      if (sort === "endAsc") items.sort(function(a,b){ return a.endTs - b.endTs; });
+      if (sort === "priceAsc") items.sort(function(a,b){ return a.startingPrice - b.startingPrice; });
+      if (sort === "priceDesc") items.sort(function(a,b){ return b.startingPrice - a.startingPrice; });
+      if (sort === "newest") items.sort(function(a,b){ return b.createdTs - a.createdTs; });
+      renderAuctions(items);
+    }
+    function renderAuctions(items){
+      var list = document.getElementById("auctionList");
+      list.innerHTML = "";
+      if (!items.length) {
+        var empty = document.createElement("div");
+        empty.className = "item";
+        empty.innerHTML = "<div class='muted'>No auctions found. Load from backend or keep house auctions enabled.</div>";
+        list.appendChild(empty);
+        return;
+      }
+      for (var i=0;i<items.length;i++){
+        var auc = items[i];
+        var highest = auc.bids.length ? auc.bids[auc.bids.length - 1] : null;
+        var hp = highest ? (fmt.num(highest.amount) + " " + auc.baseCurrency) : "—";
+        var netUSD = 0;
+        if (highest){
+          var grossUSD = convert(highest.amount, auc.baseCurrency, "USD");
+          netUSD = netProceeds(grossUSD).netUSD;
+        }
+        var autoRelistTxt = auc.autoRelist ? ("Auto‑relist ("+auc.relistCount+"/"+auc.maxRelists+", "+auc.priceStepPct+"% step)") : "Manual expiry";
+        var div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML =
+          "<div><h4>"+auc.name+" <span class='pill'>"+auc.type+"</span></h4>" +
+          "<div class='muted'>"+auc.city+"</div>" +
+          "<div class='muted'>Ends in "+fmt.timeLeft(auc.endTs)+"</div>" +
+          "<div class='muted'>"+autoRelistTxt+"</div></div>" +
+          "<div><div><strong>Start:</strong> <span class='mono'>"+fmt.num(auc.startingPrice)+" "+auc.baseCurrency+"</span></div>" +
+          "<div><strong>Reserve:</strong> <span class='mono'>"+(auc.reservePrice ? fmt.num(auc.reservePrice)+" "+auc.baseCurrency : "None")+"</span></div></div>" +
+          "<div><div><strong>Highest bid:</strong> <span class='mono'>"+hp+"</span></div>" +
+          "<div class='muted'>Est. seller net: "+fmt.usd(netUSD)+"</div>" +
+          "<div class='muted'>Rate: 1 "+auc.baseCurrency+" = "+fmt.num(convert(1, auc.baseCurrency, "USD"))+" USD</div></div>" +
+          "<div class='stack'><button class='btn secondary' onclick='openBid(\""+auc.id+"\")'>Bid</button>" +
+          "<button class='btn ghost' onclick='buyNow(\""+auc.id+"\")'>Buy‑it‑now</button>" +
+          "<button class='btn danger' onclick='toggleRelist(\""+auc.id+"\")'>"+(auc.autoRelist ? "Disable auto‑relist" : "Enable auto‑relist")+"</button></div>";
+        list.appendChild(div);
+      }
+    }
+
+    // Auction actions
+    function findAuction(id){
+      var arr = Array.isArray(state.auctions) ? state.auctions : [];
+      for (var i=0;i<arr.length;i++){ if (arr[i].id === id) return arr[i]; }
+      return null;
+    }
+    function openBid(auctionId){
+      try {
+        var auc = findAuction(auctionId);
+        if (!auc) { toast("Auction not found.", "error"); return; }
+        var minInc = Math.max(1, Math.round(auc.startingPrice * 0.02));
+        var minBid = (auc.bids.length ? auc.bids[auc.bids.length - 1].amount : auc.startingPrice) + minInc;
+        var amountStr = prompt("Enter bid amount (>= " + minBid + " " + auc.baseCurrency + "). Rate preview: 1 " + auc.baseCurrency + " = " + fmt.num(convert(1, auc.baseCurrency, "USD")) + " USD", String(minBid));
+        if (amountStr === null) return;
+        var amount = Number(amountStr);
+        if (!Number.isFinite(amount) || amount < minBid) { toast("Bid too low or invalid.", "error"); return; }
+        var bid = {
+          id: "bid_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+          auctionId: auctionId, currency: auc.baseCurrency, amount: amount,
+          rateLockUSD: convert(1, auc.baseCurrency, "USD"), ts: Date.now(), bidder: state.wallet.address || "anon"
+        };
+        auc.bids.push(bid);
+        persist();
+        addReceipt("bid_place", { auctionId:auctionId, bid:bid });
+        applyFilters();
+        toast("Bid placed", "success");
+      } catch(e){
+        console.error(e);
+        toast("Failed to place bid", "error");
+      }
+    }
+    async function buyNow(auctionId){
+      try {
+        var auc = findAuction(auctionId);
+        if (!auc) { toast("Auction not found.", "error"); return; }
+        var ok = confirm("Buy‑it‑now at " + fmt.num(auc.startingPrice) + " " + auc.baseCurrency + ". Seller payout: " + auc.payoutCurrency + ". Proceed?");
+        if (!ok) return;
+        var grossUSD = convert(auc.startingPrice, auc.baseCurrency, "USD");
+        var np = netProceeds(grossUSD);
+        var payoutAmount = convert(np.netUSD, "USD", auc.payoutCurrency);
+
+        // On-chain Sparklet fee split if payout is Sparklet
+        if (auc.payoutCurrency === "SPARKLET") {
+          var totalFeeSparklet = convert(CONFIG.sparkletFeeUSD, "USD", "SPARKLET");
+          if (Number.isFinite(totalFeeSparklet) && totalFeeSparklet > 0) {
+            await routeSparkletFee(Number(totalFeeSparklet), "auction_settle:"+auc.id);
+          } else {
+            toast("Sparklet fee conversion invalid", "error");
+          }
+        }
+
+        addReceipt("auction_settle", { auctionId:auc.id, grossUSD:grossUSD, netUSD:np.netUSD, payoutCurrency:auc.payoutCurrency, payoutAmount:payoutAmount });
+        state.auctions = (Array.isArray(state.auctions) ? state.auctions : []).filter(function(a){ return a.id !== auctionId; });
+        persist();
+        applyFilters();
+        toast("Settled: " + fmt.num(payoutAmount) + " " + auc.payoutCurrency + " (net)", "success");
+      } catch(e){
+        console.error(e);
+        toast("Settlement failed", "error");
+      }
+    }
+    function toggleRelist(auctionId){
+      var auc = findAuction(auctionId);
+      if (!auc) { toast("Auction not found.", "error"); return; }
+      auc.autoRelist = !auc.autoRelist;
+      persist();
+      addReceipt("auction_relist_toggle", { auctionId:auctionId, autoRelist:auc.autoRelist });
+      applyFilters();
+      toast(auc.autoRelist ? "Auto‑relist enabled" : "Auto‑relist disabled", "success");
+    }
+
+    // Create listing & quick sale
+    function resetForm(){
+      document.getElementById("assetType").value = "Football Legits";
+      document.getElementById("assetCity").value = "San Francisco";
+      document.getElementById("assetName").value = "";
+      document.getElementById("startPrice").value = "";
+      document.getElementById("reservePrice").value = "";
+      document.getElementById("payoutCurrency").value = "UPX";
+      document.getElementById("durationMinutes").value = "60";
+      document.getElementById("autoRelist").checked = false;
+      document.getElementById("maxRelists").value = "3";
+      document.getElementById("priceStepPct").value = "-5";
+    }
+    function validNonEmpty(str){ return typeof str === "string" && str.trim().length >= 2; }
+
+    async function publishAuction(){
+      try {
+        var type = document.getElementById("assetType").value;
+        var city = document.getElementById("assetCity").value;
+        var name = document.getElementById("assetName").value.trim();
+        var startPrice = Number(document.getElementById("startPrice").value);
+        var reservePriceRaw = document.getElementById("reservePrice").value;
+        var reservePrice = reservePriceRaw ? Number(reservePriceRaw) : null;
+        var payoutCurrency = document.getElementById("payoutCurrency").value;
+        var durationMinutes = Number(document.getElementById("durationMinutes").value);
+        var autoRelist = document.getElementById("autoRelist").checked;
+        var maxRelists = Number(document.getElementById("maxRelists").value);
+        var priceStepPct = Number(document.getElementById("priceStepPct").value);
+
+        if (!validNonEmpty(name)) { toast("Enter a valid asset name/address.", "error"); return; }
+        if (!Number.isFinite(startPrice) || startPrice < 1) { toast("Enter a valid starting price (>= 1).", "error"); return; }
+        if (reservePrice !== null && (!Number.isFinite(reservePrice) || reservePrice < 0)) { toast("Reserve price invalid.", "error"); return; }
+        if (!Number.isFinite(durationMinutes) || durationMinutes < 5 || durationMinutes > 720) { toast("Duration must be 5–720 minutes.", "error"); return; }
+        if (!["UPX","USD","SPARKLET"].includes(payoutCurrency)) { toast("Invalid payout currency.", "error"); return; }
+        if (!Number.isFinite(maxRelists) || maxRelists < 0 || maxRelists > 10) { toast("Max relists must be 0–10.", "error"); return; }
+        if (!Number.isFinite(priceStepPct) || priceStepPct < -50 || priceStepPct > 50) { toast("Price step must be −50% to +50%.", "error"); return; }
+
+        // On-chain Sparklet hosting fee on listing if payout is SPARKLET
+        if (payoutCurrency === "SPARKLET") {
+          var totalFeeSparklet = convert(CONFIG.sparkletFeeUSD, "USD", "SPARKLET");
+          if (Number.isFinite(totalFeeSparklet) && totalFeeSparklet > 0) {
+            await routeSparkletFee(Number(totalFeeSparklet), "auction_create:"+name);
+          } else {
+            toast("Sparklet fee conversion invalid", "error");
+            return;
+          }
+        }
+
+        var now = Date.now();
+        var auc = {
+          id: "auc_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+          createdTs: now, type:type, city:city, name:name,
+          baseCurrency: "UPX", startingPrice: Math.round(startPrice), reservePrice: reservePrice !== null ? Math.round(reservePrice) : null,
+          payoutCurrency: payoutCurrency, durationMs: durationMinutes * 60 * 1000, endTs: now + (durationMinutes * 60 * 1000),
+          bids: [], seller: state.wallet.address || "anon", autoRelist: autoRelist,
+          relistCount: 0, maxRelists: maxRelists, priceStepPct: priceStepPct
+        };
+        if (!Array.isArray(state.auctions)) state.auctions = [];
+        state.auctions.push(auc);
+        persist();
+        addReceipt("auction_create", { auction:auc });
+        applyFilters();
+        resetForm();
+        toast("Auction published", "success");
+      } catch(e){
+        console.error(e);
+        toast("Failed to publish auction", "error");
+      }
+    }
+
+    function computeQuickSale(){
+      try {
+        var discountPct = Number(document.getElementById("quickSaleDiscount").value);
+        var outCur = document.getElementById("quickSaleCurrency").value;
+        if (!Number.isFinite(discountPct) || discountPct < 0 || discountPct > 50) { toast("Discount must be 0–50%.", "error"); return; }
+        if (!["UPX","USD","SPARKLET"].includes(outCur)) { toast("Invalid payout currency.", "error"); return; }
+
+        var floorUPX = twapFloorUPX(state.portfolio);
+        var totalUPX = (Array.isArray(state.portfolio) ? state.portfolio : []).reduce(function(a,b){ return a + (b.twapFloorUPX || 0); }, 0);
+        var discountedUPX = Math.round(totalUPX * (1 - discountPct / 100));
+        var grossUSD = convert(discountedUPX, "UPX", "USD");
+        var np = netProceeds(grossUSD);
+        var payoutAmount = convert(np.netUSD, "USD", outCur);
+        var el = document.getElementById("quickSalePreview");
+        el.className = "muted";
+        el.innerHTML =
+          "<div><strong>Portfolio TWAP floor:</strong> "+fmt.upx(totalUPX)+" (Conservative avg: "+fmt.upx(floorUPX)+")</div>" +
+          "<div><strong>Discounted sale:</strong> "+fmt.upx(discountedUPX)+" → "+fmt.usd(grossUSD)+" gross</div>" +
+          "<div><strong>Fees:</strong> "+fmt.usd(np.feesUSD)+" (flat + success)</div>" +
+          "<div><strong>Net payout:</strong> "+fmt.num(payoutAmount)+" "+outCur+"</div>" +
+          "<div class='muted'>Use backend/Upland data for accuracy.</div>";
+      } catch(e){
+        console.error(e);
+        toast("Failed to compute quick sale", "error");
+      }
+    }
+    function postQuickSale(){
+      try {
+        var discountPct = Number(document.getElementById("quickSaleDiscount").value);
+        var outCur = document.getElementById("quickSaleCurrency").value;
+        if (!Number.isFinite(discountPct) || discountPct < 0 || discountPct > 50) { toast("Discount must be 0–50%.", "error"); return; }
+        var totalUPX = (Array.isArray(state.portfolio) ? state.portfolio : []).reduce(function(a,b){ return a + (b.twapFloorUPX || 0); }, 0);
+        var discountedUPX = Math.round(totalUPX * (1 - discountPct / 100));
+        var now = Date.now();
+        var auc = {
+          id: "auc_" + (crypto && crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)),
+          createdTs: now, type:"Portfolio Lot", city:"Mixed", name:"Portfolio ("+(state.portfolio.length||0)+" items)",
+          baseCurrency:"UPX", startingPrice: discountedUPX, reservePrice: null, payoutCurrency: outCur,
+          durationMs: 30*60*1000, endTs: now + (30*60*1000),
+          bids: [], seller: state.wallet.address || "anon", autoRelist: true,
+          relistCount: 0, maxRelists: 3, priceStepPct: -5
+        };
+        if (!Array.isArray(state.auctions)) state.auctions = [];
+        state.auctions.push(auc);
+        persist();
+        addReceipt("quick_sale_post", { auction:auc });
+        applyFilters();
+        toast("Quick sale lot posted", "success");
+      } catch(e){
+        console.error(e);
+        toast("Failed to post quick sale", "error");
+      }
+    }
+
+    // Expiry + auto‑relist
+    function handleExpiry(){
+      var now = Date.now();
+      var src = Array.isArray(state.auctions) ? state.auctions : [];
+      var remaining = [];
+      for (var i=0;i<src.length;i++){
+        var auc = src[i];
+        if (auc.endTs > now) { remaining.push(auc); continue; }
+        var highest = auc.bids.length ? auc.bids[auc.bids.length - 1].amount : null;
+        var reserveMet = auc.reservePrice == null || (highest !== null && highest >= auc.reservePrice);
+        if (highest && reserveMet) {
+          var grossUSD = convert(highest, auc.baseCurrency, "USD");
+          var np = netProceeds(grossUSD);
+          var payoutAmount = convert(np.netUSD, "USD", auc.payoutCurrency);
+          addReceipt("auction_auto_settle", { auctionId:auc.id, grossUSD:grossUSD, netUSD:np.netUSD, payoutCurrency:auc.payoutCurrency, payoutAmount:payoutAmount });
+          toast("Auto‑settled: " + fmt.num(payoutAmount) + " " + auc.payoutCurrency, "success");
+          continue;
+        }
+        if (auc.autoRelist && auc.relistCount < auc.maxRelists) {
+          var step = 1 + (auc.priceStepPct / 100);
+          var newStart = Math.max(1, Math.round(auc.startingPrice * step));
+          var relisted = {
+            id: auc.id, createdTs: now, type: auc.type, city: auc.city, name: auc.name,
+            baseCurrency: auc.baseCurrency, startingPrice: newStart, reservePrice: auc.reservePrice, payoutCurrency: auc.payoutCurrency,
+            durationMs: auc.durationMs, endTs: now + auc.durationMs, bids: [],
+            seller: auc.seller, autoRelist: auc.autoRelist, relistCount: auc.relistCount + 1, maxRelists: auc.maxRelists, priceStepPct: auc.priceStepPct
+          };
+          remaining.push(relisted);
+          addReceipt("auction_relist", { auctionId: auc.id, relistCount: relisted.relistCount, newStartingPrice: newStart });
+          toast("Relisted (" + relisted.relistCount + "/" + relisted.maxRelists + ") at " + fmt.upx(newStart), "success");
+        } else {
+          addReceipt("auction_expire", { auctionId: auc.id });
+          toast("Auction expired (no sale)", "error");
+        }
+      }
+      state.auctions = remaining;
+      persist();
+      applyFilters();
+    }
+
+    // Receipts export
+    function exportReceipts(){
+      try {
+        var blob = new Blob([safeJSON.stringify(state.receipts, true)], { type:"application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = "auctionSpark_receipts.json"; a.click();
+        URL.revokeObjectURL(url);
+        toast("Receipts exported", "success");
+      } catch(e){
+        console.error(e);
+        toast("Failed to export receipts", "error");
+      }
+    }
+
+    // Globals save/load
+    function loadGlobalsToUI(){
+      var txt = {
+        backendApiBase: CONFIG.backendApiBase,
+        vaultAddress: CONFIG.vaultAddress,
+        poolAddress: CONFIG.poolAddress,
+        burnAddress: CONFIG.burnAddress,
+        sparkletTokenAddress: CONFIG.sparkletTokenAddress,
+        sparkletFeeUSD: CONFIG.sparkletFeeUSD,
+        vaultPercent: CONFIG.vaultPercent,
+        poolPercent: CONFIG.poolPercent,
+        burnPercent: CONFIG.burnPercent
+      };
+      document.getElementById("globalVars").value = safeJSON.stringify(txt, true);
+      document.getElementById("vaultAddr").textContent = CONFIG.vaultAddress;
+    }
+    function saveGlobals(){
+      try {
+        var parsed = safeJSON.parse(document.getElementById("globalVars").value, null);
+        if (!parsed) { toast("Invalid globals JSON", "error"); return; }
+        CONFIG.backendApiBase = parsed.backendApiBase != null ? parsed.backendApiBase : CONFIG.backendApiBase;
+        CONFIG.vaultAddress = parsed.vaultAddress != null ? parsed.vaultAddress : CONFIG.vaultAddress;
+        CONFIG.poolAddress = parsed.poolAddress != null ? parsed.poolAddress : CONFIG.poolAddress;
+        CONFIG.burnAddress = parsed.burnAddress != null ? parsed.burnAddress : CONFIG.burnAddress;
+        CONFIG.sparkletTokenAddress = parsed.sparkletTokenAddress != null ? parsed.sparkletTokenAddress : CONFIG.sparkletTokenAddress;
+        CONFIG.sparkletFeeUSD = Number(parsed.sparkletFeeUSD != null ? parsed.sparkletFeeUSD : CONFIG.sparkletFeeUSD);
+        CONFIG.vaultPercent = Number(parsed.vaultPercent != null ? parsed.vaultPercent : CONFIG.vaultPercent);
+        CONFIG.poolPercent = Number(parsed.poolPercent != null ? parsed.poolPercent : CONFIG.poolPercent);
+        CONFIG.burnPercent = Number(parsed.burnPercent != null ? parsed.burnPercent : CONFIG.burnPercent);
+        loadGlobalsToUI();
+        addReceipt("globals_update", { CONFIG: CONFIG });
+        toast("Globals saved", "success");
+      } catch(e){
+        console.error(e);
+        toast("Failed to save globals", "error");
+      }
+    }
+
+    // Init auctions
+    async function initAuctions(){
+      var backendAuctions = await fetchBackendAuctions();
+      if (backendAuctions.length) {
+        state.auctions = backendAuctions;
+      } else if (CONFIG.fallbackHouseAuctions) {
+        ensureHouseAuctionsIfEmpty();
+      }
+      persist();
+    }
+
+    // UI wiring
+    function initUI(){
+      document.getElementById("connectBtn").addEventListener("click", connectWallet);
+      document.getElementById("applyFilters").addEventListener("click", applyFilters);
+      document.getElementById("publishAuction").addEventListener("click", publishAuction);
+      document.getElementById("resetForm").addEventListener("click", resetForm);
+      document.getElementById("computeQuickSale").addEventListener("click", computeQuickSale);
+      document.getElementById("postQuickSale").addEventListener("click", postQuickSale);
+      document.getElementById("exportReceipts").addEventListener("click", exportReceipts);
+      document.getElementById("openPortal").addEventListener("click", openPortal);
+      document.getElementById("portalHelp").addEventListener("click", portalGuide);
+      document.getElementById("saveGlobals").addEventListener("click", saveGlobals);
+    }
+
+    async function init(){
+      try {
+        if (!Array.isArray(state.auctions)) state.auctions = [];
+        if (!Array.isArray(state.receipts)) state.receipts = [];
+        if (!Array.isArray(state.portfolio)) state.portfolio = [];
+        loadGlobalsToUI();
+        await initAuctions();
+        renderRates();
+        renderReceipts();
+        applyFilters();
+        initUI();
+        setInterval(handleExpiry, 5000);
+        toast("AuctionSpark ready", "success");
+      } catch(e){
+        console.error(e);
+        toast("Initialization error", "error");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
+```

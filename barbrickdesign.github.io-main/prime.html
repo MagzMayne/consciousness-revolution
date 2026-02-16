@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PRIME Node Launcher</title>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 2rem;
+    }
+    h1 { font-size: 2rem; }
+    button {
+      background: #22c55e;
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      margin: 1rem 0;
+      cursor: pointer;
+    }
+    input {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      width: 100%;
+      border-radius: 4px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f8fafc;
+    }
+    .section {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #1e293b;
+      border-radius: 8px;
+    }
+    pre {
+      background: #0f172a;
+      padding: 1rem;
+      border-radius: 8px;
+      color: #94a3b8;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌱 PRIME Node Launcher</h1>
+
+  <div class="section">
+    <h2>🔐 Secure Setup</h2>
+    <button onclick="connectWallet()">Connect Phantom Wallet</button>
+    <p id="walletStatus">Wallet not connected.</p>
+    <input id="affiliateTag" placeholder="Amazon Affiliate Tag (e.g., yourtag-20)" />
+    <input id="apiKey" placeholder="Amazon API Key (optional)" />
+    <input id="referralCode" placeholder="Referral Code (optional)" />
+    <button onclick="saveConfig()">Save & Build Node</button>
+    <p id="configStatus">Config not saved.</p>
+  </div>
+
+  <div class="section">
+    <h2>🚀 Launch Node</h2>
+    <button onclick="launchNode()">Start Node Runtime</button>
+    <p id="nodeStatus">Node not started.</p>
+  </div>
+
+  <div class="section">
+    <h2>📜 Logs</h2>
+    <pre id="logOutput">No logs yet.</pre>
+  </div>
+
+  <script>
+    let walletAddress = null;
+    let logs = [];
+
+    function log(msg) {
+      const entry = '[' + new Date().toISOString() + '] ' + msg;
+      logs.push(entry);
+      document.getElementById('logOutput').textContent = logs.join('\\n');
+    }
+
+    async function connectWallet() {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const resp = await window.solana.connect();
+          walletAddress = resp.publicKey.toString();
+          document.getElementById('walletStatus').textContent = 'Connected: ' + walletAddress;
+          log('Wallet connected: ' + walletAddress);
+        } catch (err) {
+          document.getElementById('walletStatus').textContent = 'Connection failed.';
+          log('Wallet connection failed: ' + err.message);
+        }
+      } else {
+        alert('Phantom Wallet not found. Please install it.');
+      }
+    }
+
+    const backendFiles = {
+      'src/index.js': `const fs = require('fs');
+const path = require('path');
+const { rewardUser } = require('./rewardEngine');
+const config = require('../config.json');
+console.log('🌱 PRIME Node started for', config.walletAddress);
+fs.appendFileSync(path.join(__dirname, '../logs/runtime.log'), new Date().toISOString() + ' Node started\\n');
+setInterval(() => rewardUser(config.walletAddress), 60000);`,
+
+      'src/rewardEngine.js': `const fs = require('fs');
+const path = require('path');
+function rewardUser(wallet) {
+  const log = path.join(__dirname, '../logs/rewards.log');
+  const msg = new Date().toISOString() + ' Sent 1.0 $PRIME to ' + wallet + '\\n';
+  fs.appendFileSync(log, msg);
+  console.log(msg.trim());
+}
+module.exports = { rewardUser };`,
+
+      'src/walletMonitor.js': `console.log('Wallet monitor active');`,
+      'logs/runtime.log': '',
+      'logs/rewards.log': '',
+      'start-node.bat': '@echo off\\nnode src\\\\index.js\\npause'
+    };
+
+    async function writeBackendFiles(root) {
+      for (const [path, content] of Object.entries(backendFiles)) {
+        const parts = path.split('/');
+        let dir = root;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create: true });
+        }
+        const file = await dir.getFileHandle(parts.at(-1), { create: true });
+        const writable = await file.createWritable();
+        await writable.write(content.trim());
+        await writable.close();
+        log('✅ Wrote ' + path);
+      }
+    }
+
+    async function saveConfig() {
+      if (!window.showDirectoryPicker) {
+        alert('Your browser does not support secure file access. Please use Chrome or Edge.');
+        return;
+      }
+
+      const tag = document.getElementById('affiliateTag').value;
+      const apiKey = document.getElementById('apiKey').value;
+      const referral = document.getElementById('referralCode').value;
+
+      if (!walletAddress || !tag) {
+        alert('Wallet and Affiliate Tag are required.');
+        return;
+      }
+
+      const config = {
+        walletAddress,
+        affiliateTag: tag,
+        amazonApiKey: apiKey,
+        referralCode: referral
+      };
+
+      try {
+        const root = await window.showDirectoryPicker();
+        const configFile = await root.getFileHandle('config.json', { create: true });
+        const writable = await configFile.createWritable();
+        await writable.write(JSON.stringify(config, null, 2));
+        await writable.close();
+        log('✅ Config saved to config.json');
+
+        await writeBackendFiles(root);
+        document.getElementById('configStatus').textContent = '✅ Node files written. Ready to launch.';
+      } catch (err) {
+        log('❌ Failed to save config or files: ' + err.message);
+      }
+    }
+
+    async function launchNode() {
+      try {
+        const root = await window.showDirectoryPicker();
+        const bat = await root.getFileHandle('start-node.bat', { create: true });
+        const writable = await bat.createWritable();
+        await writable.write('@echo off\\nnode src\\\\index.js\\npause');
+        await writable.close();
+
+        const logFile = await root.getFileHandle('logs/runtime.log', { create: true });
+        const logWriter = await logFile.createWritable({ keepExistingData: true });
+        await logWriter.write('\\n[' + new Date().toISOString() + '] Node launcher written.\\n');
+        await logWriter.close();
+
+        document.getElementById('nodeStatus').textContent = '✅ Node launcher written. Double-click start-node.bat to begin.';
+        log('Node launcher script created.');
+      } catch (err) {
+        log('❌ Failed to launch node: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

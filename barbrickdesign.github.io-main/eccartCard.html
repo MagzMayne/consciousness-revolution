@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CCART — Polished 3D Holographic Cards • Archive • pump.fun (Stub)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<!-- three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<style>
+:root{
+  --bg:#030512; --panel:#07101a; --muted:#9fb0d6; --accent:#7bead8; --glass:rgba(255,255,255,0.03);
+  --card-w:360px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(1000px 700px at 10% 10%, #08102a, var(--bg));color:#e9f0ff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+header{display:flex;gap:12px;align-items:center;padding:14px;border-bottom:1px solid rgba(255,255,255,0.02);position:sticky;top:0;background:linear-gradient(180deg,rgba(7,12,18,0.85),rgba(6,8,12,0.45));z-index:60}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#082a3e,#0c2330);box-shadow:0 12px 36px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.02)}
+main{max-width:1200px;margin:18px auto;padding:0 18px;display:grid;gap:18px}
+.panel{background:linear-gradient(180deg,var(--panel),#051018);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.02);box-shadow:0 10px 36px rgba(4,6,12,0.6)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+input,select,button,textarea{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#06111a;color:#e9f0ff}
+button{cursor:pointer}
+.workspace{display:grid;grid-template-columns:1fr 380px;gap:12px}
+@media(max-width:960px){ .workspace{grid-template-columns:1fr} }
+.preview{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.02);background:#000}
+canvas#preview{width:100%;height:auto;display:block}
+.progress{height:12px;background:#041322;border-radius:999px;border:1px solid rgba(255,255,255,0.02);overflow:hidden}
+.progress > b{display:block;height:100%;width:0;background:linear-gradient(90deg,#84a7ff,#7bead8)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.small{font-size:12px;color:#9fb0d6}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-w),1fr));gap:16px;margin-top:12px}
+@media(max-width:700px){ .gallery{grid-template-columns:1fr}; :root{--card-w:100%} }
+.card{border-radius:14px;padding:10px;background:linear-gradient(180deg,#07141a,#061018);border:1px solid rgba(255,255,255,0.02);display:flex;flex-direction:column;gap:8px}
+.card .title{font-weight:700}
+.card .view{height:300px;border-radius:10px;overflow:hidden;background:#000}
+.log{height:180px;overflow:auto;background:linear-gradient(180deg,#041018,#051423);border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:12px;color:#9fb0d6}
+.footerSmall{font-size:12px;color:#9fb0d6;text-align:center;padding:12px}
+kbd{background:#07151a;border:1px solid rgba(255,255,255,0.02);padding:4px 6px;border-radius:6px}
+.badge{background:linear-gradient(180deg,#082a3a,#052233);padding:6px 10px;border-radius:999px;color:#cfeef6;border:1px solid rgba(255,255,255,0.03)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden></div>
+  <div>
+    <div style="font-weight:700">CCART — Polished 3D Cards</div>
+    <div class="small">High‑quality visual card pipeline • creative use and blockchain posting only</div>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><span class="badge">Visual style: glass • holo • pro</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="consentBtn">I consent (show app)</button><span id="consentLabel" class="small">Awaiting consent</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="app" class="panel" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <div style="flex:1;min-width:260px">
+        <label class="small">Upload</label><br/>
+        <input id="fileInput" type="file" accept="image/png,image/jpeg" />
+        <div class="small">Client re-encodes; no medical processing performed</div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="small">Engine</label>
+        <select id="engine"><option value="kenburns">Ken Burns</option><option value="parallax">Depth Parallax</option><option value="particle">Particle Shine</option><option value="composite">Composite</option></select>
+
+        <label class="small">Duration</label>
+        <input id="duration" type="number" value="6" min="1" max="30" style="width:72px"/>
+
+        <label class="small">Resolution</label>
+        <select id="resolution"><option>640x640</option><option>720x720</option><option>1024x1024</option><option>1280x720</option></select>
+
+        <label class="small">FPS</label>
+        <input id="fps" type="number" value="24" min="12" max="60" style="width:72px"/>
+
+        <button id="renderBtn">Render</button>
+      </div>
+    </div>
+
+    <div class="divider" style="height:12px"></div>
+
+    <div class="workspace">
+      <div>
+        <div class="preview" id="previewShell">
+          <canvas id="preview"></canvas>
+        </div>
+
+        <div class="controls">
+          <div style="flex:1">
+            <div class="progress"><b id="progressFill"></b></div>
+            <div id="progressText" class="small">0%</div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="downloadBtn" class="ghost" disabled>Download</button>
+            <button id="openBtn" class="ghost" disabled>Open</button>
+            <button id="archiveBtn" class="ghost" disabled>Save meta</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <canvas id="luma" class="mini" width="160" height="96"></canvas>
+          <canvas id="hist" class="mini" width="160" height="96"></canvas>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <div class="small">Encoder probe</div>
+          <div id="mimeInfo" class="small" style="color:#9fb0d6">—</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="panel small">
+          <div style="font-weight:700">pump.fun (stub)</div>
+          <input id="pumpBase" placeholder="https://api.pump.fun/v1/..." />
+          <input id="pumpKey" placeholder="API token (keep secure)" />
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+            <input id="autoPost" type="checkbox"/><label class="small">Auto-post after render</label>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="postLast" class="ghost">Post last</button>
+            <button id="postBatch" class="ghost">Post archive</button>
+          </div>
+        </div>
+
+        <div class="panel small">
+          <div style="font-weight:700">Batch & Archive</div>
+          <input id="batchInput" type="file" accept="image/png,image/jpeg" multiple />
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="startBatch" class="ghost">Start batch</button>
+            <button id="exportArchive" class="ghost">Export (gzip)</button>
+            <button id="clearArchive" class="ghost">Clear</button>
+          </div>
+        </div>
+
+        <div class="panel small">
+          <div style="font-weight:700">Logs</div>
+          <div id="log" class="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider" style="height:12px"></div>
+
+    <section>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Gallery</div>
+        <div class="small">Local IndexedDB archive with pro previews</div>
+      </div>
+      <div id="gallery" class="gallery"></div>
+    </section>
+  </section>
+
+  <section class="panel">
+    <div class="footerSmall">This client is for creative and archival workflows only. Do not use this to derive or infer health information.</div>
+  </section>
+</main>
+
+<script>
+/* CCART polished client: MIME fallback + professional 3D card visuals
+   Key notes:
+   - Does not perform clinical analysis.
+   - Offscreen canvas used for exact resolution rendering to avoid smushing.
+   - MediaRecorder probe + try/catch; falls back to frame sequence compressed with gzip.
+   - Polished three.js card with bloom pass for "professional" look.
+
+   For clarity we focus on robust, functional code. Replace pump.fun fields in the UI to enable posting.
+*/
+
+/* ---------- Logging ---------- */
+const logEl = document.getElementById('log');
+function log(msg, level='info'){
+  const line = `[${new Date().toISOString()}] ${level.toUpperCase()}: ${msg}`;
+  const d = document.createElement('div'); d.textContent = line;
+  logEl.prepend(d);
+  if(level === 'error') console.error(line); else console.log(line);
+}
+
+/* ---------- IndexedDB archive wrapper ---------- */
+const DB = (function(){
+  const NAME='ccart_polished_v1', STORE='renders';
+  let db;
+  function open(){ return new Promise((res,rej)=>{ if(db) return res(db); const r=indexedDB.open(NAME,1); r.onupgradeneeded = e => { const _db = e.target.result; if(!_db.objectStoreNames.contains(STORE)) _db.createObjectStore(STORE, { keyPath:'id' }); }; r.onsuccess = e => { db = e.target.result; res(db); }; r.onerror = e => rej(e.target.error); }); }
+  async function add(item){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(item); tx.oncomplete = ()=>res(true); tx.onerror = e=>rej(e.target.error); }); }
+  async function getAll(){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readonly'); const rq = tx.objectStore(STORE).getAll(); rq.onsuccess = ()=> res(rq.result || []); rq.onerror = e=>rej(e.target.error); }); }
+  async function clear(){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readwrite'); tx.objectStore(STORE).clear(); tx.oncomplete = ()=>res(true); tx.onerror = e=>rej(e.target.error); }); }
+  return { add, getAll, clear };
+})();
+
+/* ---------- DOM refs ---------- */
+const consentBtn = document.getElementById('consentBtn'), consentLabel = document.getElementById('consentLabel'), app = document.getElementById('app');
+const fileInput = document.getElementById('fileInput'), engineSel = document.getElementById('engine'), durationEl = document.getElementById('duration'), resolutionEl = document.getElementById('resolution'), fpsEl = document.getElementById('fps'), renderBtn = document.getElementById('renderBtn');
+const preview = document.getElementById('preview'), progressFill = document.getElementById('progressFill'), progressText = document.getElementById('progressText');
+const lumaC = document.getElementById('luma'), histC = document.getElementById('hist'), mimeInfo = document.getElementById('mimeInfo');
+const downloadBtn = document.getElementById('downloadBtn'), openBtn = document.getElementById('openBtn'), archiveBtn = document.getElementById('archiveBtn');
+const pumpBase = document.getElementById('pumpBase'), pumpKey = document.getElementById('pumpKey'), autoPost = document.getElementById('autoPost'), postLast = document.getElementById('postLast'), postBatch = document.getElementById('postBatch');
+const batchInput = document.getElementById('batchInput'), startBatch = document.getElementById('startBatch'), exportArchive = document.getElementById('exportArchive'), clearArchive = document.getElementById('clearArchive');
+const gallery = document.getElementById('gallery');
+
+/* ---------- State ---------- */
+let state = { consent:false, last:null, queue:[] };
+
+/* ---------- Consent ---------- */
+consentBtn.addEventListener('click', ()=>{ state.consent=true; app.style.display='block'; consentLabel.textContent='Consented'; log('User consented; app enabled'); rebuildGallery(); });
+
+/* ---------- Helpers ---------- */
+function bytesToKB(n){ return (n/1024).toFixed(1) + ' KB'; }
+function drawFit(ctx, bitmap, dstW, dstH){ ctx.clearRect(0,0,dstW,dstH); const iw=bitmap.width, ih=bitmap.height; const ir=iw/ih, dr=dstW/dstH; let dw, dh; if(ir>dr){ dw=dstW; dh=Math.round(dw/ir); } else { dh=dstH; dw=Math.round(dh*ir); } const dx=Math.round((dstW-dw)/2), dy=Math.round((dstH-dh)/2); ctx.drawImage(bitmap,0,0,iw,ih,dx,dy,dw,dh); }
+
+/* sanitize and re-encode to PNG */
+async function sanitize(file){
+  const allowed=['image/png','image/jpeg'];
+  if(!allowed.includes(file.type)) throw new Error('Unsupported file type');
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
+  const ctx = c.getContext('2d'); ctx.drawImage(bmp,0,0);
+  const blob = await new Promise(res=>c.toBlob(res,'image/png',0.92));
+  return { blob, width:bmp.width, height:bmp.height, bitmap: await createImageBitmap(blob) };
+}
+
+/* visualization */
+function visualizePreview(canvas){
+  try{
+    const ctx = canvas.getContext('2d'); const w=canvas.width,h=canvas.height;
+    const data = ctx.getImageData(0,0,w,h).data;
+    // luma: draw scaled copy
+    const lw = Math.max(80, Math.floor(w/6)), lh = Math.max(60, Math.floor(h/6));
+    lumaC.width = lw; lumaC.height = lh; lumaC.getContext('2d').drawImage(canvas,0,0,lw,lh);
+    // histogram
+    const bins = new Uint32Array(64);
+    for(let i=0;i<data.length;i+=4){ const lum = Math.floor(0.2126*data[i]+0.7152*data[i+1]+0.0722*data[i+2]); bins[Math.min(63,Math.floor(lum/4))]++; }
+    const hw = histC.width = 200, hh = histC.height = 84; const hctx = histC.getContext('2d'); hctx.fillStyle='#031217'; hctx.fillRect(0,0,hw,hh);
+    const max = Math.max(...bins) || 1;
+    for(let i=0;i<bins.length;i++){ const x=Math.floor(i*hw/bins.length); const hgt=Math.floor((bins[i]/max)*(hh-6)); hctx.fillStyle='#7bead8'; hctx.fillRect(x,hh-hgt,Math.ceil(hw/bins.length)-1,hgt); }
+  }catch(e){ console.warn('visualize failed',e); }
+}
+
+/* MIME probe */
+function probeMimes(){
+  const candidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+  const supported=[];
+  for(const c of candidates){ try{ if(typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) supported.push(c); }catch(e){} }
+  return supported;
+}
+
+/* try create recorder robustly */
+async function tryCreateRecorder(stream){
+  const list=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  for(const mime of list){
+    try{ if(MediaRecorder.isTypeSupported && !MediaRecorder.isTypeSupported(mime)) continue; const r=new MediaRecorder(stream,{mimeType:mime}); return {recorder:r,mime}; }catch(e){} }
+  try{ const r=new MediaRecorder(stream); return {recorder:r,mime:'default'}; }catch(e){ return {recorder:null,mime:null}; }
+}
+
+/* detect iOS / Safari */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints>1);
+
+/* ---------- Story engines (same optimized set as before) ---------- */
+function makeEngine(engine, bitmap, ctx, w,h){
+  if(engine==='kenburns') return function(t){ ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); const zoom=1.05+0.12*t; const iw=bitmap.width, ih=bitmap.height; const ir=iw/ih, dr=w/h; let dw,dh; if(ir>dr){ dw=w*zoom; dh=Math.round(dw/ir);} else { dh=h*zoom; dw=Math.round(dh*ir);} const dx=Math.round((w-dw)/2+(t-0.5)*0.12*w); const dy=Math.round((h-dh)/2+Math.sin(t*Math.PI*2)*0.04*h); ctx.drawImage(bitmap,0,0,iw,ih,dx,dy,dw,dh); ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.font='600 14px system-ui'; ctx.textAlign='right'; ctx.fillText('CCART',w-12,h-12); };
+  if(engine==='parallax'){ const tmp=document.createElement('canvas'); tmp.width=64; tmp.height=64; const tctx=tmp.getContext('2d'); tctx.drawImage(bitmap,0,0,64,64); const img=tctx.getImageData(0,0,64,64).data; return function(t){ ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); drawFit(ctx,bitmap,w,h); ctx.globalAlpha=0.06; const strength=8*(0.5+0.5*Math.sin(t*Math.PI*2)); for(let y=0;y<64;y++){ for(let x=0;x<64;x++){ const idx=(y*64+x)*4; const lum=(0.2126*img[idx]+0.7152*img[idx+1]+0.0722*img[idx+2])/255; const ox=(lum-0.5)*strength; const oy=(lum-0.5)*-strength; ctx.fillStyle=`rgba(${img[idx]},${img[idx+1]},${img[idx+2]},0.06)`; ctx.fillRect(Math.floor((x/64)*w+ox),Math.floor((y/64)*h+oy),Math.ceil(w/64),Math.ceil(h/64)); } } ctx.globalAlpha=1; }; }
+  if(engine==='particle'){ const ps=[]; for(let i=0;i<220;i++) ps.push({x:Math.random(),y:Math.random(),r:1+Math.random()*3,vx:(Math.random()-0.5)*0.002,vy:(Math.random()-0.5)*0.002}); return function(t){ ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); drawFit(ctx,bitmap,w,h); ctx.globalCompositeOperation='lighter'; for(let i=0;i<ps.length;i++){ const p=ps[i]; p.x=(p.x + p.vx + 1)%1; p.y=(p.y + p.vy + 1)%1; const sx=Math.floor(p.x*bitmap.width), sy=Math.floor(p.y*bitmap.height); const sctx=document.createElement('canvas').getContext('2d'); const tmp=document.createElement('canvas'); tmp.width=1; tmp.height=1; sctx.drawImage(bitmap,-sx,-sy); const d=sctx.getImageData(0,0,1,1).data; ctx.fillStyle=`rgba(${d[0]},${d[1]},${d[2]},0.22)`; ctx.beginPath(); ctx.arc(p.x*w,p.y*h,p.r+Math.sin(t*6+i)*0.5,0,Math.PI*2); ctx.fill(); } ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.font='600 14px system-ui'; ctx.textAlign='right'; ctx.fillText('CCART',w-12,h-12); }; }
+  // composite
+  return function(t){ const k = makeEngine('kenburns',bitmap,ctx,w,h); k(t); const p = makeEngine('particle',bitmap,ctx,w,h); p(t*0.6); };
+}
+
+/* ---------- Render pipeline ---------- */
+async function renderToOutput(sanitized, opts){
+  const [rw,rh] = opts.res.split('x').map(n=>parseInt(n,10)); const fps = Math.max(12,Math.min(60,opts.fps||24)); const duration = Math.max(1,Math.min(60,opts.duration||6)); const total = Math.ceil(duration*fps);
+  const off = document.createElement('canvas'); off.width=rw; off.height=rh; const offCtx = off.getContext('2d');
+  preview.width = rw; preview.height = rh;
+  const engineFn = makeEngine(opts.engine, sanitized.bitmap, offCtx, rw, rh);
+
+  const probe = probeMimes(); mimeInfo.textContent = probe.length ? probe.join(',') : 'none';
+  log('Mime probe: ' + (probe.join(',') || 'none'));
+  const needsFrames = isIOS || !off.captureStream || typeof MediaRecorder === 'undefined';
+  if(!needsFrames && off.captureStream){
+    const stream = off.captureStream(fps);
+    const recInfo = await tryCreateRecorder(stream);
+    if(recInfo.recorder){
+      log('Using MediaRecorder mime=' + recInfo.mime);
+      return await recordWithMediaRecorder(off, offCtx, engineFn, total, fps, recInfo.recorder, recInfo.mime);
+    } else {
+      log('Recorder unavailable; falling back to frames', 'info');
+      return await captureFrames(off, engineFn, total);
+    }
+  } else {
+    log('Forcing frames fallback (platform or APIs limited)', 'info');
+    return await captureFrames(off, engineFn, total);
+  }
+}
+
+function recordWithMediaRecorder(off, offCtx, engineFn, frames, fps, recorder, mime){
+  return new Promise((resolve,reject)=>{
+    const chunks=[];
+    recorder.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+    recorder.onerror = e => log('Recorder error: ' + (e && e.error && e.error.message ? e.error.message : 'unknown'), 'error');
+    recorder.onstop = ()=> { try{ const blob = new Blob(chunks,{type:mime||'video/webm'}); resolve({type:'webm',blob}); }catch(e){ reject(e); } };
+    try{ recorder.start(); }catch(e){ log('recorder.start threw: '+e.message,'error'); return captureFrames(off, engineFn, frames).then(r=>resolve(r)).catch(err=>reject(err)); }
+    let f=0;
+    function step(){
+      const t = Math.min(1,f/frames);
+      engineFn(t);
+      const pctx = preview.getContext('2d');
+      pctx.clearRect(0,0,preview.width,preview.height);
+      pctx.drawImage(off,0,0);
+      visualizePreview(preview);
+      const pct = Math.floor((f/frames)*100); progressFill.style.width = pct + '%'; progressText.textContent = pct + '%';
+      f++;
+      if(f<=frames) requestAnimationFrame(step); else { setTimeout(()=>{ try{ recorder.stop(); }catch(e){ log('recorder.stop failed: '+e.message,'error'); } }, 80); }
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+async function captureFrames(off, engineFn, frames){
+  const collected=[];
+  for(let i=0;i<frames;i++){
+    const t = Math.min(1, i/frames);
+    engineFn(t);
+    const pctx = preview.getContext('2d');
+    pctx.clearRect(0,0,preview.width,preview.height);
+    pctx.drawImage(off,0,0);
+    visualizePreview(preview);
+    const blob = await new Promise(res=>off.toBlob(res,'image/png',0.92));
+    collected.push({name:`frame_${String(i).padStart(4,'0')}.png`,blob});
+    const pct = Math.floor((i/frames)*100); progressFill.style.width = pct + '%'; progressText.textContent = pct + '%';
+  }
+  progressFill.style.width = '100%'; progressText.textContent = '100%';
+  if(typeof CompressionStream !== 'undefined'){
+    const cs = new CompressionStream('gzip'); const writer = cs.writable.getWriter();
+    for(const f of collected){
+      const header = new TextEncoder().encode(`FILE:${f.name}\nSIZE:${f.blob.size}\n---\n`);
+      await writer.write(header);
+      const r = f.blob.stream().getReader();
+      while(true){
+        const {value,done} = await r.read();
+        if(done) break;
+        await writer.write(value);
+      }
+      await writer.write(new TextEncoder().encode('\n===EOF===\n'));
+    }
+    await writer.close();
+    const gz = await new Response(cs.readable).blob();
+    return {type:'frames-gzip',blob:gz,frames:collected.length};
+  } else {
+    return {type:'frames-array',frames:collected};
+  }
+}
+
+/* ---------- Archive handling ---------- */
+async function archiveOutput(name, blob, metadata){
+  const id = `i_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
+  const buf = await blob.arrayBuffer();
+  const url = URL.createObjectURL(blob);
+  const item = { id, name, type: blob.type || 'application/octet-stream', size: blob.size || buf.byteLength, url, createdAt: new Date().toISOString(), metadata, blobBuffer: buf };
+  await DB.add(item);
+  state.last = item;
+  archiveBtn.disabled = false; downloadBtn.disabled = false; openBtn.disabled = false;
+  downloadBtn.onclick = ()=>{ const a=document.createElement('a'); a.href = item.url; a.download = item.name; a.click(); };
+  openBtn.onclick = ()=> window.open(item.url,'_blank');
+  log('Archived: '+name);
+  rebuildGallery();
+}
+
+/* ---------- three.js card generator (polished holo) ---------- */
+function createThreeCard(container, mediaUrl, isVideo){
+  container.innerHTML = '';
+  const canvas = document.createElement('canvas'); canvas.style.width='100%'; canvas.style.height='100%';
+  container.appendChild(canvas);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w,h,false);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 1000); camera.position.set(0,0,6);
+
+  // lights
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.9); scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(-6,8,4); scene.add(dir);
+
+  // geometry w/ gentle curve
+  const geom = new THREE.PlaneGeometry(4, 4, 128, 128);
+  const pos = geom.attributes.position;
+  for(let i=0;i<pos.count;i++){ const x = pos.getX(i), y = pos.getY(i); pos.setZ(i, Math.sin(x*0.6)*0.03 + Math.cos(y*0.6)*0.016); }
+  pos.needsUpdate = true;
+
+  // texture
+  let texture;
+  if(isVideo){
+    const vid = document.createElement('video'); vid.src = mediaUrl; vid.muted=true; vid.loop=true; vid.autoplay=true; vid.playsInline=true;
+    vid.crossOrigin='anonymous'; texture = new THREE.VideoTexture(vid); texture.minFilter = THREE.LinearFilter; texture.magFilter = THREE.LinearFilter;
+    vid.play().catch(()=>{ /* suppressed */ });
+  } else {
+    const img = new Image(); img.src = mediaUrl; img.crossOrigin='anonymous'; texture = new THREE.Texture(img); img.onload = ()=> texture.needsUpdate = true;
+  }
+
+  const mat = new THREE.MeshStandardMaterial({ map: texture, metalness: 0.06, roughness: 0.45, emissive: 0x041a1d, emissiveIntensity: 0.04, side: THREE.FrontSide });
+  const mesh = new THREE.Mesh(geom, mat); scene.add(mesh);
+
+  // subtle background plane
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(10,10), new THREE.MeshStandardMaterial({ color:0x041418, metalness:0.12, roughness:0.95, transparent:true, opacity:0.6 }));
+  ground.rotation.x = -Math.PI/2; ground.position.y = -2.8; scene.add(ground);
+
+  // bloom composer
+  const composer = new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(w,h), 0.6, 0.6, 0.6);
+  composer.addPass(bloom);
+
+  let elapsed=0;
+  function animate(ts){
+    elapsed += ts/1000;
+    mesh.rotation.y = Math.sin(elapsed*0.28)*0.12;
+    mesh.rotation.x = Math.sin(elapsed*0.12)*0.035;
+    composer.render();
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+}
+
+/* ---------- UI flows ---------- */
+fileInput.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return log('No file selected', 'error');
+  try{
+    const s = await sanitize(f);
+    const [rw,rh] = resolutionEl.value.split('x').map(n=>parseInt(n,10));
+    preview.width = rw; preview.height = rh;
+    const pctx = preview.getContext('2d');
+    drawFit(pctx, s.bitmap, rw, rh);
+    visualizePreview(preview);
+    state.preview = s;
+    log(`Loaded ${f.name} (${s.width}x${s.height})`);
+  }catch(err){ log('Upload error: '+err.message, 'error'); alert('Upload failed: '+err.message); }
+});
+
+renderBtn.addEventListener('click', async ()=>{
+  if(!state.preview) return alert('Upload an image first');
+  renderBtn.disabled = true;
+  const opts = { engine: engineSel.value, duration: parseInt(durationEl.value,10)||6, res: resolutionEl.value, fps: parseInt(fpsEl.value,10)||24 };
+  try{
+    log(`Rendering engine=${opts.engine} res=${opts.res} dur=${opts.duration}s fps=${opts.fps}`);
+    const out = await renderToOutput(state.preview, opts);
+    if(out.type === 'webm' && out.blob){
+      const name = `ccart_${Date.now()}.webm`;
+      await archiveOutput(name, out.blob, { engine: opts.engine, resolution: opts.res, duration: opts.duration, fps: opts.fps });
+      if(autoPost.checked && pumpBase.value){ try{ await postToPumpFun(out.blob, { name }); log('Auto-post ok'); }catch(e){ log('Auto-post failed: '+e.message, 'error'); } }
+    } else if(out.type === 'frames-gzip'){
+      const name = `ccart_frames_${Date.now()}.gzip`;
+      await archiveOutput(name, out.blob, { engine: opts.engine, resolution: opts.res, duration: opts.duration, fps: opts.fps });
+      log('Archived frames bundle');
+    } else if(out.type === 'frames-array'){
+      const parts=[]; for(const f of out.frames){ parts.push(new Blob([new TextEncoder().encode(`FILE:${f.name}\nSIZE:${f.blob.size}\n---\n`)])); parts.push(f.blob); parts.push(new Blob([new TextEncoder().encode('\n===EOF===\n')])); }
+      const bundle = new Blob(parts, { type:'application/octet-stream' }); const name = `ccart_frames_${Date.now()}.bin`; await archiveOutput(name, bundle, { engine: opts.engine, resolution: opts.res });
+      log('Archived frames array bundle');
+    }
+  }catch(e){ log('Render failed: '+e.message, 'error'); alert('Render failed: '+e.message); }
+  finally{ renderBtn.disabled=false; progressFill.style.width='0%'; progressText.textContent='0%'; }
+});
+
+/* Archive / gallery functions */
+async function archiveOutput(name, blob, metadata){
+  const id = `item_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
+  const buf = await blob.arrayBuffer();
+  const url = URL.createObjectURL(blob);
+  const item = { id, name, type: blob.type || 'application/octet-stream', size: blob.size || buf.byteLength, url, metadata, createdAt: new Date().toISOString(), blobBuffer: buf };
+  await DB.add(item);
+  state.last = item;
+  archiveBtn.disabled = false; downloadBtn.disabled=false; openBtn.disabled=false;
+  downloadBtn.onclick = ()=>{ const a=document.createElement('a'); a.href=item.url; a.download=item.name; a.click(); };
+  openBtn.onclick = ()=> window.open(item.url,'_blank');
+  log('Saved archive item: ' + name);
+  rebuildGallery();
+}
+
+async function rebuildGallery(){
+  const items = await DB.getAll();
+  gallery.innerHTML = '';
+  items.reverse().forEach(it=>{
+    const c=document.createElement('div'); c.className='card';
+    const t=document.createElement('div'); t.className='title'; t.textContent=it.name; c.appendChild(t);
+    const v=document.createElement('div'); v.className='view'; c.appendChild(v);
+    const meta=document.createElement('div'); meta.className='small'; meta.textContent=`${it.metadata.engine || '-'} • ${it.type} • ${bytesToKB(it.size)} • ${new Date(it.createdAt).toLocaleString()}`; c.appendChild(meta);
+    const blob = new Blob([it.blobBuffer], { type: it.type });
+    const url = URL.createObjectURL(blob);
+    const isVideo = it.type.includes('webm') || it.type.includes('video');
+    createThreeCard(v, url, isVideo);
+    gallery.appendChild(c);
+  });
+}
+
+/* pump.fun stub */
+async function postToPumpFun(blob, meta){
+  const base = (pumpBase.value||'').trim(); if(!base) throw new Error('pump.fun base not set');
+  const token = (pumpKey.value||'').trim();
+  const url = base.replace(/\/+$/,'') + '/coins/create';
+  const fd = new FormData(); fd.append('media', blob, meta.name || 'ccart_output.webm'); fd.append('title', meta.name||meta.title||'CCART'); fd.append('description', meta.description||'');
+  const headers = {}; if(token) headers['Authorization'] = 'Bearer ' + token;
+  log('Posting to pump.fun: ' + url);
+  const res = await fetch(url, { method:'POST', headers, body: fd });
+  if(!res.ok) throw new Error('pump.fun post failed: ' + res.status);
+  const txt = await res.text(); log('pump.fun response: ' + txt);
+  return txt;
+}
+
+/* Batch UI */
+batchInput.addEventListener('change', (e)=>{ state.queue = Array.from(e.target.files||[]); log('Batch queued: ' + state.queue.length); });
+startBatch.addEventListener('click', async ()=>{
+  if(!state.queue.length) return alert('No batch files selected');
+  startBatch.disabled = true;
+  for(const f of state.queue){
+    try{
+      const s = await sanitize(f);
+      const opts = { engine: engineSel.value, duration: parseInt(durationEl.value,10)||6, res: resolutionEl.value, fps: parseInt(fpsEl.value,10)||24 };
+      const out = await renderToOutput(s, opts);
+      if(out.type==='webm'&&out.blob){ const name = `${f.name.replace(/\.[^.]+$/,'')}_${Date.now()}.webm`; await archiveOutput(name,out.blob,{engine:opts.engine,resolution:opts.res}); }
+      if(autoPost.checked && pumpBase.value && state.last){ try{ await postToPumpFun(new Blob([state.last.blobBuffer],{type:state.last.type}), { name: state.last.name }); log('Auto-posted batch item'); }catch(e){ log('Auto-post batch failed: '+e.message,'error'); } }
+      log('Batch processed: '+f.name);
+    }catch(e){ log('Batch item failed: ' + f.name + ' -> ' + e.message, 'error'); }
+  }
+  state.queue = []; startBatch.disabled=false; alert('Batch complete');
+});
+
+/* export & clear archive */
+exportArchive.addEventListener('click', async ()=>{
+  const items = await DB.getAll(); if(!items.length) return alert('Archive empty');
+  if(typeof CompressionStream === 'undefined') return alert('CompressionStream not available in this browser');
+  const cs = new CompressionStream('gzip'); const writer = cs.writable.getWriter();
+  for(const it of items){
+    const header = new TextEncoder().encode(`ID:${it.id}\nNAME:${it.name}\nSIZE:${it.size}\n---\n`);
+    await writer.write(header);
+    const blob = new Blob([it.blobBuffer], { type: it.type });
+    const r = blob.stream().getReader();
+    while(true){ const {value,done} = await r.read(); if(done) break; await writer.write(value); }
+    await writer.write(new TextEncoder().encode('\n===EOF===\n'));
+  }
+  await writer.close(); const gz = await new Response(cs.readable).blob(); const a=document.createElement('a'); a.href=URL.createObjectURL(gz); a.download=`ccart_archive_${Date.now()}.gzip`; a.click(); log('Exported archive gzip');
+});
+clearArchive.addEventListener('click', async ()=>{ if(!confirm('Clear local archive?')) return; await DB.clear(); rebuildGallery(); log('Archive cleared','warn'); });
+
+/* initial probe */
+(function init(){ const probe = probeMimes(); log('Supported codecs found: ' + (probe.length ? probe.join(', ') : 'none')); mimeInfo.textContent = probe.length ? probe.join(', ') : 'none'; log('Client ready'); })();
+
+</script>
+</body>
+</html>

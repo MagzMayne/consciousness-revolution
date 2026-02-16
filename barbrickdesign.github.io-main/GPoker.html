@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TRON POKER — Fixed Deal, Orb, Table Log</title>
+<meta name="theme-color" content="#07101a"/>
+<style>
+:root{
+  --bg:#07101a; --panel:#0e1622; --accent:#00e5ff; --accent2:#7cffd4;
+  --text:#e6f7ff; --muted:#8fa9b8; --best:#8a2be2; --pot-purple:#b07cff;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(900px at 50% 10%,#071426 0%,var(--bg) 70%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text)}
+.app{max-width:1200px;margin:12px auto;padding:12px}
+.header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.logo{font-weight:900;color:var(--accent);letter-spacing:1px;text-shadow:0 0 18px rgba(0,229,255,0.12)}
+.container{display:grid;grid-template-columns:1fr 360px;gap:12px}
+@media(max-width:980px){ .container{grid-template-columns:1fr} }
+.panel{background:linear-gradient(180deg,rgba(10,16,24,0.96),rgba(6,10,14,0.96));border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px}
+.three-wrap{position:relative;border-radius:12px;overflow:visible}
+#threeCanvas{width:100%;height:560px;display:block;background:transparent;display:block}
+.inline-orb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:30;
+  background:radial-gradient(circle at 40% 30%, rgba(176,124,255,0.12), rgba(176,124,255,0.06) 30%, rgba(0,0,0,0.02) 65%);
+  box-shadow: 0 0 120px rgba(176,124,255,0.18), inset 0 0 40px rgba(176,124,255,0.08);
+  animation:float 4.6s ease-in-out infinite;}
+@keyframes float{0%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-10px)}100%{transform:translate(-50%,-50%) translateY(0)}}
+.inline-orb .orb-inner{width:86%;height:86%;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:linear-gradient(180deg,rgba(20,6,36,0.6),rgba(6,4,10,0.18));border:1px solid rgba(176,124,255,0.08);backdrop-filter: blur(6px)}
+.inline-orb .pot{font-family:ui-monospace;font-weight:700;color:var(--pot-purple);font-size:15px;letter-spacing:0.6px}
+.inline-orb .label{font-size:11px;color:var(--muted);margin-top:6px}
+.inline-orb .stack{width:78%;height:78%;border-radius:50%;overflow:auto;padding:8px;font-family:ui-monospace;font-size:11px;color:#dff;line-height:1.18;text-align:left}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.input{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px;border-radius:8px;color:var(--text)}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#04222a;cursor:pointer}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px 10px;border-radius:8px;color:var(--accent);cursor:pointer}
+.btn-best{background:linear-gradient(90deg,var(--best),#b07cff);border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#fff;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+@media(max-width:640px){ .seatsGrid{grid-template-columns:repeat(2,1fr)} }
+.seat{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;border:1px solid rgba(0,229,255,0.04);text-align:center;position:relative}
+.seat .name{font-weight:800}
+.seat .chipColor{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+.logArea{font-family:ui-monospace;color:#9df;max-height:420px;overflow:auto;background:transparent;border:none;padding:8px;margin:0;white-space:pre-wrap}
+.small{font-size:13px;color:var(--muted)}
+.bestHint{font-size:13px;color:var(--best);font-weight:700;margin-left:6px}
+.kbd{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.06);padding:6px 8px;border-radius:8px;font-family:ui-monospace}
+.turnBadge{position:absolute;left:8px;top:8px;padding:4px 8px;border-radius:6px;font-weight:700;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">TRON POKER</div>
+    <div class="row">
+      <div class="small">Trust Pool</div>
+      <div class="kbd" id="globalPool">$0</div>
+      <div style="width:12px"></div>
+      <div class="small">Table</div>
+      <div class="kbd" id="tableTitle">—</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div>
+      <div class="panel three-wrap" style="padding:0;overflow:visible">
+        <canvas id="threeCanvas"></canvas>
+
+        <div class="inline-orb" aria-hidden="true">
+          <div class="orb-inner">
+            <div class="pot" id="orbPot">$0</div>
+            <div class="label">Pot</div>
+            <div class="stack" id="inlineLog" style="position:absolute;top:14px;left:14px;right:14px;bottom:14px;pointer-events:auto;overflow:auto"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div class="small">Controls</div>
+            <div class="small">Start -> cards deal from orb; log shows turn/action messages. Purple pot, readable orb log.</div>
+          </div>
+          <div class="row">
+            <div class="small">Status</div>
+            <div class="kbd" id="statusPill">Idle</div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:8px">
+          <select id="tableSelect" class="input">
+            <option value="6">6-seat (fast)</option>
+            <option value="9">9-seat (full)</option>
+          </select>
+          <select id="variant" class="input" style="width:160px">
+            <option>Texas Hold'em</option>
+          </select>
+          <button id="startGame" class="btn">Start game</button>
+          <button id="joinMatch" class="btn-outline">Join</button>
+
+          <label class="small" style="margin-left:8px">Auto</label>
+          <select id="autoAction" class="input" style="width:160px">
+            <option value="off">Off</option>
+            <option value="autocheck">Auto-check/fold</option>
+            <option value="autobet">Auto-bet (strong)</option>
+          </select>
+          <input id="autoThreshold" class="input" type="number" value="380" style="width:90px" title="Higher = stricter"/>
+        </div>
+
+        <div class="controls" style="margin-top:12px;align-items:center">
+          <button id="checkBtn" class="btn-outline">Check</button>
+          <button id="callBtn" class="btn-outline">Call</button>
+          <input id="betSize" class="input" type="number" placeholder="10" style="width:88px" />
+          <button id="betBtn" class="btn">Bet</button>
+          <button id="foldBtn" class="btn-outline">Fold</button>
+          <button id="showdownBtn" class="btn-outline">Showdown</button>
+          <div style="margin-left:auto" class="row">
+            <div class="small">Timer</div>
+            <div class="kbd" id="handTimer">--</div>
+            <div class="bestHint" id="bestHint">Best: —</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row space" style="justify-content:space-between;align-items:center">
+          <div><div class="small">Seats & balances</div></div>
+          <div><div class="small">Pot</div><div id="pot" class="kbd">$0</div></div>
+        </div>
+        <div class="seatsGrid" id="seatsGrid" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="small">Ticket / payout validation</div>
+        <div class="row" style="margin-top:8px"><input id="paypalEmail" class="input" placeholder="paypal@example.com" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px"><input id="venmoHandle" class="input" placeholder="@venmo" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px">
+          <button id="genTicket" class="btn-outline">Generate</button>
+          <button id="saveTicket" class="btn-outline">Save</button>
+          <button id="markPaid" class="btn-outline">Mark paid</button>
+        </div>
+        <pre id="ticketView" class="kbd" style="margin-top:10px;white-space:pre-wrap">—</pre>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="small">Full log</div>
+        <pre id="log" class="logArea"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="turnModal"><div class="box"><div style="font-weight:800">Your turn</div><div class="small" style="margin-top:8px">Pick an action or allow auto</div><div style="margin-top:12px"><button id="turnOk" class="btn-outline">OK</button></div></div></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+(() => {
+  // compact, robust single-file poker demo: corrected deal visibility, orb/pot styling, clear table log messages
+
+  const state = {
+    seats: [],
+    deck: [],
+    assignedHoles: null,
+    community: [],
+    myHole: [],
+    pot: 0,
+    three: { renderer:null, scene:null, camera:null, cardMeshes:[], chipMeshes:[] },
+    handClock: null,
+    handLeft: 0,
+    botMin: 600, botMax: 1200,
+    lastLog: null
+  };
+
+  const PLAYER_COLORS = ['#ffb86b','#54ffbd','#00a2ff','#ff6b9a','#b07cff','#ffd166','#8affc1','#ffd1ff','#a0ffd6'];
+  const $ = id => document.getElementById(id);
+  const nowStamp = ()=> new Date().toLocaleTimeString();
+
+  function appendLog(msg){
+    const line = `[${nowStamp()}] ${msg}`;
+    if (line === state.lastLog) return;
+    state.lastLog = line;
+    $('log').textContent += line + '\n';
+    $('log').scrollTop = $('log').scrollHeight;
+    const inline = $('inlineLog');
+    inline.textContent = line + '\n' + inline.textContent;
+    inline.textContent = inline.textContent.split('\n').slice(0,28).join('\n');
+  }
+
+  // deck helpers
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  function canonicalDeck(){ return suits.flatMap(s => ranks.map(r => `${r}${s}`)); }
+  function shuffle(arr){ for (let i=arr.length-1;i>0;i--){ const rnd = crypto.getRandomValues(new Uint32Array(1))[0]/0xffffffff; const j = Math.floor(rnd*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } return arr; }
+
+  // three.js init + resize fix
+  function initThree(){
+    const canvas = $('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+    function resize(){
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) renderer.setSize(w,h,false);
+      if (state.three.camera){ state.three.camera.aspect = w/h; state.three.camera.updateProjectionMatrix(); }
+    }
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07101a);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+    camera.position.set(0,6.5,10); camera.lookAt(0,0,0);
+    const ambient = new THREE.AmbientLight(0x88ffff,0.6); scene.add(ambient);
+    const spot = new THREE.SpotLight(0x00e5ff,1,80,Math.PI/4,0.5); spot.position.set(7,12,8); scene.add(spot);
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.2,0.42,64), new THREE.MeshStandardMaterial({ color:0x0f2233, emissive:0x002233, roughness:0.6 }));
+    table.position.y = -0.22; scene.add(table);
+    state.three.renderer = renderer; state.three.scene = scene; state.three.camera = camera;
+
+    function loop(){
+      table.rotation.y += 0.0009;
+      resize();
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    loop();
+    window.addEventListener('resize', resize);
+  }
+
+  function clearVisuals(){
+    (state.three.cardMeshes||[]).forEach(m=>state.three.scene.remove(m));
+    state.three.cardMeshes = [];
+    (state.three.chipMeshes||[]).forEach(m=>state.three.scene.remove(m));
+    state.three.chipMeshes = [];
+  }
+
+  // spawn face, spawn back, arc animation
+  function spawnCardFace(text, x, z, tilt=0, delayIndex=0){
+    const geo = new THREE.PlaneGeometry(0.64,0.95);
+    const cvs = document.createElement('canvas'); cvs.width=256; cvs.height=384;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#07111a'; ctx.fillRect(0,0,256,384);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,364);
+    ctx.fillStyle = (text.includes('♥')||text.includes('♦')) ? '#ff6b6b' : '#ffffff';
+    ctx.font = 'bold 60px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,128,192);
+    const tex = new THREE.CanvasTexture(cvs);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.2 });
+    const mesh = new THREE.Mesh(geo, mat); mesh.position.set(0,0.7,0); mesh.rotation.x = -Math.PI/2; mesh.rotation.z = tilt; mesh.scale.set(0.01,0.01,0.01);
+    state.three.scene.add(mesh); state.three.cardMeshes.push(mesh);
+    animateTo(mesh, x, z, delayIndex);
+  }
+
+  function spawnCardBack(x,z,delayIndex=0){
+    const geo = new THREE.PlaneGeometry(0.64,0.95);
+    const cvs = document.createElement('canvas'); cvs.width=256; cvs.height=384;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#001827'; ctx.fillRect(0,0,256,384);
+    const g = ctx.createLinearGradient(0,0,256,384); g.addColorStop(0,'#002a3a'); g.addColorStop(1,'#002233');
+    ctx.fillStyle = g; ctx.fillRect(12,12,232,360);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 4; ctx.strokeRect(14,14,228,356);
+    ctx.fillStyle = '#00e5ff'; ctx.font = 'bold 36px system-ui'; ctx.textAlign='center'; ctx.fillText('TRON',128,200);
+    const tex = new THREE.CanvasTexture(cvs);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.08 });
+    const mesh = new THREE.Mesh(geo, mat); mesh.position.set(0,0.7,0); mesh.rotation.x = -Math.PI/2; mesh.scale.set(0.01,0.01,0.01);
+    state.three.scene.add(mesh); state.three.cardMeshes.push(mesh);
+    animateTo(mesh, x, z, delayIndex);
+  }
+
+  function animateTo(mesh, x, z, delayIndex){
+    const start = { x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, s: mesh.scale.x };
+    const end = { x, z, y: 0.03, s:1.0 };
+    const t0 = performance.now() + delayIndex*120;
+    function frame(now){
+      const t = Math.min(1,(now-t0)/480);
+      const e = (--t)*t*t+1;
+      mesh.position.x = start.x + (end.x - start.x) * e;
+      mesh.position.z = start.z + (end.z - start.z) * e;
+      mesh.position.y = start.y + (end.y - start.y) * Math.max(0.4, e) * (1 + 0.12*Math.sin(Math.PI*e));
+      const s = start.s + (end.s - start.s) * e;
+      mesh.scale.set(s,s,s);
+      if (e < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function placeChips(index, amount){
+    state.three.chipMeshes = state.three.chipMeshes || [];
+    const color = state.seats[index].color || '#ffb86b';
+    const colorInt = parseInt(color.replace('#',''),16);
+    let remaining = amount; let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28,0.28,0.08,24);
+      const mat = new THREE.MeshStandardMaterial({ color: colorInt });
+      const chip = new THREE.Mesh(geo, mat);
+      const angle = (index / Math.max(1,state.seats.length)) * Math.PI * 2;
+      const radius = 0.6 + (index*0.08);
+      chip.position.set(Math.cos(angle)*radius, 0.05 + y, Math.sin(angle)*radius);
+      state.three.scene.add(chip); state.three.chipMeshes.push(chip);
+      y += 0.12; remaining -= denom;
+    }
+  }
+
+  function setupSeats(n){
+    state.seats = [];
+    for (let i=0;i<n;i++){
+      state.seats.push({
+        n:i+1,
+        userLabel: i===0 ? 'You' : `Player ${i+1}`,
+        isHuman: i===0,
+        stack: 1000,
+        folded: false,
+        paid: i===0 ? false : true,
+        ticketUsed: i===0 ? false : true,
+        win:false, lose:false,
+        color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+        isTurn:false
+      });
+    }
+    renderSeats();
+    $('tableTitle').textContent = `T-${Math.random().toString(36).slice(2,8).toUpperCase()} • ${n}-seat`;
+  }
+
+  function renderSeats(){
+    const grid = $('seatsGrid'); grid.innerHTML = '';
+    state.seats.forEach((s, idx) => {
+      const el = document.createElement('div'); el.className='seat';
+      el.style.borderColor = hexToRgba(s.color,0.14);
+      if (s.win) el.classList.add('win'); if (s.lose) el.classList.add('lose');
+      const badge = document.createElement('div'); badge.className='turnBadge'; badge.style.background = hexToRgba(s.color,0.12); badge.style.color = s.color;
+      badge.style.display = s.isTurn ? 'block':'none'; badge.textContent = s.isTurn ? (s.isHuman ? 'You' : `P${s.n}`) : '';
+      el.appendChild(badge);
+      el.innerHTML += `<div style="margin-top:6px"><span class="chipColor" style="background:${s.color}"></span><span class="name">${s.userLabel}</span></div>
+        <div class="small">Chips: <strong>${s.stack}</strong></div>
+        <div class="small">Paid: ${s.paid ? '✓' : '•'} ${s.ticketUsed? '(used)': ''}</div>`;
+      grid.appendChild(el);
+    });
+  }
+
+  function hexToRgba(hex,a){ const c=hex.replace('#',''); const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16); return `rgba(${r},${g},${b},${a})`; }
+
+  function computeSeatPositions(count){
+    const positions=[]; const radius=5.0;
+    for (let i=0;i<count;i++){
+      const angle = Math.PI/2 - (i * (2*Math.PI / count));
+      const x = Math.cos(angle)*radius; const z = Math.sin(angle)*radius * -1;
+      positions.push({x,z});
+    }
+    return positions;
+  }
+
+  // deal: assign holes and animate (face for player, back for others), reveal community in stages with bot pauses
+  function dealSequence(){
+    state.deck = shuffle(canonicalDeck().slice());
+    const assigned = []; let idx=0;
+    for (let r=0;r<2;r++){ for (let i=0;i<state.seats.length;i++){ assigned[i] = assigned[i] || []; assigned[i].push(state.deck[idx++]); } }
+    const communityRes = state.deck.slice(idx, idx+5);
+    state.assignedHoles = assigned; state.community = []; state.pot = 0; $('pot').textContent=`$0`; $('orbPot').textContent=`$0`;
+    clearVisuals(); renderSeats();
+    const seatPos = computeSeatPositions(state.seats.length);
+    let ai = 0;
+    // first round
+    for (let i=0;i<state.seats.length;i++){
+      const p = seatPos[i];
+      if (i===0) spawnCardFace(assigned[i][0], p.x, p.z, -0.12, ai++);
+      else spawnCardBack(p.x,p.z,ai++);
+    }
+    // second round
+    for (let i=0;i<state.seats.length;i++){
+      const p = seatPos[i];
+      if (i===0) spawnCardFace(assigned[i][1], p.x, p.z, 0.12, ai++);
+      else spawnCardBack(p.x,p.z,ai++);
+    }
+    // reveal flop/turn/river
+    const flopAt = ai*120 + 600;
+    setTimeout(()=> {
+      state.community = communityRes.slice(0,3);
+      const spacing=1.28, startX = -((state.community.length-1)*spacing)/2;
+      state.community.forEach((c,i)=> spawnCardFace(c, startX + i*spacing, 0, 0, i));
+      appendLog('Flop revealed.');
+    }, flopAt);
+    const turnAt = flopAt + 1200 + randomThink();
+    setTimeout(()=> {
+      state.community = communityRes.slice(0,4);
+      spawnCardFace(state.community[3], 1.28, 0, 0, 8);
+      appendLog('Turn revealed.');
+    }, turnAt);
+    const riverAt = turnAt + 1200 + randomThink();
+    setTimeout(()=> {
+      state.community = communityRes.slice(0,5);
+      spawnCardFace(state.community[4], 2.56, 0, 0, 10);
+      appendLog('River revealed.');
+    }, riverAt);
+
+    setTimeout(()=> { setActiveSeat(0); appendLog('Your turn'); startHandClock(); }, Math.max(400, ai*120+280));
+  }
+
+  function randomThink(){ return state.botMin + Math.floor(Math.random()*(state.botMax-state.botMin)); }
+
+  function setActiveSeat(i){ state.seats.forEach((s,idx)=>s.isTurn = idx===i); renderSeats(); if (i===0) appendLog('Your turn'); else appendLog(`${state.seats[i].userLabel} turn`); }
+
+  function startHandClock(){ stopHandClock(); state.handLeft=25; updateTimer(); state.handClock = setInterval(()=>{ state.handLeft = Math.max(0,state.handLeft-1); updateTimer(); if (state.handLeft<=0){ stopHandClock(); appendLog('Timer expired — auto-check'); appendLog('Auto-check executed'); advanceTurn((currentIndex()+1)%state.seats.length); } }, 1000); }
+  function stopHandClock(){ if (state.handClock){ clearInterval(state.handClock); state.handClock=null; } }
+  function updateTimer(){ $('handTimer').textContent = `${state.handLeft}s`; }
+  function currentIndex(){ return state.seats.findIndex(s=>s.isTurn); }
+  function advanceTurn(nextIdx){
+    // find next non-folded
+    let i = nextIdx;
+    for (let c=0;c<state.seats.length;c++){
+      const idx = (nextIdx + c) % state.seats.length;
+      if (!state.seats[idx].folded){ i = idx; break; }
+    }
+    setTimeout(()=> { setActiveSeat(i); if (i!==0) simulateBot(i); else startHandClock(); }, 160);
+  }
+
+  function simulateBot(i){
+    appendLog(`${state.seats[i].userLabel} is thinking...`);
+    const delay = randomThink();
+    setTimeout(()=> {
+      const r = Math.random();
+      if (r < 0.14){ state.seats[i].folded = true; appendLog(`${state.seats[i].userLabel} folded`); renderSeats(); }
+      else if (r < 0.5){ const amt = Math.min(10 + Math.floor(Math.random()*30), state.seats[i].stack); state.seats[i].stack -= amt; placeChips(i, amt); state.pot += amt; $('pot').textContent=`$${state.pot}`; $('orbPot').textContent=`$${state.pot}`; appendLog(`${state.seats[i].userLabel} bet $${amt}`); renderSeats(); }
+      else appendLog(`${state.seats[i].userLabel} checked`);
+      advanceTurn((i+1)%state.seats.length);
+    }, delay);
+  }
+
+  // wire UI
+  function wire(){
+    $('startGame').addEventListener('click', ()=>{ if (state.inGame) { appendLog('Already in game'); return; } const seats = parseInt($('tableSelect').value||'6',10); setupSeats(seats); state.inGame=true; $('startGame').textContent='In game'; $('startGame').disabled=true; $('joinMatch').disabled=true; $('statusPill').textContent='Game running'; initThree(); clearVisuals(); dealSequence(); });
+    $('joinMatch').addEventListener('click', ()=>{ if (!state.inGame) $('startGame').click(); else appendLog('Joined existing match'); });
+    $('betBtn').addEventListener('click', ()=>{ stopHandClock(); const amt = Math.max(1, parseInt($('betSize').value||'10',10)); appendLog(`You bet $${amt}`); state.seats[0].stack -= amt; placeChips(0, amt); state.pot += amt; $('pot').textContent=`$${state.pot}`; $('orbPot').textContent=`$${state.pot}`; renderSeats(); advanceTurn((currentIndex()+1)%state.seats.length); });
+    $('callBtn').addEventListener('click', ()=>{ stopHandClock(); appendLog('You called'); advanceTurn((currentIndex()+1)%state.seats.length); });
+    $('checkBtn').addEventListener('click', ()=>{ stopHandClock(); appendLog('You checked'); advanceTurn((currentIndex()+1)%state.seats.length); });
+    $('foldBtn').addEventListener('click', ()=>{ stopHandClock(); state.seats[0].folded=true; appendLog('You folded'); renderSeats(); advanceTurn((currentIndex()+1)%state.seats.length); });
+    $('showdownBtn').addEventListener('click', ()=>{ appendLog('Showdown requested'); const cont = state.seats.filter(s=>!s.folded).map(s=>s.userLabel).join(', '); appendLog(`Contenders: ${cont}`); });
+    $('genTicket').addEventListener('click', ()=>{ const id='TKT-'+Math.random().toString(36).slice(2,9).toUpperCase(); $('ticketView').textContent=id; appendLog(`Ticket ${id} generated`); });
+    $('saveTicket').addEventListener('click', ()=>{ const val = $('ticketView').textContent; if (!val || val==='—'){ alert('No ticket'); return;} const blob=new Blob([val]); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${val}.txt`; a.click(); URL.revokeObjectURL(a.href); appendLog('Ticket saved locally'); });
+    $('markPaid').addEventListener('click', ()=>{ const t=$('ticketView').textContent; if (!t || t==='—'){ alert('No ticket'); return; } state.seats[0].paid=true; state.seats[0].ticketUsed=true; renderSeats(); appendLog(`Ticket ${t} marked paid`); });
+  }
+
+  // init page
+  function init(){
+    setupSeats(6); renderSeats(); appendLog('Ready. Press Start game to deal a Hold\'em hand.'); wire(); initThree();
+  }
+
+  init();
+
+  // expose for dev
+  window._pstate = state;
+
+})();
+</script>
+</body>
+</html>

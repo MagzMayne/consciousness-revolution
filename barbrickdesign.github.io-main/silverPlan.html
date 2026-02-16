@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Silver Planner — Sellers, Sold Data, Active Scan, Map, Roadmap</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --bg:#0b0f14; --card:#141a22; --text:#e7edf7; --muted:#90a4b8; --accent:#4bd5ff;
+    --pos:#7effa1; --neg:#ff6b7a; --border:#2a3340; --pill:#17202b;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:1rem; background:var(--bg); color:var(--text); }
+  h1 { font-size:1.25rem; margin-bottom:0.5rem; }
+  h2 { font-size:1rem; margin:0 0 0.5rem; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  label { display:block; margin:0.5rem 0 0.25rem; font-weight:600; color:var(--muted); }
+  input, textarea, button { width:100%; padding:0.6rem; border-radius:10px; border:1px solid var(--border); background:#0f141b; color:var(--text); }
+  button { background:var(--pill); font-weight:700; cursor:pointer; }
+  button:active { transform: translateY(1px); }
+  .muted { color:var(--muted); }
+  .pos { color:var(--pos); font-weight:700; }
+  .neg { color:var(--neg); font-weight:700; }
+  .flex { display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .pill { display:inline-block; padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:999px; font-size:0.8rem; color:var(--muted); }
+  .table-wrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:820px; margin-top:0.5rem; font-size:0.9rem; }
+  th, td { border:1px solid var(--border); padding:0.5rem; text-align:right; white-space:nowrap; }
+  th { background:#17202b; color:var(--muted); }
+  td:first-child, th:first-child { text-align:left; }
+  canvas { width:100% !important; max-height:320px; }
+  #map { height:360px; border:1px solid var(--border); border-radius:10px; }
+  .warn { background: rgba(255,107,122,0.10); }
+  .ok { background: rgba(126,255,161,0.10); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; }
+  @media (max-width:800px){ .grid2, .grid3 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Silver Planner — Sellers + Map + Roadmap</h1>
+  <p class="muted">Rank shops by sold results, scan active listings, plot seller locations, and get an end-to-end roadmap with local logs.</p>
+  <div class="grid2">
+    <div>
+      <label for="bankroll">Current bankroll ($)</label>
+      <input id="bankroll" type="number" value="300" />
+    </div>
+    <div>
+      <label for="target">Annual profit goal ($)</label>
+      <input id="target" type="number" value="20000" />
+    </div>
+    <div>
+      <label for="spotOz">Spot price ($/oz)</label>
+      <input id="spotOz" type="number" value="58.00" />
+    </div>
+    <div>
+      <label for="resaleOz">Resale price ($/oz, blended)</label>
+      <input id="resaleOz" type="number" value="65.00" />
+    </div>
+    <div>
+      <label for="buyPct">Buy ceiling (% of spot per pure gram)</label>
+      <input id="buyPct" type="number" value="75" />
+    </div>
+    <div>
+      <label for="processPerG">Processing ($/g pure)</label>
+      <input id="processPerG" type="number" value="0.10" />
+    </div>
+    <div>
+      <label for="feePct">Fees (% of revenue)</label>
+      <input id="feePct" type="number" value="15" />
+    </div>
+    <div>
+      <label for="turnoverDays">Turnover days per flip</label>
+      <input id="turnoverDays" type="number" value="7" />
+    </div>
+  </div>
+  <div class="flex" style="margin-top:0.5rem;">
+    <button id="runBtn">Run roadmap</button>
+    <button id="resetBtn">Reset local data</button>
+    <button id="exportBtn">Export JSON</button>
+    <button id="importBtn">Import JSON</button>
+  </div>
+  <div id="unitEconomics" style="margin-top:0.5rem;"></div>
+  <div id="summary" class="muted"></div>
+</div>
+
+<div class="card">
+  <h2>Seller filter — ingest sold listing data</h2>
+  <p class="muted">Paste sold listings lines: seller | grams | final_price | shipping | feedback_pct | feedback_count</p>
+  <textarea id="soldPaste" rows="5" placeholder="e.g.
+sellerA | 210 | 202.50 | 0 | 99.7 | 2400
+sellerA | 320 | 290.10 | 12 | 99.7 | 2400
+sellerB | 180 | 240.00 | 8 | 100 | 1200"></textarea>
+  <div class="flex" style="margin-top:0.5rem;">
+    <button id="ingestSoldBtn">Ingest sold listings</button>
+    <button id="clearSellersBtn">Clear seller data</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Seller</th><th>Feedback</th><th>Lots</th><th>Avg $/g pure</th><th>% under ceiling</th><th>Avg ship</th><th>Tier</th><th>City/State</th><th>Distance (mi)</th>
+        </tr>
+      </thead>
+      <tbody id="sellerBody"></tbody>
+    </table>
+  </div>
+  <p class="muted">Bookmarklets: visit an eBay search page, then tap the bookmarklet to add entries locally.</p>
+  <div class="grid2">
+    <div>
+      <label>Bookmarklet — Sold listings page</label>
+      <textarea id="bookmarkletSold" rows="4" readonly></textarea>
+    </div>
+    <div>
+      <label>Bookmarklet — Active listings page</label>
+      <textarea id="bookmarkletActive" rows="4" readonly></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Seller map and location tools</h2>
+  <div class="grid3">
+    <div>
+      <label for="homeLocation">Home location (City, State)</label>
+      <input id="homeLocation" type="text" value="Zionsville, IN" />
+    </div>
+    <div>
+      <label for="sellerLocation">Add/update seller location (seller → City, State)</label>
+      <input id="sellerLocation" type="text" placeholder="e.g., ilyakipnis → Brooklyn, NY" />
+    </div>
+    <div>
+      <label for="geoNote">Note</label>
+      <input id="geoNote" type="text" placeholder="optional" />
+    </div>
+  </div>
+  <div class="flex" style="margin-top:0.5rem;">
+    <button id="applyHomeBtn">Set home location</button>
+    <button id="applySellerLocBtn">Set seller location</button>
+    <button id="autoGeocodeBtn">Auto-geocode sellers missing location</button>
+  </div>
+  <div id="map" style="margin-top:0.75rem;"></div>
+</div>
+
+<div class="card">
+  <h2>Guided step (next flip)</h2>
+  <div id="guidedStep"></div>
+  <div class="grid3" style="margin-top:0.5rem;">
+    <div>
+      <label for="actualListingGrams">Actual listing grams (.925)</label>
+      <input id="actualListingGrams" type="number" placeholder="e.g., 220" />
+    </div>
+    <div>
+      <label for="actualBid">Actual purchase price ($)</label>
+      <input id="actualBid" type="number" placeholder="e.g., 280" />
+    </div>
+    <div>
+      <label for="actualProcessing">Actual processing ($)</label>
+      <input id="actualProcessing" type="number" placeholder="e.g., 22" />
+    </div>
+    <div>
+      <label for="actualRevenue">Actual resale revenue ($)</label>
+      <input id="actualRevenue" type="number" placeholder="e.g., 410" />
+    </div>
+    <div>
+      <label for="actualFees">Actual fees ($)</label>
+      <input id="actualFees" type="number" placeholder="e.g., 62" />
+    </div>
+    <div>
+      <label for="actualNotes">Notes</label>
+      <input id="actualNotes" type="text" placeholder="auction ID, seller, etc." />
+    </div>
+  </div>
+  <div class="flex" style="margin-top:0.5rem;">
+    <button id="recordFlipBtn">Record flip actuals</button>
+    <button id="advanceBtn">Advance without record</button>
+  </div>
+  <div id="discipline" class="muted" style="margin-top:0.25rem;"></div>
+  <div id="delta" class="muted" style="margin-top:0.25rem;"></div>
+</div>
+
+<div class="card">
+  <h2>Projected roadmap (full path)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Flip</th><th>Bankroll start</th><th>Target listing g</th><th>Max bid</th><th>Processing</th><th>Revenue</th><th>Profit</th><th>Bankroll end</th><th>Day</th>
+        </tr>
+      </thead>
+      <tbody id="roadmapBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Progress log (local)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Bankroll start</th><th>Target listing g</th><th>Max bid</th><th>Proc budget</th><th>Actual listing g</th><th>Bid</th><th>Proc</th><th>Revenue</th><th>Fees</th><th>Profit</th><th>Bankroll end</th><th>Day</th><th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Charts</h2>
+  <canvas id="growthChart"></canvas>
+  <canvas id="profitChart" style="margin-top:0.75rem;"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  const gramsPerOz = 31.1035;
+  const purity = 0.925;
+  const storeKey = 'silverPlanner_v4';
+  const sellersKey = 'silverPlanner_sellers_v4';
+  const geoKey = 'silverPlanner_geo_v4';
+
+  // Elements
+  const els = {
+    bankroll: document.getElementById('bankroll'),
+    target: document.getElementById('target'),
+    spotOz: document.getElementById('spotOz'),
+    resaleOz: document.getElementById('resaleOz'),
+    buyPct: document.getElementById('buyPct'),
+    processPerG: document.getElementById('processPerG'),
+    feePct: document.getElementById('feePct'),
+    turnoverDays: document.getElementById('turnoverDays'),
+    runBtn: document.getElementById('runBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    importBtn: document.getElementById('importBtn'),
+    unitEconomics: document.getElementById('unitEconomics'),
+    summary: document.getElementById('summary'),
+    roadmapBody: document.getElementById('roadmapBody'),
+    guidedStep: document.getElementById('guidedStep'),
+    discipline: document.getElementById('discipline'),
+    delta: document.getElementById('delta'),
+    logBody: document.getElementById('logBody'),
+    growthChart: document.getElementById('growthChart'),
+    profitChart: document.getElementById('profitChart'),
+    soldPaste: document.getElementById('soldPaste'),
+    ingestSoldBtn: document.getElementById('ingestSoldBtn'),
+    clearSellersBtn: document.getElementById('clearSellersBtn'),
+    sellerBody: document.getElementById('sellerBody'),
+    bookmarkletSold: document.getElementById('bookmarkletSold'),
+    bookmarkletActive: document.getElementById('bookmarkletActive'),
+    recordFlipBtn: document.getElementById('recordFlipBtn'),
+    advanceBtn: document.getElementById('advanceBtn'),
+    actualListingGrams: document.getElementById('actualListingGrams'),
+    actualBid: document.getElementById('actualBid'),
+    actualProcessing: document.getElementById('actualProcessing'),
+    actualRevenue: document.getElementById('actualRevenue'),
+    actualFees: document.getElementById('actualFees'),
+    actualNotes: document.getElementById('actualNotes'),
+    homeLocation: document.getElementById('homeLocation'),
+    sellerLocation: document.getElementById('sellerLocation'),
+    geoNote: document.getElementById('geoNote'),
+    applyHomeBtn: document.getElementById('applyHomeBtn'),
+    applySellerLocBtn: document.getElementById('applySellerLocBtn'),
+    autoGeocodeBtn: document.getElementById('autoGeocodeBtn')
+  };
+
+  function fmt(n, dp=2){ return Number(n||0).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+
+  // State
+  let state = load(storeKey) || { inputs: readInputs(), progress:{ day:0, flipIndex:0, bankroll: parseFloat(els.bankroll.value||0), cumulativeProfit:0 }, logs:[] };
+  let sellerStats = load(sellersKey) || {};
+  let geo = load(geoKey) || { home: { name: 'Zionsville, IN', lat: 39.9509, lon: -86.2619 }, sellers: {} };
+
+  function readInputs(){
+    return {
+      bankroll: parseFloat(els.bankroll.value||0),
+      target: parseFloat(els.target.value||0),
+      spotOz: parseFloat(els.spotOz.value||0),
+      resaleOz: parseFloat(els.resaleOz.value||0),
+      buyPct: parseFloat(els.buyPct.value||0)/100,
+      processPerG: parseFloat(els.processPerG.value||0),
+      feePct: parseFloat(els.feePct.value||0)/100,
+      turnoverDays: parseFloat(els.turnoverDays.value||7)
+    };
+  }
+  function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+  function load(key){ try { return JSON.parse(localStorage.getItem(key)||''); } catch(e){ return null; } }
+
+  // Unit econ
+  function renderUnitEconomics(){
+    const I = state.inputs;
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const profitPerG = revenuePerGAfterFees - buyCeilPerG - I.processPerG;
+    const costPerG = buyCeilPerG + I.processPerG;
+    const roi = (profitPerG>0 && costPerG>0) ? (profitPerG/costPerG) : -Infinity;
+    els.unitEconomics.innerHTML = `
+      <div class="flex">
+        <span class="pill">Spot: $${fmt(I.spotOz)} /oz ($${fmt(spotPerG,4)} /g)</span>
+        <span class="pill">Resale: $${fmt(I.resaleOz)} /oz ($${fmt(resalePerG,4)} /g)</span>
+        <span class="pill">Buy ceiling: ${fmt(I.buyPct*100,0)}% ⇒ $${fmt(buyCeilPerG,4)} /g pure</span>
+        <span class="pill">Processing: $${fmt(I.processPerG,4)} /g pure</span>
+        <span class="pill">Fees: ${fmt(I.feePct*100,0)}%</span>
+        <span class="pill">Profit/g: $${fmt(profitPerG,4)} | ROI/flip: ${roi>0?fmt(roi*100,2)+'%':'N/A'}</span>
+      </div>
+      ${profitPerG<=0?'<p class="neg">Unit economics negative. Raise resale, lower buy %, or reduce processing/fees.</p>':''}
+    `;
+  }
+
+  // Simulation
+  function simulateFrom(bankroll0){
+    const I = state.inputs;
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const costPerG = buyCeilPerG + I.processPerG;
+    const profitPerG = revenuePerGAfterFees - costPerG;
+    if (profitPerG <= 0 || costPerG <= 0) return { rows:[], reached:false };
+
+    const rows = [];
+    let day = state.progress.day;
+    let bankroll = bankroll0;
+    let cumulative = state.progress.cumulativeProfit;
+    const maxDays = 365, maxFlips = 200;
+
+    let flips = 0;
+    while (day < maxDays && flips < maxFlips && cumulative < I.target && bankroll < I.target){
+      flips++;
+      const pureGrams = bankroll / costPerG;
+      const listingGrams = pureGrams / purity;
+      const maxBid = pureGrams * buyCeilPerG;
+      const procBudget = pureGrams * I.processPerG;
+      const revenue = pureGrams * revenuePerGAfterFees;
+      const profit = revenue - (maxBid + procBudget);
+      cumulative += profit; bankroll += profit; day += I.turnoverDays;
+      rows.push({ flip: state.progress.flipIndex + flips,
+                  bankrollStart: bankroll - profit,
+                  listingGrams, maxBid, procBudget,
+                  revenue, profit, bankrollEnd: bankroll, day });
+    }
+    const reached = (cumulative >= I.target) || (bankroll >= I.target);
+    return { rows, reached, finalBankroll: bankroll, finalCumulative: cumulative };
+  }
+
+  // Roadmap + guided step + charts
+  let chart1=null, chart2=null;
+  function renderRoadmap(){
+    const sim = simulateFrom(state.progress.bankroll);
+    els.summary.innerHTML = sim.rows.length
+      ? (sim.reached ? `<span class="pos">Target reachable. Flips: ${sim.rows.length}. Final bankroll: $${fmt(sim.finalBankroll)}. Cumulative profit: $${fmt(sim.finalCumulative)}.</span>`
+                     : `<span class="muted">Target not reached in 365 days. Flips: ${sim.rows.length}. Final bankroll: $${fmt(sim.finalBankroll)}. Cumulative profit: $${fmt(sim.finalCumulative)}.</span>`)
+      : '<span class="neg">No growth — fix unit economics.</span>';
+
+    // Guided step
+    if(sim.rows.length){
+      const n = sim.rows[0];
+      els.guidedStep.innerHTML = `
+        <p>
+          <strong>Next flip (Day ${n.day - state.inputs.turnoverDays} → ${n.day})</strong><br>
+          Target listing grams: ${fmt(n.listingGrams)} g (.925) ≈ pure ${fmt(n.listingGrams * purity)} g<br>
+          Max bid: $${fmt(n.maxBid)} | Processing: $${fmt(n.procBudget)}<br>
+          Expected revenue (after fees): $${fmt(n.revenue)} | Expected profit: <span class="${n.profit>=0?'pos':'neg'}">$${fmt(n.profit)}</span>
+        </p>
+        ${recommendSellers(n.listingGrams)}
+      `;
+    } else {
+      els.guidedStep.innerHTML = '<p class="muted">No next step available — adjust inputs.</p>';
+    }
+
+    // Roadmap table
+    els.roadmapBody.innerHTML = sim.rows.map(r => `
+      <tr>
+        <td>${r.flip}</td><td>$${fmt(r.bankrollStart)}</td><td>${fmt(r.listingGrams)}</td>
+        <td>$${fmt(r.maxBid)}</td><td>$${fmt(r.procBudget)}</td>
+        <td>$${fmt(r.revenue)}</td><td class="${r.profit>=0?'pos':'neg'}">$${fmt(r.profit)}</td>
+        <td>$${fmt(r.bankrollEnd)}</td><td>${r.day}</td>
+      </tr>
+    `).join('');
+
+    // Charts: history + projection
+    const labels = [];
+    const bankrollData = [];
+    const cumulativeData = [];
+    let cum = 0;
+    state.logs.forEach(r=>{ labels.push(r.day); bankrollData.push(r.bankrollEnd); cum+=r.profit; cumulativeData.push(cum); });
+    sim.rows.forEach(r=>{ labels.push(r.day); bankrollData.push(r.bankrollEnd); cum+=r.profit; cumulativeData.push(cum); });
+
+    const ctx1 = els.growthChart.getContext('2d');
+    const ctx2 = els.profitChart.getContext('2d');
+    if(chart1) chart1.destroy(); if(chart2) chart2.destroy();
+
+    chart1 = new Chart(ctx1,{ type:'line',
+      data:{ labels, datasets:[
+        { label:'Bankroll', data:bankrollData, borderColor:'#4bd5ff', fill:false },
+        { label:'Target', data:labels.map(()=>state.inputs.target), borderColor:'#ff6b7a', borderDash:[5,5], fill:false }
+      ]},
+      options:{ responsive:true, plugins:{ legend:{ labels:{ color:'#e7edf7' } } },
+        scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+    chart2 = new Chart(ctx2,{ type:'line',
+      data:{ labels, datasets:[
+        { label:'Cumulative profit', data:cumulativeData, borderColor:'#7effa1', fill:false },
+        { label:'Target', data:labels.map(()=>state.inputs.target), borderColor:'#ff6b7a', borderDash:[5,5], fill:false }
+      ]},
+      options:{ responsive:true, plugins:{ legend:{ labels:{ color:'#e7edf7' } } },
+        scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+  }
+
+  // Seller ranking
+  function ingestSold(text){
+    const lines = text.split('\n').map(x=>x.trim()).filter(Boolean);
+    lines.forEach(line=>{
+      const parts = line.split('|').map(x=>x.trim());
+      if(parts.length < 4) return;
+      const seller = parts[0];
+      const grams = parseFloat(parts[1]||0);
+      const finalPrice = parseFloat(parts[2]||0);
+      const shipping = parseFloat(parts[3]||0);
+      const feedbackPct = parseFloat(parts[4]||99);
+      const feedbackCnt = parseFloat(parts[5]||0);
+
+      const pureG = grams * purity;
+      const totalPaid = finalPrice + (shipping||0);
+      const pricePerPureG = pureG>0 ? (totalPaid / pureG) : Infinity;
+
+      if(!sellerStats[seller]) sellerStats[seller] = { lots:[], feedbackPct:feedbackPct||99, feedbackCnt:feedbackCnt||0 };
+      sellerStats[seller].lots.push({ grams, pureG, finalPrice, shipping, totalPaid, pricePerPureG });
+      sellerStats[seller].feedbackPct = feedbackPct || sellerStats[seller].feedbackPct;
+      sellerStats[seller].feedbackCnt = feedbackCnt || sellerStats[seller].feedbackCnt;
+    });
+    save(sellersKey, sellerStats);
+    renderSellerTable();
+  }
+
+  function computeTier(feedbackPct, feedbackCnt, avgPricePerPure, underCeilPct, buyCeilPerG){
+    if((feedbackPct>=99 && feedbackCnt>=1000) && avgPricePerPure<=buyCeilPerG && underCeilPct>=70) return 'Tier 1';
+    if((feedbackPct>=98 && feedbackCnt>=300) && underCeilPct>=40) return 'Tier 2';
+    return 'Tier 3';
+  }
+  function tierRank(t){ return t==='Tier 1'?0: t==='Tier 2'?1:2; }
+
+  // Distance
+  function haversine(lat1, lon1, lat2, lon2){
+    function toRad(x){return x*Math.PI/180;}
+    const R=3958.8; // miles
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  function renderSellerTable(){
+    const I = state.inputs;
+    const spotPerG = I.spotOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+
+    const rows = Object.entries(sellerStats).map(([seller, data])=>{
+      const lots = data.lots||[];
+      const avgPricePerPure = lots.length ? (lots.reduce((a,c)=>a+c.pricePerPureG,0)/lots.length) : 0;
+      const underCeilPct = lots.length ? (100 * lots.filter(x=>x.pricePerPureG <= buyCeilPerG).length / lots.length) : 0;
+      const avgShip = lots.length ? (lots.reduce((a,c)=>a+(c.shipping||0),0)/lots.length) : 0;
+      const tier = computeTier(data.feedbackPct||99, data.feedbackCnt||0, avgPricePerPure, underCeilPct, buyCeilPerG);
+
+      const loc = geo.sellers[seller];
+      const dist = (loc && loc.lat && loc.lon) ? haversine(geo.home.lat, geo.home.lon, loc.lat, loc.lon) : null;
+
+      return { seller, feedback:`${fmt(data.feedbackPct||99,1)}% / ${fmt(data.feedbackCnt||0,0)}`, lots:lots.length,
+               avgPricePerPure, underCeilPct, avgShip, tier,
+               cityState: loc? (loc.name||'') : '', distance: dist };
+    }).sort((a,b)=>{
+      // Sort by tier, then shipping distance ascending, then % under ceiling, then avg price ascending
+      const tOrder = tierRank(a.tier) - tierRank(b.tier);
+      if(tOrder!==0) return tOrder;
+      const dOrder = (a.distance||Infinity) - (b.distance||Infinity);
+      if(dOrder!==0) return dOrder;
+      const u = b.underCeilPct - a.underCeilPct;
+      if(u!==0) return u;
+      return a.avgPricePerPure - b.avgPricePerPure;
+    });
+
+    els.sellerBody.innerHTML = rows.map(r=>`
+      <tr class="${r.tier==='Tier 1'?'ok':''}">
+        <td>${r.seller}</td>
+        <td>${r.feedback}</td>
+        <td>${r.lots}</td>
+        <td>$${fmt(r.avgPricePerPure,4)}</td>
+        <td>${fmt(r.underCeilPct,1)}%</td>
+        <td>$${fmt(r.avgShip,2)}</td>
+        <td>${r.tier}</td>
+        <td>${r.cityState||''}</td>
+        <td>${r.distance? fmt(r.distance,0) : ''}</td>
+      </tr>
+    `).join('');
+
+    // Update map markers
+    updateMapMarkers();
+  }
+
+  function recommendSellers(targetListingGrams){
+    const I = state.inputs;
+    const spotPerG = I.spotOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const candidates = Object.entries(sellerStats).map(([seller, data])=>{
+      const lots = data.lots||[];
+      if(!lots.length) return null;
+      const under = lots.filter(x=>x.pricePerPureG <= buyCeilPerG).length;
+      const underPct = 100*under/lots.length;
+      const avgPricePerPure = lots.reduce((a,c)=>a+c.pricePerPureG,0)/lots.length;
+      const tier = computeTier(data.feedbackPct||99, data.feedbackCnt||0, avgPricePerPure, underPct, buyCeilPerG);
+
+      const loc = geo.sellers[seller];
+      const dist = (loc && loc.lat && loc.lon) ? haversine(geo.home.lat, geo.home.lon, loc.lat, loc.lon) : Infinity;
+
+      return { seller, tier, underPct, avgPricePerPure, dist };
+    }).filter(Boolean).filter(x=>x.tier!=='Tier 3')
+      .sort((a,b)=> tierRank(a.tier)-tierRank(b.tier) || a.dist-b.dist || b.underPct-a.underPct || a.avgPricePerPure-b.avgPricePerPure)
+      .slice(0,5);
+
+    if(!candidates.length) return `<p class="muted">No qualified sellers yet. Ingest sold/active data to rank shops.</p>`;
+    return `<p><strong>Recommended sellers:</strong> ${candidates.map(x=>`${x.seller} (${x.tier}, ~${fmt(x.dist,0)} mi, ${fmt(x.underPct,0)}% under ceiling)`).join(' • ')}</p>`;
+  }
+
+  // Bookmarklets
+  els.bookmarkletSold.value = `javascript:(function(){
+    function n(x){return x?parseFloat((x+'').replace(/[^0-9.]/g,''))||0:0;}
+    function gramsFromTitle(t){var m=(t||'').match(/(\\d+[\\.,]?\\d*)\\s*(g|grams|gram)/i); return m?parseFloat(m[1].replace(',','.')):0;}
+    var items = document.querySelectorAll('li.s-item');
+    var out = [];
+    items.forEach(function(it){
+      var title = it.querySelector('.s-item__title')?.innerText||'';
+      var seller = it.querySelector('.s-item__seller-info-text, .s-item__seller-info-name')?.innerText||'';
+      var priceText = it.querySelector('.s-item__price')?.innerText||'';
+      var shipText = it.querySelector('.s-item__shipping, .s-item__logisticsCost')?.innerText||'';
+      var grams = gramsFromTitle(title);
+      var price = n(priceText), ship = n(shipText);
+      // Sold pages show green price; we take it at face value.
+      if(grams>0 && (price>0 || ship>0) && seller){ out.push({seller:seller.trim(), grams:grams, finalPrice:price, shipping:ship}); }
+    });
+    var key='${sellersKey}';
+    var sellers = JSON.parse(localStorage.getItem(key)||'{}');
+    out.forEach(function(row){
+      var pureG = row.grams*0.925;
+      var totalPaid = row.finalPrice + (row.shipping||0);
+      var pricePerPureG = pureG>0? (totalPaid/pureG):Infinity;
+      if(!sellers[row.seller]) sellers[row.seller]={lots:[], feedbackPct:99, feedbackCnt:0};
+      sellers[row.seller].lots.push({grams:row.grams, pureG:pureG, finalPrice:row.finalPrice, shipping:row.shipping, totalPaid:totalPaid, pricePerPureG:pricePerPureG});
+    });
+    localStorage.setItem(key, JSON.stringify(sellers));
+    alert('Saved '+out.length+' sold entries. Open planner to update sellers.');
+  })();`;
+
+  els.bookmarkletActive.value = `javascript:(function(){
+    function n(x){return x?parseFloat((x+'').replace(/[^0-9.]/g,''))||0:0;}
+    function gramsFromTitle(t){var m=(t||'').match(/(\\d+[\\.,]?\\d*)\\s*(g|grams|gram)/i); return m?parseFloat(m[1].replace(',','.')):0;}
+    var items = document.querySelectorAll('li.s-item');
+    var out = [];
+    items.forEach(function(it){
+      var title = it.querySelector('.s-item__title')?.innerText||'';
+      var seller = it.querySelector('.s-item__seller-info-text, .s-item__seller-info-name')?.innerText||'';
+      var priceText = it.querySelector('.s-item__price')?.innerText||'';
+      var shipText = it.querySelector('.s-item__shipping, .s-item__logisticsCost')?.innerText||'';
+      var grams = gramsFromTitle(title);
+      var price = n(priceText), ship = n(shipText);
+      // Active listings give a ceiling estimate (price+ship / grams).
+      if(grams>0 && (price>0 || ship>0) && seller){ out.push({seller:seller.trim(), grams:grams, finalPrice:price, shipping:ship}); }
+    });
+    var key='${sellersKey}';
+    var sellers = JSON.parse(localStorage.getItem(key)||'{}');
+    out.forEach(function(row){
+      var pureG = row.grams*0.925;
+      var totalPaid = row.finalPrice + (row.shipping||0);
+      var pricePerPureG = pureG>0? (totalPaid/pureG):Infinity;
+      if(!sellers[row.seller]) sellers[row.seller]={lots:[], feedbackPct:99, feedbackCnt:0};
+      sellers[row.seller].lots.push({grams:row.grams, pureG:pureG, finalPrice:row.finalPrice, shipping:row.shipping, totalPaid:totalPaid, pricePerPureG:pricePerPureG});
+    });
+    localStorage.setItem(key, JSON.stringify(sellers));
+    alert('Saved '+out.length+' active entries. Open planner to update sellers.');
+  })();`;
+
+  // Map
+  let map = L.map('map').setView([geo.home.lat, geo.home.lon], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, attribution:'© OpenStreetMap'}).addTo(map);
+  let homeMarker = L.marker([geo.home.lat, geo.home.lon]).addTo(map).bindPopup('Home: '+(geo.home.name||''));
+  let sellerMarkers = {};
+
+  function updateMapMarkers(){
+    // Home
+    homeMarker.setLatLng([geo.home.lat, geo.home.lon]).bindPopup('Home: '+(geo.home.name||''));
+    // Sellers
+    Object.keys(sellerMarkers).forEach(k=>{ map.removeLayer(sellerMarkers[k]); });
+    sellerMarkers = {};
+    Object.entries(geo.sellers).forEach(([seller,loc])=>{
+      if(loc.lat && loc.lon){
+        const m = L.marker([loc.lat, loc.lon]).addTo(map).bindPopup(`${seller}<br>${loc.name||''}`);
+        sellerMarkers[seller] = m;
+      }
+    });
+  }
+
+  async function geocode(name){
+    // Nominatim geocoding (basic). You can replace with any geocoder.
+    try{
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(name);
+      const res = await fetch(url, { headers: { 'Accept':'application/json' } });
+      const data = await res.json();
+      if(data && data[0]) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      return null;
+    }catch(e){ return null; }
+  }
+
+  // Seller table render
+  renderUnitEconomics();
+  renderSellerTable();
+  renderLogs();
+  renderRoadmap();
+
+  // Event bindings
+  els.runBtn.addEventListener('click', ()=>{ state.inputs = readInputs(); state.progress.bankroll = state.inputs.bankroll; save(storeKey,state); renderUnitEconomics(); renderSellerTable(); renderRoadmap(); });
+  els.resetBtn.addEventListener('click', ()=>{ state = { inputs: readInputs(), progress:{ day:0, flipIndex:0, bankroll: parseFloat(els.bankroll.value||0), cumulativeProfit:0 }, logs:[] }; save(storeKey,state); renderLogs(); renderRoadmap(); els.delta.innerHTML = '<span class="muted">Reset complete.</span>'; });
+  els.exportBtn.addEventListener('click', ()=>{
+    const payload = { state, sellerStats, geo };
+    const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='silver_planner.json'; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+  });
+  els.importBtn.addEventListener('click', ()=>{
+    const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+    input.onchange = (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          if(!data.state || !data.sellerStats || !data.geo) throw new Error('Invalid file');
+          state = data.state; sellerStats = data.sellerStats; geo = data.geo;
+          // Apply inputs
+          els.bankroll.value = state.inputs.bankroll;
+          els.target.value = state.inputs.target;
+          els.spotOz.value = state.inputs.spotOz;
+          els.resaleOz.value = state.inputs.resaleOz;
+          els.buyPct.value = state.inputs.buyPct*100;
+          els.processPerG.value = state.inputs.processPerG;
+          els.feePct.value = state.inputs.feePct*100;
+          els.turnoverDays.value = state.inputs.turnoverDays;
+          save(storeKey,state); save(sellersKey,sellerStats); save(geoKey,geo);
+          renderUnitEconomics(); renderSellerTable(); renderLogs(); renderRoadmap(); updateMapMarkers();
+          els.delta.innerHTML = '<span class="pos">Imported successfully.</span>';
+        }catch(err){ els.delta.innerHTML = `<span class="neg">Import failed: ${err.message}</span>`; }
+      };
+      reader.readAsText(f);
+    };
+    input.click();
+  });
+
+  els.ingestSoldBtn.addEventListener('click', ()=>{ ingestSold(els.soldPaste.value||''); els.soldPaste.value=''; });
+  els.clearSellersBtn.addEventListener('click', ()=>{ sellerStats={}; save(sellersKey,sellerStats); renderSellerTable(); });
+
+  // Record/advance
+  function renderLogs(){
+    els.logBody.innerHTML = state.logs.map((r,idx)=>`
+      <tr class="${(r.actualBid>r.maxBid || r.actualProcessing>r.procBudget)?'warn':''}">
+        <td>${idx+1}</td>
+        <td>$${fmt(r.bankrollStart)}</td>
+        <td>${fmt(r.targetListingGrams)}</td>
+        <td>$${fmt(r.maxBid)}</td>
+        <td>$${fmt(r.procBudget)}</td>
+        <td>${fmt(r.actualListingGrams)}</td>
+        <td>$${fmt(r.actualBid)}</td>
+        <td>$${fmt(r.actualProcessing)}</td>
+        <td>$${fmt(r.actualRevenue)}</td>
+        <td>$${fmt(r.actualFees)}</td>
+        <td class="${r.profit>=0?'pos':'neg'}">$${fmt(r.profit)}</td>
+        <td>$${fmt(r.bankrollEnd)}</td>
+        <td>${r.day}</td>
+        <td>${r.notes||''}</td>
+      </tr>
+    `).join('') || `<tr><td colspan="14" class="muted">No flips recorded yet.</td></tr>`;
+  }
+  function recordFlip(){
+    const I = state.inputs;
+    const sim = simulateFrom(state.progress.bankroll);
+    if(!sim.rows.length){ els.delta.innerHTML = '<span class="neg">Cannot record — roadmap not available.</span>'; return; }
+    const plan = sim.rows[0];
+    const actualListingGrams = parseFloat(els.actualListingGrams.value||0);
+    const actualBid = parseFloat(els.actualBid.value||0);
+    const actualProcessing = parseFloat(els.actualProcessing.value||0);
+    const actualRevenue = parseFloat(els.actualRevenue.value||0);
+    const actualFees = parseFloat(els.actualFees.value||0);
+    const notes = els.actualNotes.value||'';
+    const profit = actualRevenue - actualFees - (actualBid + actualProcessing);
+    const newBankroll = state.progress.bankroll + profit;
+    const newDay = state.progress.day + I.turnoverDays;
+
+    const entry = {
+      bankrollStart: state.progress.bankroll,
+      targetListingGrams: plan.listingGrams,
+      maxBid: plan.maxBid, procBudget: plan.procBudget,
+      actualListingGrams, actualBid, actualProcessing, actualRevenue, actualFees,
+      profit, bankrollEnd: newBankroll, day: newDay, notes
+    };
+    state.logs.push(entry);
+    state.progress = { day: newDay, flipIndex: plan.flip, bankroll: newBankroll, cumulativeProfit: state.progress.cumulativeProfit + profit };
+
+    els.discipline.innerHTML = `
+      ${actualBid<=plan.maxBid ? '<span class="pos">Bid within ceiling.</span>' : '<span class="neg">Exceeded max bid.</span>'}
+      ${actualProcessing<=plan.procBudget ? '<span class="pos">Processing within budget.</span>' : '<span class="neg">Processing over budget.</span>'}
+    `;
+    els.delta.innerHTML = `<span>Recorded: Profit $${fmt(profit)} → Bankroll $${fmt(newBankroll)} | Day ${newDay}</span>`;
+    ['actualListingGrams','actualBid','actualProcessing','actualRevenue','actualFees','actualNotes'].forEach(id=>{ document.getElementById(id).value=''; });
+
+    save(storeKey,state); renderLogs(); renderRoadmap();
+  }
+  function advanceNoRecord(){
+    const I = state.inputs;
+    state.progress.day += I.turnoverDays;
+    state.progress.flipIndex += 1;
+    els.delta.innerHTML = `<span class="muted">Advanced without recording. Flip #${state.progress.flipIndex}</span>`;
+    save(storeKey,state); renderRoadmap();
+  }
+  els.recordFlipBtn.addEventListener('click', recordFlip);
+  els.advanceBtn.addEventListener('click', advanceNoRecord);
+
+  // Locations: home + seller set + geocode
+  function renderHomeInput(){ els.homeLocation.value = geo.home.name || 'Zionsville, IN'; }
+  els.applyHomeBtn.addEventListener('click', async ()=>{
+    const name = els.homeLocation.value.trim();
+    const g = await geocode(name);
+    if(g){ geo.home = { name, lat:g.lat, lon:g.lon }; save(geoKey,geo); map.setView([g.lat,g.lon], 5); updateMapMarkers(); renderSellerTable(); }
+    else { els.delta.innerHTML = '<span class="neg">Home geocode failed.</span>'; }
+  });
+  els.applySellerLocBtn.addEventListener('click', async ()=>{
+    const text = els.sellerLocation.value.trim();
+    const m = text.split('→');
+    if(m.length<2){ els.delta.innerHTML='<span class="neg">Use format: seller → City, State</span>'; return; }
+    const seller = m[0].trim(); const name = m[1].trim();
+    const g = await geocode(name);
+    if(g){ geo.sellers[seller] = { name, lat:g.lat, lon:g.lon }; save(geoKey,geo); updateMapMarkers(); renderSellerTable(); els.sellerLocation.value=''; }
+    else { els.delta.innerHTML = '<span class="neg">Seller geocode failed.</span>'; }
+  });
+  els.autoGeocodeBtn.addEventListener('click', async ()=>{
+    // Try geocoding missing sellers using sellerStats hints (no direct hints available; requires manual names)
+    const missing = Object.keys(sellerStats).filter(s=>!geo.sellers[s]);
+    let done=0;
+    for(const s of missing){
+      // Heuristic: attempt city/state from notes (not available) — leave as manual unless you enrich data externally
+      // Here we skip auto attempts; prompt manual entries
+    }
+    els.delta.innerHTML = '<span class="muted">Auto-geocode requires seller city/state text. Use “seller → City, State”.</span>';
+  });
+  renderHomeInput();
+
+  // Live recompute on input change
+  ['bankroll','target','spotOz','resaleOz','buyPct','processPerG','feePct','turnoverDays'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', ()=>{
+      state.inputs = readInputs(); renderUnitEconomics(); renderSellerTable(); renderRoadmap(); save(storeKey,state);
+    });
+  });
+
+  // Initial maps and roadmap
+  updateMapMarkers();
+})();
+</script>
+</body>
+</html>

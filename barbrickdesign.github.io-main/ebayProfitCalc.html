@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Metals & Gemstones Bid & Profit Calculator</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; background:#0b0f14; color:#e7edf7; }
+  h1 { margin-bottom:1rem; }
+  label { display:block; margin:0.5rem 0 0.25rem; font-weight:600; }
+  input, select { padding:0.5rem; border-radius:6px; border:1px solid #ccc; width:200px; }
+  table { border-collapse:collapse; margin-top:1rem; width:100%; }
+  th, td { border:1px solid #444; padding:0.5rem; text-align:right; }
+  th { background:#141a22; color:#90a4b8; }
+  .pos { color:#7effa1; font-weight:700; }
+  .neg { color:#ff6b7a; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>Metals & Gemstones Bid & Profit Calculator</h1>
+
+<label for="mode">Select Mode:</label>
+<select id="mode">
+  <option value="metal">Metal (grams/oz)</option>
+  <option value="gem">Gemstone (stones)</option>
+</select>
+
+<div id="metalInputs">
+  <label for="grams">Listing grams (.925 total weight)</label>
+  <input id="grams" type="number" value="500" />
+  <label for="spot">Spot price ($/oz)</label>
+  <input id="spot" type="number" value="58.00" />
+  <label for="buyPct">Buy ceiling (% of spot)</label>
+  <input id="buyPct" type="number" value="90" />
+  <label for="process">Processing ($/g)</label>
+  <input id="process" type="number" value="0.10" />
+</div>
+
+<div id="gemInputs" style="display:none;">
+  <label for="stones">Stone count</label>
+  <input id="stones" type="number" value="100" />
+  <label for="buyStone">Buy price per stone ($)</label>
+  <input id="buyStone" type="number" value="5" />
+  <label for="sellStone">Sell price per stone ($)</label>
+  <input id="sellStone" type="number" value="10" />
+  <label for="processStone">Processing per stone ($)</label>
+  <input id="processStone" type="number" value="0.50" />
+</div>
+
+<div id="output"></div>
+
+<script>
+function fmt(n){return n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function calc(){
+  const mode=document.getElementById('mode').value;
+  let html="";
+  if(mode==="metal"){
+    const grams=parseFloat(document.getElementById('grams').value||0);
+    const spotOz=parseFloat(document.getElementById('spot').value||0);
+    const buyPct=parseFloat(document.getElementById('buyPct').value||90)/100;
+    const process=parseFloat(document.getElementById('process').value||0.10);
+    const purity=0.925, gramsPerOz=31.1035;
+    const spotGram=spotOz/gramsPerOz;
+    const pureGrams=grams*purity;
+    const buyCeil=spotGram*buyPct;
+    const maxBid=pureGrams*buyCeil;
+    const procCost=pureGrams*process;
+    const totalCost=maxBid+procCost;
+    html+=`<p><strong>Pure grams:</strong> ${fmt(pureGrams)} g<br>
+           <strong>Max bid:</strong> $${fmt(maxBid)}<br>
+           <strong>Total cost:</strong> $${fmt(totalCost)}</p>`;
+    html+="<table><tr><th>Sale $/oz</th><th>Sale $/g</th><th>Revenue</th><th>Profit</th></tr>";
+    [42,50,55,60,65,70].forEach(oz=>{
+      const saleGram=oz/gramsPerOz;
+      const revenue=pureGrams*saleGram;
+      const profit=revenue-totalCost;
+      html+=`<tr><td>$${oz}</td><td>$${fmt(saleGram)}</td><td>$${fmt(revenue)}</td><td class="${profit>=0?'pos':'neg'}">$${fmt(profit)}</td></tr>`;
+    });
+    html+="</table>";
+  } else {
+    const stones=parseFloat(document.getElementById('stones').value||0);
+    const buyStone=parseFloat(document.getElementById('buyStone').value||0);
+    const sellStone=parseFloat(document.getElementById('sellStone').value||0);
+    const procStone=parseFloat(document.getElementById('processStone').value||0);
+    const maxBid=stones*buyStone;
+    const revenue=stones*sellStone;
+    const procCost=stones*procStone;
+    const totalCost=maxBid+procCost;
+    const profit=revenue-totalCost;
+    html+=`<p><strong>Stone count:</strong> ${stones}<br>
+           <strong>Max bid:</strong> $${fmt(maxBid)}<br>
+           <strong>Total cost:</strong> $${fmt(totalCost)}<br>
+           <strong>Revenue:</strong> $${fmt(revenue)}<br>
+           <strong>Profit:</strong> <span class="${profit>=0?'pos':'neg'}">$${fmt(profit)}</span></p>`;
+  }
+  document.getElementById('output').innerHTML=html;
+}
+
+['grams','spot','buyPct','process','stones','buyStone','sellStone','processStone','mode'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',calc);
+  document.getElementById(id).addEventListener('change',calc);
+});
+calc();
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AuctionSpark — Seed Pack Inventory with Roadmap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background:#0b0e12; color:#d6e3ff; margin:20px; }
+    h1 { color:#4aa3ff; }
+    h2 { margin-top:20px; color:#8aa0bf; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { border:1px solid #1c2230; padding:8px; text-align:left; font-size:14px; }
+    th { background:#12161c; color:#8aa0bf; }
+    td { background:#0f141b; }
+    .controls { margin-top:20px; }
+    input, select, button {
+      margin:4px; padding:6px; border-radius:6px; border:1px solid #1c2230;
+      background:#0f141b; color:#d6e3ff;
+    }
+    button { cursor:pointer; background:#4aa3ff; border:none; }
+    .rarity { font-size:12px; padding:3px 8px; border-radius:999px; display:inline-block; }
+    .Ultra-Rare { background:#9333ea; color:#fff; }
+    .Rare { background:#2563eb; color:#fff; }
+    .Limited { background:#f59e0b; color:#fff; }
+    .Standard { background:#6b7280; color:#fff; }
+    #totals, #roadmap { margin-top:16px; font-size:14px; line-height:1.6; }
+    .warning { color:#ff4d4d; font-size:12px; }
+  </style>
+</head>
+<body>
+
+<h1>AuctionSpark — Seed Pack Inventory</h1>
+
+<section>
+  <h2>Seed Pack Inventory</h2>
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>Seed Type</th>
+        <th>Rarity</th>
+        <th>Quantity</th>
+        <th>Base Price (USD)</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="controls">
+    <label>Seed Type:</label>
+    <select id="seedType"></select>
+    <label>Change:</label>
+    <input type="number" id="seedChange" placeholder="+1 or -1" />
+    <button onclick="updateInventory()">Update Inventory</button>
+  </div>
+
+  <!-- Totals -->
+  <div id="totals"></div>
+
+  <!-- Roadmap -->
+  <div id="roadmap"></div>
+</section>
+
+<script>
+// Minimum threshold for market impact
+const MIN_THRESHOLD = 8;
+
+// Seed catalog (example quantities)
+const seedCatalog = {
+  "Purple Tulip": { rarity:"Ultra-Rare", qty:3, basePrice:5000 },
+  "White Rose": { rarity:"Ultra-Rare", qty:3, basePrice:5000 },
+  "Oil Palm Tree": { rarity:"Ultra-Rare", qty:8, basePrice:5000 },
+  "Lavender": { rarity:"Rare", qty:4, basePrice:2000 },
+  "Orange Daisy": { rarity:"Rare", qty:4, basePrice:2000 },
+  "Red Rose": { rarity:"Rare", qty:1, basePrice:2000 },
+  "Weeping Willow Tree": { rarity:"Rare", qty:7, basePrice:2000 },
+  "Magnolia Tree": { rarity:"Rare", qty:1, basePrice:2000 },
+  "White Tulip": { rarity:"Limited", qty:4, basePrice:500 },
+  "Red Tulip": { rarity:"Limited", qty:2, basePrice:500 },
+  "Yellow Rose": { rarity:"Limited", qty:1, basePrice:500 },
+  "Pink Rose": { rarity:"Limited", qty:2, basePrice:500 },
+  "Boxwood": { rarity:"Limited", qty:2, basePrice:500 },
+  "Lawn Grass": { rarity:"Standard", qty:10, basePrice:100 },
+  "Arborvitae": { rarity:"Standard", qty:4, basePrice:100 },
+  "Pine Tree": { rarity:"Standard", qty:2, basePrice:100 },
+  "Maple Tree": { rarity:"Standard", qty:1, basePrice:100 }
+};
+
+// Populate dropdown
+const select=document.getElementById("seedType");
+for(const seed in seedCatalog){
+  const opt=document.createElement("option");
+  opt.value=seed; opt.textContent=seed;
+  select.appendChild(opt);
+}
+
+// Calculate totals
+function calculateTotals() {
+  let grandTotal=0;
+  const groupTotals={};
+  for (const [seed,s] of Object.entries(seedCatalog)) {
+    const subtotal = s.qty * s.basePrice;
+    grandTotal += subtotal;
+    if (!groupTotals[s.rarity]) groupTotals[s.rarity] = 0;
+    groupTotals[s.rarity] += subtotal;
+  }
+  return { grandTotal, groupTotals };
+}
+
+// Render inventory and totals
+function renderInventory(){
+  const tbody=document.querySelector("#inventoryTable tbody");
+  tbody.innerHTML="";
+  for(const [seed,data] of Object.entries(seedCatalog)){
+    const warning = data.qty < MIN_THRESHOLD ? "<span class='warning'>(below 8)</span>" : "";
+    const row=`<tr>
+      <td>${seed}</td>
+      <td><span class="rarity ${data.rarity}">${data.rarity}</span></td>
+      <td>${data.qty} ${warning}</td>
+      <td>$${data.basePrice.toFixed(2)}</td>
+    </tr>`;
+    tbody.innerHTML+=row;
+  }
+
+  const totals = calculateTotals();
+  const totalsDiv=document.getElementById("totals");
+  totalsDiv.innerHTML=`
+    <strong>Grand Total (USD):</strong> $${totals.grandTotal.toFixed(2)}<br>
+    Ultra-Rare: $${(totals.groupTotals["Ultra-Rare"]||0).toFixed(2)}<br>
+    Rare: $${(totals.groupTotals["Rare"]||0).toFixed(2)}<br>
+    Limited: $${(totals.groupTotals["Limited"]||0).toFixed(2)}<br>
+    Standard: $${(totals.groupTotals["Standard"]||0).toFixed(2)}
+  `;
+
+  generateRoadmap();
+}
+
+// Update inventory
+function updateInventory(){
+  const seedType=document.getElementById("seedType").value;
+  const change=parseInt(document.getElementById("seedChange").value,10);
+  if(!isNaN(change)){
+    seedCatalog[seedType].qty+=change;
+    if(seedCatalog[seedType].qty<0) seedCatalog[seedType].qty=0;
+    renderInventory();
+  }
+  document.getElementById("seedChange").value="";
+}
+
+// Generate roadmap
+function generateRoadmap() {
+  const roadmap = [];
+  for (const [seed, data] of Object.entries(seedCatalog)) {
+    // Weight rarities for impact
+    const rarityWeight = { "Ultra-Rare":3, "Rare":2, "Limited":1.5, "Standard":1 };
+    const deficit = Math.max(0, MIN_THRESHOLD - data.qty);
+    const impactScore = (deficit + data.qty) * rarityWeight[data.rarity];
+    roadmap.push({ seed, rarity: data.rarity, qty: data.qty, deficit, impactScore });
+  }
+
+  // Sort by impact score descending
+  roadmap.sort((a,b) => b.impactScore - a.impactScore);
+
+  const div = document.getElementById("roadmap");
+  div.innerHTML = "<h2>Purchase Roadmap</h2>";
+  div.innerHTML += "<ul>" + roadmap.map(r =>
+    `<li><strong>${r.seed}</strong> (${r.rarity}) — currently ${r.qty}, need ${r.deficit} more → impact score ${r.impactScore.toFixed(1)}</li>`
+  ).join("") + "</ul>";
+}
+
+// Initial render
+renderInventory();
+</script>
+
+</body>
+</html>

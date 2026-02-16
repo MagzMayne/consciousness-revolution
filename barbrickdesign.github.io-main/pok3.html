@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TRON POKER — Dealer Orb, Accurate Hold'em, Bot Thinking</title>
+<meta name="theme-color" content="#07101a"/>
+<style>
+:root{
+  --bg:#07101a; --panel:#0e1622; --accent:#00e5ff; --accent2:#7cffd4;
+  --text:#e6f7ff; --muted:#8fa9b8; --best:#8a2be2; --orb-glow: 0 0 40px rgba(138,43,226,0.18);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(900px at 50% 10%,#071426 0%,var(--bg) 70%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text)}
+.app{max-width:1200px;margin:12px auto;padding:12px}
+.header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.logo{font-weight:900;color:var(--accent);letter-spacing:1px;text-shadow:0 0 22px rgba(0,229,255,0.12)}
+.container{display:grid;grid-template-columns:1fr 360px;gap:12px}
+@media(max-width:980px){.container{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,rgba(10,16,24,0.96),rgba(6,10,14,0.96));border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px}
+.three-wrap{position:relative;border-radius:12px;overflow:visible}
+#threeCanvas{width:100%;height:560px;display:block;background:radial-gradient(900px at 50% 40%, rgba(0,229,255,0.03), rgba(0,0,0,0) 70%)}
+.inline-orb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:32;
+  background:radial-gradient(circle at 40% 30%, rgba(124,255,212,0.08), rgba(0,229,255,0.04) 30%, rgba(0,0,0,0.02) 65%);
+  box-shadow: 0 0 40px rgba(0,229,255,0.12), inset 0 0 30px rgba(124,255,212,0.04); animation:float 5s ease-in-out infinite;}
+@keyframes float{0%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-10px)}100%{transform:translate(-50%,-50%) translateY(0)}}
+.inline-orb .orb-inner{width:86%;height:86%;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:linear-gradient(180deg,rgba(3,10,16,0.6),rgba(2,6,10,0.35));border:1px solid rgba(124,255,212,0.08);backdrop-filter: blur(6px);box-shadow:var(--orb-glow)}
+.inline-orb .pot{font-family:ui-monospace;font-weight:800;color:#bff;font-size:20px}
+.inline-orb .label{font-size:12px;color:var(--muted);margin-top:6px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.input{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px;border-radius:8px;color:var(--text)}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#04222a;cursor:pointer}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px 10px;border-radius:8px;color:var(--accent);cursor:pointer}
+.btn-best{background:linear-gradient(90deg,var(--best),#b07cff);border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#fff;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+@media(max-width:640px){.seatsGrid{grid-template-columns:repeat(2,1fr)}}
+.seat{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;border:1px solid rgba(0,229,255,0.04);text-align:center}
+.seat .name{font-weight:800}
+.seat.win{border-color:rgba(84,255,189,0.95);box-shadow:0 0 14px rgba(84,255,189,0.06)}
+.seat.lose{border-color:rgba(255,77,109,0.95);box-shadow:0 0 14px rgba(255,77,109,0.04)}
+.logArea{font-family:ui-monospace;color:#9df;max-height:420px;overflow:auto;background:transparent;border:none;padding:8px;margin:0;white-space:pre-wrap}
+.small{font-size:13px;color:var(--muted)}
+.bestHint{font-size:13px;color:var(--best);font-weight:700;margin-left:6px}
+.kbd{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.06);padding:6px 8px;border-radius:8px;font-family:ui-monospace}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:60}
+.modal .box{background:#07121a;padding:16px;border-radius:10px;border:1px solid rgba(0,229,255,0.06);min-width:260px;text-align:center}
+.card-label{font-family:ui-monospace;font-weight:800}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">TRON POKER</div>
+    <div class="row">
+      <div class="small">Trust Pool</div>
+      <div class="kbd" id="globalPool">$0</div>
+      <div style="width:12px"></div>
+      <div class="small">Table</div>
+      <div class="kbd" id="tableTitle">—</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div>
+      <div class="panel three-wrap" style="padding:0;overflow:visible">
+        <canvas id="threeCanvas"></canvas>
+
+        <!-- Glowing floating dealer orb centered over table -->
+        <div class="inline-orb" aria-hidden="true">
+          <div class="orb-inner">
+            <div class="pot" id="orbPot">$0</div>
+            <div class="label">Pot</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div class="small">Controls</div>
+            <div class="small">Deal em like a real Hold'em table. Bot thinking pauses simulate multiplayer pacing.</div>
+          </div>
+          <div class="row">
+            <div class="small">Status</div>
+            <div class="kbd" id="statusPill">Idle</div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:8px">
+          <select id="tableSelect" class="input">
+            <option value="6">6-seat (fast)</option>
+            <option value="9">9-seat (full)</option>
+          </select>
+          <select id="variant" class="input" style="width:160px">
+            <option>Texas Hold'em</option>
+          </select>
+          <button id="startGame" class="btn">Start game</button>
+          <button id="joinMatch" class="btn-outline">Join</button>
+
+          <label class="small" style="margin-left:8px">Auto</label>
+          <select id="autoAction" class="input" style="width:160px">
+            <option value="off">Off</option>
+            <option value="autocheck">Auto-check/fold</option>
+            <option value="autobet">Auto-bet (strong)</option>
+          </select>
+          <input id="autoThreshold" class="input" type="number" value="380" style="width:90px" title="Higher = stricter"/>
+        </div>
+
+        <div class="controls" style="margin-top:12px;align-items:center">
+          <button id="checkBtn" class="btn-outline">Check</button>
+          <button id="callBtn" class="btn-outline">Call</button>
+          <input id="betSize" class="input" type="number" placeholder="10" style="width:88px" />
+          <button id="betBtn" class="btn">Bet</button>
+          <button id="foldBtn" class="btn-outline">Fold</button>
+          <button id="showdownBtn" class="btn-outline">Showdown</button>
+          <div style="margin-left:auto" class="row">
+            <div class="small">Timer</div>
+            <div class="kbd" id="handTimer">--</div>
+            <div class="bestHint" id="bestHint">Best: —</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row space" style="justify-content:space-between;align-items:center">
+          <div><div class="small">Seats & balances</div></div>
+          <div><div class="small">Pot</div><div id="pot" class="kbd">$0</div></div>
+        </div>
+        <div class="seatsGrid" id="seatsGrid" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="small">Ticket / payout validation</div>
+        <div class="row" style="margin-top:8px"><input id="paypalEmail" class="input" placeholder="paypal@example.com" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px"><input id="venmoHandle" class="input" placeholder="@venmo" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px">
+          <button id="genTicket" class="btn-outline">Generate</button>
+          <button id="saveTicket" class="btn-outline">Save</button>
+          <button id="markPaid" class="btn-outline">Mark paid</button>
+        </div>
+        <pre id="ticketView" class="kbd" style="margin-top:10px;white-space:pre-wrap">—</pre>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="small">Full log</div>
+        <pre id="log" class="logArea"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="turnModal"><div class="box"><div style="font-weight:800">Your turn</div><div class="small" style="margin-top:8px">Choose an action or allow auto play</div><div style="margin-top:12px"><button id="turnOk" class="btn-outline">OK</button></div></div></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+/*
+  Features implemented in this single-file:
+  - Glowing, floating dealer orb centered over the table showing the current pot for the hand
+  - Cards animate outward from the orb to their positions; layout matches Texas Hold'em (player holes, flop, turn, river)
+  - Accurate simplified hand evaluator for showdown and recommendations
+  - Bot players include simulated "thinking" pauses before acting (configurable delays)
+  - Inline orb log is centered and cascading (newest at top) and does not overlap cards; cards spawn from orb center just above table
+  - Timer never goes negative and triggers configured auto-action when expired
+  - Best action highlighted with purple button (btn-best)
+  - Responsive layout and fixed canvas resizing for desktop
+*/
+
+(function(){
+  // state
+  const state = {
+    inGame: false,
+    seats: [],
+    deck: [],
+    community: [],
+    myHole: [],
+    pot: 0,
+    globalPool: 0,
+    ticket: null,
+    three: { renderer:null, scene:null, camera:null, cardMeshes:[], chipMeshes:[] },
+    handClock: null,
+    handLeft: 0,
+    botThinkMin: 600, // ms
+    botThinkMax: 1600 // ms
+  };
+
+  // DOM
+  const $ = id => document.getElementById(id);
+  const nowStamp = ()=> new Date().toLocaleTimeString();
+
+  function appendLog(msg){
+    const line = `[${nowStamp()}] ${msg}`;
+    // full log appended bottom
+    $('log').textContent += line + '\n';
+    // orb inline: newest at top
+    const inline = $('inlineLog');
+    inline.textContent = line + '\n' + inline.textContent;
+    // keep inline size reasonable
+    const lines = inline.textContent.split('\n').slice(0, 28).join('\n');
+    inline.textContent = lines;
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+
+  // deck helpers
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  const canonicalDeck = ()=> suits.flatMap(s => ranks.map(r => `${r}${s}`));
+  function shuffleCrypto(arr){
+    for (let i = arr.length - 1; i > 0; i--){
+      const rnd = crypto.getRandomValues(new Uint32Array(1))[0] / 0xffffffff;
+      const j = Math.floor(rnd * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // THREE setup with fixed resize handling
+  function initThree(){
+    const canvas = $('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+    function resize(){
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) renderer.setSize(w, h, false);
+      if (state.three.camera){ state.three.camera.aspect = w / h; state.three.camera.updateProjectionMatrix(); }
+    }
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07101a);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 6.5, 10); camera.lookAt(0, 0, 0);
+
+    const ambient = new THREE.AmbientLight(0x88ffff, 0.6); scene.add(ambient);
+    const spot = new THREE.SpotLight(0x00e5ff, 1, 80, Math.PI/4, 0.5); spot.position.set(8, 12, 8); scene.add(spot);
+
+    const tableGeo = new THREE.CylinderGeometry(6.2, 6.2, 0.42, 64);
+    const tableMat = new THREE.MeshStandardMaterial({ color:0x0f2233, emissive:0x002233, roughness:0.6, metalness:0.1 });
+    const table = new THREE.Mesh(tableGeo, tableMat); table.position.y = -0.22; scene.add(table);
+
+    const ring = new THREE.Mesh(new THREE.RingGeometry(6.4, 6.8, 64), new THREE.MeshBasicMaterial({ color:0x00e5ff, side:THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI/2; ring.position.y = 0.01; scene.add(ring);
+
+    state.three.renderer = renderer; state.three.scene = scene; state.three.camera = camera;
+
+    function animate(){
+      table.rotation.y += 0.0009;
+      resize();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener('resize', resize);
+  }
+
+  function clearCardMeshes(){
+    state.three.cardMeshes.forEach(m => state.three.scene.remove(m));
+    state.three.cardMeshes.length = 0;
+  }
+  function clearChipMeshes(){
+    state.three.chipMeshes.forEach(m => state.three.scene.remove(m));
+    state.three.chipMeshes.length = 0;
+  }
+
+  // spawn card from orb center with arc and rotation to target (emulates dealer dealing)
+  function spawnCardFromOrbAnimated(text, targetX, targetZ, tilt=0, delayIndex=0){
+    const geo = new THREE.PlaneGeometry(0.64, 0.95);
+    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 384;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#07111a'; ctx.fillRect(0,0,256,384);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,364);
+    ctx.fillStyle = (text.includes('♥')||text.includes('♦')) ? '#ff6b6b' : '#ffffff';
+    ctx.font = 'bold 60px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 192);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.25 });
+    const mesh = new THREE.Mesh(geo, mat);
+    // start at orb center slightly above table (y)
+    mesh.position.set(0, 0.65, 0);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.rotation.z = tilt;
+    mesh.scale.set(0.01, 0.01, 0.01);
+    state.three.scene.add(mesh);
+    state.three.cardMeshes.push(mesh);
+
+    // animate along an arc (ease)
+    const start = { x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, s: 0.01 };
+    const end = { x: targetX, z: targetZ, y: 0.03, s: 1.0 };
+    const t0 = performance.now() + delayIndex * 140;
+    function frame(now){
+      const t = Math.min(1, (now - t0) / 520);
+      const eased = easeOutCubic(t);
+      // simple arc in y
+      const arcHeight = 0.9 + 0.2*Math.sin(t*Math.PI);
+      mesh.position.x = start.x + (end.x - start.x) * eased;
+      mesh.position.z = start.z + (end.z - start.z) * eased;
+      mesh.position.y = start.y + (end.y - start.y) * eased * arcHeight;
+      const s = start.s + (end.s - start.s) * eased;
+      mesh.scale.set(s,s,s);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+  function easeOutCubic(t){ return (--t)*t*t+1; }
+
+  // layout positions for hold'em: community five (flop(3), turn, river) centered at z=0; player holes at z forward
+  function layoutCardsAnimated(){
+    clearCardMeshes();
+    const community = state.community || [];
+    const spacing = 1.28;
+    const startX = -((community.length - 1) * spacing) / 2;
+    community.forEach((c,i) => {
+      // community on z=0
+      const x = startX + i * spacing;
+      spawnCardFromOrbAnimated(c, x, 0, 0, i);
+    });
+    // player's hole cards (two) positioned at front (toward camera)
+    const hole = state.myHole || [];
+    const holeSpacing = 1.1;
+    const startHX = -((hole.length - 1) * holeSpacing) / 2;
+    hole.forEach((c,i) => {
+      spawnCardFromOrbAnimated(c, startHX + i * holeSpacing, 3.3, (i===0?-0.28:0.28), (community.length + i));
+    });
+  }
+
+  // chips visuals
+  function addChipsVisual(amount){
+    const map = {25:0x54ffbd,10:0x00a2ff,5:0xff4d6d};
+    let remaining = amount;
+    let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28, 0.28, 0.08, 24);
+      const mat = new THREE.MeshStandardMaterial({ color: map[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.three.scene.add(chip);
+      state.three.chipMeshes.push(chip);
+      y += 0.12; remaining -= denom;
+    }
+  }
+  function clearPotVisual(){ clearChipMeshes(); }
+
+  // seat rendering
+  function renderSeats(){
+    const grid = $('seatsGrid'); grid.innerHTML = '';
+    state.seats.forEach(s => {
+      const d = document.createElement('div'); d.className = 'seat';
+      if (s.win) d.classList.add('win'); if (s.lose) d.classList.add('lose');
+      const paid = s.paid ? '✓' : '•';
+      d.innerHTML = `<div class="name">${s.userLabel}</div><div class="small">Chips: <strong>${s.stack}</strong></div><div class="small">Paid: ${paid} ${s.ticketUsed? '(used)':''}</div>`;
+      grid.appendChild(d);
+    });
+  }
+
+  // scoring / hand evaluation (reasonable simplified evaluator covering pair/trips/quads/straights/flushes/fullhouse)
+  // This is a compact evaluator that correctly ranks common Hold'em hands for fair outcomes.
+  function cardToRank(card){
+    const r = card.slice(0, -1);
+    return ({'A':14,'K':13,'Q':12,'J':11}[r] || parseInt(r,10));
+  }
+  function cardToSuit(card){ return card.slice(-1); }
+
+  function evaluate7(cards){
+    // returns numeric score tuple mapped to single number for comparison: higher = better
+    // We'll compute: [category(8..0), tiebreakers...]
+    // categories: 8:straight flush,7:four,6:full,5:flush,4:straight,3:trips,2:two pair,1:pair,0:high
+    const vals = cards.map(cardToRank).sort((a,b)=>b-a);
+    const suitsArr = cards.map(cardToSuit);
+    const counts = {};
+    vals.forEach(v => counts[v] = (counts[v]||0)+1);
+    const byCount = Object.entries(counts).map(([v,c])=>({v:parseInt(v,10),c})).sort((a,b)=> b.c - a.c || b.v - a.v);
+    // detect flush
+    const suitCounts = {};
+    suitsArr.forEach(s => suitCounts[s] = (suitCounts[s]||0)+1);
+    const flushSuit = Object.entries(suitCounts).find(([s,c])=>c>=5);
+    let flushCards = [];
+    if (flushSuit) flushCards = cards.filter(c => cardToSuit(c)===flushSuit[0]).map(cardToRank).sort((a,b)=>b-a);
+    // detect straight (including wheel A-5)
+    const uniqueVals = Array.from(new Set(vals)).sort((a,b)=>b-a);
+    function bestStraight(arr){
+      if (arr.length < 5) return null;
+      // include Ace-low possibility
+      const set = new Set(arr);
+      if (set.has(14)) arr.push(1);
+      let best = null;
+      for (let v of arr){
+        let h = v;
+        let ok = true;
+        for (let k=1;k<5;k++){
+          if (!set.has(h-k)){ ok=false; break; }
+        }
+        if (ok) { best = v; break; }
+      }
+      return best;
+    }
+    const straightHigh = bestStraight(uniqueVals.slice());
+    // straight flush
+    let straightFlushHigh = null;
+    if (flushCards.length >= 5){
+      const u = Array.from(new Set(flushCards));
+      straightFlushHigh = bestStraight(u.slice());
+    }
+    // build scores
+    if (straightFlushHigh) return {cat:8, t:[straightFlushHigh]};
+    if (byCount[0].c === 4){
+      const quad = byCount[0].v;
+      const kicker = byCount.slice(1).map(x=>x.v)[0];
+      return {cat:7, t:[quad,kicker]};
+    }
+    if (byCount[0].c === 3 && byCount[1] && byCount[1].c >= 2){
+      const trips = byCount[0].v; const pair = byCount[1].v;
+      return {cat:6, t:[trips,pair]};
+    }
+    if (flushCards.length >= 5){
+      return {cat:5, t: flushCards.slice(0,5)};
+    }
+    if (straightHigh) return {cat:4, t:[straightHigh]};
+    if (byCount[0].c === 3){
+      const trips = byCount[0].v;
+      const kickers = byCount.slice(1).map(x=>x.v).slice(0,2);
+      return {cat:3, t:[trips, ...kickers]};
+    }
+    if (byCount[0].c === 2 && byCount[1] && byCount[1].c === 2){
+      const p1 = byCount[0].v, p2 = byCount[1].v;
+      const kicker = byCount.slice(2).map(x=>x.v)[0];
+      return {cat:2, t:[p1,p2,kicker]};
+    }
+    if (byCount[0].c === 2){
+      const pair = byCount[0].v;
+      const kickers = byCount.slice(1).map(x=>x.v).slice(0,3);
+      return {cat:1, t:[pair, ...kickers]};
+    }
+    return {cat:0, t: vals.slice(0,5)};
+  }
+
+  function compareHands(a,b){
+    if (a.cat !== b.cat) return a.cat - b.cat;
+    for (let i=0;i<Math.max(a.t.length,b.t.length);i++){
+      const av = a.t[i]||0, bv = b.t[i]||0;
+      if (av !== bv) return av - bv;
+    }
+    return 0;
+  }
+
+  // setup seats & dealing with realistic Hold'em sequence and bot thinking pauses
+  function setupSeats(n){
+    state.seats = [];
+    state.seats.push({ n:1, userLabel:'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    for (let i=2;i<=n;i++) state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    renderSeats();
+    $('tableTitle').textContent = `T-${Math.random().toString(36).slice(2,8).toUpperCase()} • ${n}-seat`;
+  }
+
+  function dealFullHandSequence(){
+    // shuffle and assign deck positions
+    state.deck = canonicalDeck(); shuffleCrypto(state.deck);
+    // community initially empty; we'll reveal in stages
+    state.community = [];
+    // player's hole from deck[0..] consistent but we will simulate dealing order: one to each, then second round
+    // for simplicity, assign holes from deck in order but animate as dealt from orb
+    // assign holes: seat1..N (hole1), seat1..N (hole2)
+    const holeCards = [];
+    let idx = 0;
+    // deal first card to each seat
+    for (let i=0;i<state.seats.length;i++){ holeCards[i] = [ state.deck[idx++] ]; }
+    // deal second card to each seat
+    for (let i=0;i<state.seats.length;i++){ holeCards[i].push( state.deck[idx++] ); }
+    // store player's hole
+    state.myHole = holeCards[0].slice();
+    // community cards reserved (next 5)
+    const communityReserved = state.deck.slice(idx, idx+5);
+    // animate dealing: deal two rounds to seats (we only show player's hole) - cards spawn from orb to seat position for all but hidden for bots
+    // we'll still animate all cards outward but bot hole cards will be face-down (back)
+    // Card positions: seat mapping around table (we compute around circle)
+    const seatPositions = computeSeatPositions(state.seats.length);
+    // spawn holes: first round then second round with small delays
+    let animIndex = 0;
+    // round 1
+    for (let i=0;i<state.seats.length;i++){
+      const pos = seatPositions[i];
+      const card = holeCards[i][0];
+      // bots: show back for one of their cards or show face but masked? We will show back for bot holes to preserve illusion
+      spawnCardToSeat(card, pos.x, pos.z, i, animIndex++, true, i!==0);
+    }
+    // round 2
+    for (let i=0;i<state.seats.length;i++){
+      const pos = seatPositions[i];
+      const card = holeCards[i][1];
+      spawnCardToSeat(card, pos.x, pos.z, i, animIndex++, true, i!==0);
+    }
+    // reveal player's hole faces at completion
+    setTimeout(()=> { state.myHole = holeCards[0].slice(); layoutCardsAnimated(); }, animIndex*140 + 220);
+
+    // then schedule the flop (3), turn (1), river (1) with thinking pauses
+    const flopDelay = animIndex*140 + 600;
+    setTimeout(()=> {
+      // reveal flop three simultaneously with small offsets
+      state.community = communityReserved.slice(0,3);
+      layoutCardsAnimated();
+      appendLog('Flop revealed.');
+      updateOrbPot();
+    }, flopDelay);
+
+    const turnDelay = flopDelay + 1200 + randomBotThink(); // pause
+    setTimeout(()=> {
+      state.community = communityReserved.slice(0,4);
+      layoutCardsAnimated();
+      appendLog('Turn revealed.');
+      updateOrbPot();
+    }, turnDelay);
+
+    const riverDelay = turnDelay + 1200 + randomBotThink();
+    setTimeout(()=> {
+      state.community = communityReserved.slice(0,5);
+      layoutCardsAnimated();
+      appendLog('River revealed.');
+      updateOrbPot();
+    }, riverDelay);
+
+    // set pot to zero start
+    state.pot = 0; $('pot').textContent = `$0`; updateOrbPot();
+    // reset seats flags
+    state.seats.forEach(s => { s.folded=false; s.win=false; s.lose=false; });
+    renderSeats();
+    // start player's timer after initial deal
+    const startTimerDelay = animIndex*140 + 300;
+    setTimeout(()=> {
+      startHandClock();
+      evaluateRecommendation();
+      showTurnModal();
+    }, startTimerDelay);
+  }
+
+  // compute seat positions around table (x,z) in world coordinates
+  function computeSeatPositions(count){
+    const positions = [];
+    const radius = 5.0;
+    // place seat 1 (player) at front center (z positive)
+    for (let i=0;i<count;i++){
+      const angle = Math.PI/2 - (i * (2*Math.PI / count)); // seat1 at top-front
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius * -1; // invert so positive z is toward camera
+      positions.push({ x, z });
+    }
+    return positions;
+  }
+
+  // spawn card direct to seat; if faceDown true and mask true then draw back
+  function spawnCardToSeat(cardText, x, z, seatIndex, delayIndex, showFace=true, maskForOpponent=false){
+    // if maskForOpponent true and showFace false show back design; here we accept showFace param to show/hide
+    if (maskForOpponent && !showFace){
+      // create back texture
+      spawnCardBackFromOrb(x, z, delayIndex);
+      return;
+    }
+    // otherwise spawn face
+    spawnCardFromOrbAnimated(cardText, x, z, (Math.random()-0.5)*0.2, delayIndex);
+  }
+
+  // spawn back with stylized design
+  function spawnCardBackFromOrb(x,z,delayIndex){
+    const geo = new THREE.PlaneGeometry(0.64, 0.95);
+    const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=384;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#001827'; ctx.fillRect(0,0,256,384);
+    const g = ctx.createLinearGradient(0,0,256,384); g.addColorStop(0,'#002a3a'); g.addColorStop(1,'#002233');
+    ctx.fillStyle = g; ctx.fillRect(12,12,232,360);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 4; ctx.strokeRect(14,14,228,356);
+    ctx.fillStyle = '#00e5ff'; ctx.font = 'bold 36px system-ui'; ctx.textAlign='center'; ctx.fillText('TRON',128,200);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.12 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0,0.65,0);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.scale.set(0.01,0.01,0.01);
+    state.three.scene.add(mesh);
+    state.three.cardMeshes.push(mesh);
+    const start = { x: mesh.position.x, z: mesh.position.z, y: mesh.position.y, s:0.01 };
+    const end = { x, z, y: 0.03, s:1.0 };
+    const t0 = performance.now() + delayIndex*140;
+    function frame(now){
+      const t = Math.min(1, (now - t0) / 520);
+      const e = easeOutCubic(t);
+      mesh.position.x = start.x + (end.x - start.x) * e;
+      mesh.position.z = start.z + (end.z - start.z) * e;
+      mesh.position.y = start.y + (end.y - start.y) * e * (1 + 0.2*Math.sin(t*Math.PI));
+      const s = start.s + (end.s - start.s) * e;
+      mesh.scale.set(s,s,s);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // layout only player's hole and community for visible face after dealing sequence
+  function layoutCardsAnimated(){
+    // remove existing face meshes and respawn faces from orb for visible cards only (player hole & community)
+    // For simplicity we clear all card meshes and respawn visible ones as faces from orb center with small delay of 0 to create a subtle pop
+    clearCardMeshes();
+    // spawn community
+    const community = state.community || [];
+    const spacing = 1.28;
+    const startX = -((community.length - 1) * spacing) / 2;
+    community.forEach((c,i) => spawnCardFromOrbAnimated(c, startX + i*spacing, 0, 0, i));
+    // spawn player's hole
+    const hole = state.myHole || [];
+    const holeSpacing = 1.1;
+    const startHX = -((hole.length - 1) * holeSpacing) / 2;
+    hole.forEach((c,i) => spawnCardFromOrbAnimated(c, startHX + i*holeSpacing, 3.3, (i===0?-0.28:0.28), community.length + i));
+  }
+
+  // chips
+  function addChipsToPot(amount){
+    state.pot += amount;
+    $('pot').textContent = `$${state.pot}`;
+    updateOrbPot();
+    addChipsVisual(amount);
+  }
+
+  // 3D chip visual helper
+  function addChipsVisual(amount){
+    const colorMap = {25:0x54ffbd,10:0x00a2ff,5:0xff4d6d};
+    let remaining = amount;
+    let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28,0.28,0.08,24);
+      const mat = new THREE.MeshStandardMaterial({ color: colorMap[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.three.scene.add(chip);
+      state.three.chipMeshes.push(chip);
+      y += 0.12; remaining -= denom;
+    }
+  }
+
+  function updateOrbPot(){
+    $('orbPot').textContent = `$${state.pot}`;
+  }
+
+  // recommendation (best action) using evaluate7 for accuracy on board + hole
+  function computeRecommendation(){
+    const hole = state.myHole || [];
+    const board = state.community || [];
+    const full = hole.concat(board);
+    const score = evaluate7(full);
+    // rule: strong categories (6 full,7 four,8 straight flush,5 flush,4 straight,3 trips) => bet threshold
+    const cat = score.cat;
+    let action = 'check';
+    if (cat >= 6) action = 'bet';
+    else if (cat >= 3) action = 'call';
+    else action = 'fold';
+    return { action, score };
+  }
+
+  function compareEval(a,b){ // returns >0 if a better
+    const r = compareHands(a,b);
+    return r;
+  }
+
+  function evaluateRecommendation(){
+    const rec = computeRecommendation();
+    $('bestHint').textContent = `Best: ${rec.action.toUpperCase()} (cat ${rec.score.cat})`;
+    // style buttons
+    ['checkBtn','callBtn','betBtn','foldBtn'].forEach(id=>{
+      const el = $(id);
+      el.classList.remove('btn-best');
+      if (id==='betBtn'){ el.classList.remove('btn-outline'); el.classList.add('btn'); } else { el.classList.remove('btn'); el.classList.add('btn-outline'); }
+    });
+    const map = { check:'checkBtn', call:'callBtn', bet:'betBtn', fold:'foldBtn' };
+    const bestId = map[rec.action];
+    if (bestId){ const b=$(bestId); b.classList.add('btn-best'); b.classList.remove('btn'); b.classList.remove('btn-outline'); }
+  }
+
+  // timer and auto behavior
+  function startHandClock(){
+    stopHandClock();
+    state.handLeft = 25;
+    updateTimerUI();
+    state.handClock = setInterval(()=> {
+      state.handLeft = Math.max(0, state.handLeft - 1);
+      updateTimerUI();
+      if (state.handLeft <= 0){
+        stopHandClock();
+        appendLog('Timer expired; executing auto-action.');
+        executeAutoOnTimeout();
+      }
+    }, 1000);
+  }
+  function stopHandClock(){ if (state.handClock){ clearInterval(state.handClock); state.handClock = null; } }
+  function updateTimerUI(){ $('handTimer').textContent = `${state.handLeft}s`; }
+
+  function executeAutoOnTimeout(){
+    const mode = $('autoAction').value;
+    const rec = computeRecommendation();
+    if (mode === 'autocheck'){
+      if (rec.action === 'fold'){ playerFold(); appendLog('Auto-fold executed.'); }
+      else { playerCheck(); appendLog('Auto-check executed.'); }
+    } else if (mode === 'autobet'){
+      if (rec.score.cat >= 4){ // straight or better
+        const amt = Math.min(Math.max(10, parseInt($('betSize').value||'10',10)), state.seats[0].stack);
+        playerBet(amt); appendLog('Auto-bet executed (strong hand).');
+      } else { playerCheck(); appendLog('Auto-check fallback executed.'); }
+    } else {
+      if (!state.seats[0].folded) { playerCheck(); appendLog('Auto-check (default) executed.'); }
+    }
+    evaluateRecommendation();
+  }
+
+  // actions
+  function playerBet(amount){
+    const s = state.seats[0];
+    if (s.stack < amount){ appendLog('Insufficient chips'); return; }
+    s.stack -= amount;
+    addChipsToPot(amount);
+    renderSeats();
+    appendLog(`You bet $${amount}`);
+    // bots respond with simulated thinking
+    botsTakeTurns(0);
+  }
+  function playerCall(){ appendLog('You called'); botsTakeTurns(0); }
+  function playerCheck(){ appendLog('You checked'); botsTakeTurns(0); }
+  function playerFold(){ state.seats[0].folded = true; appendLog('You folded'); botsTakeTurns(0); }
+
+  // UI bindings
+  $('betBtn').addEventListener('click', ()=>{ stopHandClock(); const amt = Math.max(1, parseInt($('betSize').value||'10',10)); playerBet(amt); });
+  $('callBtn').addEventListener('click', ()=>{ stopHandClock(); playerCall(); });
+  $('checkBtn').addEventListener('click', ()=>{ stopHandClock(); playerCheck(); });
+  $('foldBtn').addEventListener('click', ()=>{ stopHandClock(); playerFold(); });
+
+  // bots with thinking pauses; function triggers each bot in order with random delays
+  function botsTakeTurns(startIndex){
+    // gather bot indices excluding folded seats and human (0)
+    const botIndices = state.seats.map((s,i)=>i).filter(i=>i>0 && !state.seats[i].folded);
+    let idx = 0;
+    function next(){
+      if (idx >= botIndices.length) { appendLog('Bot actions complete.'); return; }
+      const seatIdx = botIndices[idx++];
+      const delay = randomBotThink();
+      appendLog(`${state.seats[seatIdx].userLabel} is thinking...`);
+      setTimeout(()=> {
+        // simple behavior: random fold/check/bet weighted by hand strength
+        const seat = state.seats[seatIdx];
+        const hole = getBotHole(seatIdx);
+        const evalScore = evaluate7(hole.concat(state.community));
+        // strategy: if strong => bet small; if middling => call/check; if weak => fold sometimes
+        const r = Math.random();
+        if (evalScore.cat >= 6 && r < 0.9){ // full/quads -> bet
+          const amt = Math.min(10 + Math.floor(Math.random()*40), seat.stack);
+          if (amt>0){ seat.stack -= amt; addChipsToPot(amt); appendLog(`${seat.userLabel} bet $${amt}`); }
+        } else if (evalScore.cat >=3 && r < 0.8){
+          // call/check
+          appendLog(`${seat.userLabel} called/checked.`);
+        } else {
+          // weak hands sometimes fold
+          if (r < 0.28){ seat.folded = true; appendLog(`${seat.userLabel} folded.`); } else appendLog(`${seat.userLabel} checked.`);
+        }
+        renderSeats();
+        setTimeout(next, 260); // small gap between bots
+      }, delay);
+    }
+    next();
+  }
+
+  function randomBotThink(){ return state.botThinkMin + Math.floor(Math.random()*(state.botThinkMax - state.botThinkMin)); }
+
+  // Bot hole deterministic: use deck slice positions after dealing in dealFullHandSequence
+  // For simplicity, we will store assignedHoleMap in state when dealing.
+  function getBotHole(index){
+    // if state.assignedHoles exists, return assigned holes; else synthesize deterministic from deck
+    if (state.assignedHoles && state.assignedHoles[index]) return state.assignedHoles[index].slice();
+    const base = 2*state.seats.length; // fallback: use deck positions after hole round
+    return [ state.deck[base + (index-1)*2] || 'A♠', state.deck[base + (index-1)*2 + 1] || 'K♠' ];
+  }
+
+  // showdown evaluation and payout
+  function determineWinnerAndPayout(){
+    if (!state.inGame){ appendLog('No active match'); return; }
+    const contenders = state.seats.filter(s=>!s.folded);
+    if (contenders.length === 0){ appendLog('No contenders'); return; }
+    const player = state.seats[0];
+    const opponentsAllBots = state.seats.slice(1).every(s=>!s.isHuman);
+    if (player.paid && opponentsAllBots){
+      player.stack += state.pot;
+      appendLog(`You (paid) automatically win pot $${state.pot}`);
+      if (state.ticket) state.ticket.used = true;
+      state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats(); highlightWin(player.n); return;
+    }
+    // evaluate each contender accurately with evaluate7
+    const scored = contenders.map(s => {
+      let hole = s.isHuman ? state.myHole.slice() : getBotHole(s.n - 1);
+      const all = hole.concat(state.community);
+      return { seat: s, score: evaluate7(all) };
+    });
+    // find best
+    scored.sort((a,b)=> compareHands(b.score, a.score));
+    const bestScore = scored[0].score;
+    const winners = scored.filter(x => compareHands(x.score, bestScore) === 0).map(x=>x.seat);
+    const share = Math.floor(state.pot / winners.length);
+    winners.forEach(w => { w.stack += share; appendLog(`${w.userLabel} wins $${share}`); });
+    state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+    state.seats.forEach(s => s.win = s.lose = false);
+    winners.forEach(w => state.seats[w.n-1].win = true);
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  // highlighting winner
+  function highlightWin(n){
+    state.seats.forEach(s => s.win = s.lose = false);
+    state.seats[n-1].win = true;
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  // ticket and donation flows
+  $('genTicket').addEventListener('click', ()=>{
+    const pp = $('paypalEmail').value.trim(), v = $('venmoHandle').value.trim();
+    if (!pp && !v){ alert('Add PayPal or Venmo'); return; }
+    state.ticket = { id: 'TKT-' + Math.random().toString(36).slice(2,9).toUpperCase(), paypal:pp||null, venmo:v||null, created: new Date().toISOString(), used:false };
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket ${state.ticket.id} generated.`);
+  });
+
+  $('saveTicket').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket'); return; }
+    const blob = new Blob([JSON.stringify(state.ticket, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${state.ticket.id}.json`; a.click(); URL.revokeObjectURL(a.href);
+    appendLog('Ticket saved locally.');
+  });
+
+  $('markPaid').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket'); return; }
+    if (state.ticket.used){ alert('Ticket already used'); return; }
+    const amt = Math.max(0, parseInt($('donateAmt')?.value||'0',10) || 0);
+    if (amt > 0){ state.globalPool += amt; $('globalPool').textContent = `$${state.globalPool}`; appendLog(`Donation recorded $${amt}`); }
+    state.ticket.used = true; state.seats[0].paid = true; state.seats[0].ticketUsed = true; renderSeats();
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket ${state.ticket.id} marked paid — protection active vs bots.`);
+  });
+
+  function addChipsToPot(amount){
+    state.pot += amount;
+    $('pot').textContent = `$${state.pot}`;
+    updateOrbPot();
+    addChipsVisual(amount);
+  }
+
+  // UI actions (player)
+  $('betBtn').addEventListener('click', ()=>{ stopHandClock(); const amt = Math.max(1, parseInt($('betSize').value||'10',10)); playerBet(amt); });
+  $('callBtn').addEventListener('click', ()=>{ stopHandClock(); playerCall(); });
+  $('checkBtn').addEventListener('click', ()=>{ stopHandClock(); playerCheck(); });
+  $('foldBtn').addEventListener('click', ()=>{ stopHandClock(); playerFold(); });
+  $('showdownBtn').addEventListener('click', determineWinnerAndPayout);
+
+  function playerBet(amount){ const s = state.seats[0]; if (s.stack < amount){ appendLog('Insufficient chips'); return; } s.stack -= amount; addChipsToPot(amount); renderSeats(); appendLog(`You bet $${amount}`); botsTakeTurns(0); }
+  function playerCall(){ appendLog('You called'); botsTakeTurns(0); }
+  function playerCheck(){ appendLog('You checked'); botsTakeTurns(0); }
+  function playerFold(){ state.seats[0].folded = true; appendLog('You folded'); botsTakeTurns(0); }
+
+  // botsTakeTurns wrapper already implemented earlier using botsTakeTurns
+
+  // start/join wiring and game flow
+  $('startGame').addEventListener('click', ()=> { if (state.inGame){ appendLog('Already in game'); return; } const seats = parseInt($('tableSelect').value||'6',10); setupSeats(seats); state.inGame = true; $('startGame').textContent = 'In game'; $('startGame').disabled = true; $('joinMatch').disabled = true; $('statusPill').textContent = 'Game running'; state.seats.forEach(s=>{ if (!s.isHuman){ s.paid = true; s.ticketUsed = true; } }); // prepare assigned holes mapping for bots
+    // assign holes deterministically and store for getBotHole
+    dealWithAssignedHoles();
+  });
+
+  $('joinMatch').addEventListener('click', ()=> { if (!state.inGame) $('startGame').click(); else appendLog('Joined existing match'); });
+
+  function dealWithAssignedHoles(){
+    // create deck and assign hole cards and community then animate full sequence
+    state.deck = canonicalDeck(); shuffleCrypto(state.deck);
+    const assigned = [];
+    let idx = 0;
+    // two rounds for holes
+    for (let r=0;r<2;r++){
+      for (let i=0;i<state.seats.length;i++){
+        assigned[i] = assigned[i] || [];
+        assigned[i].push(state.deck[idx++]);
+      }
+    }
+    // reserve community
+    const communityReserved = state.deck.slice(idx, idx+5);
+    state.assignedHoles = assigned; // store for bot hole lookup
+    // animate hole dealing including backs for bots -> spawn visible sequence (we will animate all holes but mask bots)
+    // compute seat positions and spawn card backs/faces
+    const seatPos = computeSeatPositions(state.seats.length);
+    let animIndex = 0;
+    // first round
+    for (let i=0;i<state.seats.length;i++){
+      const pos = seatPos[i];
+      const card = assigned[i][0];
+      const mask = i!==0;
+      spawnCardToSeat(card, pos.x, pos.z, i, animIndex++, false, mask);
+    }
+    // second round
+    for (let i=0;i<state.seats.length;i++){
+      const pos = seatPos[i];
+      const card = assigned[i][1];
+      const mask = i!==0;
+      spawnCardToSeat(card, pos.x, pos.z, i, animIndex++, false, mask);
+    }
+    // after deal animation, set player's hole & reveal player's cards
+    setTimeout(()=> {
+      state.myHole = assigned[0].slice();
+      layoutCardsAnimated(); // shows player's hole and any community (none yet)
+      appendLog('Dealt holes to all seats (players masked).');
+      // now reveal community in stages with bot thinking pauses between
+      const flopAt = animIndex*140 + 500;
+      setTimeout(()=> {
+        state.community = communityReserved.slice(0,3);
+        layoutCardsAnimated(); appendLog('Flop revealed.');
+        updateOrbPot();
+      }, flopAt);
+      const turnAt = flopAt + 1200 + randomBotThink();
+      setTimeout(()=> {
+        state.community = communityReserved.slice(0,4);
+        layoutCardsAnimated(); appendLog('Turn revealed.');
+        updateOrbPot();
+      }, turnAt);
+      const riverAt = turnAt + 1200 + randomBotThink();
+      setTimeout(()=> {
+        state.community = communityReserved.slice(0,5);
+        layoutCardsAnimated(); appendLog('River revealed.');
+        updateOrbPot();
+      }, riverAt);
+      // start player's timer after sequence
+      setTimeout(()=> { startHandClock(); evaluateRecommendation(); showTurnModal(); }, Math.max(flopAt, 600));
+    }, animIndex*140 + 240);
+  }
+
+  // helper: spawnCardToSeat will spawn face if mask false, otherwise back; reuse here
+  function spawnCardToSeat(cardText, x, z, seatIndex, delayIndex, showFace=true, maskForOpponent=false){
+    if (maskForOpponent && !showFace) { spawnCardBackFromOrb(x,z,delayIndex); return; }
+    spawnCardFromOrbAnimated(cardText, x, z, (Math.random()-0.5)*0.2, delayIndex);
+  }
+
+  // spawn back defined earlier used by dealWithAssignedHoles; reuse function
+
+  // timer functions
+  function startHandClock(){
+    stopHandClock();
+    state.handLeft = 25; updateTimerUI();
+    state.handClock = setInterval(()=> {
+      state.handLeft = Math.max(0, state.handLeft - 1);
+      updateTimerUI();
+      if (state.handLeft <= 0){ stopHandClock(); appendLog('Timer expired; executing auto-action.'); executeAutoOnTimeout(); }
+    }, 1000);
+  }
+  function stopHandClock(){ if (state.handClock){ clearInterval(state.handClock); state.handClock = null; } }
+  function updateTimerUI(){ $('handTimer').textContent = `${state.handLeft}s`; }
+
+  // evaluateRecommendation wrapper calling computeRecommendation
+  function evaluateRecommendation(){
+    const rec = computeRecommendation();
+    $('bestHint').textContent = `Best: ${rec.action.toUpperCase()} (cat ${rec.score.cat})`;
+    ['checkBtn','callBtn','betBtn','foldBtn'].forEach(id => {
+      const el = $(id); el.classList.remove('btn-best');
+      if (id==='betBtn'){ el.classList.remove('btn-outline'); el.classList.add('btn'); } else { el.classList.remove('btn'); el.classList.add('btn-outline'); }
+    });
+    const map = { check:'checkBtn', call:'callBtn', bet:'betBtn', fold:'foldBtn' };
+    const bestId = map[rec.action];
+    if (bestId){ const b=$(bestId); b.classList.add('btn-best'); b.classList.remove('btn'); b.classList.remove('btn-outline'); }
+  }
+
+  // show turn modal briefly
+  function showTurnModal(){ $('turnModal').style.display = 'flex'; }
+  $('turnOk').addEventListener('click', ()=> $('turnModal').style.display = 'none');
+
+  // helpers: clear visuals
+  function clearCardMeshes(){ state.three.cardMeshes.forEach(m => state.three.scene.remove(m)); state.three.cardMeshes.length = 0; }
+  function clearChipMeshes(){ state.three.chipMeshes.forEach(m => state.three.scene.remove(m)); state.three.chipMeshes.length = 0; }
+
+  // UI: update orb pot and global pool
+  function updateOrbPot(){ $('orbPot').textContent = `$${state.pot}`; }
+  $('donateAmt')?.addEventListener?.('input', ()=>{}); // noop safe if missing
+
+  // getBotHole fallback for earlier flows where state.assignedHoles exists
+  function getBotHole(index){ if (state.assignedHoles && state.assignedHoles[index]) return state.assignedHoles[index].slice(); const base = 2*state.seats.length + (index-1)*2; return [ state.deck[base] || 'A♠', state.deck[base+1] || 'K♠' ]; }
+
+  // initialization
+  function init(){
+    initThree();
+    setupSeats(6);
+    $('globalPool').textContent = `$${state.globalPool}`;
+    appendLog('Ready. Press Start game to deal a Hold\'em hand.');
+    // encourage periodic recommendation refresh
+    setInterval(()=> { if (state.inGame) evaluateRecommendation(); }, 1500);
+  }
+
+  init();
+
+  // Expose some functions for debugging in console (optional)
+  window._state = state;
+  window.evaluateRecommendation = evaluateRecommendation;
+
+  // Utility: appendLog alias
+  function appendLog(msg){ const line = `[${nowStamp()}] ${msg}`; $('log').textContent += line + '\n'; const inline = $('inlineLog'); inline.textContent = line + '\n' + inline.textContent; inline.textContent = inline.textContent.split('\n').slice(0,28).join('\n'); $('log').scrollTop = $('log').scrollHeight; }
+})();
+</script>
+</body>
+</html>

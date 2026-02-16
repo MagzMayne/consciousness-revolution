@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>RepoFlix Tron — Deep GitHub repo viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #04060a;
+      --fg: #d7faff;
+      --muted: #8fd1da;
+      --card: #0a0f18;
+      --panel: #0a0f18;
+      --accent: #00eaff;    /* Tron cyan */
+      --accent-2: #8a2eff;  /* Purple */
+      --accent-3: #ff5cf0;  /* Magenta */
+      --danger: #ff5c7a;
+      --ok: #66ffa8;
+      --warn: #ffc857;
+      --grid: rgba(0, 234, 255, 0.15);
+      --shadow: rgba(0,0,0,0.6);
+    }
+    html, body {
+      margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+    /* Tron grid background */
+    body::before {
+      content: "";
+      position: fixed; inset: 0;
+      background:
+        linear-gradient(transparent 97%, var(--grid) 97%),
+        linear-gradient(90deg, transparent 97%, var(--grid) 97%);
+      background-size: 28px 28px, 28px 28px;
+      pointer-events: none;
+      opacity: 0.25;
+      filter: drop-shadow(0 0 6px rgba(0, 234, 255, 0.2));
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, rgba(0,234,255,0.08), transparent);
+      border-bottom: 1px solid rgba(0,234,255,0.25);
+      box-shadow: 0 10px 30px var(--shadow);
+      backdrop-filter: blur(8px);
+      padding: 14px 20px;
+    }
+    .brand {
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+      font-family: Orbitron, Inter, sans-serif;
+    }
+    .brand .logo {
+      font-weight: 800; font-size: 1.35rem; letter-spacing: 0.8px;
+      color: var(--accent);
+      text-shadow: 0 0 12px rgba(0,234,255,0.8), 0 0 24px rgba(138,46,255,0.3);
+    }
+    .brand .hint {
+      color: var(--muted); font-size: 0.95rem;
+    }
+    .controls {
+      display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 10px; margin-top: 10px;
+    }
+    input, select, button {
+      background: var(--card); color: var(--fg);
+      border: 1px solid rgba(0,234,255,0.3);
+      padding: 10px 12px; border-radius: 10px; font-size: 0.96rem;
+      box-shadow: inset 0 0 10px rgba(0,234,255,0.12);
+    }
+    input::placeholder { color: #77cbd6; }
+    button {
+      cursor: pointer; border-color: transparent;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+      background-size: 200% 200%;
+      color: #001217; font-weight: 700; font-family: Orbitron, Inter, sans-serif;
+      letter-spacing: 0.6px;
+      animation: glowshift 8s ease infinite;
+      text-shadow: none;
+    }
+    @keyframes glowshift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .secondary { background: var(--card); color: var(--fg); border: 1px solid rgba(138,46,255,0.4); box-shadow: inset 0 0 10px rgba(138,46,255,0.18); }
+    .toggle { margin-left: auto; }
+    #status { margin-top: 10px; color: var(--muted); font-size: 0.92rem; }
+    .status-ok { color: var(--ok); }
+    .status-warn { color: var(--warn); }
+    .status-err { color: var(--danger); }
+
+    main { padding: 22px 20px; display: grid; gap: 28px; }
+    .row { display: grid; gap: 12px; }
+    .row h2 {
+      margin: 0; font-size: 1.05rem; font-family: Orbitron, Inter, sans-serif; letter-spacing: 0.6px;
+    }
+    .carousel {
+      display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 260px);
+      gap: 14px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory;
+    }
+    .carousel::after {
+      content: ""; display: block; height: 2px; width: 100%;
+      background: radial-gradient(ellipse at center, rgba(0,234,255,0.6), transparent 70%);
+      filter: blur(1px); opacity: 0.5;
+    }
+
+    /* Tron card */
+    .card {
+      scroll-snap-align: start; background: var(--card);
+      border-radius: 14px; border: 1px solid rgba(0,234,255,0.35);
+      box-shadow: 0 0 16px rgba(0,234,255,0.35), inset 0 0 14px rgba(0,234,255,0.18), 0 18px 26px var(--shadow);
+      display: grid; grid-template-rows: 120px auto; overflow: hidden; position: relative;
+      transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+      isolation: isolate;
+    }
+    .card:hover {
+      transform: translateY(-2px) scale(1.02);
+      border-color: rgba(138,46,255,0.6);
+      box-shadow: 0 0 22px rgba(138,46,255,0.65), inset 0 0 16px rgba(138,46,255,0.22), 0 24px 34px var(--shadow);
+    }
+    .card::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,234,255,0.08), rgba(138,46,255,0.08));
+      pointer-events: none;
+    }
+    .thumb {
+      background: conic-gradient(from 180deg at 50% 50%, rgba(0,234,255,0.22), rgba(138,46,255,0.22), rgba(255,92,240,0.18), rgba(0,234,255,0.22));
+      display: grid; place-items: center; color: var(--fg); font-weight: 800; font-family: Orbitron, Inter, sans-serif;
+      font-size: 1.05rem; letter-spacing: 0.6px;
+      text-shadow: 0 0 8px rgba(0,234,255,0.6);
+    }
+    .meta { display: grid; gap: 10px; padding: 10px; }
+    .name { font-weight: 700; font-size: 0.98rem; font-family: Orbitron, Inter, sans-serif; letter-spacing: 0.4px; }
+    .desc { color: var(--muted); font-size: 0.88rem; line-height: 1.3; max-height: 2.8em; overflow: hidden; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 0.74rem; padding: 3px 7px; border-radius: 8px;
+      border: 1px solid rgba(138,46,255,0.3); color: var(--muted);
+      box-shadow: inset 0 0 8px rgba(138,46,255,0.16);
+    }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .actions a, .actions button {
+      font-size: 0.82rem; border-radius: 8px; padding: 7px 9px; text-decoration: none;
+    }
+
+    /* Expandable project panel */
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(0,234,255,0.25);
+      border-radius: 12px;
+      box-shadow: 0 0 14px rgba(0,234,255,0.25), inset 0 0 12px rgba(0,234,255,0.15);
+      padding: 10px; margin-top: 8px; display: none;
+    }
+    .panel.open { display: grid; gap: 10px; }
+
+    .project-grid {
+      display: grid; gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    .project-item {
+      border: 1px solid rgba(138,46,255,0.35); border-radius: 10px; padding: 10px;
+      background: #09101a;
+      box-shadow: inset 0 0 10px rgba(138,46,255,0.18);
+    }
+    .project-head {
+      display: flex; align-items: center; gap: 8px; justify-content: space-between;
+    }
+    .project-title {
+      font-family: Orbitron, Inter, sans-serif; font-size: 0.92rem; letter-spacing: 0.3px;
+    }
+    .health {
+      font-size: 0.75rem; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(0,234,255,0.3);
+    }
+    .health.ok { color: var(--bg); background: var(--ok); border-color: rgba(102,255,168,0.5); }
+    .health.warn { color: var(--bg); background: var(--warn); border-color: rgba(255,200,87,0.5); }
+    .health.err { color: var(--bg); background: var(--danger); border-color: rgba(255,92,122,0.5); }
+    .paths { color: var(--muted); font-size: 0.82rem; margin-top: 6px; }
+    .project-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .chip {
+      border: 1px solid rgba(0,234,255,0.35); border-radius: 14px; padding: 4px 8px; font-size: 0.78rem; color: var(--fg);
+      box-shadow: inset 0 0 8px rgba(0,234,255,0.18);
+    }
+
+    .footer { color: var(--muted); font-size: 0.85rem; padding: 8px 20px 20px; }
+    .right { margin-left: auto; }
+
+    /* Small utilities */
+    .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ml-auto { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">RepoFlix Tron</div>
+      <div class="hint">Deep GitHub repo viewer — Scan HTML projects, versions, and link health</div>
+      <button class="secondary toggle ml-auto" id="themeBtn">Toggle theme</button>
+    </div>
+    <div class="controls">
+      <input id="username" placeholder="GitHub username (e.g., barbrickdesign)" />
+      <input id="repoName" placeholder="Repo name (e.g., barbrickdesign)" />
+      <select id="branchSel"><option value="">Auto default branch</option></select>
+      <select id="sortBy">
+        <option value="pushed_at" selected>Sort by last update</option>
+        <option value="created_at">Sort by creation date</option>
+      </select>
+      <button id="scanBtn">Deep scan</button>
+    </div>
+    <div class="controls" style="grid-template-columns: auto auto auto auto auto; margin-top: 8px;">
+      <input id="pathFilter" placeholder="Filter path (e.g., /projects/)" />
+      <select id="groupBy">
+        <option value="folder" selected>Group by top-level folder</option>
+        <option value="path">Group by path prefix</option>
+      </select>
+      <label class="flex"><input type="checkbox" id="healthToggle" /> <span>Check link health</span></label>
+      <label class="flex"><input type="checkbox" id="onlyIndex" checked /> <span>Only index.html</span></label>
+      <button class="secondary" id="loadBranchesBtn">Load branches</button>
+    </div>
+    <div id="status" class="hint"></div>
+  </header>
+
+  <main id="content">
+    <div class="row">
+      <h2>Getting started</h2>
+      <div class="hint">Enter a username and repo, load branches, then click “Deep scan”. Expand the repo panel to view all detected projects and versions with previews.</div>
+    </div>
+  </main>
+
+  <div class="footer flex">
+    <span>Client-only prototype using GitHub public API and htmlpreview. For heavy use or private repos, add a token.</span>
+    <span class="right">Tron aesthetic — Neon, grid, glow.</span>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const status = el('status');
+    const content = el('content');
+
+    // Theme toggle (simple)
+    el('themeBtn').addEventListener('click', () => {
+      const currentBg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const dark = currentBg === '#04060a';
+      const setVars = (vars) => Object.entries(vars).forEach(([k,v]) => document.documentElement.style.setProperty(k, v));
+      if (dark) {
+        setVars({
+          '--bg': '#f7fafc',
+          '--fg': '#111827',
+          '--muted': '#4b5563',
+          '--card': '#ffffff',
+          '--panel': '#ffffff',
+          '--grid': 'rgba(0, 234, 255, 0.08)',
+          '--shadow': 'rgba(0,0,0,0.12)'
+        });
+      } else {
+        setVars({
+          '--bg': '#04060a',
+          '--fg': '#d7faff',
+          '--muted': '#8fd1da',
+          '--card': '#0a0f18',
+          '--panel': '#0a0f18',
+          '--grid': 'rgba(0, 234, 255, 0.15)',
+          '--shadow': 'rgba(0,0,0,0.6)'
+        });
+      }
+    });
+
+    const API = {
+      async getDefaultBranch(owner, repo) {
+        const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+        if (!res.ok) throw new Error(`Repo not found: ${res.status}`);
+        const data = await res.json();
+        return data.default_branch;
+      },
+      async listBranches(owner, repo) {
+        const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`);
+        if (!res.ok) throw new Error(`Branches fetch failed: ${res.status}`);
+        return res.json();
+      },
+      async getTree(owner, repo, branch) {
+        const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Tree fetch failed: ${res.status}`);
+        return res.json();
+      },
+      async repoMeta(owner, repo) {
+        const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
+        if (!res.ok) throw new Error(`Repo not found: ${res.status}`);
+        return res.json();
+      },
+      previewLink(owner, repo, branch, path) {
+        return `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/${path}`;
+      }
+    };
+
+    function row(title, nodes=[]) {
+      const section = document.createElement('div');
+      section.className = 'row';
+      const h2 = document.createElement('h2');
+      h2.textContent = title;
+      section.appendChild(h2);
+      nodes.forEach(n => section.appendChild(n));
+      return section;
+    }
+
+    function repoCard(repo) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.textContent = repo.name;
+      card.appendChild(thumb);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = repo.full_name;
+      meta.appendChild(name);
+
+      const desc = document.createElement('div');
+      desc.className = 'desc';
+      desc.textContent = repo.description || 'No description';
+      meta.appendChild(desc);
+
+      const tags = document.createElement('div');
+      tags.className = 'tags';
+
+      const lang = document.createElement('span');
+      lang.className = 'tag';
+      lang.textContent = repo.language || 'Mixed';
+      tags.appendChild(lang);
+
+      const stars = document.createElement('span');
+      stars.className = 'tag';
+      stars.textContent = `★ ${repo.stargazers_count}`;
+      tags.appendChild(stars);
+
+      const updated = document.createElement('span');
+      updated.className = 'tag';
+      const date = new Date(repo.pushed_at || repo.updated_at || repo.created_at);
+      updated.textContent = `Updated: ${date.toLocaleDateString()}`;
+      tags.appendChild(updated);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const openRepo = document.createElement('a');
+      openRepo.href = repo.html_url;
+      openRepo.target = '_blank';
+      openRepo.rel = 'noopener';
+      openRepo.className = 'secondary';
+      openRepo.textContent = 'Repo';
+      actions.appendChild(openRepo);
+
+      const togglePanel = document.createElement('button');
+      togglePanel.textContent = 'Projects';
+      actions.appendChild(togglePanel);
+
+      meta.appendChild(tags);
+      meta.appendChild(actions);
+      card.appendChild(meta);
+
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+      card.appendChild(panel);
+
+      togglePanel.addEventListener('click', () => {
+        panel.classList.toggle('open');
+      });
+
+      return { card, panel };
+    }
+
+    function groupProjects(files, groupBy) {
+      const groups = new Map();
+      for (const f of files) {
+        const path = f.path;
+        const parts = path.split('/');
+        let key;
+        if (groupBy === 'folder') {
+          key = parts[0]; // top-level folder
+        } else {
+          key = parts.slice(0, Math.min(2, parts.length - 1)).join('/'); // path prefix
+        }
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(f);
+      }
+      return groups;
+    }
+
+    function buildProjectGrid(groupKey, items, owner, repo, branch) {
+      const grid = document.createElement('div');
+      grid.className = 'project-grid';
+
+      items.forEach(item => {
+        const wrap = document.createElement('div');
+        wrap.className = 'project-item';
+
+        const head = document.createElement('div');
+        head.className = 'project-head';
+
+        const title = document.createElement('div');
+        title.className = 'project-title';
+        title.textContent = item.path;
+        head.appendChild(title);
+
+        const health = document.createElement('span');
+        health.className = 'health warn';
+        health.textContent = 'unchecked';
+        head.appendChild(health);
+
+        wrap.appendChild(head);
+
+        const paths = document.createElement('div');
+        paths.className = 'paths';
+        const assoc = [];
+        const baseDir = item.path.split('/').slice(0, -1).join('/');
+        // Associate likely JS/CSS neighbors
+        assoc.push(`${baseDir}/index.js`, `${baseDir}/app.js`, `${baseDir}/main.js`, `${baseDir}/styles.css`, `${baseDir}/style.css`);
+        paths.textContent = `Associated: ${assoc.join(', ')}`;
+        wrap.appendChild(paths);
+
+        const actions = document.createElement('div');
+        actions.className = 'project-actions';
+
+        const preview = document.createElement('a');
+        preview.href = API.previewLink(owner, repo, branch, item.path);
+        preview.target = '_blank';
+        preview.rel = 'noopener';
+        preview.textContent = 'Preview';
+        actions.appendChild(preview);
+
+        const raw = document.createElement('a');
+        raw.href = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${item.path}`;
+        raw.target = '_blank';
+        raw.rel = 'noopener';
+        raw.textContent = 'Raw HTML';
+        actions.appendChild(raw);
+
+        const openFolder = document.createElement('a');
+        openFolder.href = `https://github.com/${owner}/${repo}/tree/${branch}/${baseDir}`;
+        openFolder.target = '_blank';
+        openFolder.rel = 'noopener';
+        openFolder.textContent = 'Open folder';
+        actions.appendChild(openFolder);
+
+        wrap.appendChild(actions);
+
+        const chips = document.createElement('div');
+        chips.className = 'flex';
+        chips.appendChild(chip('**Folder:**', baseDir));
+        chips.appendChild(chip('**File:**', item.path.split('/').pop()));
+        chips.appendChild(chip('**Size:**', item.size ? item.size + ' bytes' : 'n/a'));
+        grid.appendChild(wrap);
+
+        // Optional health check
+        wrap.checkLinkHealth = async function(checkEnabled) {
+          if (!checkEnabled) return;
+          health.className = 'health warn';
+          health.textContent = 'checking';
+          try {
+            // Using fetch to htmlpreview URL; some providers may not allow HEAD — fallback to GET with no-store
+            const res = await fetch(preview.href, { method: 'GET', cache: 'no-store', mode: 'cors' });
+            if (res.ok) {
+              health.className = 'health ok';
+              health.textContent = 'ok';
+            } else {
+              health.className = 'health err';
+              health.textContent = 'error';
+            }
+          } catch (e) {
+            health.className = 'health err';
+            health.textContent = 'error';
+          }
+        };
+      });
+
+      return grid;
+    }
+
+    function chip(label, value) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.innerHTML = `<strong>${label}</strong> ${value}`;
+      return c;
+    }
+
+    async function deepScan() {
+      const owner = el('username').value.trim();
+      const repoName = el('repoName').value.trim();
+      const groupBy = el('groupBy').value;
+      const onlyIndex = el('onlyIndex').checked;
+      const pathFilter = el('pathFilter').value.trim();
+      const checkHealth = el('healthToggle').checked;
+      let branch = el('branchSel').value.trim();
+
+      if (!owner || !repoName) {
+        status.innerHTML = '<span class="status-err">Enter both username and repo.</span>';
+        return;
+      }
+
+      status.textContent = 'Loading repo metadata…';
+      try {
+        if (!branch) {
+          branch = await API.getDefaultBranch(owner, repoName);
+        }
+        const repo = await API.repoMeta(owner, repoName);
+
+        status.textContent = 'Fetching repo tree (recursive)…';
+        const tree = await API.getTree(owner, repoName, branch);
+        let files = tree.tree
+          .filter(f => f.type === 'blob' && f.path.endsWith('.html'))
+          .map(f => ({ path: f.path, size: f.size }));
+
+        if (onlyIndex) files = files.filter(f => f.path.toLowerCase().endsWith('/index.html') || f.path.toLowerCase() === 'index.html');
+        if (pathFilter) files = files.filter(f => f.path.includes(pathFilter));
+
+        // Build UI
+        const { card, panel } = repoCard(repo);
+        content.innerHTML = '';
+        const section = document.createElement('div');
+        section.className = 'row';
+
+        const carousel = document.createElement('div');
+        carousel.className = 'carousel';
+        carousel.appendChild(card);
+
+        section.appendChild(carousel);
+        content.appendChild(section);
+
+        // Group projects and render
+        const groups = groupProjects(files, groupBy);
+
+        panel.innerHTML = '';
+        panel.classList.add('open');
+
+        for (const [key, items] of groups.entries()) {
+          const subRow = document.createElement('div');
+          subRow.className = 'row';
+          const h2 = document.createElement('h2');
+          h2.textContent = `Group: ${key} (${items.length})`;
+          subRow.appendChild(h2);
+
+          const grid = buildProjectGrid(key, items, owner, repoName, branch);
+          subRow.appendChild(grid);
+          panel.appendChild(subRow);
+
+          // Health check pass
+          if (el('healthToggle').checked) {
+            const nodes = grid.querySelectorAll('.project-item');
+            nodes.forEach(node => {
+              if (typeof node.checkLinkHealth === 'function') node.checkLinkHealth(true);
+            });
+          }
+        }
+
+        status.innerHTML = `<span class="status-ok">Found ${files.length} HTML entries across ${groups.size} groups on branch ${branch}.</span>`;
+      } catch (e) {
+        status.innerHTML = `<span class="status-err">${e.message}</span>`;
+      }
+    }
+
+    async function loadBranches() {
+      const owner = el('username').value.trim();
+      const repoName = el('repoName').value.trim();
+      if (!owner || !repoName) {
+        status.innerHTML = '<span class="status-err">Enter both username and repo.</span>';
+        return;
+      }
+      status.textContent = 'Loading branches…';
+      try {
+        const branches = await API.listBranches(owner, repoName);
+        const sel = el('branchSel');
+        sel.innerHTML = '<option value="">Auto default branch</option>';
+        branches.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.name; opt.textContent = b.name;
+          sel.appendChild(opt);
+        });
+        status.innerHTML = `<span class="status-ok">Loaded ${branches.length} branches.</span>`;
+      } catch (e) {
+        status.innerHTML = `<span class="status-err">${e.message}</span>`;
+      }
+    }
+
+    el('scanBtn').addEventListener('click', deepScan);
+    el('loadBranchesBtn').addEventListener('click', loadBranches);
+  </script>
+</body>
+</html>

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gem Bot — One-step pre-cut planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0e1120;
+      --panel: #161a2e;
+      --accent: #00aaff;
+      --text: #e7ebf9;
+      --muted: #8a90b3;
+      --ok: #3cd98e;
+      --warn: #ffb600;
+      --bad: #ff5e6b;
+    }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .app { display:grid; grid-template-rows: auto 1fr auto; min-height:100vh; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--panel); border-bottom:1px solid #202545; }
+    header h1 { margin:0; font-size:18px; font-weight:700; }
+    header .muted { color:var(--muted); font-size:12px; }
+    .main { display:grid; gap:12px; padding:12px 16px; }
+    .panel { background:#12152a; border:1px solid #202545; border-radius:10px; overflow:hidden; }
+    .panel header { background:#1a203f; padding:10px 12px; border-bottom:1px solid #232a4a; }
+    .panel h2 { margin:0; font-size:16px; }
+    .panel-body { padding:12px; }
+    .flex { display:flex; align-items:center; gap:10px; }
+    .controls { display:grid; gap:10px; }
+    input[type="file"], select, button { width:100%; padding:10px; border-radius:8px; border:1px solid #2a2f55; background:#0e1122; color:var(--text); font-size:14px; }
+    button.primary { background:var(--accent); border:none; color:#001019; font-weight:700; cursor:pointer; }
+    button.secondary { background:#1a1f3c; border:1px solid #2a2f55; color:var(--text); cursor:pointer; }
+    .badge { display:inline-block; padding:3px 8px; border-radius:999px; background:#1a203f; border:1px solid #2a2f55; color:var(--muted); font-size:12px; font-weight:600; }
+    .list { display:grid; gap:8px; }
+    .card { background:#0f1327; border:1px solid #1e2242; border-radius:8px; padding:10px; display:grid; gap:6px; }
+    .score { font-weight:700; color:var(--ok); }
+    #viewer { width:100%; height:50vh; }
+    canvas { width:100%; height:100%; display:block; }
+    footer { padding:10px 16px; border-top:1px solid #202545; color:var(--muted); font-size:12px; }
+    @media (min-width: 900px) {
+      .main { grid-template-columns: 1.2fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Gem Bot — One-step pre-cut planner</h1>
+      <div class="muted">Upload rough photo/video. We fetch facet designs, auto-pair, and show the top 10 cuts.</div>
+    </div>
+    <div class="flex">
+      <span id="status" class="badge">Idle</span>
+      <button id="btnExport" class="secondary">Export plan JSON</button>
+    </div>
+  </header>
+
+  <section class="main">
+    <div class="panel">
+      <header><h2>Upload rough</h2></header>
+      <div class="panel-body">
+        <div class="controls">
+          <input type="file" id="roughMedia" accept="image/*,video/*" />
+          <div class="flex">
+            <button id="btnAnalyze" class="primary">Analyze & compute top designs</button>
+            <button id="btnReset" class="secondary">Reset</button>
+          </div>
+          <div class="flex">
+            <span class="badge">Material RI</span>
+            <select id="materialType">
+              <option value="auto">Auto (default Quartz ~1.544)</option>
+              <option value="diamond">Diamond ~2.417</option>
+              <option value="corundum">Ruby/Sapphire ~1.770</option>
+              <option value="beryl">Emerald ~1.580</option>
+              <option value="quartz">Quartz ~1.544</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input type="number" id="customRI" placeholder="Custom RI (e.g., 1.762)" step="0.001" />
+          </div>
+          <div class="flex">
+            <span class="badge">Optional scale</span>
+            <select id="scalePreset">
+              <option value="auto">Auto estimate</option>
+              <option value="small">Small rough (~8×6×4 mm)</option>
+              <option value="medium">Medium rough (~12×9×6 mm)</option>
+              <option value="large">Large rough (~16×12×8 mm)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <header><h2>Interactive preview</h2></header>
+      <div class="panel-body">
+        <div id="viewer"></div>
+        <div class="flex" style="margin-top:8px;">
+          <button id="btnWireframe" class="secondary">Wireframe</button>
+          <button id="btnSolid" class="secondary">Solid</button>
+          <button id="btnResetCamera" class="secondary">Reset camera</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="grid-column: 1 / -1;">
+      <header><h2>Top 10 optimal designs</h2></header>
+      <div class="panel-body">
+        <div id="results" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Minimal inputs, maximal clarity: upload media, we estimate rough size, fetch facet designs, and suggest the best cuts. You can export the plan JSON for provenance and downstream work.
+  </footer>
+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/**
+ * Gem Bot — One-step pre-cut planner (single-file)
+ * - User uploads a photo/video (optional scale/RI)
+ * - We estimate rough bounding box (heuristic) from presets/media
+ * - We auto-fetch facet designs from facetdiagrams.org (best-effort CORS)
+ * - Rank designs by yield, optical match, and simplicity risk
+ * - Show top 10 results and an interactive preview (wireframe/solid)
+ * - Export plan JSON
+ *
+ * Note: If the site blocks cross-origin requests, we silently fall back to a local sample set.
+ */
+
+// ---------------------- Helpers ----------------------
+const $ = (id) => document.getElementById(id);
+const clamp = (x,min,max) => Math.max(min, Math.min(max, x));
+const mm3 = (l,w,h) => Math.max(0, l*w*h);
+const fmt = (x, d=2) => (isFinite(x) ? Number(x).toFixed(d) : '—');
+const toPct = (x) => Math.round(clamp(x,0,1)*100);
+
+function getRI() {
+  const t = $('materialType').value;
+  const map = { diamond: 2.417, corundum: 1.770, beryl: 1.580, quartz: 1.544 };
+  if (t === 'custom') return Number($('customRI').value || 1.7);
+  if (t === 'auto') return map.quartz;
+  return map[t] ?? map.quartz;
+}
+
+function estimateRoughDims() {
+  // Heuristic: use preset scale; future: infer from image/video with reference marker
+  const preset = $('scalePreset').value;
+  if (preset === 'small') return { len: 8, wid: 6, hei: 4 };
+  if (preset === 'medium') return { len: 12, wid: 9, hei: 6 };
+  if (preset === 'large') return { len: 16, wid: 12, hei: 8 };
+  // Auto: choose medium if media present, else small
+  const hasMedia = $('roughMedia').files && $('roughMedia').files.length > 0;
+  return hasMedia ? { len: 12, wid: 9, hei: 6 } : { len: 8, wid: 6, hei: 4 };
+}
+
+// ---------------------- Fetch facet designs (best-effort) ----------------------
+let DESIGN_LIBRARY = [];
+
+async function fetchFacetDesigns() {
+  // Query: 6-gear rounds opened results, up to 1000 per page
+  const url = 'https://facetdiagrams.org/?post_type=all&s=&designer=&reference=&l_s-min=&l_s-max=&l_w-min=1&l_w-max=1&h_w-min=&h_w-max=&volume-min=&volume-max=&facets-min=&facets-max=&ri-min=&ri-max=&shape=0&gear=6&opened=1&per_page=1000';
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('Fetch failed');
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    // Attempt to parse cards; adapt selectors if needed
+    const cards = Array.from(doc.querySelectorAll('.facet-card, .post, article'));
+    const designs = cards.map((card, i) => {
+      const title = (card.querySelector('.entry-title a, .title, h2 a, h2')?.textContent || `Design ${i+1}`).trim();
+      const meta = card.querySelector('.entry-meta, .meta, .details')?.textContent || '';
+      const shape = /round|oval|pear|emerald|marquise|heart/i.exec(meta)?.[0]?.toLowerCase() || 'round';
+      const facets = Number(/(\d+)\s*facets/i.exec(meta)?.[1] || 58);
+      const gear = Number(/gear\s*(\d+)/i.exec(meta)?.[1] || 6);
+      const ri = Number(/RI[:\s]*([0-9.]+)/i.exec(meta)?.[1] || 1.7);
+
+      // Without exact proportion fields, set reasonable defaults
+      const proportions = { tablePct: 58, crownPct: 15, pavilionPct: 43, girdlePct: 5 };
+      return {
+        id: `fd-${i}-${Date.now()}`,
+        title,
+        designer: (card.querySelector('.designer')?.textContent || 'Unknown').trim(),
+        shape,
+        gear,
+        refractiveIndex: ri,
+        facets,
+        proportions,
+        target: { length: null, width: null, height: null }
+      };
+    });
+
+    if (designs.length === 0) throw new Error('No parsable designs');
+    DESIGN_LIBRARY = designs;
+    renderStatus(`Fetched ${designs.length} designs`);
+  } catch (e) {
+    DESIGN_LIBRARY = fallbackDesigns();
+    renderStatus(`Using sample library (fetch unavailable)`);
+  }
+}
+
+function fallbackDesigns() {
+  return [
+    { id:'R-Std-58', title:'Round Brilliant', designer:'Standard', shape:'round', gear:8, refractiveIndex:1.77, facets:58, proportions:{tablePct:58,crownPct:15,pavilionPct:43,girdlePct:5}, target:{length:null,width:null,height:null} },
+    { id:'R-60-60', title:'Round 60/60', designer:'Collector', shape:'round', gear:8, refractiveIndex:2.417, facets:58, proportions:{tablePct:60,crownPct:13,pavilionPct:42,girdlePct:5}, target:{length:null,width:null,height:null} },
+    { id:'R-HighCrown', title:'Round High Crown', designer:'Variant', shape:'round', gear:8, refractiveIndex:1.77, facets:58, proportions:{tablePct:54,crownPct:18,pavilionPct:42,girdlePct:6}, target:{length:null,width:null,height:null} },
+    { id:'Oval-9x7', title:'Oval 9×7', designer:'Standard', shape:'oval', gear:8, refractiveIndex:1.77, facets:56, proportions:{tablePct:58,crownPct:14,pavilionPct:43,girdlePct:5}, target:{length:9,width:7,height:4.1} },
+    { id:'Emerald-6x4', title:'Emerald 6×4', designer:'Standard', shape:'emerald', gear:4, refractiveIndex:1.58, facets:50, proportions:{tablePct:62,crownPct:12,pavilionPct:40,girdlePct:6}, target:{length:6,width:4,height:3} },
+    { id:'Pear-10x7', title:'Pear 10×7', designer:'Standard', shape:'pear', gear:8, refractiveIndex:1.77, facets:58, proportions:{tablePct:60,crownPct:15,pavilionPct:42,girdlePct:5}, target:{length:10,width:7,height:4} },
+    { id:'Marquise-12x6', title:'Marquise 12×6', designer:'Standard', shape:'marquise', gear:8, refractiveIndex:1.77, facets:58, proportions:{tablePct:58,crownPct:15,pavilionPct:43,girdlePct:5}, target:{length:12,width:6,height:3.6} },
+    { id:'Heart-7x7', title:'Heart 7×7', designer:'Standard', shape:'heart', gear:8, refractiveIndex:1.77, facets:56, proportions:{tablePct:58,crownPct:15,pavilionPct:42,girdlePct:5}, target:{length:7,width:7,height:4.2} },
+    { id:'Round-Variant-60', title:'Round Variant', designer:'Standard', shape:'round', gear:8, refractiveIndex:1.77, facets:60, proportions:{tablePct:57,crownPct:15,pavilionPct:43,girdlePct:5}, target:{length:null,width:null,height:null} },
+    { id:'Oval-8x6', title:'Oval 8×6', designer:'Standard', shape:'oval', gear:8, refractiveIndex:1.77, facets:56, proportions:{tablePct:58,crownPct:14,pavilionPct:43,girdlePct:5}, target:{length:8,width:6,height:3.8} },
+    { id:'Round-Std-57', title:'Round 57', designer:'Standard', shape:'round', gear:8, refractiveIndex:1.77, facets:57, proportions:{tablePct:57,crownPct:15,pavilionPct:43,girdlePct:5}, target:{length:null,width:null,height:null} }
+  ];
+}
+
+// ---------------------- Scoring & ranking ----------------------
+function proposeTarget(design, rough) {
+  const { shape, target, proportions } = design;
+  let width = target.width ?? clamp(rough.wid * 0.95, 0, rough.wid);
+  let length = target.length ?? ((shape === 'round' || shape === 'heart') ? width : clamp(rough.len * 0.9, 0, rough.len));
+  const heightPct = (proportions.crownPct + proportions.pavilionPct + proportions.girdlePct) / 100;
+  let height = target.height ?? clamp(width * heightPct, 0, rough.hei);
+  return { length, width, height };
+}
+
+function scoreDesign(design, roughRI, roughDims) {
+  const t = proposeTarget(design, roughDims);
+  const V_stone = mm3(t.length ?? t.width, t.width, t.height);
+  const V_rough = mm3(roughDims.len, roughDims.wid, roughDims.hei);
+  const yieldRatio = clamp(V_stone / Math.max(V_rough, 1e-6), 0, 1);
+
+  const fitOK =
+    (t.length ?? t.width) <= roughDims.len + 1e-6 &&
+    t.width <= roughDims.wid + 1e-6 &&
+    t.height <= roughDims.hei + 1e-6;
+  const fitPenalty = fitOK ? 0 : 0.5;
+
+  // Optical match: closeness of design RI to rough RI and proportion sanity
+  const riDelta = Math.abs((design.refractiveIndex || roughRI) - roughRI);
+  const riScore = 1 - clamp(riDelta / 1.0, 0, 1);
+  const prop = design.proportions;
+  const propDelta =
+    Math.abs(prop.tablePct - 58)/100 +
+    Math.abs(prop.crownPct - 15)/100 +
+    Math.abs(prop.pavilionPct - 43)/100;
+  const propScore = 1 - clamp(propDelta / 1.2, 0, 1);
+  const opticalScore = 0.6*riScore + 0.4*propScore;
+
+  // Simplicity risk: penalize very high facet counts or extreme props
+  let riskPenalty = 0;
+  if (design.facets > 120) riskPenalty += 0.3;
+  const extremeProps =
+    (prop.tablePct < 48 || prop.tablePct > 68) +
+    (prop.crownPct < 10 || prop.crownPct > 20) +
+    (prop.pavilionPct < 40 || prop.pavilionPct > 45);
+  riskPenalty += 0.1 * extremeProps;
+
+  const total = clamp(0.5*(yieldRatio - fitPenalty) + 0.3*opticalScore + 0.2*(1 - riskPenalty), 0, 1);
+  return { score: total, yieldRatio, opticalScore, riskPenalty, fitOK, target: t };
+}
+
+function rankDesigns(library, roughRI, roughDims) {
+  const ranked = library.map(d => ({ design: d, analysis: scoreDesign(d, roughRI, roughDims) }))
+                       .sort((a,b) => b.analysis.score - a.analysis.score);
+  return ranked.slice(0, 10);
+}
+
+// ---------------------- UI: results rendering ----------------------
+let RANKED_RESULTS = [];
+let SELECTED_INDEX = -1;
+
+function renderResults() {
+  const container = $('results');
+  container.innerHTML = '';
+  RANKED_RESULTS.forEach((item, idx) => {
+    const d = item.design;
+    const t = item.analysis.target;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="flex" style="justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;">${d.title} <span class="badge">${d.shape}, ${d.facets} facets</span></div>
+          <div class="muted" style="font-size:12px;">Fit: ${item.analysis.fitOK ? 'OK' : '<span style="color: var(--bad)">Exceeds rough</span>'}</div>
+        </div>
+        <div class="score">Score: ${fmt(item.analysis.score,2)}</div>
+      </div>
+      <div class="muted" style="font-size:12px;">
+        Yield: ${toPct(item.analysis.yieldRatio)}% • Optical: ${toPct(item.analysis.opticalScore)}% • Risk penalty: ${fmt(item.analysis.riskPenalty,2)}
+      </div>
+      <div class="muted" style="font-size:12px;">
+        Target L×W×H: ${fmt(t.length)} × ${fmt(t.width)} × ${fmt(t.height)} mm • RI: ${fmt(d.refractiveIndex || 0,3)}
+      </div>
+      <div class="flex" style="margin-top:6px;">
+        <button class="secondary" data-preview="${idx}">Preview</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('button[data-preview]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      SELECTED_INDEX = Number(btn.getAttribute('data-preview'));
+      const item = RANKED_RESULTS[SELECTED_INDEX];
+      showDesignInViewer(item.design, item.analysis.target);
+      renderStatus(`Previewing: ${item.design.title}`);
+    });
+  });
+
+  if (RANKED_RESULTS[0]) {
+    SELECTED_INDEX = 0;
+    const top = RANKED_RESULTS[0];
+    showDesignInViewer(top.design, top.analysis.target);
+  }
+}
+
+// ---------------------- Status ----------------------
+function renderStatus(text) {
+  $('status').textContent = text;
+}
+
+// ---------------------- 3D viewer ----------------------
+let scene, camera, renderer, controls, currentMesh, wireframeMode = true;
+
+function initViewer() {
+  const container = $('viewer');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#0e1120');
+
+  camera = new THREE.PerspectiveCamera(55, container.clientWidth/container.clientHeight, 0.01, 100);
+  camera.position.set(0.8, 0.7, 1.2);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  container.innerHTML = '';
+  container.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x394066, 0.7);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(2,2,2);
+  scene.add(dir);
+
+  const grid = new THREE.GridHelper(2, 20, 0x223, 0x223);
+  grid.position.y = -0.001;
+  scene.add(grid);
+
+  animate();
+  window.addEventListener('resize', onResize);
+}
+function onResize() {
+  const container = $('viewer');
+  camera.aspect = container.clientWidth/container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function buildPreviewGeometry(design, target) {
+  const shape = design.shape;
+  const w = (target.width || 6) / 10;
+  const l = ((target.length ?? target.width) || 6) / 10;
+  const h = (target.height || 3) / 10;
+
+  let geom;
+  switch (shape) {
+    case 'round': {
+      const segments = 64;
+      const radius = w/2;
+      geom = new THREE.CylinderGeometry(radius, radius, h, segments, 1, true);
+      break;
+    }
+    case 'oval': {
+      const segments = 64;
+      geom = new THREE.CylinderGeometry(0.5, 0.5, h, segments, 1, true);
+      geom.scale(w, 1, l);
+      break;
+    }
+    case 'emerald': {
+      geom = new THREE.BoxGeometry(w, h, l);
+      break;
+    }
+    case 'pear': {
+      const segments = 64;
+      geom = new THREE.ConeGeometry(w/1.8, h, segments, 1, true);
+      break;
+    }
+    case 'marquise': {
+      const segments = 64;
+      geom = new THREE.CapsuleGeometry(w/2.4, l/3, segments, segments);
+      break;
+    }
+    case 'heart': {
+      geom = new THREE.SphereGeometry(w/2.2, 48, 32);
+      geom.scale(1.2, 1.0, 1.1);
+      break;
+    }
+    default:
+      geom = new THREE.BoxGeometry(w, h, l);
+  }
+  geom.computeBoundingSphere();
+  return geom;
+}
+
+function showDesignInViewer(design, target) {
+  if (currentMesh) {
+    scene.remove(currentMesh);
+    currentMesh.geometry.dispose();
+    currentMesh.material.dispose();
+    currentMesh = null;
+  }
+  const geom = buildPreviewGeometry(design, target);
+  let mesh;
+  if (wireframeMode) {
+    const edges = new THREE.EdgesGeometry(geom);
+    const mat = new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 1 });
+    mesh = new THREE.LineSegments(edges, mat);
+  } else {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: 0x88ccff,
+      metalness: 0.0, roughness: 0.05, transmission: 1.0, thickness: 0.5,
+      ior: Number(design.refractiveIndex || 1.7),
+      envMapIntensity: 0.8, clearcoat: 0.8, clearcoatRoughness: 0.05
+    });
+    mesh = new THREE.Mesh(geom, mat);
+  }
+  mesh.position.set(0, 0.1, 0);
+  mesh.rotation.x = -Math.PI * 0.08;
+  currentMesh = mesh;
+  scene.add(mesh);
+}
+
+// ---------------------- Flow ----------------------
+async function analyzeAndCompute() {
+  renderStatus('Fetching facet designs...');
+  await fetchFacetDesigns();
+
+  // Estimate rough
+  const dims = estimateRoughDims();
+  const roughRI = getRI();
+  const ranked = rankDesigns(DESIGN_LIBRARY, roughRI, dims);
+  RANKED_RESULTS = ranked;
+  renderResults();
+
+  renderStatus(`Top ${ranked.length} designs ready`);
+}
+
+// ---------------------- Export plan ----------------------
+$('btnExport').addEventListener('click', () => {
+  const dims = estimateRoughDims();
+  const plan = {
+    timestamp: new Date().toISOString(),
+    rough: { dims, ri: getRI() },
+    topDesigns: RANKED_RESULTS.map(r => ({
+      id: r.design.id,
+      title: r.design.title,
+      designer: r.design.designer,
+      shape: r.design.shape,
+      gear: r.design.gear,
+      refractiveIndex: r.design.refractiveIndex,
+      facets: r.design.facets,
+      proportions: r.design.proportions,
+      target: r.analysis.target,
+      scores: {
+        total: r.analysis.score,
+        yield: r.analysis.yieldRatio,
+        optical: r.analysis.opticalScore,
+        riskPenalty: r.analysis.riskPenalty,
+        fitOK: r.analysis.fitOK
+      }
+    }))
+  };
+  const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gem-bot-plan-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---------------------- Events ----------------------
+$('btnAnalyze').addEventListener('click', analyzeAndCompute);
+$('btnReset').addEventListener('click', () => {
+  DESIGN_LIBRARY = [];
+  RANKED_RESULTS = [];
+  SELECTED_INDEX = -1;
+  $('results').innerHTML = '';
+  renderStatus('Idle');
+  if (currentMesh) {
+    scene.remove(currentMesh);
+    currentMesh.geometry.dispose();
+    currentMesh.material.dispose();
+    currentMesh = null;
+  }
+});
+$('btnWireframe').addEventListener('click', () => {
+  wireframeMode = true;
+  if (SELECTED_INDEX >= 0) {
+    const item = RANKED_RESULTS[SELECTED_INDEX];
+    showDesignInViewer(item.design, item.analysis.target);
+  }
+});
+$('btnSolid').addEventListener('click', () => {
+  wireframeMode = false;
+  if (SELECTED_INDEX >= 0) {
+    const item = RANKED_RESULTS[SELECTED_INDEX];
+    showDesignInViewer(item.design, item.analysis.target);
+  }
+});
+$('btnResetCamera').addEventListener('click', () => {
+  camera.position.set(0.8, 0.7, 1.2);
+  controls.target.set(0,0,0);
+  controls.update();
+});
+
+// Init
+window.addEventListener('DOMContentLoaded', () => {
+  initViewer();
+  renderStatus('Ready');
+});
+</script>
+</body>
+</html>

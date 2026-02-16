@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Tree Limb Risk Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: #0f1115; color: #e8eaed; }
+    header { padding: 16px; background: #141820; border-bottom: 1px solid #22262f; }
+    header h1 { margin: 0; font-size: 18px; }
+    main { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    section { background: #141820; border: 1px solid #202532; border-radius: 10px; padding: 12px; }
+    h2 { margin: 0 0 8px 0; font-size: 16px; }
+    .controls label { display: block; margin: 8px 0 4px; }
+    .controls input[type="file"],
+    .controls input[type="text"],
+    .controls select,
+    .controls button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #2a3140; background: #0f131b; color: #e8eaed; }
+    .controls button { background: #2b5fd9; border-color: #2b5fd9; cursor: pointer; font-weight: 600; }
+    .controls button.secondary { background: #1f2430; border-color: #2a3140; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    canvas, .preview { width: 100%; background: #0c0f14; border: 1px dashed #2a3140; border-radius: 8px; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .metric { background: #0f131b; border: 1px solid #202532; border-radius: 8px; padding: 8px; }
+    .metric strong { display: block; font-size: 12px; color: #9aa4b2; }
+    .metric span { font-size: 16px; }
+    .risk-bar { height: 12px; border-radius: 6px; background: linear-gradient(90deg, #2ecc71, #f1c40f, #e67e22, #e74c3c); }
+    .risk-indicator { width: 4px; height: 20px; background: #fff; border-radius: 2px; position: relative; top: -4px; }
+    .legend { font-size: 12px; color: #9aa4b2; display: flex; justify-content: space-between; margin-top: 4px; }
+    .overlay-legend { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #9aa4b2; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: #0f131b; border: 1px solid #202532; border-radius: 999px; padding: 4px 8px; }
+    .chip .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .swatch.low { background: #2ecc71; }
+    .swatch.mod { background: #f1c40f; }
+    .swatch.high { background: #e67e22; }
+    .swatch.ext { background: #e74c3c; }
+    footer { padding: 12px 16px; color: #9aa4b2; }
+    .hidden { display: none; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .small { font-size: 12px; color: #9aa4b2; }
+    .slider { width: 100%; }
+    .btn-group { display: flex; gap: 8px; }
+    .code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas; font-size: 12px; background: #0f131b; border: 1px solid #202532; border-radius: 8px; padding: 8px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tree Limb Risk Analyzer</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>Capture & settings</h2>
+      <div class="controls">
+        <label>Upload image (tree/limb visible)</label>
+        <input id="fileInput" type="file" accept="image/*"/>
+
+        <div class="grid-2">
+          <div>
+            <label>Target context</label>
+            <select id="targetContext">
+              <option value="none">None</option>
+              <option value="pedestrian">Pedestrian area</option>
+              <option value="vehicle">Driveway/vehicle</option>
+              <option value="structure">Structure/home</option>
+            </select>
+          </div>
+          <div>
+            <label>Height estimate (ft)</label>
+            <input id="heightFt" type="text" placeholder="e.g., 20"/>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label>Wind exposure</label>
+            <select id="windExposure">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div>
+            <label>Confidence adjust</label>
+            <input id="confidenceAdj" type="range" min="0.5" max="1.0" step="0.01" value="0.85" class="slider"/>
+            <div class="small">Model confidence multiplier</div>
+          </div>
+        </div>
+
+        <div class="btn-group" style="margin-top:8px;">
+          <button id="analyzeBtn">Analyze limb risk</button>
+          <button id="resetBtn" class="secondary">Reset</button>
+          <button id="exportBtn" class="secondary">Export report (JSON)</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;" class="overlay-legend">
+        <span class="chip"><i class="swatch low"></i> Low</span>
+        <span class="chip"><i class="swatch mod"></i> Moderate</span>
+        <span class="chip"><i class="swatch high"></i> High</span>
+        <span class="chip"><i class="swatch ext"></i> Extreme</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Analysis</h2>
+
+      <div class="grid-2">
+        <div>
+          <canvas id="canvas" width="640" height="480"></canvas>
+          <div class="legend">
+            <span>Original</span><span>Edge map + risk overlay</span>
+          </div>
+        </div>
+        <div>
+          <div class="metrics">
+            <div class="metric">
+              <strong>Risk label</strong>
+              <span id="riskLabel">—</span>
+            </div>
+            <div class="metric">
+              <strong>Risk score</strong>
+              <span id="riskScore">—</span>
+            </div>
+            <div class="metric">
+              <strong>Confidence</strong>
+              <span id="confidence">—</span>
+            </div>
+            <div class="metric">
+              <strong>Dominant curvature</strong>
+              <span id="curvature">—</span>
+            </div>
+            <div class="metric">
+              <strong>Diameter proxy</strong>
+              <span id="diameterPx">—</span>
+            </div>
+            <div class="metric">
+              <strong>Target factor</strong>
+              <span id="targetFactor">—</span>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="risk-bar" id="riskBar">
+              <div class="risk-indicator" id="riskIndicator" style="left:0;"></div>
+            </div>
+            <div class="legend"><span>0</span><span>10</span></div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <h3 style="font-size:14px; margin:0 0 8px;">Recommendations</h3>
+            <ul style="margin:0; padding-left:18px;">
+              <li id="rec1">—</li>
+              <li id="rec2">—</li>
+              <li id="rec3">—</li>
+            </ul>
+          </div>
+
+          <div style="margin-top:12px;">
+            <h3 style="font-size:14px; margin:0 0 8px;">Report payload</h3>
+            <pre id="payload" class="code">{"status":"awaiting analysis"}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    On‑device image processing demo (Sobel edge map, curvature proxy, heuristic scoring). Replace with Core ML for production segmentation.
+  </footer>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const riskLabelEl = document.getElementById('riskLabel');
+    const riskScoreEl = document.getElementById('riskScore');
+    const confidenceEl = document.getElementById('confidence');
+    const curvatureEl = document.getElementById('curvature');
+    const diameterEl = document.getElementById('diameterPx');
+    const targetFactorEl = document.getElementById('targetFactor');
+    const riskIndicator = document.getElementById('riskIndicator');
+    const rec1 = document.getElementById('rec1');
+    const rec2 = document.getElementById('rec2');
+    const rec3 = document.getElementById('rec3');
+    const payloadEl = document.getElementById('payload');
+
+    const heightFt = document.getElementById('heightFt');
+    const targetContext = document.getElementById('targetContext');
+    const windExposure = document.getElementById('windExposure');
+    const confidenceAdj = document.getElementById('confidenceAdj');
+
+    let originalImage = null;
+    let analysis = null;
+
+    function drawImage(img) {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(canvas.width / w, canvas.height / h);
+      const dw = Math.floor(w * scale), dh = Math.floor(h * scale);
+      const dx = (canvas.width - dw) / 2, dy = (canvas.height - dh) / 2;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, dx, dy, dw, dh);
+      return { dx, dy, dw, dh };
+    }
+
+    function toGrayscale(imgData) {
+      const { data, width, height } = imgData;
+      const gray = new Uint8ClampedArray(width * height);
+      for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        gray[j] = (0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2]);
+      }
+      return { gray, width, height };
+    }
+
+    function sobel({ gray, width, height }) {
+      const Gx = [-1,0,1,-2,0,2,-1,0,1];
+      const Gy = [-1,-2,-1,0,0,0,1,2,1];
+      const out = new Uint8ClampedArray(width * height);
+      let sumMag = 0, edgesCount = 0;
+      for (let y=1; y<height-1; y++) {
+        for (let x=1; x<width-1; x++) {
+          let ix = 0, iy = 0, k = 0;
+          for (let ky=-1; ky<=1; ky++) {
+            for (let kx=-1; kx<=1; kx++) {
+              const p = gray[(y+ky)*width + (x+kx)];
+              ix += p * Gx[k]; iy += p * Gy[k]; k++;
+            }
+          }
+          const mag = Math.min(255, Math.hypot(ix, iy));
+          out[y*width + x] = mag;
+          sumMag += mag;
+          if (mag > 80) edgesCount++;
+        }
+      }
+      const avgMag = sumMag / (width * height);
+      return { edges: out, width, height, edgesCount, avgMag };
+    }
+
+    function estimateCurvature(edges, width, height) {
+      // Simple proxy: measure direction changes along horizontal scanlines
+      let changeCount = 0;
+      for (let y = 10; y < height-10; y+=10) {
+        let lastX = -1;
+        for (let x = 1; x < width-1; x++) {
+          if (edges[y*width + x] > 100) {
+            if (lastX !== -1 && Math.abs(x - lastX) > 2) changeCount++;
+            lastX = x;
+          }
+        }
+      }
+      // Normalize to 0..10
+      return Math.min(10, (changeCount / (height/10)) );
+    }
+
+    function estimateDiameter(edges, width, height) {
+      // Proxy: maximum contiguous edge thickness in vertical direction
+      let maxThickness = 0;
+      for (let x=10; x<width-10; x+=6) {
+        let thickness = 0; let maxT = 0;
+        for (let y=1; y<height-1; y++) {
+          const v = edges[y*width + x] > 100;
+          if (v) { thickness++; maxT = Math.max(maxT, thickness); } else { thickness = 0; }
+        }
+        maxThickness = Math.max(maxThickness, maxT);
+      }
+      return maxThickness; // pixels
+    }
+
+    function targetFactor(ctxVal, heightVal, windVal) {
+      const base = ctxVal === 'none' ? 0.2 : ctxVal === 'pedestrian' ? 0.6 : ctxVal === 'vehicle' ? 0.7 : 0.8;
+      const h = Math.max(0, Math.min(60, parseFloat(heightVal || '0')));
+      const wind = windVal === 'low' ? 0.9 : windVal === 'medium' ? 1.0 : 1.1;
+      return Math.min(10, (base * 10) * (h/20) * 0.3 * wind);
+    }
+
+    function computeRisk({ curvature, diameterPx, edgesCount, avgMag, tFactor, confAdj }) {
+      // Heuristics for demo:
+      const defectSeverity = Math.min(10, (curvature * 0.7) + (avgMag/40));
+      const failureLikelihood = Math.min(10, (diameterPx/8) + (edgesCount/5000));
+      const targetOccupancy = Math.min(10, tFactor);
+      const consequence = Math.min(10, (diameterPx/6) + (parseFloat(heightFt.value || '0')/10));
+
+      const score = 0.35*defectSeverity + 0.25*failureLikelihood + 0.20*targetOccupancy + 0.20*consequence;
+      const confidence = Math.max(0.5, Math.min(1.0, confAdj)) * (avgMag > 20 ? 0.95 : 0.8);
+
+      const label = score >= 7.5 ? 'Extreme' : score >= 5.5 ? 'High' : score >= 3.5 ? 'Moderate' : 'Low';
+      return { label, score: Number(score.toFixed(2)), confidence: Number(confidence.toFixed(2)),
+               defectSeverity: Number(defectSeverity.toFixed(2)),
+               failureLikelihood: Number(failureLikelihood.toFixed(2)),
+               targetOccupancy: Number(targetOccupancy.toFixed(2)),
+               consequence: Number(consequence.toFixed(2)) };
+    }
+
+    function colorForScore(s) {
+      if (s >= 7.5) return '#e74c3c';
+      if (s >= 5.5) return '#e67e22';
+      if (s >= 3.5) return '#f1c40f';
+      return '#2ecc71';
+    }
+
+    async function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function overlayEdges(edges, width, height, drawInfo) {
+      const { dx, dy, dw, dh } = drawInfo;
+      const imgData = ctx.getImageData(dx, dy, dw, dh);
+      const data = imgData.data;
+      const scaleX = width / dw, scaleY = height / dh;
+      const score = analysis?.result?.score || 0;
+      const color = colorForScore(score);
+      for (let y=1; y<height-1; y++) {
+        for (let x=1; x<width-1; x++) {
+          const mag = edges[y*width + x];
+          if (mag > 100) {
+            const cx = Math.floor(x / scaleX), cy = Math.floor(y / scaleY);
+            const idx = (cy * dw + cx) * 4;
+            data[idx]   = (color === '#2ecc71') ? 46 : (color === '#f1c40f') ? 241 : (color === '#e67e22') ? 230 : 231;
+            data[idx+1] = (color === '#2ecc71') ? 204 : (color === '#f1c40f') ? 196 : (color === '#e67e22') ? 126 : 76;
+            data[idx+2] = (color === '#2ecc71') ? 113 : (color === '#f1c40f') ? 15  : (color === '#e67e22') ? 34  : 60;
+            data[idx+3] = 255;
+          }
+        }
+      }
+      ctx.putImageData(imgData, dx, dy);
+    }
+
+    function setRecommendations(label) {
+      if (label === 'Extreme') {
+        rec1.textContent = 'Remove hazardous limb promptly (priority scheduling).';
+        rec2.textContent = 'Establish exclusion zone below limb until mitigated.';
+        rec3.textContent = 'Document with additional photos and monitor adjacent attachments.';
+      } else if (label === 'High') {
+        rec1.textContent = 'Prune to reduce load; target weight redistribution.';
+        rec2.textContent = 'Reassess after major wind events or seasonal changes.';
+        rec3.textContent = 'Flag for follow-up inspection within 3 months.';
+      } else if (label === 'Moderate') {
+        rec1.textContent = 'Monitor and prune minor deadwood; reassess in 6–12 months.';
+        rec2.textContent = 'Advise caution for target areas during storms.';
+        rec3.textContent = 'Improve canopy balance where feasible.';
+      } else {
+        rec1.textContent = 'Routine monitoring; no immediate action required.';
+        rec2.textContent = 'Maintain general health via standard pruning practices.';
+        rec3.textContent = 'Record baseline photos for future comparison.';
+      }
+    }
+
+    function renderPayload(img) {
+      const p = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        location: { lat: null, lon: null }, // populate via Geolocation API if desired
+        risk: analysis.result,
+        metrics: {
+          curvatureProxy: analysis.curvature,
+          diameterPx: analysis.diameterPx,
+          edgesCount: analysis.edgesCount,
+          avgEdgeMagnitude: Number(analysis.avgMag.toFixed(2))
+        },
+        context: {
+          target: targetContext.value,
+          heightFt: heightFt.value || null,
+          windExposure: windExposure.value
+        }
+      };
+      payloadEl.textContent = JSON.stringify(p, null, 2);
+      return p;
+    }
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      originalImage = await loadImage(file);
+      const info = drawImage(originalImage);
+
+      // Prepare image data for processing
+      const imgData = ctx.getImageData(info.dx, info.dy, info.dw, info.dh);
+      const gray = toGrayscale(imgData);
+      const sob = sobel(gray);
+      const curv = estimateCurvature(sob.edges, sob.width, sob.height);
+      const diam = estimateDiameter(sob.edges, sob.width, sob.height);
+      analysis = {
+        edges: sob.edges, width: sob.width, height: sob.height,
+        edgesCount: sob.edgesCount, avgMag: sob.avgMag,
+        curvature: Number(curv.toFixed(2)), diameterPx: diam
+      };
+
+      // Clear metrics until analyze
+      riskLabelEl.textContent = '—';
+      riskScoreEl.textContent = '—';
+      confidenceEl.textContent = '—';
+      curvatureEl.textContent = analysis.curvature;
+      diameterEl.textContent = analysis.diameterPx;
+      targetFactorEl.textContent = '—';
+      payloadEl.textContent = '{"status":"ready — click Analyze"}';
+    });
+
+    analyzeBtn.addEventListener('click', () => {
+      if (!originalImage || !analysis) return;
+      const info = drawImage(originalImage);
+
+      // Overlay edges using current settings
+      const tFactor = targetFactor(targetContext.value, heightFt.value, windExposure.value);
+      const result = computeRisk({
+        curvature: analysis.curvature,
+        diameterPx: analysis.diameterPx,
+        edgesCount: analysis.edgesCount,
+        avgMag: analysis.avgMag,
+        tFactor,
+        confAdj: parseFloat(confidenceAdj.value)
+      });
+
+      analysis.result = result;
+
+      overlayEdges(analysis.edges, analysis.width, analysis.height, info);
+
+      riskLabelEl.textContent = result.label;
+      riskScoreEl.textContent = result.score.toFixed(2);
+      confidenceEl.textContent = (result.confidence * 100).toFixed(0) + '%';
+      targetFactorEl.textContent = tFactor.toFixed(2);
+
+      const pos = Math.max(0, Math.min(100, (result.score / 10) * 100));
+      riskIndicator.style.left = `calc(${pos}% - 2px)`;
+      riskIndicator.style.background = '#fff';
+      document.getElementById('riskBar').style.outline = `2px solid ${colorForScore(result.score)}`;
+
+      setRecommendations(result.label);
+      renderPayload(originalImage);
+    });
+
+    resetBtn.addEventListener('click', () => {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      originalImage = null;
+      analysis = null;
+      fileInput.value = '';
+      riskLabelEl.textContent = '—';
+      riskScoreEl.textContent = '—';
+      confidenceEl.textContent = '—';
+      curvatureEl.textContent = '—';
+      diameterEl.textContent = '—';
+      targetFactorEl.textContent = '—';
+      riskIndicator.style.left = '0';
+      payloadEl.textContent = '{"status":"awaiting analysis"}';
+      rec1.textContent = '—';
+      rec2.textContent = '—';
+      rec3.textContent = '—';
+    });
+
+    exportBtn.addEventListener('click', () => {
+      if (!analysis?.result) return;
+      const report = renderPayload(originalImage);
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `tree-limb-risk-${report.id}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</body>
+</html>

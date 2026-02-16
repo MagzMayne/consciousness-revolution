@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WordPreserver — Scan, OCR, and Share Books</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --link: #60a5fa;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, #0b1224 0%, #0f172a 60%, #0b1224 100%);
+      color: var(--text);
+    }
+    header {
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);
+      background: rgba(17,24,39,0.7); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 50;
+    }
+    header h1 { margin: 0; font-size: 20px; letter-spacing: 0.3px; }
+    header .sub { font-size: 12px; color: var(--muted); }
+    .wrap { display: grid; grid-template-columns: 360px 1fr; gap: 18px; padding: 18px; }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+    .card {
+      background: linear-gradient(180deg, rgba(17,24,39,0.85), rgba(15,23,42,0.85));
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    }
+    .card h2 {
+      margin: 0; padding: 12px 14px; font-size: 16px; border-bottom: 1px solid var(--border);
+      background: rgba(2,6,23,0.4);
+    }
+    .card .body { padding: 12px 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: none; }
+    button, .btn {
+      background: var(--panel); color: var(--text); border: 1px solid var(--border);
+      padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+    }
+    button:hover, .btn:hover { border-color: var(--muted); }
+    .primary { background: var(--accent); color: #052e13; border-color: #16a34a; }
+    .warn { background: var(--warn); color: #2b1500; border-color: #d97706; }
+    .danger { background: var(--danger); color: #2c0d0d; border-color: #dc2626; }
+    .muted { color: var(--muted); }
+    .pill { background: #0b1224; border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; }
+    .grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+    @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+    video, canvas { width: 100%; border-radius: 10px; border: 1px solid var(--border); background: #0b1224; }
+    .status { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .stat {
+      padding: 8px; border: 1px solid var(--border); border-radius: 10px; font-size: 12px;
+      display: flex; align-items: center; gap: 8px; background: rgba(2,6,23,0.3);
+    }
+    .list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .item {
+      border: 1px solid var(--border); border-radius: 10px; padding: 8px; display: grid; grid-template-columns: 100px 1fr; gap: 8px;
+      background: rgba(2,6,23,0.3);
+    }
+    .item img { width: 100px; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+    .meta { font-size: 12px; color: var(--muted); }
+    .progress {
+      width: 100%; height: 12px; background: #0b1224; border: 1px solid var(--border); border-radius: 999px; overflow: hidden;
+    }
+    .progress > div { height: 100%; background: linear-gradient(90deg, #22c55e, #84cc16); width: 0%; transition: width 0.25s ease; }
+    .emoji { font-size: 22px; }
+    .footer {
+      padding: 12px 18px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border);
+      background: rgba(17,24,39,0.7); backdrop-filter: blur(8px); margin-top: 18px;
+    }
+    .badge { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; background: rgba(2,6,23,0.3); }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; background: #0b1224; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+    .center { display: flex; align-items: center; justify-content: center; }
+    .hidden { display: none !important; }
+    .lib-cover { width: 80px; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; }
+    .cta { display: flex; gap: 8px; flex-wrap: wrap; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2,6,23,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal {
+      background: linear-gradient(180deg, rgba(17,24,39,0.95), rgba(15,23,42,0.9));
+      border: 1px solid var(--border); border-radius: 14px; width: 92%; max-width: 560px; overflow: hidden;
+    }
+    .modal h3 { margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 16px; }
+    .modal .content { padding: 12px 14px; }
+    .modal .actions { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>WordPreserver</h1>
+      <div class="sub">Scan, OCR, and share books — preserve the words together</div>
+    </div>
+    <div class="row">
+      <span class="badge">Local-first</span>
+      <span class="badge">On-device OCR</span>
+      <span class="badge">Donation to download</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- Left Sidebar: Scanner Controls -->
+    <section class="card">
+      <h2>Scanner</h2>
+      <div class="body">
+        <div class="row">
+          <button id="btnInit" class="primary">Start scan</button>
+          <button id="btnStop" class="">Stop camera</button>
+          <span id="deviceInfo" class="pill">Device: <span id="deviceText">Detecting…</span></span>
+        </div>
+        <div class="grid" style="margin-top:10px;">
+          <div>
+            <video id="video" playsinline autoplay muted></video>
+            <div class="status">
+              <div class="stat"><span class="emoji" id="emojiAlignment">🧭</span> Alignment <span id="statAlignment" class="muted">Waiting</span></div>
+              <div class="stat"><span class="emoji" id="emojiBlur">💧</span> Sharpness <span id="statBlur" class="muted">Waiting</span></div>
+              <div class="stat"><span class="emoji" id="emojiGlare">☀️</span> Glare <span id="statGlare" class="muted">Waiting</span></div>
+              <div class="stat"><span class="emoji" id="emojiCapture">📸</span> Capture <span id="statCapture" class="muted">Idle</span></div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+              <button id="btnCaptureCover" class="warn">Capture cover</button>
+              <button id="btnCapturePage" class="primary">Capture page</button>
+              <button id="btnAuto" class="">Auto-capture: Off</button>
+            </div>
+            <div class="progress" style="margin-top:8px;"><div id="progBar"></div></div>
+            <div class="meta" style="margin-top:6px;">
+              Tip: Hold steady until the border turns green. Then turn the page when prompted.
+            </div>
+          </div>
+          <div>
+            <canvas id="canvas"></canvas>
+            <div class="meta">Preview of last capture. OCR runs automatically in the background.</div>
+            <div class="row" style="margin-top:8px;">
+              <button id="btnRetake" class="danger">Retake last</button>
+              <button id="btnRotate" class="">Rotate preview 90°</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: Book Assembly & Library -->
+    <section class="card">
+      <h2>Book assembly</h2>
+      <div class="body">
+        <div class="row">
+          <input id="inTitle" class="pill" placeholder="Title" />
+          <input id="inAuthor" class="pill" placeholder="Author" />
+          <input id="inYear" class="pill" placeholder="Publication year" />
+          <select id="inLang" class="pill">
+            <option value="eng" selected>English</option>
+            <option value="spa">Spanish</option>
+            <option value="fra">French</option>
+            <option value="deu">German</option>
+            <option value="ita">Italian</option>
+          </select>
+          <span class="pill">Pages: <span id="pageCount">0</span></span>
+        </div>
+        <div class="cta" style="margin-top:8px;">
+          <button id="btnCompile" class="primary">Compile PDF</button>
+          <button id="btnDownload" class="primary">Donate & download</button>
+          <button id="btnClear" class="danger">Clear current book</button>
+        </div>
+        <div class="list" id="pageList" style="margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Community hub</h2>
+      <div class="body">
+        <div class="row">
+          <button id="btnSubmitToHub" class="primary">Submit to global library</button>
+          <span class="pill">Visibility: Public domain and permissioned works only</span>
+        </div>
+        <div class="meta" style="margin-top:6px;">
+          Share responsibly. Public domain or works you own/permissioned. This hub preserves words for everyone.
+        </div>
+        <div style="margin-top:10px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Cover</th><th>Title</th><th>Author</th><th>Year</th><th>Pages</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="hubTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer center">
+    <div>
+      Built for preservation. Local-first processing. Donate to barbrickdesign@gmail.com to support this work.
+      <br />
+      Camera notes: Use good lighting, avoid glare, align edges. Page-turn prompts appear after each successful capture.
+    </div>
+  </div>
+
+  <!-- Donation Modal -->
+  <div id="modalDonate" class="modal-backdrop">
+    <div class="modal">
+      <h3>Donate to download</h3>
+      <div class="content">
+        <p>Support preservation. Make a donation to barbrickdesign@gmail.com. After donation, your compiled book download unlocks.</p>
+        <ul>
+          <li><a href="https://www.paypal.com/paypalme/barbrickdesign" target="_blank">PayPal.me/barbrickdesign</a></li>
+          <li>Or send to PayPal email: barbrickdesign@gmail.com</li>
+        </ul>
+        <p class="meta">Note: Frontend-only demo. Payment verification without a backend is limited. Click “I donated” to proceed.</p>
+      </div>
+      <div class="actions">
+        <button id="btnDonateCancel">Cancel</button>
+        <button id="btnDonated" class="primary">I donated</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightweight dependencies via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    /**
+     * WordPreserver — Single-file app
+     * - Local-first scanning and OCR
+     * - Minimal quality checks (alignment, blur, glare heuristics)
+     * - Page-by-page compilation into a PDF
+     * - Donation gate (frontend-only) prior to download
+     * - Community hub simulated with localStorage
+     *
+     * Core data structures:
+     *   state.book = {
+     *     id, title, author, year, lang,
+     *     cover: { imageDataURL, ocr: "", quality: {...} } | null,
+     *     pages: [{ imageDataURL, ocr, quality, rotationDeg }...],
+     *     compiledPdfBlobUrl: string | null,
+     *   }
+     */
+
+    const els = {
+      video: document.getElementById('video'),
+      canvas: document.getElementById('canvas'),
+      btnInit: document.getElementById('btnInit'),
+      btnStop: document.getElementById('btnStop'),
+      btnCaptureCover: document.getElementById('btnCaptureCover'),
+      btnCapturePage: document.getElementById('btnCapturePage'),
+      btnAuto: document.getElementById('btnAuto'),
+      btnRetake: document.getElementById('btnRetake'),
+      btnRotate: document.getElementById('btnRotate'),
+      progBar: document.getElementById('progBar'),
+      statAlignment: document.getElementById('statAlignment'),
+      statBlur: document.getElementById('statBlur'),
+      statGlare: document.getElementById('statGlare'),
+      statCapture: document.getElementById('statCapture'),
+      emojiAlignment: document.getElementById('emojiAlignment'),
+      emojiBlur: document.getElementById('emojiBlur'),
+      emojiGlare: document.getElementById('emojiGlare'),
+      emojiCapture: document.getElementById('emojiCapture'),
+      inTitle: document.getElementById('inTitle'),
+      inAuthor: document.getElementById('inAuthor'),
+      inYear: document.getElementById('inYear'),
+      inLang: document.getElementById('inLang'),
+      pageCount: document.getElementById('pageCount'),
+      pageList: document.getElementById('pageList'),
+      btnCompile: document.getElementById('btnCompile'),
+      btnDownload: document.getElementById('btnDownload'),
+      btnClear: document.getElementById('btnClear'),
+      deviceInfo: document.getElementById('deviceInfo'),
+      deviceText: document.getElementById('deviceText'),
+      btnSubmitToHub: document.getElementById('btnSubmitToHub'),
+      hubTable: document.getElementById('hubTable'),
+      modalDonate: document.getElementById('modalDonate'),
+      btnDonateCancel: document.getElementById('btnDonateCancel'),
+      btnDonated: document.getElementById('btnDonated'),
+    };
+
+    const state = {
+      stream: null,
+      ctx: null,
+      auto: false,
+      lastFrameData: null,
+      book: newEmptyBook(),
+      device: detectDevice(),
+      donationConfirmed: false, // frontend-only toggle
+    };
+
+    function newEmptyBook() {
+      return {
+        id: 'book-' + Date.now(),
+        title: '',
+        author: '',
+        year: '',
+        lang: 'eng',
+        cover: null,
+        pages: [],
+        compiledPdfBlobUrl: null,
+      };
+    }
+
+    function detectDevice() {
+      const isMobile =
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 1);
+      return { isMobile, platform: navigator.platform || 'unknown', ua: navigator.userAgent };
+    }
+
+    function updateDeviceInfo() {
+      els.deviceText.textContent = state.device.isMobile ? 'Mobile camera' : 'Webcam';
+    }
+
+    // Camera init/stop
+    async function initCamera() {
+      /**
+       * TODOs covered:
+       * - Request user media with rear camera preference on mobile
+       * - Bind stream to video element and start frame analysis loop
+       * - Prepare canvas context with dynamic sizing
+       */
+      try {
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: state.device.isMobile ? { ideal: 'environment' } : 'user',
+            width: { ideal: 1280 }, height: { ideal: 720 }
+          }
+        };
+        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        els.video.srcObject = state.stream;
+        await els.video.play();
+        sizeCanvasToVideo();
+        state.ctx = els.canvas.getContext('2d', { willReadFrequently: true });
+        loopAnalyzeFrame();
+        setCaptureStatus('Camera ready');
+      } catch (err) {
+        setCaptureStatus('Camera error');
+        console.error(err);
+        alert('Camera access failed. Please allow camera permissions.');
+      }
+    }
+
+    function stopCamera() {
+      if (state.stream) {
+        state.stream.getTracks().forEach(t => t.stop());
+        state.stream = null;
+      }
+      setCaptureStatus('Camera stopped');
+    }
+
+    function sizeCanvasToVideo() {
+      const vw = els.video.videoWidth || 1280;
+      const vh = els.video.videoHeight || 720;
+      const maxW = Math.min(vw, 1280);
+      const scale = maxW / vw;
+      els.canvas.width = Math.floor(vw * scale);
+      els.canvas.height = Math.floor(vh * scale);
+    }
+
+    // Frame analysis
+    function loopAnalyzeFrame() {
+      /**
+       * TODOs covered:
+       * - Copy frame to canvas
+       * - Compute simple blur/glare/alignment heuristics
+       * - Update emoji cues + status
+       * - If auto mode, trigger capture when thresholds pass
+       */
+      if (!state.stream) return;
+      try {
+        state.ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+        const frame = state.ctx.getImageData(0, 0, els.canvas.width, els.canvas.height);
+        state.lastFrameData = frame;
+        const quality = evaluateQuality(frame);
+        updateQualityUI(quality);
+        if (state.auto && quality.alignmentGood && quality.blurScore > 40 && quality.glareScore < 0.15) {
+          autoCaptureIfIdle();
+        }
+      } catch (e) {
+        // swallow occasional draw errors
+      }
+      requestAnimationFrame(loopAnalyzeFrame);
+    }
+
+    function evaluateQuality(imageData) {
+      /**
+       * Simple heuristics:
+       * - Blur: Laplacian variance approximation via neighbor differences
+       * - Glare: Fraction of pixels near white
+       * - Alignment: Edge concentration near rectangle borders (very naive)
+       */
+      const { data, width, height } = imageData;
+      let diffSum = 0, samples = 0, whitePixels = 0;
+      const border = 16, edgeHits = 0;
+      // blur/glare sampling
+      for (let y = 1; y < height - 1; y += 4) {
+        for (let x = 1; x < width - 1; x += 4) {
+          const i = (y * width + x) * 4;
+          const g = (data[i] + data[i+1] + data[i+2]) / 3;
+          const i2 = ((y+1) * width + (x+1)) * 4;
+          const g2 = (data[i2] + data[i2+1] + data[i2+2]) / 3;
+          diffSum += Math.abs(g - g2);
+          samples++;
+          if (g > 240 && data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) whitePixels++;
+        }
+      }
+      const blurScore = Math.min(100, (diffSum / samples) * 6); // scaled 0..100
+      const glareScore = whitePixels / samples; // 0..1
+      // alignment: check edges darkness vs center
+      const edgeBands = [
+        {x0:0, y0:0, x1:width, y1:border}, // top
+        {x0:0, y0:height-border, x1:width, y1:height}, // bottom
+        {x0:0, y0:0, x1:border, y1:height}, // left
+        {x0:width-border, y0:0, x1:width, y1:height} // right
+      ];
+      let edgeDark = 0, edgeCount = 0;
+      for (const b of edgeBands) {
+        for (let y = b.y0; y < b.y1; y += 4) {
+          for (let x = b.x0; x < b.x1; x += 4) {
+            const i = (y * width + x) * 4;
+            const g = (data[i] + data[i+1] + data[i+2]) / 3;
+            if (g < 80) edgeDark++;
+            edgeCount++;
+          }
+        }
+      }
+      const alignmentGood = (edgeDark / edgeCount) > 0.2; // naive threshold
+      return { blurScore, glareScore, alignmentGood };
+    }
+
+    function updateQualityUI(q) {
+      els.statBlur.textContent = `Score ${q.blurScore.toFixed(0)}/100`;
+      els.statGlare.textContent = `${(q.glareScore*100).toFixed(1)}% bright`;
+      els.statAlignment.textContent = q.alignmentGood ? 'Good' : 'Adjust';
+      els.emojiAlignment.textContent = q.alignmentGood ? '🟢' : '🧭';
+      els.emojiBlur.textContent = q.blurScore > 40 ? '🔬' : '💧';
+      els.emojiGlare.textContent = q.glareScore < 0.15 ? '🌥️' : '☀️';
+    }
+
+    function setCaptureStatus(txt) {
+      els.statCapture.textContent = txt;
+      els.emojiCapture.textContent = txt.includes('Ready') || txt.includes('Saved') ? '✅' : '📸';
+    }
+
+    function autoCaptureIfIdle() {
+      // Prevent spam capture by checking progress bar state (simple debounce)
+      const w = parseFloat(els.progBar.style.width || '0');
+      if (w > 1) return;
+      captureGeneric('page');
+    }
+
+    // Capture helpers
+    function captureGeneric(kind) {
+      /**
+       * TODOs covered:
+       * - Draw video frame to canvas and export as dataURL
+       * - Run OCR asynchronously
+       * - Attach minimal quality scores
+       * - Store in state as cover or page
+       * - Update list UI and page counter
+       * - Prompt page turn
+       */
+      try {
+        state.ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+        const dataURL = els.canvas.toDataURL('image/jpeg', 0.92);
+        const quality = evaluateQuality(state.lastFrameData || state.ctx.getImageData(0,0,els.canvas.width, els.canvas.height));
+        const record = { imageDataURL: dataURL, ocr: '', quality, rotationDeg: 0 };
+        setCaptureStatus('Saved. Running OCR…');
+        runOCR(record).then(text => {
+          record.ocr = text;
+          pulseProgress(100);
+          if (kind === 'cover') {
+            state.book.cover = record;
+          } else {
+            state.book.pages.push(record);
+          }
+          refreshPageList();
+          setCaptureStatus('Saved. Turn the page ➜');
+        }).catch(e => {
+          console.error(e);
+          pulseProgress(100);
+          if (kind === 'cover') state.book.cover = record; else state.book.pages.push(record);
+          refreshPageList();
+          setCaptureStatus('Saved (OCR pending). Turn the page ➜');
+        });
+        pulseProgress(15);
+      } catch (e) {
+        console.error(e);
+        setCaptureStatus('Capture failed — try again');
+      }
+    }
+
+    async function runOCR(record) {
+      /**
+       * TODOs covered:
+       * - Tesseract OCR on dataURL
+       * - Respect language selection
+       * - Return plain text
+       */
+      const lang = els.inLang.value || 'eng';
+      const { data: { text } } = await Tesseract.recognize(record.imageDataURL, lang, { logger: null });
+      return text.trim();
+    }
+
+    function pulseProgress(target) {
+      els.progBar.style.width = target + '%';
+      if (target >= 100) {
+        setTimeout(() => { els.progBar.style.width = '0%'; }, 650);
+      }
+    }
+
+    // Page list UI
+    function refreshPageList() {
+      els.pageCount.textContent = state.book.pages.length;
+      const list = [];
+      if (state.book.cover) {
+        list.push(renderItem('Cover', state.book.cover, -1));
+      }
+      state.book.pages.forEach((p, idx) => list.push(renderItem('Page ' + (idx+1), p, idx)));
+      els.pageList.innerHTML = '';
+      list.forEach(node => els.pageList.appendChild(node));
+      persistLocalDraft();
+    }
+
+    function renderItem(label, rec, idx) {
+      const div = document.createElement('div');
+      div.className = 'item';
+      const img = document.createElement('img');
+      img.src = rec.imageDataURL;
+      const right = document.createElement('div');
+      right.innerHTML = `
+        <div class="row" style="justify-content:space-between;">
+          <strong>${label}</strong>
+          <span class="badge">Blur ${rec.quality.blurScore.toFixed(0)} / Glare ${(rec.quality.glareScore*100).toFixed(1)}%</span>
+        </div>
+        <div class="meta" style="margin-top:6px; max-height:74px; overflow:auto; white-space:pre-wrap;">${(rec.ocr || '(OCR pending)').substring(0,240)}</div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" data-action="rotate" data-idx="${idx}">Rotate</button>
+          ${idx >= 0 ? `<button class="btn danger" data-action="delete" data-idx="${idx}">Delete</button>` : ''}
+          ${idx >= 0 ? `<button class="btn" data-action="recrop" data-idx="${idx}">Re-scan (replace)</button>` : ''}
+        </div>
+      `;
+      div.appendChild(img);
+      div.appendChild(right);
+      // Attach listeners
+      div.addEventListener('click', (e) => {
+        const act = e.target.getAttribute('data-action');
+        const i = parseInt(e.target.getAttribute('data-idx'), 10);
+        if (!act) return;
+        if (act === 'rotate') rotateRecord(idx);
+        if (act === 'delete') deletePage(i);
+        if (act === 'recrop') rescanReplace(i);
+      });
+      return div;
+    }
+
+    function rotateRecord(idx) {
+      /**
+       * Rotate preview and update rotation meta (does not re-OCR)
+       */
+      const rec = idx < 0 ? state.book.cover : state.book.pages[idx];
+      if (!rec) return;
+      rec.rotationDeg = ((rec.rotationDeg || 0) + 90) % 360;
+      redrawPreview(rec);
+      refreshPageList();
+    }
+
+    function redrawPreview(rec) {
+      const img = new Image();
+      img.onload = () => {
+        const cw = els.canvas.width, ch = els.canvas.height;
+        state.ctx.save();
+        state.ctx.clearRect(0,0,cw,ch);
+        state.ctx.translate(cw/2, ch/2);
+        state.ctx.rotate((rec.rotationDeg || 0) * Math.PI / 180);
+        const scale = Math.min(cw / img.width, ch / img.height);
+        state.ctx.drawImage(img, -img.width*scale/2, -img.height*scale/2, img.width*scale, img.height*scale);
+        state.ctx.restore();
+      };
+      img.src = rec.imageDataURL;
+    }
+
+    function deletePage(i) {
+      state.book.pages.splice(i,1);
+      refreshPageList();
+    }
+
+    function rescanReplace(i) {
+      /**
+       * Replace page i with current camera frame (runs OCR)
+       */
+      try {
+        state.ctx.drawImage(els.video, 0, 0, els.canvas.width, els.canvas.height);
+        const dataURL = els.canvas.toDataURL('image/jpeg', 0.92);
+        const quality = evaluateQuality(state.lastFrameData || state.ctx.getImageData(0,0,els.canvas.width, els.canvas.height));
+        const record = { imageDataURL: dataURL, ocr: '', quality, rotationDeg: 0 };
+        setCaptureStatus('Replacing page… OCR running');
+        runOCR(record).then(text => {
+          record.ocr = text;
+          state.book.pages[i] = record;
+          refreshPageList();
+          setCaptureStatus('Page replaced. Turn the page ➜');
+        });
+      } catch(e) {
+        console.error(e);
+        alert('Replace failed. Try again.');
+      }
+    }
+
+    // Compilation
+    async function compilePDF() {
+      /**
+       * TODOs covered:
+       * - Generate a PDF with cover + pages
+       * - Embed selectable text via invisible text layer per page when available
+       * - Save Blob URL to state for gated download
+       */
+      if (!state.book.cover && state.book.pages.length === 0) {
+        alert('Please capture at least a cover or one page.');
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+
+      function addImagePage(title, rec) {
+        // Add image scaled to page
+        const img = rec.imageDataURL;
+        const tempImg = new Image();
+        return new Promise((resolve) => {
+          tempImg.onload = () => {
+            const scale = Math.min(pageW / tempImg.width, pageH / tempImg.height);
+            const w = tempImg.width * scale, h = tempImg.height * scale;
+            const x = (pageW - w) / 2, y = (pageH - h) / 2;
+            pdf.addImage(img, 'JPEG', x, y, w, h);
+            // Add metadata header
+            pdf.setTextColor(100);
+            pdf.setFontSize(10);
+            pdf.text(title, 24, 24);
+            // Text layer (OCR)
+            if (rec.ocr && rec.ocr.length > 0) {
+              pdf.setTextColor(10);
+              pdf.setFontSize(10);
+              const lines = pdf.splitTextToSize(rec.ocr, pageW - 48);
+              pdf.text(lines, 24, pageH - 24 - Math.min(200, lines.length * 12), { baseline: 'bottom' });
+            }
+            resolve();
+          };
+          tempImg.src = img;
+        });
+      }
+
+      // Cover
+      pdf.setProperties({
+        title: state.book.title || 'Untitled',
+        author: state.book.author || '',
+        subject: 'Digitized with WordPreserver',
+      });
+      if (state.book.cover) {
+        await addImagePage('Cover', state.book.cover);
+      } else {
+        pdf.setFontSize(18);
+        pdf.text(state.book.title || 'Untitled', 24, 48);
+        pdf.setFontSize(12);
+        pdf.text((state.book.author || '') + ' • ' + (state.book.year || ''), 24, 68);
+      }
+
+      // Pages
+      for (let i = 0; i < state.book.pages.length; i++) {
+        pdf.addPage();
+        await addImagePage('Page ' + (i+1), state.book.pages[i]);
+      }
+
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      state.book.compiledPdfBlobUrl = url;
+      alert('Compilation complete. Ready for donation gate.');
+    }
+
+    // Donation gate (frontend-only)
+    function showDonateModal() {
+      els.modalDonate.style.display = 'flex';
+    }
+    function hideDonateModal() {
+      els.modalDonate.style.display = 'none';
+    }
+
+    function downloadCompiled() {
+      /**
+       * TODOs covered:
+       * - Gate download until donationConfirmed toggled
+       * - Trigger file download of compiled PDF
+       */
+      if (!state.book.compiledPdfBlobUrl) {
+        alert('Please compile the book first.');
+        return;
+      }
+      if (!state.donationConfirmed) {
+        showDonateModal();
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = state.book.compiledPdfBlobUrl;
+      const safeTitle = (state.book.title || 'WordPreserver_Book').replace(/[^a-z0-9_\-]+/gi,'_');
+      a.download = safeTitle + '.pdf';
+      a.click();
+    }
+
+    // Local persistence
+    function persistLocalDraft() {
+      /**
+       * Store current book in localStorage (covers images + OCR text).
+       */
+      const meta = {
+        id: state.book.id,
+        title: state.book.title, author: state.book.author, year: state.book.year, lang: state.book.lang,
+        cover: state.book.cover ? { imageDataURL: state.book.cover.imageDataURL, ocr: state.book.cover.ocr, quality: state.book.cover.quality, rotationDeg: state.book.cover.rotationDeg } : null,
+        pages: state.book.pages.map(p => ({ imageDataURL: p.imageDataURL, ocr: p.ocr, quality: p.quality, rotationDeg: p.rotationDeg })),
+        compiledPdfBlobUrl: null // do not persist blob URLs
+      };
+      localStorage.setItem('wp_current_book', JSON.stringify(meta));
+      // add to hub drafts list by id
+      const hub = JSON.parse(localStorage.getItem('wp_hub') || '[]');
+      const exists = hub.find(h => h.id === meta.id);
+      if (!exists) { hub.push({ id: meta.id, title: meta.title, author: meta.author, year: meta.year, pages: meta.pages.length, cover: meta.cover?.imageDataURL || null }); }
+      localStorage.setItem('wp_hub', JSON.stringify(hub));
+      refreshHub();
+    }
+
+    function loadLocalDraft() {
+      const raw = localStorage.getItem('wp_current_book');
+      if (!raw) return;
+      try {
+        const meta = JSON.parse(raw);
+        state.book = { ...newEmptyBook(), ...meta };
+        refreshPageList();
+        els.inTitle.value = state.book.title || '';
+        els.inAuthor.value = state.book.author || '';
+        els.inYear.value = state.book.year || '';
+        els.inLang.value = state.book.lang || 'eng';
+      } catch(e) { /* ignore */ }
+    }
+
+    function clearCurrentBook() {
+      state.book = newEmptyBook();
+      els.inTitle.value = ''; els.inAuthor.value = ''; els.inYear.value = ''; els.inLang.value = 'eng';
+      els.pageList.innerHTML = ''; els.pageCount.textContent = '0';
+      localStorage.removeItem('wp_current_book');
+      setCaptureStatus('Cleared current book');
+    }
+
+    // Hub (simulated)
+    function submitToHub() {
+      /**
+       * TODOs covered:
+       * - Rights-aware attestation prompt (simple checkbox)
+       * - Save book card to local hub store
+       */
+      const ok = confirm('Confirm you have rights to share this work (public domain or permissioned). Proceed?');
+      if (!ok) return;
+      const hub = JSON.parse(localStorage.getItem('wp_hub') || '[]');
+      const entry = {
+        id: state.book.id,
+        title: state.book.title || 'Untitled',
+        author: state.book.author || '',
+        year: state.book.year || '',
+        pages: state.book.pages.length,
+        cover: state.book.cover?.imageDataURL || null,
+        ts: Date.now()
+      };
+      const idx = hub.findIndex(h => h.id === entry.id);
+      if (idx >= 0) hub[idx] = entry; else hub.push(entry);
+      localStorage.setItem('wp_hub', JSON.stringify(hub));
+      refreshHub();
+      alert('Submitted to local hub (demo). A real backend would publish globally.');
+    }
+
+    function refreshHub() {
+      const hub = JSON.parse(localStorage.getItem('wp_hub') || '[]');
+      hub.sort((a,b) => b.ts - a.ts);
+      els.hubTable.innerHTML = hub.map(h => `
+        <tr>
+          <td>${h.cover ? `<img class="lib-cover" src="${h.cover}" />` : '—'}</td>
+          <td>${h.title || 'Untitled'}</td>
+          <td>${h.author || ''}</td>
+          <td>${h.year || ''}</td>
+          <td>${h.pages}</td>
+          <td>
+            <button class="btn" data-hub-action="load" data-id="${h.id}">Load</button>
+            <button class="btn danger" data-hub-action="remove" data-id="${h.id}">Remove</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function hubAction(e) {
+      const act = e.target.getAttribute('data-hub-action');
+      const id = e.target.getAttribute('data-id');
+      if (!act || !id) return;
+      const hub = JSON.parse(localStorage.getItem('wp_hub') || '[]');
+      const entry = hub.find(h => h.id === id);
+      if (act === 'remove') {
+        const rem = hub.filter(h => h.id !== id);
+        localStorage.setItem('wp_hub', JSON.stringify(rem));
+        refreshHub();
+      }
+      if (act === 'load') {
+        const current = JSON.parse(localStorage.getItem('wp_current_book') || '{}');
+        if (current?.id !== id) {
+          alert('This loads metadata only. Pages are stored in the current draft. For full loading, keep scanning in one session.');
+        }
+        // No-op for demo
+      }
+    }
+
+    // Event bindings
+    function bindEvents() {
+      els.btnInit.addEventListener('click', initCamera);
+      els.btnStop.addEventListener('click', stopCamera);
+      els.btnCaptureCover.addEventListener('click', () => captureGeneric('cover'));
+      els.btnCapturePage.addEventListener('click', () => captureGeneric('page'));
+      els.btnAuto.addEventListener('click', () => {
+        state.auto = !state.auto;
+        els.btnAuto.textContent = 'Auto-capture: ' + (state.auto ? 'On' : 'Off');
+      });
+      els.btnRetake.addEventListener('click', () => {
+        // Simple retake: remove last page and recapture
+        if (state.book.pages.length > 0) {
+          state.book.pages.pop();
+          refreshPageList();
+          setCaptureStatus('Last page removed — capture again');
+        } else {
+          setCaptureStatus('No page to retake');
+        }
+      });
+      els.btnRotate.addEventListener('click', () => rotateRecord(state.book.pages.length - 1));
+      els.inTitle.addEventListener('input', () => { state.book.title = els.inTitle.value; persistLocalDraft(); });
+      els.inAuthor.addEventListener('input', () => { state.book.author = els.inAuthor.value; persistLocalDraft(); });
+      els.inYear.addEventListener('input', () => { state.book.year = els.inYear.value; persistLocalDraft(); });
+      els.inLang.addEventListener('change', () => { state.book.lang = els.inLang.value; persistLocalDraft(); });
+      els.btnCompile.addEventListener('click', compilePDF);
+      els.btnDownload.addEventListener('click', downloadCompiled);
+      els.btnClear.addEventListener('click', clearCurrentBook);
+      els.btnSubmitToHub.addEventListener('click', submitToHub);
+      els.hubTable.addEventListener('click', hubAction);
+      els.btnDonateCancel.addEventListener('click', hideDonateModal);
+      els.btnDonated.addEventListener('click', () => { state.donationConfirmed = true; hideDonateModal(); downloadCompiled(); });
+      updateDeviceInfo();
+    }
+
+    // Init
+    bindEvents();
+    loadLocalDraft();
+    refreshHub();
+  </script>
+</body>
+</html>

@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gem Valuer & eBay Lister — Live comps, collection, auto-post</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Input gemstone details, get live comps and valuation, manage a collection, and auto-create eBay listing drafts." />
+  <style>
+    :root{
+      --bg:#0c1117; --panel:#121826; --panel2:#0e1524; --text:#eaf2ff; --muted:#9fb2cc;
+      --accent:#79d2ff; --accent2:#87ffa8; --border:#1f2f45; --table:#0f1724; --danger:#ff7195; --warn:#ffc861; --ok:#75f4b4;
+    }
+    html,body{background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin:0;}
+    .wrap{max-width:1200px; margin:0 auto; padding:22px;}
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;}
+    .brand{display:flex; gap:12px; align-items:center;}
+    .brand .logo{font-size:28px;}
+    .brand h1{margin:0; font-size:18px; letter-spacing:0.2px;}
+    .sub{font-size:13px; color:var(--muted);}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .pill{background:#102035; border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-size:12px; color:var(--muted);}
+    .panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:12px;}
+    .panel-header{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--panel2); border-bottom:1px solid var(--border);}
+    .panel-header h2{font-size:16px; margin:0;}
+    .panel-body{padding:14px;}
+    .grid-2{display:grid; grid-template-columns: 1fr 1fr; gap:12px;}
+    .grid-3{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;}
+    .field{display:flex; flex-direction:column; gap:6px;}
+    label{font-size:12px; color:var(--muted);}
+    input, select, textarea{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:14px; outline:none;}
+    textarea{min-height:90px; resize:vertical;}
+    button{
+      background:linear-gradient(180deg, var(--accent) 0%, #45a9f6 100%);
+      border:none; color:#06233a; font-weight:700; padding:10px 14px; border-radius:10px; cursor:pointer;
+      box-shadow:0 6px 16px rgba(77,175,255,0.35);
+    }
+    button.secondary{background:linear-gradient(180deg, #7effb0 0%, #42d787 100%); color:#062e1d; box-shadow:0 6px 16px rgba(66,215,135,0.35);}
+    button.ghost{background:transparent; border:1px solid var(--border); color:var(--text); box-shadow:none;}
+    .stats{display:grid; grid-template-columns: repeat(5, 1fr); gap:10px;}
+    .stat{background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px;}
+    .stat .label{font-size:12px; color:var(--muted);}
+    .stat .value{font-size:18px; margin-top:4px;}
+    .conf-high{color:var(--ok);} .conf-med{color:var(--warn);} .conf-low{color:var(--danger);}
+    .badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+    .badge{background:#15233a; border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-size:12px; display:flex; align-items:center; gap:6px;}
+    table{width:100%; border-collapse:collapse; background:var(--table); border:1px solid var(--border); border-radius:12px; overflow:hidden;}
+    th{font-size:12px; color:var(--muted); text-align:left; padding:10px; border-bottom:1px solid var(--border);}
+    td{padding:10px; border-bottom:1px solid var(--border); font-size:13px;}
+    tbody tr:hover{background:#0c182b;}
+    .note{font-size:12px; color:var(--muted);}
+    .divider{height:1px; background:var(--border); margin:12px 0;}
+    .two-col{display:grid; grid-template-columns: 1.2fr 0.8fr; gap:12px;}
+    .provenance-url a{color:var(--accent); text-decoration:none;}
+    .footer{color:var(--muted); font-size:12px; margin-top:18px;}
+    .card{background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px;}
+    .listings{display:grid; grid-template-columns: 1fr; gap:10px;}
+    .library-grid{display:grid; grid-template-columns: 1fr; gap:10px;}
+    .item-row{display:grid; grid-template-columns: 1.2fr 0.8fr 0.6fr 0.6fr 0.6fr 0.9fr 0.6fr 0.7fr; gap:8px; align-items:center;}
+    .small{font-size:12px; color:var(--muted);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">💎</div>
+        <div>
+          <h1>Gem Valuer & eBay Lister</h1>
+          <div class="sub">Input gemstone → live comps & value → collection → auto listing draft to your eBay shop.</div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="pill">Funds‑first</span>
+        <span class="pill">Zero‑touch listing</span>
+        <span class="pill">Trust badges</span>
+      </div>
+    </header>
+
+    <!-- eBay account auth -->
+    <section class="panel" id="auth-panel">
+      <div class="panel-header">
+        <h2>Connect eBay account</h2>
+        <div class="row"><span class="pill">Required to auto‑post</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <button class="secondary" id="ebay-login">Log in with eBay</button>
+          <button class="ghost" id="ebay-logout" style="display:none;">Disconnect</button>
+          <span class="note" id="auth-note">Not connected.</span>
+        </div>
+        <div class="note">We’ll request permission to create and update listings in your shop. You can revoke access anytime in eBay settings.</div>
+      </div>
+    </section>
+
+    <!-- Input gemstone -->
+    <section class="panel" id="input-panel">
+      <div class="panel-header">
+        <h2>Enter gemstone details</h2>
+        <div class="row"><span class="pill">Type • Shape • Size • Carat • Treatment • Origin</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="grid-3">
+          <div class="field">
+            <label>Type</label>
+            <select id="type">
+              <option value="sapphire">Sapphire</option>
+              <option value="ruby">Ruby</option>
+              <option value="emerald">Emerald</option>
+              <option value="spinel">Spinel</option>
+              <option value="tourmaline">Tourmaline</option>
+              <option value="aquamarine">Aquamarine</option>
+              <option value="amethyst">Amethyst</option>
+              <option value="alexandrite">Alexandrite</option>
+              <option value="topaz">Topaz</option>
+              <option value="garnet">Garnet</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Shape</label>
+            <select id="shape">
+              <option value="oval">Oval</option>
+              <option value="round">Round</option>
+              <option value="pear">Pear</option>
+              <option value="emerald-cut">Emerald cut</option>
+              <option value="cushion">Cushion</option>
+              <option value="princess">Princess</option>
+              <option value="marquise">Marquise</option>
+              <option value="heart">Heart</option>
+              <option value="trillion">Trillion</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Size (mm)</label>
+            <input id="size" placeholder="e.g., 7x5" />
+          </div>
+          <div class="field">
+            <label>Carat weight</label>
+            <input id="carat" placeholder="e.g., 1.25" />
+          </div>
+          <div class="field">
+            <label>Treatment</label>
+            <select id="treatment">
+              <option value="any">Any</option>
+              <option value="untreated">Untreated</option>
+              <option value="heated">Heated</option>
+              <option value="oiled">Oiled</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Origin (optional)</label>
+            <input id="origin" placeholder="e.g., Sri Lanka" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="get-comps">Get live comps & value ⚡</button>
+          <button class="ghost" id="clear-inputs">Clear</button>
+          <span class="note">We auto‑filter lots and unverifiable sizes. Enter exact mm for better comps.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Valuation and comps -->
+    <section class="panel" id="valuation-panel">
+      <div class="panel-header">
+        <h2>Valuation snapshot</h2>
+        <div class="row" id="trust-badges"></div>
+      </div>
+      <div class="panel-body">
+        <div class="stats">
+          <div class="stat"><div class="label">Median per carat</div><div class="value" id="v-median">$—</div></div>
+          <div class="stat"><div class="label">IQR per carat</div><div class="value" id="v-iqr">$—</div></div>
+          <div class="stat"><div class="label">Trimmed mean</div><div class="value" id="v-trimmed">$—</div></div>
+          <div class="stat"><div class="label">Valid comps</div><div class="value" id="v-count">—</div></div>
+          <div class="stat"><div class="label">Confidence</div><div class="value" id="v-conf">—</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="two-col">
+          <div>
+            <table id="comps-table">
+              <thead>
+                <tr>
+                  <th>Sold date</th>
+                  <th>Per carat (USD)</th>
+                  <th>Total (USD)</th>
+                  <th>Size / Carat</th>
+                  <th>Shape / Type</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="comps-body">
+                <tr><td colspan="6" style="text-align:center; color:var(--muted);">Run a valuation to load comps…</td></tr>
+              </tbody>
+            </table>
+            <div class="note">Outliers removed using IQR. Single‑stone comps only.</div>
+          </div>
+          <div class="card">
+            <div class="field">
+              <label>Suggested price (total)</label>
+              <input id="suggested-price" placeholder="$—" />
+            </div>
+            <div class="field">
+              <label>Listing title (auto‑generated)</label>
+              <input id="listing-title" placeholder="Generated after valuation…" />
+            </div>
+            <div class="field">
+              <label>Description (auto‑generated)</label>
+              <textarea id="listing-desc" placeholder="Generated after valuation…"></textarea>
+            </div>
+            <div class="field">
+              <label>Image prompt (optional, for your workflow)</label>
+              <textarea id="image-prompt" placeholder="e.g., white background, macro focus, diffused light, color‑accurate"></textarea>
+            </div>
+            <div class="row">
+              <button class="secondary" id="add-to-library">Add to collection</button>
+              <button id="create-ebay-draft">Create eBay listing draft</button>
+            </div>
+            <div class="note">You can edit the title and description before creating the draft.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Collection library -->
+    <section class="panel" id="library-panel">
+      <div class="panel-header">
+        <h2>Collection library</h2>
+        <div class="row">
+          <span class="pill">Manage stones</span>
+          <span class="pill">Batch list to eBay</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="library-grid" id="library-list">
+          <div class="note">Your saved stones will appear here with valuation, title, and listing status.</div>
+        </div>
+        <div class="divider"></div>
+        <div class="row">
+          <button id="batch-create-drafts">Batch create eBay drafts</button>
+          <button class="ghost" id="export-library">Export CSV</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="footer">Built to value and sell gemstones with accurate stats, clean comps, and zero‑touch listing automation.</div>
+  </div>
+
+  <script>
+    // ================== CONFIG ==================
+    const CONFIG = {
+      // Backends you will implement:
+      // GET /prices/live?type=&shape=&size_mm=&carat=&treatment=&origin=
+      // POST /ebay/auth/start  -> returns auth URL
+      // GET /ebay/auth/callback -> handled server-side to store token (front-end shows "Connected")
+      // POST /ebay/listing/draft -> body: { title, description, price, item, images? }
+      API_BASE: null, // e.g., "https://api.gemtools.app"
+      DEMO_MODE: true // set false when API_BASE is live
+    };
+
+    // ================== UTILITIES ==================
+    const $ = (id) => document.getElementById(id);
+    const fmtUSD = (n) => (n == null ? "$—" : `$${(+n).toFixed(2)}`);
+    function parseSize(value){
+      if(!value) return null;
+      const m = value.trim().match(/(\d+(?:\.\d+)?)\s*(?:x|×|-|\*)\s*(\d+(?:\.\d+)?)$/i);
+      if(!m) return null;
+      return { length_mm:+m[1], width_mm:+m[2], raw:`${m[1]}x${m[2]}` };
+    }
+    function confidenceClass(c){
+      if(c == null) return '';
+      if(c >= 0.8) return 'conf-high';
+      if(c >= 0.6) return 'conf-med';
+      return 'conf-low';
+    }
+    function badge(text, emoji){
+      const span = document.createElement('span');
+      span.className = 'badge';
+      span.innerHTML = `${emoji} ${text}`;
+      return span;
+    }
+    function setAuthState(connected){
+      $('auth-note').textContent = connected ? 'Connected to eBay.' : 'Not connected.';
+      $('ebay-login').style.display = connected ? 'none' : 'inline-block';
+      $('ebay-logout').style.display = connected ? 'inline-block' : 'none';
+      localStorage.setItem('ebay_connected', connected ? '1' : '0');
+    }
+
+    // ================== DEMO VALUATION (synthetic comps if no API) ==================
+    function demoComps(query){
+      const base = {
+        sapphire: 320, ruby: 410, emerald: 380, spinel: 260, tourmaline: 180,
+        aquamarine: 150, amethyst: 45, alexandrite: 900, topaz: 55, garnet: 70
+      }[query.type] || 150;
+
+      const shapeFactor = {
+        'round': 1.12, 'oval': 1.0, 'pear': 1.05, 'emerald-cut': 1.08, 'cushion': 1.06,
+        'princess': 1.1, 'marquise': 1.04, 'heart': 1.15, 'trillion': 0.98
+      }[query.shape] || 1.0;
+
+      const size = parseSize(query.size_mm);
+      const sizeFactor = !size ? 1.0 : Math.min(1.25, Math.max(0.85, (size.length_mm * size.width_mm) / (7*5) * 0.06 + 0.94));
+      const materialFactor = 1.0; // Material flag is not explicit here
+      const treatFactor = query.treatment === 'untreated' ? 1.18 : (query.treatment === 'heated' ? 0.95 : 1.0);
+      const center = base * shapeFactor * sizeFactor * materialFactor * treatFactor;
+
+      const count = Math.floor(Math.max(12, Math.min(95, 45)));
+      const items = [];
+      for(let i=0;i<count;i++){
+        const rand = (Math.random()-0.5);
+        const perCarat = Math.max(5, center*(1+rand*0.35));
+        const carats = query.carat ? +query.carat : Math.max(0.25, Math.min(6.0, ((size?.length_mm||7)*(size?.width_mm||5)/45)*(0.8+Math.random()*0.6)));
+        const total = perCarat * carats;
+        const daysAgo = Math.floor(Math.random()*30);
+        const soldDate = new Date(Date.now() - daysAgo*86400000).toISOString().slice(0,10);
+        items.push({
+          sold_date: soldDate,
+          per_carat_usd: perCarat,
+          total_usd: total,
+          size_mm: size ? size.raw : '—',
+          carat: +carats.toFixed(2),
+          shape: query.shape,
+          type: query.type,
+          item_url: "https://www.ebay.com/itm/demo"
+        });
+      }
+
+      const pcs = items.map(p=>p.per_carat_usd).sort((a,b)=>a-b);
+      const q1 = pcs[Math.floor(pcs.length*0.25)];
+      const q3 = pcs[Math.floor(pcs.length*0.75)];
+      const iqr = q3 - q1;
+      const filtered = items.filter(p => p.per_carat_usd >= q1 - 1.5*iqr && p.per_carat_usd <= q3 + 1.5*iqr);
+      const fpcs = filtered.map(p=>p.per_carat_usd).sort((a,b)=>a-b);
+      const median = fpcs[Math.floor(fpcs.length/2)];
+      const trim = Math.floor(fpcs.length*0.1);
+      const trimmed = fpcs.slice(trim, fpcs.length - trim);
+      const trimmedMean = trimmed.reduce((a,b)=>a+b,0) / (trimmed.length || 1);
+      const confidence = Math.max(0.3, Math.min(0.95, 0.5 + (filtered.length/100) - (iqr/(median||center))/8));
+
+      return {
+        stats:{
+          median_per_carat_usd: +median?.toFixed(2) || null,
+          iqr_per_carat_usd: +iqr?.toFixed(2) || null,
+          trimmed_mean_per_carat_usd: +trimmedMean?.toFixed(2) || null,
+          count: filtered.length,
+          confidence: +confidence.toFixed(2)
+        },
+        comps: filtered.slice(0,50)
+      };
+    }
+
+    // ================== API CALLS (placeholders) ==================
+    async function fetchLiveComps(query){
+      if(CONFIG.DEMO_MODE || !CONFIG.API_BASE){
+        await new Promise(r=>setTimeout(r, 500));
+        return demoComps(query);
+      }
+      const url = new URL(CONFIG.API_BASE + '/prices/live');
+      Object.entries(query).forEach(([k,v])=> url.searchParams.set(k, v));
+      const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }});
+      if(!res.ok) throw new Error('Failed to fetch comps');
+      return await res.json();
+    }
+    async function startEbayAuth(){
+      if(CONFIG.DEMO_MODE || !CONFIG.API_BASE){
+        // Simulate success
+        await new Promise(r=>setTimeout(r, 400));
+        setAuthState(true);
+        alert('Demo: eBay connected.');
+        return;
+      }
+      const res = await fetch(CONFIG.API_BASE + '/ebay/auth/start', { method:'POST' });
+      if(!res.ok) throw new Error('Failed to start eBay auth');
+      const { authUrl } = await res.json();
+      window.location.href = authUrl;
+    }
+    async function createEbayDraft(payload){
+      if(localStorage.getItem('ebay_connected') !== '1'){
+        alert('Please connect your eBay account first.');
+        return { ok:false, message:'Not connected' };
+      }
+      if(CONFIG.DEMO_MODE || !CONFIG.API_BASE){
+        await new Promise(r=>setTimeout(r, 600));
+        return { ok:true, listingId: 'DEMO-12345', viewUrl: 'https://www.ebay.com/itm/demo-listing' };
+      }
+      const res = await fetch(CONFIG.API_BASE + '/ebay/listing/draft', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok){
+        const t = await res.text();
+        return { ok:false, message:t || 'Error creating draft' };
+      }
+      return await res.json();
+    }
+
+    // ================== RENDER ==================
+    function renderValuation(result){
+      $('v-median').textContent = fmtUSD(result.stats.median_per_carat_usd);
+      $('v-iqr').textContent = fmtUSD(result.stats.iqr_per_carat_usd);
+      $('v-trimmed').textContent = fmtUSD(result.stats.trimmed_mean_per_carat_usd);
+      $('v-count').textContent = result.stats.count ?? '—';
+      const confEl = $('v-conf');
+      confEl.textContent = result.stats.confidence ?? '—';
+      confEl.className = `value ${confidenceClass(result.stats.confidence)}`;
+
+      const tb = $('trust-badges');
+      tb.innerHTML = '';
+      tb.appendChild(badge('Per‑carat normalization', '📐'));
+      tb.appendChild(badge('IQR robust stats', '📊'));
+      tb.appendChild(badge(`Confidence: ${result.stats.confidence}`, '✅'));
+
+      const body = $('comps-body');
+      body.innerHTML = '';
+      if(!result.comps || result.comps.length === 0){
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted);">No comps found.</td></tr>`;
+      } else {
+        result.comps.forEach(p=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${p.sold_date}</td>
+            <td>${fmtUSD(p.per_carat_usd)}</td>
+            <td>${fmtUSD(p.total_usd)}</td>
+            <td>${p.size_mm || '—'} / ${p.carat ?? '—'} ct</td>
+            <td>${p.shape} / ${p.type}</td>
+            <td class="provenance-url"><a href="${p.item_url}" target="_blank" rel="noopener">eBay</a></td>
+          `;
+          body.appendChild(tr);
+        });
+      }
+    }
+
+    function generateTitleDesc(input, stats){
+      const size = parseSize(input.size_mm);
+      const sizeText = size ? `${size.raw} mm` : '';
+      const treat = input.treatment && input.treatment !== 'any' ? input.treatment : '';
+      const origin = input.origin ? ` • ${input.origin}` : '';
+      const caratText = input.carat ? `${input.carat} ct` : '';
+      const shapeText = input.shape.replace('-', ' ');
+      const typeText = input.type[0].toUpperCase() + input.type.slice(1);
+
+      const title = [
+        caratText, origin ? origin.replace(' • ', '') : '', treat ? treat : '',
+        typeText, shapeText, sizeText
+      ].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+
+      const desc = [
+        `Gemstone: ${typeText}`,
+        `Shape: ${shapeText}`,
+        size ? `Dimensions: ${size.raw} mm` : null,
+        input.carat ? `Weight: ${input.carat} carats` : null,
+        treat ? `Treatment: ${treat}` : `Treatment: Not specified`,
+        input.origin ? `Origin: ${input.origin}` : null,
+        `Valuation (median per carat): ${fmtUSD(stats.median_per_carat_usd)} | IQR: ${fmtUSD(stats.iqr_per_carat_usd)} | Trimmed mean: ${fmtUSD(stats.trimmed_mean_per_carat_usd)}`,
+        `Notes: Comparable sold listings analyzed; outliers removed using IQR. Single‑stone comps only.`,
+        `Shipping & returns: Seller policy applies. Please review photos for color accuracy and clarity.`
+      ].filter(Boolean).join('\n');
+
+      const suggestedTotal = (stats.median_per_carat_usd && input.carat)
+        ? stats.median_per_carat_usd * parseFloat(input.carat)
+        : null;
+
+      return { title, desc, suggestedTotal };
+    }
+
+    // ================== LIBRARY ==================
+    function getLibrary(){ return JSON.parse(localStorage.getItem('gem_library')||'[]'); }
+    function setLibrary(items){ localStorage.setItem('gem_library', JSON.stringify(items)); }
+    function renderLibrary(){
+      const list = $('library-list');
+      const items = getLibrary();
+      list.innerHTML = '';
+      if(items.length === 0){
+        list.innerHTML = '<div class="note">No stones in your collection yet.</div>';
+        return;
+      }
+      items.forEach((it, idx)=>{
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="item-row">
+            <div><b>${it.title}</b><div class="small">${it.item.type} • ${it.item.shape} • ${it.item.size_mm || ''} • ${it.item.carat ? it.item.carat+' ct' : ''}</div></div>
+            <div>${fmtUSD(it.suggested_price)}</div>
+            <div><button class="ghost" data-idx="${idx}" data-action="view">View</button></div>
+            <div><button class="ghost" data-idx="${idx}" data-action="edit">Edit</button></div>
+            <div><button class="ghost danger" data-idx="${idx}" data-action="delete">Delete</button></div>
+            <div><button class="secondary" data-idx="${idx}" data-action="draft">Create eBay draft</button></div>
+            <div>${it.listingId ? 'Draft: '+it.listingId : '—'}</div>
+            <div>${it.viewUrl ? `<a href="${it.viewUrl}" target="_blank">View</a>` : '—'}</div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+      list.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const idx = +btn.getAttribute('data-idx');
+          const action = btn.getAttribute('data-action');
+          const items = getLibrary();
+          const it = items[idx];
+          if(action === 'delete'){
+            items.splice(idx,1); setLibrary(items); renderLibrary();
+          } else if(action === 'draft'){
+            const payload = {
+              title: it.title, description: it.description,
+              price: it.suggested_price,
+              item: it.item
+            };
+            const res = await createEbayDraft(payload);
+            if(res.ok){
+              it.listingId = res.listingId; it.viewUrl = res.viewUrl;
+              setLibrary(items); renderLibrary();
+              alert('Draft created successfully.');
+            } else {
+              alert('Failed to create draft: ' + (res.message || 'Unknown error'));
+            }
+          } else if(action === 'view'){
+            alert(it.description);
+          } else if(action === 'edit'){
+            const newTitle = prompt('Edit title:', it.title) || it.title;
+            it.title = newTitle;
+            setLibrary(items); renderLibrary();
+          }
+        });
+      });
+    }
+
+    // ================== EVENTS ==================
+    document.addEventListener('DOMContentLoaded', ()=>{
+      // Restore auth
+      setAuthState(localStorage.getItem('ebay_connected') === '1');
+
+      $('ebay-login').addEventListener('click', startEbayAuth);
+      $('ebay-logout').addEventListener('click', ()=> setAuthState(false));
+
+      $('clear-inputs').addEventListener('click', ()=>{
+        $('type').value = 'sapphire';
+        $('shape').value = 'oval';
+        $('size').value = '';
+        $('carat').value = '';
+        $('treatment').value = 'any';
+        $('origin').value = '';
+        $('v-median').textContent = '$—';
+        $('v-iqr').textContent = '$—';
+        $('v-trimmed').textContent = '$—';
+        $('v-count').textContent = '—';
+        $('v-conf').textContent = '—';
+        $('v-conf').className = 'value';
+        $('comps-body').innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted);">Run a valuation to load comps…</td></tr>`;
+        $('listing-title').value = '';
+        $('listing-desc').value = '';
+        $('suggested-price').value = '';
+        $('image-prompt').value = '';
+        $('trust-badges').innerHTML = '';
+      });
+
+      $('get-comps').addEventListener('click', async ()=>{
+        const input = {
+          type: $('type').value,
+          shape: $('shape').value,
+          size_mm: $('size').value.trim(),
+          carat: $('carat').value.trim(),
+          treatment: $('treatment').value,
+          origin: $('origin').value.trim()
+        };
+        try{
+          $('get-comps').disabled = true;
+          $('get-comps').textContent = 'Loading…';
+          const res = await fetchLiveComps(input);
+          renderValuation(res);
+
+          const gen = generateTitleDesc(input, res.stats);
+          $('listing-title').value = gen.title || '';
+          $('listing-desc').value = gen.desc || '';
+          $('suggested-price').value = gen.suggestedTotal ? fmtUSD(gen.suggestedTotal) : '';
+
+          const tb = $('trust-badges');
+          tb.appendChild(badge('Clean query', '🧼'));
+          tb.appendChild(badge('Single‑stone comps', '💠'));
+          tb.appendChild(badge('Verified size parsing', '📏'));
+        } catch(e){
+          alert('Error loading valuation. Please try again.');
+          console.error(e);
+        } finally{
+          $('get-comps').disabled = false;
+          $('get-comps').textContent = 'Get live comps & value ⚡';
+        }
+      });
+
+      $('add-to-library').addEventListener('click', ()=>{
+        const item = {
+          type: $('type').value,
+          shape: $('shape').value,
+          size_mm: $('size').value.trim(),
+          carat: $('carat').value.trim(),
+          treatment: $('treatment').value,
+          origin: $('origin').value.trim()
+        };
+        const suggested = $('suggested-price').value.replace(/[^0-9.]/g,'');
+        const entry = {
+          item,
+          title: $('listing-title').value,
+          description: $('listing-desc').value,
+          suggested_price: suggested ? +suggested : null
+        };
+        const items = getLibrary();
+        items.push(entry);
+        setLibrary(items);
+        renderLibrary();
+        alert('Added to collection.');
+      });
+
+      $('create-ebay-draft').addEventListener('click', async ()=>{
+        const payload = {
+          title: $('listing-title').value,
+          description: $('listing-desc').value,
+          price: $('suggested-price').value.replace(/[^0-9.]/g,''),
+          item: {
+            type: $('type').value,
+            shape: $('shape').value,
+            size_mm: $('size').value.trim(),
+            carat: $('carat').value.trim(),
+            treatment: $('treatment').value,
+            origin: $('origin').value.trim()
+          }
+        };
+        const res = await createEbayDraft(payload);
+        if(res.ok){
+          alert('Draft created: ' + res.listingId);
+        } else {
+          alert('Failed to create draft: ' + (res.message || 'Unknown error'));
+        }
+      });
+
+      $('batch-create-drafts').addEventListener('click', async ()=>{
+        const items = getLibrary();
+        if(items.length === 0) return alert('No items in library.');
+        let success = 0, fail = 0;
+        for(const it of items){
+          const res = await createEbayDraft({
+            title: it.title, description: it.description,
+            price: it.suggested_price,
+            item: it.item
+          });
+          if(res.ok){ it.listingId = res.listingId; it.viewUrl = res.viewUrl; success++; }
+          else { fail++; }
+        }
+        setLibrary(items);
+        renderLibrary();
+        alert(`Batch complete — Success: ${success}, Failed: ${fail}`);
+      });
+
+      $('export-library').addEventListener('click', ()=>{
+        const items = getLibrary();
+        const rows = [['Title','Type','Shape','Size (mm)','Carat','Treatment','Origin','Suggested Price','Listing ID','View URL']];
+        items.forEach(it=>{
+          rows.push([
+            it.title, it.item.type, it.item.shape, it.item.size_mm || '',
+            it.item.carat || '', it.item.treatment || '', it.item.origin || '',
+            it.suggested_price ?? '', it.listingId ?? '', it.viewUrl ?? ''
+          ]);
+        });
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'gem_library.csv'; a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      renderLibrary();
+    });
+  </script>
+</body>
+</html>
