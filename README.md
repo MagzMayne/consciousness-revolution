@@ -781,19 +781,19 @@ npm start
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 901 | **Interactive**: 840
+**Total Projects**: 1167 | **Interactive**: 1081
 
 **Status Breakdown**:
-- ✅ **754 working** (84% - fully functional)
-- ⚠️ **36 partial** (4% - core features work)
-- 🔧 **30 broken** (3% - under repair)
-- 🧪 **81 untested** (9% - awaiting validation)
+- ✅ **946 working** (81% - fully functional)
+- ⚠️ **50 partial** (4% - core features work)
+- 🔧 **42 broken** (4% - under repair)
+- 🧪 **129 untested** (11% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 626 | 📊 dashboard: 66 | 🌐 3d-experience: 56 | 🤖 ai-tool: 45 | 🛠️ utility: 45
+**Top Categories**: ✨ web-app: 789 | 🌐 3d-experience: 83 | 📊 dashboard: 75 | 🤖 ai-tool: 65 | 🎮 game: 63
 
-**Top Technologies**: PayPal (390), Web Storage (238), React (122), Canvas (117), Solana Web3 (117)
+**Top Technologies**: PayPal (426), Web Storage (323), Solana Web3 (194), Canvas (189), Web3 (138)
 
-*Last scanned: Feb 16, 2026, 2:32 PM*
+*Last scanned: Feb 16, 2026, 2:50 PM*
 
 ---
 
@@ -812,7 +812,7 @@ npm start
 9. 🌐✅ **[Gem Warehouse](warehouse.html)** - Interactive 3d-experience application `Three.js`, `Web Storage` *(Feb 16, 2026)*
 10. 🛠️✅ **[Warehouse Scanner - Visual Demo](warehouse-scanner-visual-demo.html)** - Interactive utility application *(Feb 16, 2026)*
 
-*Last updated: Feb 16, 2026, 2:32 PM*
+*Last updated: Feb 16, 2026, 2:50 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
