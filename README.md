@@ -42,6 +42,17 @@ Community bot with verification, XP/leveling, and consciousness-aware interactio
 ### [Seven Domains Framework](./seven-domains/)
 The organizational system applied to 7 real-world domains: Family, Legal, Healthcare, Business, Government, Law Enforcement, and Social Media.
 
+### 🎓 [Real-World Certifications](./certifications.html)
+Earn industry-recognized credentials that lead to actual jobs. 15+ certifications in pattern recognition, development, leadership, finance, and more. Each certification maps to specific job titles with $45K-$150K+ salary ranges.
+
+**Featured Certifications:**
+- **Certified Pattern Recognition Specialist** - HR, coaching, counseling ($45-85K)
+- **Full-Stack Web Developer** - Software engineering ($70-130K)
+- **Conscious Communication Professional** - Customer success, management ($50-95K)
+- **Python Developer for AI & Automation** - Backend development ($75-140K)
+
+**[Browse Certifications](./certifications.html)** | **[Verify Certificate](./certifications-verify.html)** | **[Quick Start Guide](./CERTIFICATION_QUICK_START.md)**
+
 ---
 
 ## Live Platform
@@ -129,6 +140,109 @@ cat CRYPTO_INTEGRATION.md
 ```
 
 **Dashboard:** [crypto-dashboard.html](/crypto-dashboard.html) | **Trade:** [Pump.Fun](https://join.pump.fun/HSag/ecrkgkhe)
+
+---
+
+## 🎓 Real-World Certification System
+
+Earn **verifiable credentials** that lead to actual jobs. The platform now features a comprehensive certification system with 15+ job-ready certifications across 7 categories.
+
+### Why These Certifications Matter
+
+**Job-Aligned:** Each certification maps to specific job titles with salary ranges ($45K-$150K+ annually)
+
+**Industry-Recognized:** Aligned with industry standards like PMI, SHRM, ICF, AWS Certified Developer
+
+**Publicly Verifiable:** Anyone can verify certificates with a unique code - no account needed
+
+**Career Pathways:** Clear progression from beginner to expert with defined skill requirements
+
+### Certification Categories
+
+| Category | Certifications | Career Path | Salary Range |
+|----------|---------------|-------------|--------------|
+| **Pattern Recognition** | 2 certifications | HR, Coaching, Counseling | $45-85K |
+| **Developer Skills** | 3 certifications | Software Engineer, Web Developer | $65-140K |
+| **Communication & Leadership** | 2 certifications | Manager, Team Lead, Coach | $50-150K |
+| **Financial Literacy** | 2 certifications | Financial Coach, Entrepreneur | $45-150K+ |
+| **Consciousness Tools** | 2 certifications | Life Coach, Transformation Facilitator | $50-120K |
+| **Business Management** | 2 certifications | PM, Operations Manager | $70-140K |
+| **Security & Boundaries** | 2 certifications | Security Analyst, Privacy Officer | $40-120K |
+
+### Featured Certifications
+
+**🧠 Certified Pattern Recognition Specialist** (40 hours, Intermediate)
+- Master 20+ manipulation patterns
+- Roles: HR Professional, Relationship Coach, Mediator
+- Salary: $45-85K annually
+
+**💻 Full-Stack Web Developer** (120 hours, Intermediate)
+- HTML, CSS, JavaScript, Python, databases, APIs
+- Roles: Software Engineer, Full-Stack Developer
+- Salary: $70-130K annually
+
+**🐍 Python Developer for AI & Automation** (100 hours, Intermediate)
+- Python, APIs, automation, data processing
+- Roles: Python Developer, Automation Engineer, Data Engineer
+- Salary: $75-140K annually
+
+**💬 Conscious Communication Professional** (50 hours, Foundational)
+- Pattern-aware communication, boundary setting
+- Roles: Customer Success, Account Manager, Team Lead
+- Salary: $50-95K annually
+
+**👥 Leadership & Team Development Specialist** (80 hours, Advanced)
+- Conscious leadership, team dynamics, org development
+- Roles: Team Manager, Director, VP of Operations
+- Salary: $80-150K annually
+
+### How It Works
+
+**1. Browse Certifications** → Visit [certifications.html](/certifications.html)
+
+**2. Start Learning** → Complete courses, earn XP, demonstrate skills
+
+**3. Track Progress** → System tracks courses, patterns, XP automatically
+
+**4. Pass Assessment** → Take certification exam (80-90% passing score)
+
+**5. Receive Certificate** → Get unique certificate number & verification code
+
+**6. Share with Employers** → Add to resume, LinkedIn, job applications
+
+**7. Get Verified** → Employers verify at [certifications-verify.html](/certifications-verify.html)
+
+### Public Verification System
+
+Anyone can verify certifications - no account needed:
+
+**For Certificate Holders:**
+```
+Certificate Number: PRF-26-00123
+Verification Code: A7K9M2P5X1Q4
+Verify at: consciousnessrevolution.io/certifications-verify.html
+```
+
+**For Employers:**
+- Enter verification code or certificate number
+- See certificate validity, holder name, issue date
+- All verifications logged for security
+- Instant results, no registration required
+
+### Quick Links
+
+- **📋 Browse All Certifications:** [certifications.html](/certifications.html)
+- **✅ Verify a Certificate:** [certifications-verify.html](/certifications-verify.html)
+- **📖 Quick Start Guide:** [CERTIFICATION_QUICK_START.md](/CERTIFICATION_QUICK_START.md)
+- **📚 Complete Documentation:** [CERTIFICATION_SYSTEM_DOCUMENTATION.md](/CERTIFICATION_SYSTEM_DOCUMENTATION.md)
+
+### Integration with Existing Features
+
+- **Pattern Recognition Course** → Course completion counts toward certifications
+- **Pattern Completion Game** → XP and pattern completions tracked
+- **Builder Economics** → Certified builders get higher revenue splits
+- **ARAYA AI** → Recommends certifications based on goals
+- **Crypto Rewards** → Earn 100-500 OVERKILL tokens per certification
 
 ---
 
