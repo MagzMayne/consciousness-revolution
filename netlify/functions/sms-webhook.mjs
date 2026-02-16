@@ -95,10 +95,11 @@ export const handler = async (event, context) => {
       }
     }
 
-    // Build record - anonymize phone number for storage
-    const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
+    // Build record - pseudonymize phone number for additional security
+    // Phone numbers are highly sensitive PII
     const record = {
-      from_number: from, // Keep phone number for routing, but ensure RLS protects it
+      from_number: pseudonymize(from), // Pseudonymized for storage
+      from_number_last4: from.slice(-4), // Keep last 4 digits for support
       message: sanitizedBody,
       message_sid: messageSid,
       message_type: messageType,

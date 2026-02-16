@@ -3,6 +3,7 @@
 // Created: 2026-01-10
 // Updated: 2026-02-16 - Added zero trust security controls
 
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import {
     getSecureCORSHeaders,
@@ -117,9 +118,15 @@ export async function handler(event, context) {
         }
 
         // Create/update session tracking
+        // Store only a session identifier, not the actual access token
+        const sessionId = crypto.createHash('sha256')
+            .update(data.session.access_token + Date.now())
+            .digest('hex')
+            .substring(0, 32);
+        
         await supabase.from('user_sessions').insert({
             foundation_id: data.user.id,
-            session_token: data.session.access_token, // Will be hashed by trigger
+            session_token: sessionId, // Session ID, not access token
             device_type: event.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
             ip_address: clientIP, // Will be anonymized by trigger
             user_agent: event.headers['user-agent'],

@@ -12,9 +12,14 @@
 DROP POLICY IF EXISTS "Allow anon access" ON araya_memory;
 
 -- Araya Memory: Users can only access their own memory
+-- Validates JWT exists and is properly formatted
 CREATE POLICY "Users access own memory" ON araya_memory
     FOR ALL 
-    USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+    USING (
+        current_setting('request.jwt.claims', true) IS NOT NULL 
+        AND current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL
+        AND user_id = current_setting('request.jwt.claims', true)::json->>'sub'
+    );
 
 -- Service role maintains full access (for backend operations)
 CREATE POLICY "Service role full access on araya_memory" ON araya_memory

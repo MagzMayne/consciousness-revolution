@@ -316,14 +316,18 @@ const ALGORITHM = 'aes-256-gcm';
 /**
  * Encrypt sensitive data
  * @param {string} data - Data to encrypt
- * @returns {string} Encrypted data (base64)
+ * @returns {string} Encrypted data (base64) with IV and auth tag
  */
 export function encrypt(data) {
-    if (!ENCRYPTION_KEY || !data) return data;
+    if (!ENCRYPTION_KEY || !data) {
+        throw new Error('Encryption key not configured or no data provided');
+    }
     
     try {
         const iv = crypto.randomBytes(16);
-        const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+        // Use random salt per encryption operation for better security
+        const salt = crypto.randomBytes(32);
+        const key = crypto.scryptSync(ENCRYPTION_KEY, salt, 32);
         const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
         
         let encrypted = cipher.update(data, 'utf8', 'base64');
@@ -331,11 +335,12 @@ export function encrypt(data) {
         
         const authTag = cipher.getAuthTag();
         
-        // Return iv:authTag:encrypted
-        return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
+        // Return salt:iv:authTag:encrypted
+        return `${salt.toString('base64')}:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
     } catch (error) {
         console.error('Encryption error:', error.message);
-        return data; // Fallback to unencrypted
+        // Don't fall back to unencrypted - throw error to prevent data leak
+        throw new Error('Encryption failed');
     }
 }
 
@@ -345,17 +350,22 @@ export function encrypt(data) {
  * @returns {string} Decrypted data
  */
 export function decrypt(encryptedData) {
-    if (!ENCRYPTION_KEY || !encryptedData) return encryptedData;
+    if (!ENCRYPTION_KEY || !encryptedData) {
+        throw new Error('Encryption key not configured or no data provided');
+    }
     
     try {
         const parts = encryptedData.split(':');
-        if (parts.length !== 3) return encryptedData;
+        if (parts.length !== 4) {
+            throw new Error('Invalid encrypted data format');
+        }
         
-        const iv = Buffer.from(parts[0], 'base64');
-        const authTag = Buffer.from(parts[1], 'base64');
-        const encrypted = parts[2];
+        const salt = Buffer.from(parts[0], 'base64');
+        const iv = Buffer.from(parts[1], 'base64');
+        const authTag = Buffer.from(parts[2], 'base64');
+        const encrypted = parts[3];
         
-        const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+        const key = crypto.scryptSync(ENCRYPTION_KEY, salt, 32);
         const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
         decipher.setAuthTag(authTag);
         
@@ -365,7 +375,8 @@ export function decrypt(encryptedData) {
         return decrypted;
     } catch (error) {
         console.error('Decryption error:', error.message);
-        return encryptedData; // Fallback to encrypted
+        // Don't fall back to returning encrypted data - throw error
+        throw new Error('Decryption failed');
     }
 }
 
