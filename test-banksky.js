@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-0038f031 - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 5bb653fa */
 /** SIGNED BY AGentR - ID: AGENTR-66c89a82 - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 5bb653fa */
-
-#!/usr/bin/env node
 
 /**
  * BankSky Testing Suite

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -38,8 +40,6 @@
  * For licensing inquiries, contact: BarbrickDesign@gmail.com
  * ════════════════════════════════════════════════════════════════════════════════
  */
-
-#!/usr/bin/env node
 
 /**
  * Test script for Gem Scraper Service
