@@ -1,0 +1,347 @@
+name: Bulk Issue Cleanup
+
+# One-time cleanup to handle the 195 existing issues
+# This workflow can be run manually to clean up accumulated automated issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run mode (only report, do not close)'
+        required: false
+        default: false
+        type: boolean
+      close_all_stale_branches:
+        description: 'Close all stale branch issues'
+        required: false
+        default: true
+        type: boolean
+      close_old_daily_reports:
+        description: 'Close old daily reports (keep latest 3)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  analyze-issues:
+    name: Analyze Current Issues
+    runs-on: ubuntu-latest
+    outputs:
+      total_issues: ${{ steps.analyze.outputs.total_issues }}
+      automated_issues: ${{ steps.analyze.outputs.automated_issues }}
+      stale_branch_issues: ${{ steps.analyze.outputs.stale_branch_issues }}
+      daily_reports: ${{ steps.analyze.outputs.daily_reports }}
+      security_issues: ${{ steps.analyze.outputs.security_issues }}
+    
+    steps:
+      - name: Analyze issues
+        id: analyze
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let page = 1;
+            let allIssues = [];
+            
+            // Fetch all open issues (pagination)
+            while (true) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100,
+                page: page
+              });
+              
+              if (issues.length === 0) break;
+              allIssues = allIssues.concat(issues);
+              page++;
+            }
+            
+            console.log(`Total open issues: ${allIssues.length}`);
+            
+            const automatedIssues = allIssues.filter(i => 
+              i.labels.some(l => l.name === 'automated')
+            );
+            
+            const staleBranchIssues = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'stale-branch')
+            );
+            
+            const dailyReports = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'daily-agent-report')
+            );
+            
+            const securityIssues = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'security')
+            );
+            
+            console.log(`Automated issues: ${automatedIssues.length}`);
+            console.log(`- Stale branch: ${staleBranchIssues.length}`);
+            console.log(`- Daily reports: ${dailyReports.length}`);
+            console.log(`- Security: ${securityIssues.length}`);
+            
+            core.setOutput('total_issues', allIssues.length);
+            core.setOutput('automated_issues', automatedIssues.length);
+            core.setOutput('stale_branch_issues', staleBranchIssues.length);
+            core.setOutput('daily_reports', dailyReports.length);
+            core.setOutput('security_issues', securityIssues.length);
+            
+            return {
+              total: allIssues.length,
+              automated: automatedIssues.length,
+              staleBranch: staleBranchIssues.length,
+              dailyReports: dailyReports.length,
+              security: securityIssues.length
+            };
+
+  bulk-close-stale-branches:
+    name: Bulk Close Stale Branch Issues
+    runs-on: ubuntu-latest
+    needs: analyze-issues
+    if: inputs.close_all_stale_branches == true
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get active branches
+        id: get-branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const branchNames = branches.map(b => b.name);
+            console.log(`Found ${branchNames.length} active branches`);
+            
+            return branchNames;
+      
+      - name: Close stale branch issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isDryRun = ${{ inputs.dry_run }};
+            const activeBranches = ${{ steps.get-branches.outputs.result }};
+            
+            let page = 1;
+            let allStaleBranchIssues = [];
+            
+            // Fetch all stale-branch issues
+            while (true) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'stale-branch,automated',
+                per_page: 100,
+                page: page
+              });
+              
+              if (issues.length === 0) break;
+              allStaleBranchIssues = allStaleBranchIssues.concat(issues);
+              page++;
+            }
+            
+            console.log(`Found ${allStaleBranchIssues.length} stale-branch issues to process`);
+            
+            let closedCount = 0;
+            let keptCount = 0;
+            
+            for (const issue of allStaleBranchIssues) {
+              // Extract branch name from title
+              const match = issue.title.match(/Stale Agent Branch: (.+)/);
+              if (!match) {
+                console.log(`Could not parse branch name from: ${issue.title}`);
+                continue;
+              }
+              
+              const branchName = match[1];
+              
+              // Check if branch still exists
+              const branchExists = activeBranches.includes(branchName);
+              
+              if (!branchExists) {
+                console.log(`Branch ${branchName} deleted - ${isDryRun ? 'would close' : 'closing'} issue #${issue.number}`);
+                
+                if (!isDryRun) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `🤖 **Bulk cleanup:** This branch has been deleted or merged.\n\n---\n*Automated by Bulk Issue Cleanup*`
+                  });
+                  
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    state_reason: 'completed'
+                  });
+                }
+                
+                closedCount++;
+              } else {
+                console.log(`Branch ${branchName} still exists - keeping issue #${issue.number} open`);
+                keptCount++;
+              }
+            }
+            
+            console.log(`\n✅ Summary:`);
+            console.log(`- ${isDryRun ? 'Would close' : 'Closed'}: ${closedCount} issues`);
+            console.log(`- Kept open: ${keptCount} issues`);
+            
+            core.setOutput('closed_count', closedCount);
+            core.setOutput('kept_count', keptCount);
+
+  bulk-close-old-daily-reports:
+    name: Bulk Close Old Daily Reports
+    runs-on: ubuntu-latest
+    needs: analyze-issues
+    if: inputs.close_old_daily_reports == true
+    
+    steps:
+      - name: Close old daily reports
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isDryRun = ${{ inputs.dry_run }};
+            const maxReportsToKeep = 3;
+            
+            let page = 1;
+            let allDailyReports = [];
+            
+            // Fetch all daily report issues
+            while (true) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'daily-agent-report,automated',
+                sort: 'created',
+                direction: 'desc',
+                per_page: 100,
+                page: page
+              });
+              
+              if (issues.length === 0) break;
+              allDailyReports = allDailyReports.concat(issues);
+              page++;
+            }
+            
+            console.log(`Found ${allDailyReports.length} daily report issues`);
+            console.log(`Keeping latest ${maxReportsToKeep}, ${isDryRun ? 'would close' : 'closing'} the rest`);
+            
+            let closedCount = 0;
+            
+            // Keep the first maxReportsToKeep, close the rest
+            for (let i = maxReportsToKeep; i < allDailyReports.length; i++) {
+              const issue = allDailyReports[i];
+              
+              console.log(`${isDryRun ? 'Would close' : 'Closing'} old daily report #${issue.number} from ${issue.created_at}`);
+              
+              if (!isDryRun) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `🤖 **Bulk cleanup:** Superseded by newer daily reports. Only keeping the latest ${maxReportsToKeep} reports.\n\n---\n*Automated by Bulk Issue Cleanup*`
+                });
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+              }
+              
+              closedCount++;
+              
+              // Add delay to avoid rate limiting with progressive backoff
+              if (closedCount % 10 === 0) {
+                const delay = Math.min(closedCount / 10 * 5000, 30000); // Max 30s
+                console.log(`Processed ${closedCount} issues, pausing for ${delay/1000} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
+            
+            console.log(`✅ ${isDryRun ? 'Would close' : 'Closed'} ${closedCount} old daily report issues`);
+            core.setOutput('closed_count', closedCount);
+
+  generate-report:
+    name: Generate Cleanup Report
+    runs-on: ubuntu-latest
+    needs: [analyze-issues, bulk-close-stale-branches, bulk-close-old-daily-reports]
+    if: always()
+    
+    steps:
+      - name: Create summary report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isDryRun = ${{ inputs.dry_run }};
+            
+            const summary = `
+            ## 🧹 Bulk Issue Cleanup Report
+            
+            **Run Date:** ${new Date().toISOString().split('T')[0]}
+            **Mode:** ${isDryRun ? '🔍 DRY RUN (no changes made)' : '🔧 LIVE (changes applied)'}
+            
+            ### 📊 Initial State
+            
+            - Total open issues: ${{ needs.analyze-issues.outputs.total_issues }}
+            - Automated issues: ${{ needs.analyze-issues.outputs.automated_issues }}
+              - Stale branch issues: ${{ needs.analyze-issues.outputs.stale_branch_issues }}
+              - Daily reports: ${{ needs.analyze-issues.outputs.daily_reports }}
+              - Security issues: ${{ needs.analyze-issues.outputs.security_issues }}
+            
+            ### 🎯 Actions Taken
+            
+            ${needs['bulk-close-stale-branches'].result === 'success' ? 
+              '✅ Stale branch issues processed' : 
+              '⚠️ Stale branch cleanup skipped or failed'}
+            
+            ${needs['bulk-close-old-daily-reports'].result === 'success' ? 
+              '✅ Old daily reports processed' : 
+              '⚠️ Daily report cleanup skipped or failed'}
+            
+            ### 📝 Next Steps
+            
+            ${isDryRun ? 
+              '**This was a dry run.** Review the logs above and run again without dry_run to apply changes.' :
+              '**Cleanup complete!** The Issue Lifecycle Manager workflow will now maintain issue health automatically.'}
+            
+            ### 🔧 Automation Setup
+            
+            The following workflows are now active to prevent issue accumulation:
+            
+            1. **Issue Lifecycle Manager** - Runs every 6 hours to:
+               - Close stale branch issues when branches are deleted
+               - Keep only the latest 3 daily reports
+               - Verify and close resolved security issues
+            
+            2. **Daily Agent Conflict Fixer** - Modified to be more conservative:
+               - Creates issues only for truly problematic branches
+               - Automatically closes old issues it creates
+            
+            ---
+            *🤖 Generated by Bulk Issue Cleanup Workflow*
+            `;
+            
+            console.log(summary);
+            
+            core.summary.addRaw(summary);
+            await core.summary.write();

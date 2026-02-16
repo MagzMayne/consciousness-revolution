@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: hardware-materials-scanner.html
+Declaration ID: IP-2FFCB21-MLL29000
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔩 Hardware & Materials Inventory Scanner - Barbrick Design</title>
+    <meta name="description" content="Smart inventory scanner for nuts, bolts, screws, fasteners, and bulk materials with live eBay pricing">
+    
+    <!-- TensorFlow.js for AI Vision -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+    
+    <!-- ZXing for Barcode/QR Scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+    
+    <!-- Enhanced Hardware & Pricing Systems -->
+    <script src="js/hardware-identification.js"></script>
+    <script src="js/ebay-pricing-api.js"></script>
+    
+    <link rel="stylesheet" href="css/warehouse-scanner.css">
+    
+    <style>
+        .hardware-specific {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .hardware-input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #374151;
+        }
+        
+        .input-group input,
+        .input-group select {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .pricing-display {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .pricing-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .pricing-row:last-child {
+            border-bottom: none;
+        }
+        
+        .pricing-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        
+        .pricing-value {
+            font-weight: 700;
+            color: #059669;
+            font-size: 1.125rem;
+        }
+        
+        .material-icon {
+            font-size: 2rem;
+            margin-right: 0.5rem;
+        }
+        
+        .confidence-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .confidence-high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .confidence-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .confidence-low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .quick-select-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        
+        .quick-select-btn {
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .quick-select-btn:hover {
+            border-color: #667eea;
+            background: #f3f4f6;
+        }
+        
+        .quick-select-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .ebay-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #0064d2;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        .ebay-link:hover {
+            background: #0053ba;
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header>
+            <div class="brand">
+                <div class="brand-mark">
+                    <div class="brand-mark-inner">🔩</div>
+                </div>
+                <div>
+                    <div class="brand-text-title">Hardware & Materials Scanner</div>
+                    <div class="brand-text-sub">Nuts, Bolts, Fasteners & Bulk Materials</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="backToRegular" class="icon-btn" title="Regular Scanner">📦</button>
+                <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="mainContent">
+            <!-- Hardware Input Section -->
+            <section id="hardwareInputSection" class="hardware-specific">
+                <h3 style="color: white; margin-top: 0;">🔧 Hardware & Material Details</h3>
+                
+                <div class="input-group" style="margin-bottom: 1rem;">
+                    <label style="color: white;">Item Type:</label>
+                    <div class="quick-select-buttons">
+                        <button class="quick-select-btn" data-type="nuts">Nuts</button>
+                        <button class="quick-select-btn" data-type="bolts">Bolts</button>
+                        <button class="quick-select-btn" data-type="screws">Screws</button>
+                        <button class="quick-select-btn" data-type="washers">Washers</button>
+                        <button class="quick-select-btn" data-type="anchors">Anchors</button>
+                        <button class="quick-select-btn" data-type="material">Bulk Material</button>
+                    </div>
+                </div>
+                
+                <!-- Hardware Inputs -->
+                <div id="hardwareInputs" class="hardware-input-grid" style="display: none;">
+                    <div class="input-group">
+                        <label>Specific Type:</label>
+                        <select id="hardwareType">
+                            <option value="">Select...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Size:</label>
+                        <select id="hardwareSize">
+                            <option value="">Select...</option>
+                            <optgroup label="Imperial">
+                                <option>1/4-20</option>
+                                <option>1/4-28</option>
+                                <option>5/16-18</option>
+                                <option>5/16-24</option>
+                                <option>3/8-16</option>
+                                <option>3/8-24</option>
+                                <option>1/2-13</option>
+                                <option>1/2-20</option>
+                            </optgroup>
+                            <optgroup label="Metric">
+                                <option>M3</option>
+                                <option>M4</option>
+                                <option>M5</option>
+                                <option>M6</option>
+                                <option>M8</option>
+                                <option>M10</option>
+                                <option>M12</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Material:</label>
+                        <select id="hardwareMaterial">
+                            <option value="">Select...</option>
+                            <option value="steel">Steel</option>
+                            <option value="stainless steel">Stainless Steel</option>
+                            <option value="brass">Brass</option>
+                            <option value="aluminum">Aluminum</option>
+                            <option value="zinc">Zinc Plated</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Grade (Optional):</label>
+                        <select id="hardwareGrade">
+                            <option value="">None</option>
+                            <option value="Grade 2">Grade 2</option>
+                            <option value="Grade 5">Grade 5</option>
+                            <option value="Grade 8">Grade 8</option>
+                            <option value="304 SS">304 Stainless</option>
+                            <option value="316 SS">316 Stainless</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Quantity (pieces):</label>
+                        <input type="number" id="hardwareQuantity" placeholder="e.g., 100" min="1" value="100">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Container Type:</label>
+                        <select id="containerType">
+                            <option value="pile">Pile</option>
+                            <option value="bin">Bin</option>
+                            <option value="bag">Bag</option>
+                            <option value="box">Box</option>
+                            <option value="bucket">Bucket</option>
+                            <option value="pallet">Pallet</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Material Inputs -->
+                <div id="materialInputs" class="hardware-input-grid" style="display: none;">
+                    <div class="input-group">
+                        <label>Material Type:</label>
+                        <select id="materialType">
+                            <option value="">Select...</option>
+                            <option value="aluminum">Aluminum</option>
+                            <option value="copper">Copper</option>
+                            <option value="brass">Brass</option>
+                            <option value="stainless steel">Stainless Steel</option>
+                            <option value="steel">Steel</option>
+                            <option value="lead">Lead</option>
+                            <option value="zinc">Zinc</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Form:</label>
+                        <select id="materialForm">
+                            <option value="scrap">Scrap</option>
+                            <option value="sheet">Sheet</option>
+                            <option value="bar">Bar/Rod</option>
+                            <option value="ingot">Ingot</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Weight (pounds):</label>
+                        <input type="number" id="materialWeight" placeholder="e.g., 50" min="0.1" step="0.1" value="10">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Purity % (Optional):</label>
+                        <input type="number" id="materialPurity" placeholder="e.g., 99" min="0" max="100">
+                    </div>
+                </div>
+                
+                <button id="calculateValueBtn" class="btn-primary" style="margin-top: 1rem; width: 100%;">
+                    💰 Calculate Value with Live eBay Pricing
+                </button>
+            </section>
+            
+            <!-- Pricing Display -->
+            <section id="pricingSection" class="pricing-display" style="display: none;">
+                <h3>💵 Valuation Results</h3>
+                <div id="pricingResults"></div>
+                <button id="addToInventoryBtn" class="btn-primary" style="width: 100%; margin-top: 1rem;">
+                    ➕ Add to Inventory
+                </button>
+            </section>
+
+            <!-- Camera View (Optional) -->
+            <section id="cameraSection" class="camera-section" style="display: none;">
+                <div class="camera-container">
+                    <video id="cameraVideo" autoplay playsinline></video>
+                    <canvas id="overlayCanvas"></canvas>
+                </div>
+                <div class="camera-controls">
+                    <button id="startScanBtn" class="btn-primary">📸 Start Camera</button>
+                    <button id="stopScanBtn" class="btn-danger" style="display: none;">⏹️ Stop</button>
+                </div>
+            </section>
+
+            <!-- Inventory View -->
+            <section id="inventorySection" class="inventory-section" style="display: none;">
+                <div class="inventory-list">
+                    <div class="list-header">
+                        <h3>📦 Hardware Inventory</h3>
+                        <div class="list-controls">
+                            <input type="text" id="searchInventory" placeholder="Search items..." />
+                            <button id="exportInventoryBtn" class="btn-secondary">Export CSV</button>
+                        </div>
+                    </div>
+                    <div id="inventoryItems" class="inventory-items"></div>
+                    <div class="value-summary" style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 8px;">
+                        <div class="pricing-row">
+                            <span class="pricing-label">Total Items:</span>
+                            <span class="pricing-value" id="totalItems">0</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="pricing-label">Total Pieces:</span>
+                            <span class="pricing-value" id="totalPieces">0</span>
+                        </div>
+                        <div class="pricing-row">
+                            <span class="pricing-label">Total Value:</span>
+                            <span class="pricing-value" id="totalInventoryValue">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-view="hardware">
+                <span class="nav-icon">🔩</span>
+                <span class="nav-label">Input</span>
+            </button>
+            <button class="nav-btn" data-view="inventory">
+                <span class="nav-icon">📦</span>
+                <span class="nav-label">Inventory</span>
+            </button>
+            <button class="nav-btn" data-view="camera">
+                <span class="nav-icon">📸</span>
+                <span class="nav-label">Camera</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">Fetching live eBay pricing...</div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/warehouse-inventory-db.js"></script>
+    <script src="js/warehouse-valuation-engine.js"></script>
+    
+    <script>
+        // Initialize systems
+        let hardwareIdentifier, ebayPricing, valuationEngine, inventory = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔩 Hardware & Materials Scanner initialized');
+            
+            // Initialize systems
+            hardwareIdentifier = new HardwareIdentification();
+            ebayPricing = new EbayPricingAPI();
+            valuationEngine = new WarehouseValuationEngine();
+            
+            // Load inventory from localStorage
+            loadInventory();
+            
+            // Setup event listeners
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            // Type selection
+            document.querySelectorAll('[data-type]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('[data-type]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    const type = btn.dataset.type;
+                    if (type === 'material') {
+                        document.getElementById('hardwareInputs').style.display = 'none';
+                        document.getElementById('materialInputs').style.display = 'grid';
+                    } else {
+                        document.getElementById('hardwareInputs').style.display = 'grid';
+                        document.getElementById('materialInputs').style.display = 'none';
+                        updateHardwareTypeOptions(type);
+                    }
+                });
+            });
+            
+            // Calculate value button
+            document.getElementById('calculateValueBtn').addEventListener('click', calculateValue);
+            
+            // Add to inventory button
+            document.getElementById('addToInventoryBtn').addEventListener('click', addToInventory);
+            
+            // Navigation
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const view = btn.dataset.view;
+                    switchView(view);
+                });
+            });
+            
+            // Back to regular scanner
+            document.getElementById('backToRegular').addEventListener('click', () => {
+                window.location.href = 'warehouse-inventory-scanner.html';
+            });
+            
+            // Export inventory
+            document.getElementById('exportInventoryBtn').addEventListener('click', exportInventory);
+        }
+        
+        function updateHardwareTypeOptions(category) {
+            const typeSelect = document.getElementById('hardwareType');
+            const types = {
+                'nuts': ['Hex Nut', 'Lock Nut', 'Wing Nut', 'Cap Nut', 'Square Nut', 'Flange Nut'],
+                'bolts': ['Hex Bolt', 'Carriage Bolt', 'Lag Bolt', 'Eye Bolt', 'U-Bolt'],
+                'screws': ['Wood Screw', 'Machine Screw', 'Sheet Metal Screw', 'Drywall Screw', 'Set Screw'],
+                'washers': ['Flat Washer', 'Lock Washer', 'Fender Washer', 'Star Washer'],
+                'anchors': ['Concrete Anchor', 'Toggle Bolt', 'Wall Anchor']
+            };
+            
+            typeSelect.innerHTML = '<option value="">Select...</option>';
+            (types[category] || []).forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.toLowerCase();
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+        }
+        
+        async function calculateValue() {
+            const activeType = document.querySelector('[data-type].active');
+            if (!activeType) {
+                showToast('Please select an item type', 'warning');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                let valuation;
+                
+                if (activeType.dataset.type === 'material') {
+                    // Material valuation
+                    const materialData = {
+                        material: document.getElementById('materialType').value,
+                        form: document.getElementById('materialForm').value,
+                        weight: parseFloat(document.getElementById('materialWeight').value),
+                        purity: document.getElementById('materialPurity').value ? 
+                               parseFloat(document.getElementById('materialPurity').value) : null
+                    };
+                    
+                    if (!materialData.material || !materialData.weight) {
+                        showToast('Please fill in material type and weight', 'warning');
+                        showLoading(false);
+                        return;
+                    }
+                    
+                    valuation = await valuationEngine.valueMaterial(materialData);
+                } else {
+                    // Hardware valuation
+                    const hardwareData = {
+                        category: activeType.dataset.type,
+                        type: document.getElementById('hardwareType').value,
+                        size: document.getElementById('hardwareSize').value,
+                        material: document.getElementById('hardwareMaterial').value,
+                        grade: document.getElementById('hardwareGrade').value,
+                        quantity: parseInt(document.getElementById('hardwareQuantity').value),
+                        containerType: document.getElementById('containerType').value
+                    };
+                    
+                    if (!hardwareData.type || !hardwareData.quantity) {
+                        showToast('Please fill in type and quantity', 'warning');
+                        showLoading(false);
+                        return;
+                    }
+                    
+                    valuation = await valuationEngine.valueHardware(hardwareData);
+                }
+                
+                displayPricing(valuation);
+                showLoading(false);
+                showToast('✅ Valuation complete!', 'success');
+            } catch (error) {
+                console.error('Valuation error:', error);
+                showToast('Failed to calculate value: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+        
+        function displayPricing(valuation) {
+            const resultsDiv = document.getElementById('pricingResults');
+            const activeType = document.querySelector('[data-type].active').dataset.type;
+            
+            let html = '<div class="pricing-row"><span class="pricing-label">Item:</span><span>';
+            
+            if (activeType === 'material') {
+                html += `<span class="material-icon">${getMaterialIcon(valuation.material)}</span>`;
+                html += `${valuation.material} ${valuation.form} (${valuation.weight} lbs)`;
+            } else {
+                html += `${valuation.size || ''} ${valuation.type} ${valuation.material || ''} (${valuation.quantity} pcs)`;
+            }
+            
+            html += '</span></div>';
+            
+            if (activeType === 'material') {
+                html += `
+                    <div class="pricing-row">
+                        <span class="pricing-label">Price per Pound:</span>
+                        <span class="pricing-value">$${valuation.pricePerPound.toFixed(2)}</span>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="pricing-row">
+                        <span class="pricing-label">Price per Piece:</span>
+                        <span class="pricing-value">$${valuation.unitPrice.toFixed(3)}</span>
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div class="pricing-row">
+                    <span class="pricing-label">Total Value:</span>
+                    <span class="pricing-value" style="font-size: 1.5rem;">$${valuation.totalValue.toFixed(2)}</span>
+                </div>
+                <div class="pricing-row">
+                    <span class="pricing-label">Data Source:</span>
+                    <span>${valuation.pricingSource === 'ebay-live' ? '🔴 Live eBay Data' : '📊 Estimated'}</span>
+                </div>
+                <div class="pricing-row">
+                    <span class="pricing-label">Confidence:</span>
+                    <span class="confidence-badge confidence-${valuation.confidence}">${valuation.confidence}</span>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = html;
+            document.getElementById('pricingSection').style.display = 'block';
+            
+            // Store current valuation for adding to inventory
+            window.currentValuation = valuation;
+        }
+        
+        function getMaterialIcon(material) {
+            const icons = {
+                'aluminum': '⚪',
+                'copper': '🟠',
+                'brass': '🟡',
+                'stainless steel': '🔩',
+                'steel': '⚙️',
+                'lead': '⚫',
+                'zinc': '🔹'
+            };
+            return icons[material?.toLowerCase()] || '⚙️';
+        }
+        
+        function addToInventory() {
+            if (!window.currentValuation) {
+                showToast('Please calculate value first', 'warning');
+                return;
+            }
+            
+            const item = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                ...window.currentValuation
+            };
+            
+            inventory.push(item);
+            saveInventory();
+            updateInventoryDisplay();
+            
+            showToast('✅ Added to inventory!', 'success');
+            
+            // Clear current valuation
+            window.currentValuation = null;
+            document.getElementById('pricingSection').style.display = 'none';
+        }
+        
+        function loadInventory() {
+            const saved = localStorage.getItem('hardwareInventory');
+            if (saved) {
+                inventory = JSON.parse(saved);
+                updateInventoryDisplay();
+            }
+        }
+        
+        function saveInventory() {
+            localStorage.setItem('hardwareInventory', JSON.stringify(inventory));
+        }
+        
+        function updateInventoryDisplay() {
+            const itemsDiv = document.getElementById('inventoryItems');
+            
+            if (inventory.length === 0) {
+                itemsDiv.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 2rem;">No items in inventory yet</p>';
+                document.getElementById('totalItems').textContent = '0';
+                document.getElementById('totalPieces').textContent = '0';
+                document.getElementById('totalInventoryValue').textContent = '$0.00';
+                return;
+            }
+            
+            let html = '';
+            let totalValue = 0;
+            let totalPieces = 0;
+            
+            inventory.forEach((item, index) => {
+                totalValue += item.totalValue || 0;
+                totalPieces += item.quantity || item.weight || 0;
+                
+                html += `
+                    <div class="inventory-item" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong>${item.type || item.material}</strong>
+                                ${item.size ? `<span style="color: #6b7280;"> - ${item.size}</span>` : ''}
+                                <br>
+                                <span style="font-size: 0.875rem; color: #6b7280;">
+                                    ${item.material || ''} ${item.grade || ''}
+                                    ${item.form ? `(${item.form})` : ''}
+                                </span>
+                                <br>
+                                <span style="font-size: 0.875rem;">
+                                    ${item.quantity ? `${item.quantity} pieces` : `${item.weight} lbs`}
+                                </span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">
+                                    $${item.totalValue.toFixed(2)}
+                                </div>
+                                <button onclick="removeItem(${index})" style="font-size: 0.75rem; color: #dc2626; background: none; border: none; cursor: pointer; margin-top: 0.5rem;">
+                                    🗑️ Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            itemsDiv.innerHTML = html;
+            document.getElementById('totalItems').textContent = inventory.length;
+            document.getElementById('totalPieces').textContent = totalPieces.toFixed(0);
+            document.getElementById('totalInventoryValue').textContent = `$${totalValue.toFixed(2)}`;
+        }
+        
+        function removeItem(index) {
+            if (confirm('Remove this item from inventory?')) {
+                inventory.splice(index, 1);
+                saveInventory();
+                updateInventoryDisplay();
+                showToast('Item removed', 'success');
+            }
+        }
+        
+        function exportInventory() {
+            if (inventory.length === 0) {
+                showToast('No items to export', 'warning');
+                return;
+            }
+            
+            // Create CSV
+            const headers = ['Type', 'Size', 'Material', 'Grade', 'Quantity/Weight', 'Unit Price', 'Total Value', 'Source', 'Timestamp'];
+            const rows = inventory.map(item => [
+                item.type || item.material,
+                item.size || item.form || '',
+                item.material || '',
+                item.grade || '',
+                item.quantity ? `${item.quantity} pcs` : `${item.weight} lbs`,
+                item.unitPrice ? `$${item.unitPrice.toFixed(3)}` : `$${item.pricePerPound.toFixed(2)}/lb`,
+                `$${item.totalValue.toFixed(2)}`,
+                item.pricingSource,
+                new Date(item.timestamp).toLocaleString()
+            ]);
+            
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hardware-inventory-${Date.now()}.csv`;
+            a.click();
+            
+            showToast('✅ Inventory exported!', 'success');
+        }
+        
+        function switchView(view) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-view="${view}"]`).classList.add('active');
+            
+            document.getElementById('hardwareInputSection').style.display = view === 'hardware' ? 'block' : 'none';
+            document.getElementById('inventorySection').style.display = view === 'inventory' ? 'block' : 'none';
+            document.getElementById('cameraSection').style.display = view === 'camera' ? 'block' : 'none';
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+    
+    <style>
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: white;
+            margin-top: 1rem;
+            font-weight: 600;
+        }
+    </style>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

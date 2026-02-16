@@ -1,0 +1,883 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: tVaultUp.html
+Declaration ID: IP-558A34E0-MLL29024
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>tVault — Tourmaline Poker — Neon Control UI</title>
+<meta name="description" content="tVault — Tourmaline Poker with vault/burn accounting, donation, drip, and neon mobile UI" />
+<style>
+:root{
+  --bg:#020617;
+  --panel:#071821;
+  --neon-cyan:#00f0ff;
+  --neon-magenta:#ff2ec7;
+  --neon-gold:#ffd166;
+  --muted:#9fb6b0;
+  --glass: rgba(255,255,255,0.03);
+  --glow-strong: 0 0 18px rgba(0,240,255,0.12), 0 0 40px rgba(255,46,199,0.06);
+  --table-size: min(86vw, 920px);
+  --seat-count: 500;
+  --seat-mini-w: 56px; --seat-mini-h: 40px;
+  --chip-size:18px;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg) 0%, #041018 60%);font-family:var(--font);color:#e8f0f6;-webkit-font-smoothing:antialiased}
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px;gap:12px}
+.header{width:100%;max-width:1200px;display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--neon-cyan),var(--neon-magenta));box-shadow:0 6px 30px rgba(0,240,255,0.06)}
+.title{font-weight:800;letter-spacing:0.6px}
+.hud{width:100%;max-width:1200px;padding:10px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;gap:12px;flex-wrap:wrap;border:1px solid rgba(0,240,255,0.04);box-shadow:var(--glow-strong)}
+.stat{font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
+.stat .val{color:var(--neon-gold);margin-left:6px;text-shadow:0 0 8px rgba(255,209,102,0.12)}
+.main{width:100%;max-width:1200px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+@media (max-width:980px){ .main{grid-template-columns:1fr} }
+
+/* Table */
+.table-shell{width:var(--table-size);max-width:100%;position:relative}
+.table{width:100%;padding-top:100%;border-radius:50%;position:relative;background:
+  radial-gradient(closest-side,#062b2a 0%, #021814 60%);overflow:visible;border:1px solid rgba(0,240,255,0.04);box-shadow:0 20px 80px rgba(0,0,0,0.6), inset 0 0 40px rgba(0,240,255,0.02)}
+.table-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}
+.community{display:flex;gap:8px;padding:8px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));backdrop-filter: blur(4px)}
+.card{width:56px;height:84px;border-radius:10px;background:linear-gradient(180deg,#fff,#f3f7ff);color:#111;display:grid;place-items:center;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,0.45), 0 0 18px rgba(0,240,255,0.03);border:1px solid rgba(0,240,255,0.06)}
+
+/* seat ring */
+.seat-ring{position:absolute;inset:0;pointer-events:none}
+.seat-mini{position:absolute;width:var(--seat-mini-w);height:var(--seat-mini-h);border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#e8f0f6;pointer-events:auto;transition:transform .12s linear, box-shadow .18s}
+.seat-mini .bet{font-weight:900;color:var(--neon-gold);font-size:11px}
+.seat-mini .cards{font-weight:700;font-size:11px;color:#fff}
+.seat-mini.held{box-shadow:0 6px 18px rgba(0,160,255,0.06)}
+.seat-mini.user{box-shadow:0 0 28px rgba(0,240,255,0.12); animation: neonPulse 1.6s infinite}
+
+/* pile */
+.pile-top{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);width:320px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:8}
+.pile{position:relative;width:260px;height:120px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.pile-inner{position:relative;width:100%;height:100%}
+.pile-dot{position:absolute;width:14px;height:14px;border-radius:50%;box-shadow:0 6px 18px rgba(0,0,0,0.45);border:1px solid rgba(0,0,0,0.12);opacity:0;transform:scale(0.8);transition:opacity .18s,transform .18s}
+
+/* user hand panel */
+.user-hand{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:linear-gradient(180deg, rgba(0,0,0,0.45), rgba(255,255,255,0.02));padding:10px;border-radius:12px;border:1px solid rgba(0,240,255,0.06);display:flex;gap:12px;align-items:center;z-index:30;backdrop-filter: blur(6px)}
+.user-hand .card{width:64px;height:96px}
+
+/* chips & bubbles */
+.chip{position:fixed;width:var(--chip-size);height:var(--chip-size);border-radius:50%;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,0.6), 0 0 18px rgba(255,209,102,0.08);border:1px solid rgba(0,0,0,0.12);transform:translate(-50%,-50%);pointer-events:none;transition:transform .6s cubic-bezier(.2,.7,.2,1),opacity .6s}
+.burn-bubble{position:fixed;width:12px;height:12px;border-radius:50%;background:#ff4d4d;z-index:9998;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(0.8);transition:transform 900ms cubic-bezier(.2,.7,.2,1),opacity 900ms}
+
+/* neon pulse */
+@keyframes neonPulse{
+  0%{ box-shadow:0 0 0 rgba(0,240,255,0); transform: scale(1); }
+  50%{ box-shadow:0 0 30px rgba(0,240,255,0.12); transform: scale(1.04); }
+  100%{ box-shadow:0 0 0 rgba(0,240,255,0); transform: scale(1); }
+}
+
+/* panels */
+.panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(0,240,255,0.04);box-shadow:0 10px 30px rgba(0,0,0,0.5)}
+.btn{background:linear-gradient(180deg,var(--neon-gold),#f0b33a);border:none;padding:8px 12px;border-radius:8px;color:#041014;font-weight:800;cursor:pointer}
+.btn.alt{background:linear-gradient(180deg,var(--neon-cyan),#00a3ff);color:#001018}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#cfe6d6}
+
+/* log */
+.log{max-height:320px;overflow:auto}
+.log-entry{padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.01);display:flex;justify-content:space-between;align-items:center}
+
+/* responsive & performance */
+@media (max-width:720px){
+  .seat-mini{display:none}
+  .user-hand{left:50%;bottom:8px;transform:translateX(-50%);width:92%;padding:8px}
+  .card{width:48px;height:72px}
+  .user-hand .card{width:56px;height:80px}
+  .chip{width:14px;height:14px;transition-duration:420ms}
+  .burn-bubble{width:10px;height:10px;transition-duration:600ms}
+}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand"><div class="logo"></div><div><div class="title">tVault — Tourmaline Poker</div></div></div>
+      <div class="small">Demo — local storage</div>
+    </header>
+
+    <div class="hud" id="hud">
+      <div class="stat">Epoch: <span class="val" id="epoch">—</span></div>
+      <div class="stat">Hand #: <span class="val" id="handNum">—</span></div>
+      <div class="stat">Round: <span class="val" id="roundName">—</span></div>
+      <div class="stat">Countdown: <span class="val" id="countdown">—</span></div>
+      <div class="stat">Pot: <span class="val" id="potVal">0</span></div>
+      <div class="stat">Vault: <span class="val" id="vaultVal">0</span></div>
+      <div class="stat">Wallet: <span class="val" id="walletVal">0</span></div>
+      <div class="stat">Total Burned: <span class="val" id="totalBurned">0</span></div>
+      <div class="stat">Next Drip In: <span class="val" id="nextDrip">—</span></div>
+    </div>
+
+    <main class="main">
+      <section class="table-shell">
+        <div class="table" id="table">
+          <div class="table-inner">
+            <div class="pile-top" id="pileTop"><div class="pile" id="pile"><div class="pile-inner" id="pileInner"></div></div></div>
+            <div class="community" id="communityCards"></div>
+            <div class="seat-ring" id="seatRing"></div>
+
+            <div class="user-seat" id="userSeatCard" style="display:none">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <div class="avatar" id="userAvatar" style="background:#0b1416"></div>
+                  <div><div id="userName">Not seated</div><div class="small" id="userCrystal">Seat crystal: —</div></div>
+                </div>
+                <div class="small">Creator rewards: <strong id="userCreatorRewards">0</strong></div>
+              </div>
+            </div>
+
+            <div style="position:absolute;left:12px;bottom:12px" class="panel">
+              <div class="small">Donate to add funds</div>
+              <button class="btn alt" id="donateBtn">Donate +100</button>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div class="panel">
+          <h3 style="margin:0 0 8px 0">Controls</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" id="sitBtn">Sit (random)</button>
+            <button class="btn alt" id="betFromSeatBtn">Bet from my seat</button>
+            <input id="globalBetInput" type="number" min="1" value="1" style="width:84px;padding:8px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit" />
+          </div>
+          <div style="margin-top:10px">
+            <div class="small">Your seat: <strong id="sideUserSeat">Not seated</strong></div>
+            <div class="small">Seat burn: <strong id="sideBurn">0</strong></div>
+          </div>
+        </div>
+
+        <div class="panel vault" id="vaultPanel">
+          <div class="label">Pool Vault</div>
+          <div class="amt" id="vaultAmt">0</div>
+          <div class="small">Vault coin: <span id="vaultCoin">6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk</span></div>
+          <div style="margin-top:8px"><a href="https://join.pump.fun/HSag/rff7gxbc" target="_blank" rel="noreferrer" class="btn ghost" style="display:inline-block;padding:6px 8px">Vault logs (pump)</a></div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px 0">Round Log</h3>
+          <div class="log" id="log"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- user hand panel (appears after join + next hand) -->
+  <div class="user-hand" id="handPanel" style="display:none">
+    <div id="handCards" style="display:flex;gap:8px"></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div id="winProb" class="small">Win: —</div>
+      <div style="display:flex;gap:8px">
+        <input id="seatBetNumber" type="number" min="1" value="1" style="width:84px;padding:8px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04)" />
+        <button class="btn alt" id="seatBetBtn">Bet</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Full merged tVault with:
+   - restored hand display and seat join logic
+   - neon Tron UI and mobile optimizations
+   - vault/burn accounting, donation, drip distribution
+   - animations and safe console API
+*/
+
+/* CONFIG */
+const INITIAL_VAULT = 82400;
+const VAULT_COIN = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+const IMMEDIATE_BURN_PERCENT = 10;
+const CREATOR_PERCENT = 10;
+const HAND_DURATION = 80;
+const SEGMENT_DURATION = 20;
+const PLAYER_COUNT = 500;
+const DONATION_AMOUNT = 100;
+const DRIP_INTERVAL_MS = 10 * 60 * 1000;
+const DRIP_AMOUNT_PER_DRIP = 20;
+
+/* STORAGE HELPERS */
+const S = {
+  rawGet(k, fallback=null){ try{ const v = localStorage.getItem(k); return v==null?fallback:v; }catch(e){return fallback} },
+  rawSet(k,v){ try{ localStorage.setItem(k, String(v)); }catch(e){} },
+  get(k, fallback=null){ try{ const v = localStorage.getItem(k); return v==null?fallback:JSON.parse(v); }catch(e){return fallback} },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* USER & WALLET */
+function uid(){ let id = S.rawGet('tp_user_id'); if(!id){ id = 'u_' + Math.random().toString(36).slice(2,10); S.rawSet('tp_user_id', id); } return id; }
+const USER = uid();
+function walletKey(u){ return `tp_wallet_${u}`; }
+function getWallet(u){ return Number(S.rawGet(walletKey(u), 0)) || 0; }
+function setWallet(u, n){ S.rawSet(walletKey(u), Math.max(0, Math.floor(Number(n) || 0))); }
+
+/* VAULT & BURN KEYS */
+const VAULT_KEY = 'tp_vault_balance';
+const TOTAL_BURN_KEY = 'tp_total_burned';
+const BURN_LOG_KEY = 'tp_vault_burn_log';
+if(S.rawGet(VAULT_KEY) === null) S.rawSet(VAULT_KEY, String(INITIAL_VAULT));
+if(S.rawGet(TOTAL_BURN_KEY) === null) S.rawSet(TOTAL_BURN_KEY, '0');
+if(S.rawGet(BURN_LOG_KEY) === null) S.rawSet(BURN_LOG_KEY, JSON.stringify([]));
+if(S.rawGet('tp_game_log') === null) S.rawSet('tp_game_log', JSON.stringify([]));
+if(S.rawGet('tp_last_drip_ts') === null) S.rawSet('tp_last_drip_ts', '0');
+
+function getVault(){ return Number(S.rawGet(VAULT_KEY, 0)) || 0; }
+function setVault(n){ S.rawSet(VAULT_KEY, String(Math.max(0, Math.floor(Number(n) || 0)))); }
+function getTotalBurned(){ return Number(S.rawGet(TOTAL_BURN_KEY, 0)) || 0; }
+function setTotalBurned(n){ S.rawSet(TOTAL_BURN_KEY, String(Math.max(0, Math.floor(Number(n) || 0)))); }
+function pushBurnLog(entry){ const arr = JSON.parse(S.rawGet(BURN_LOG_KEY,'[]')||'[]'); arr.unshift(entry); S.rawSet(BURN_LOG_KEY, JSON.stringify(arr.slice(0,1000))); }
+function getBurnLog(){ return JSON.parse(S.rawGet(BURN_LOG_KEY,'[]')||'[]'); }
+
+/* POT HELPERS */
+function potKey(h){ return `tp_pot_${h}`; }
+function getPot(h){ return Number(S.rawGet(potKey(h), 0)) || 0; }
+function setPot(h, v){ S.rawSet(potKey(h), String(Math.max(0, Math.floor(Number(v) || 0)))); }
+
+/* CLOCK */
+const EPOCH_ISO = '2025-11-25T03:00:00Z';
+function epochMs(){ return new Date(EPOCH_ISO).getTime(); }
+function computeClock(){
+  const elapsed = Math.max(0, Math.floor((Date.now() - epochMs()) / 1000));
+  const handNumber = Math.floor(elapsed / HAND_DURATION);
+  const handOffset = elapsed % HAND_DURATION;
+  const segmentIndex = Math.floor(handOffset / SEGMENT_DURATION);
+  const segmentNames = ['Pre-flop','Flop','Turn','River'];
+  const segment = segmentNames[segmentIndex] || 'Pre-flop';
+  const segmentElapsed = handOffset % SEGMENT_DURATION;
+  const segmentRemaining = SEGMENT_DURATION - segmentElapsed;
+  return { handNumber, handOffset, segment, segmentIndex, segmentElapsed, segmentRemaining };
+}
+function currentHandNumber(){ return computeClock().handNumber; }
+
+/* PRNG & DEALING */
+function mulberry32(seed){
+  return function(){
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffleDeck(seed){
+  const prng = mulberry32(seed >>> 0);
+  const deck = [];
+  const R = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const SUI = ['♠','♥','♦','♣'];
+  for(const s of SUI) for(const r of R) deck.push(r + s);
+  for(let i = deck.length -1; i>0; i--){
+    const j = Math.floor(prng() * (i+1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+function dealHand(seed){
+  const deck = shuffleDeck(seed);
+  return { hole: [deck[0], deck[1]], flop: [deck[2], deck[3], deck[4]], turn: deck[5], river: deck[6] };
+}
+function scoreHand([a,b], community=[]){
+  const R = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const idx = r => R.indexOf(r.slice(0,-1));
+  let s = idx(a) + idx(b);
+  for(const c of community) s += idx(c);
+  return s;
+}
+
+/* DOM refs */
+const refs = {
+  epoch: document.getElementById('epoch'),
+  handNum: document.getElementById('handNum'),
+  roundName: document.getElementById('roundName'),
+  countdown: document.getElementById('countdown'),
+  potVal: document.getElementById('potVal'),
+  vaultVal: document.getElementById('vaultVal'),
+  walletVal: document.getElementById('walletVal'),
+  totalBurned: document.getElementById('totalBurned'),
+  nextDrip: document.getElementById('nextDrip'),
+  donateBtn: document.getElementById('donateBtn'),
+  sitBtn: document.getElementById('sitBtn'),
+  betFromSeatBtn: document.getElementById('betFromSeatBtn'),
+  globalBetInput: document.getElementById('globalBetInput'),
+  sideUserSeat: document.getElementById('sideUserSeat'),
+  sideBurn: document.getElementById('sideBurn'),
+  seatRing: document.getElementById('seatRing'),
+  pile: document.getElementById('pile'),
+  pileInner: document.getElementById('pileInner'),
+  log: document.getElementById('log'),
+  vaultAmt: document.getElementById('vaultAmt'),
+  handPanel: document.getElementById('handPanel'),
+  handCards: document.getElementById('handCards'),
+  winProb: document.getElementById('winProb'),
+  seatBetNumber: document.getElementById('seatBetNumber'),
+  seatBetBtn: document.getElementById('seatBetBtn')
+};
+
+/* STATE */
+const state = {
+  wallet: getWallet(USER),
+  userSeat: null,
+  seatJoinHandNumber: null,
+  lastHandNumber: null,
+  lastDripTs: Number(S.rawGet('tp_last_drip_ts', '0')) || 0
+};
+
+/* HUD update */
+function updateHUD(){
+  const clock = computeClock();
+  refs.epoch && (refs.epoch.textContent = new Date(EPOCH_ISO).toUTCString());
+  refs.handNum && (refs.handNum.textContent = clock.handNumber);
+  refs.roundName && (refs.roundName.textContent = clock.segment);
+  refs.countdown && (refs.countdown.textContent = clock.segmentRemaining + 's');
+  refs.potVal && (refs.potVal.textContent = getPot(clock.handNumber));
+  refs.vaultVal && (refs.vaultVal.textContent = getVault());
+  refs.walletVal && (refs.walletVal.textContent = state.wallet);
+  refs.totalBurned && (refs.totalBurned.textContent = getTotalBurned());
+  const nextTs = state.lastDripTs + DRIP_INTERVAL_MS;
+  const now = Date.now();
+  const msLeft = Math.max(0, nextTs - now);
+  refs.nextDrip && (refs.nextDrip.textContent = msLeft > 0 ? `${Math.ceil(msLeft/1000)}s` : 'Ready');
+  if(refs.donateBtn) refs.donateBtn.style.display = state.wallet <= 0 ? 'inline-block' : 'none';
+  refs.sideBurn && (refs.sideBurn.textContent = state.userSeat != null ? Number(S.rawGet(`tp_burn_seat_${state.userSeat}`, 0)) : 0);
+  refs.vaultAmt && (refs.vaultAmt.textContent = getVault());
+}
+
+/* Seat ring render */
+function renderSeatRing(){
+  if(!refs.seatRing) return;
+  if(refs.seatRing.children.length === 0){
+    const rect = refs.pile.getBoundingClientRect();
+    const radius = Math.max(140, rect.width/2 - 70);
+    for(let i=0;i<PLAYER_COUNT;i++){
+      const el=document.createElement('div'); el.className='seat-mini'; el.dataset.seat=i;
+      const cards=document.createElement('div'); cards.className='cards'; cards.textContent='';
+      const bet=document.createElement('div'); bet.className='bet'; bet.textContent='';
+      el.appendChild(cards); el.appendChild(bet); refs.seatRing.appendChild(el);
+    }
+  }
+  const rect = refs.pile.getBoundingClientRect();
+  const radius = Math.max(140, rect.width/2 - 70);
+  const nodes = refs.seatRing.children;
+  for(let i=0;i<nodes.length;i++){
+    const angle = (i / PLAYER_COUNT) * Math.PI * 2 - Math.PI/2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    const node = nodes[i];
+    node.style.left = `calc(50% + ${x}px)`; node.style.top = `calc(50% + ${y}px)`;
+    node.classList.toggle('user', state.userSeat === i);
+  }
+}
+
+/* Community render */
+function renderCommunity(){
+  const clock = computeClock();
+  const d = dealHand(clock.handNumber);
+  const container = document.getElementById('communityCards');
+  if(!container) return;
+  container.innerHTML = '';
+  let cards = [];
+  if(clock.segment === 'Pre-flop') cards = [];
+  else if(clock.segment === 'Flop') cards = d.flop;
+  else if(clock.segment === 'Turn') cards = [...d.flop, d.turn];
+  else cards = [...d.flop, d.turn, d.river];
+  cards.forEach(c=>{ const cd=document.createElement('div'); cd.className='card'; cd.textContent=c; container.appendChild(cd); });
+}
+
+/* Render log */
+function renderLog(){
+  const container = refs.log;
+  if(!container) return;
+  container.innerHTML = '';
+  const burns = getBurnLog();
+  for(let i=0;i<Math.min(80, burns.length); i++){
+    const e = burns[i];
+    const div = document.createElement('div'); div.className='log-entry';
+    const left = document.createElement('div'); left.textContent = `Burn • Hand ${e.hand} • Seat ${e.seat} • ${e.burn} • ${e.reason || 'wager'}`;
+    const right = document.createElement('div'); right.textContent = new Date(e.ts).toLocaleTimeString();
+    div.appendChild(left); div.appendChild(right); container.appendChild(div);
+  }
+  const gameLogs = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+  for(let i=0;i<Math.min(40, gameLogs.length); i++){
+    const e = gameLogs[i];
+    const div = document.createElement('div'); div.className='log-entry';
+    const left = document.createElement('div'); left.textContent = `${e.type || 'event'} • ${e.info || (e.wager ? 'wager' : '')}`;
+    const right = document.createElement('div'); right.textContent = e.ts ? new Date(e.ts).toLocaleTimeString() : '';
+    div.appendChild(left); div.appendChild(right); container.appendChild(div);
+  }
+}
+
+/* Animations */
+function animateChip(sx, sy, tx, ty, color='#ffd166', cb){
+  const el = document.createElement('div'); el.className='chip'; el.style.left = sx + 'px'; el.style.top = sy + 'px'; el.style.background = color; el.style.opacity = '1';
+  document.body.appendChild(el);
+  const dx = tx - sx + (Math.random()-0.5)*20;
+  const dy = ty - sy + (Math.random()-0.5)*20 - 10;
+  const peakX = dx * 0.45 + (Math.random()-0.5)*40;
+  const peakY = dy * 0.45 - (80 + Math.random()*40);
+  setTimeout(()=>{ el.style.transition='transform 360ms cubic-bezier(.2,.7,.2,1), opacity 360ms'; el.style.transform = `translate(${peakX}px, ${peakY}px)`; }, 10);
+  setTimeout(()=>{ el.style.transition='transform 420ms cubic-bezier(.2,.7,.2,1), opacity 420ms'; el.style.transform = `translate(${dx}px, ${dy}px) scale(.95)`; el.style.opacity='0.95'; }, 360);
+  setTimeout(()=>{ el.remove(); if(cb) cb(); }, 820);
+}
+function animateBurnBubbles(fromX, fromY, amount, cb){
+  const count = Math.min(28, Math.max(4, Math.floor(Math.sqrt(amount) * 1.6)));
+  let completed = 0;
+  for(let i=0;i<count;i++){
+    const b = document.createElement('div'); b.className='burn-bubble'; b.style.left = (fromX + (Math.random()-0.5)*40) + 'px'; b.style.top = (fromY + (Math.random()-0.5)*20) + 'px'; b.style.opacity='1';
+    document.body.appendChild(b);
+    const vaultRect = document.getElementById('vaultPanel') ? document.getElementById('vaultPanel').getBoundingClientRect() : { left: window.innerWidth - 200, top: 80, width: 120, height: 40 };
+    const tx = vaultRect.left + vaultRect.width/2 + (Math.random()-0.5)*20;
+    const ty = vaultRect.top + (Math.random()*20);
+    setTimeout(()=>{ b.style.transition='transform 900ms cubic-bezier(.2,.7,.2,1), opacity 900ms'; b.style.transform = `translate(${tx - (fromX)}px, ${ty - (fromY)}px) scale(0.6)`; b.style.opacity='0.0'; }, 20);
+    setTimeout(()=>{ b.remove(); completed++; if(completed===count && cb) cb(); }, 980);
+  }
+}
+
+/* ACCOUNTING: record wager */
+function recordWager(seatIndex, amount){
+  amount = Math.max(1, Math.floor(Number(amount) || 0));
+  const hand = currentHandNumber();
+  const burn = Math.floor(amount * IMMEDIATE_BURN_PERCENT / 100);
+  const creator = Math.floor(amount * CREATOR_PERCENT / 100);
+  const toPot = amount - burn - creator;
+
+  // pot
+  const prevPot = getPot(hand);
+  setPot(hand, prevPot + toPot);
+
+  // seat burn
+  const seatBurnKey = `tp_burn_seat_${seatIndex}`;
+  const prevSeatBurn = Number(S.rawGet(seatBurnKey, 0)) || 0;
+  S.rawSet(seatBurnKey, String(prevSeatBurn + burn));
+
+  // total burned and log
+  const prevTotal = getTotalBurned();
+  setTotalBurned(prevTotal + burn);
+  pushBurnLog({ hand, seat: seatIndex, burn, reason: 'immediate_wager', ts: Date.now() });
+
+  // creator fallback
+  if(S.rawGet(`tp_creator_code_seat_${seatIndex}`)){
+    const prev = Number(S.rawGet(`tp_creator_rewards_seat_${seatIndex}`, 0)) || 0;
+    S.rawSet(`tp_creator_rewards_seat_${seatIndex}`, String(prev + creator));
+  } else {
+    const dp = Number(S.rawGet('tp_donation_pool', 0)) || 0;
+    S.rawSet('tp_donation_pool', String(dp + creator));
+  }
+
+  // game log
+  const g = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+  g.unshift({ type:'wager', hand, seat:seatIndex, wager:amount, burn, toPot, ts:Date.now() });
+  S.rawSet('tp_game_log', JSON.stringify(g.slice(0,500)));
+
+  // animate chips from seat to pile
+  const marker = refs.seatRing.querySelector(`.seat-mini[data-seat="${seatIndex}"]`);
+  const center = refs.pile;
+  const rectM = marker ? marker.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+  const rectC = center.getBoundingClientRect();
+  const sx = rectM.left + rectM.width/2; const sy = rectM.top + rectM.height/2;
+  const tx = rectC.left + rectC.width/2; const ty = rectC.top + rectC.height/2;
+  const color = '#ffd166';
+  const chips = Math.min(6, Math.max(1, Math.floor(Math.sqrt(amount))));
+  let sent = 0;
+  for(let i=0;i<chips;i++){
+    setTimeout(()=>{ animateChip(sx, sy, tx, ty, color, ()=>{ sent++; if(sent===chips){ updateHUD(); renderLog(); } }); }, i*60);
+  }
+}
+
+/* VAULT BURN AT RESOLUTION */
+function computeVaultBurn(vaultBalance, pot){
+  if(vaultBalance <= 0) return 0;
+  if(pot <= 0) return Math.max(1, Math.floor(vaultBalance * 0.01));
+  const ratio = vaultBalance / (vaultBalance + pot + 1);
+  const base = pot * 0.35;
+  const sqrtTerm = Math.sqrt(pot) * 1.0;
+  let burn = Math.floor(ratio * (base + sqrtTerm));
+  if(burn < 1) burn = 1;
+  if(burn > vaultBalance) burn = vaultBalance;
+  return burn;
+}
+
+/* RESOLVE HAND */
+function resolveHand(handNumber){
+  const potForHand = getPot(handNumber) || 0;
+  const vaultBefore = getVault();
+  const vaultBurn = computeVaultBurn(vaultBefore, potForHand);
+  if(vaultBurn > 0){
+    setVault(vaultBefore - vaultBurn);
+    const prevTotal = getTotalBurned();
+    setTotalBurned(prevTotal + vaultBurn);
+    pushBurnLog({ hand: handNumber, seat: -1, burn: vaultBurn, reason: 'vault_burn_resolution', ts: Date.now() });
+    const pileRect = refs.pile.getBoundingClientRect();
+    animateBurnBubbles(pileRect.left + pileRect.width/2, pileRect.top + pileRect.height/2, vaultBurn, ()=>{});
+    const g = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+    g.unshift({ type:'vault_burn', hand: handNumber, burned: vaultBurn, ts: Date.now() });
+    S.rawSet('tp_game_log', JSON.stringify(g.slice(0,500)));
+  }
+
+  // winners
+  const hands = [];
+  for(let i=0;i<PLAYER_COUNT;i++) hands.push(dealHand(handNumber ^ (i * 2654435761)).hole);
+  const board = [...dealHand(handNumber).flop, dealHand(handNumber).turn, dealHand(handNumber).river];
+  const scores = hands.map(h => scoreHand(h, board));
+  const maxScore = Math.max(...scores);
+  const winners = scores.reduce((acc,s,idx)=> s===maxScore ? acc.concat(idx) : acc, []);
+  if(winners.length === 0){
+    setPot(handNumber, 0);
+    updateHUD(); renderLog();
+    return;
+  }
+  const share = Math.floor(potForHand / winners.length);
+  const remainder = potForHand - share * winners.length;
+  winners.forEach((seat, idx) => {
+    const amt = share + (idx < remainder ? 1 : 0);
+    if(state.userSeat === seat){
+      state.wallet += amt; setWallet(USER, state.wallet);
+    } else {
+      const heldKey = `tp_held_balance_${USER}_seat_${seat}`;
+      const bal = Number(S.rawGet(heldKey, 0)) || 0;
+      S.rawSet(heldKey, String(bal + amt));
+    }
+    const prevWins = Number(S.rawGet(`tp_wins_seat_${seat}`, 0)) || 0;
+    S.rawSet(`tp_wins_seat_${seat}`, String(prevWins + 1));
+  });
+  setPot(handNumber, 0);
+  const g = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+  g.unshift({ type:'hand_result', hand: handNumber, winners, pot: potForHand, ts: Date.now() });
+  S.rawSet('tp_game_log', JSON.stringify(g.slice(0,500)));
+  updateHUD();
+  renderLog();
+}
+
+/* DONATE */
+function handleDonate(){
+  const prev = getWallet(USER);
+  setWallet(USER, prev + DONATION_AMOUNT);
+  const g = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+  g.unshift({ type:'donation', user: USER, amount: DONATION_AMOUNT, ts: Date.now() });
+  S.rawSet('tp_game_log', JSON.stringify(g.slice(0,500)));
+  updateHUD();
+  renderLog();
+}
+
+/* DRIP */
+function performDrip(){
+  const now = Date.now();
+  const last = Number(S.rawGet('tp_last_drip_ts', '0')) || 0;
+  if(now - last < DRIP_INTERVAL_MS) return false;
+  const recipients = [];
+  const count = Math.max(1, Math.min(8, Math.floor(DRIP_AMOUNT_PER_DRIP / 4)));
+  for(let i=0;i<count;i++) recipients.push(Math.floor(Math.random()*PLAYER_COUNT));
+  const perRecipient = Math.max(1, Math.floor(DRIP_AMOUNT_PER_DRIP / recipients.length));
+  const vaultBefore = getVault();
+  const totalNeeded = perRecipient * recipients.length;
+  const actualTotal = Math.min(vaultBefore, totalNeeded);
+  if(actualTotal <= 0) return false;
+  const actualPer = Math.floor(actualTotal / recipients.length) || 1;
+  setVault(vaultBefore - actualPer * recipients.length);
+  const pileRect = refs.pile.getBoundingClientRect();
+  const sx = pileRect.left + pileRect.width/2;
+  const sy = pileRect.top + pileRect.height/2;
+  let completed = 0;
+  recipients.forEach((seat, idx) => {
+    const seatEl = refs.seatRing.querySelector(`.seat-mini[data-seat="${seat}"]`);
+    const rect = seatEl ? seatEl.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+    const tx = rect.left + rect.width/2;
+    const ty = rect.top + rect.height/2;
+    animateChip(sx, sy, tx, ty, '#ffd166', ()=>{
+      if(state.userSeat === seat){
+        setWallet(USER, getWallet(USER) + actualPer);
+      } else {
+        const heldKey = `tp_held_balance_${USER}_seat_${seat}`;
+        const bal = Number(S.rawGet(heldKey, 0)) || 0;
+        S.rawSet(heldKey, String(bal + actualPer));
+      }
+      completed++;
+      if(completed === recipients.length){
+        const g = JSON.parse(S.rawGet('tp_game_log','[]')||'[]');
+        g.unshift({ type:'drip', ts: Date.now(), recipients, per: actualPer });
+        S.rawSet('tp_game_log', JSON.stringify(g.slice(0,500)));
+        S.rawSet('tp_last_drip_ts', String(now));
+        state.lastDripTs = now;
+        updateHUD();
+        renderLog();
+      }
+    });
+  });
+  return true;
+}
+
+/* HAND DISPLAY: set seat and render user hand after next hand */
+function setUserSeat(seatIndex){
+  state.userSeat = seatIndex;
+  state.seatJoinHandNumber = currentHandNumber();
+  document.getElementById('sideUserSeat').textContent = `Seat ${seatIndex + 1}`;
+  const userCard = document.getElementById('userSeatCard');
+  if(userCard) userCard.style.display = 'block';
+  document.getElementById('userAvatar').style.background = ['#1abc9c','#e91e63','#3f51b5','#ff9800','#4caf50','#00bcd4','#9c27b0','#2c3e50'][seatIndex % 8];
+  document.getElementById('userName').textContent = `Player ${seatIndex+1}`;
+  document.getElementById('userCrystal').textContent = `Seat crystal: ${seatIndex % 8}`;
+  renderSeatRing();
+  updateHUD();
+}
+
+/* Render user's hole cards and win estimate */
+function communityForCurrent(){
+  const clock = computeClock();
+  const d = dealHand(clock.handNumber);
+  if(clock.segment === 'Pre-flop') return [];
+  if(clock.segment === 'Flop') return d.flop;
+  if(clock.segment === 'Turn') return [...d.flop, d.turn];
+  return [...d.flop, d.turn, d.river];
+}
+function renderHandForUser(){
+  const userSeat = state.userSeat;
+  const handPanel = document.getElementById('handPanel');
+  if(!handPanel) return;
+  if(userSeat == null) { handPanel.style.display = 'none'; return; }
+  const clock = computeClock();
+  if(state.seatJoinHandNumber == null || clock.handNumber <= state.seatJoinHandNumber){
+    handPanel.style.display = 'none';
+    return;
+  }
+  const seed = clock.handNumber ^ (userSeat * 2654435761);
+  const d = dealHand(seed);
+  const handCards = document.getElementById('handCards');
+  handCards.innerHTML = '';
+  d.hole.forEach(c => {
+    const cd = document.createElement('div');
+    cd.className = 'card user-card';
+    cd.textContent = c;
+    handCards.appendChild(cd);
+  });
+  const myScore = scoreHand(d.hole, communityForCurrent());
+  let wins = 0, total = 0;
+  for(let i=0;i<40;i++){
+    const oppSeat = (userSeat + 1 + i) % PLAYER_COUNT;
+    const oppSeed = clock.handNumber ^ (oppSeat * 2654435761);
+    const opp = dealHand(oppSeed).hole;
+    const oppScore = scoreHand(opp, communityForCurrent());
+    if(myScore >= oppScore) wins++;
+    total++;
+  }
+  const winPct = total ? (wins/total)*100 : 0;
+  const winProbEl = document.getElementById('winProb');
+  if(winProbEl) winProbEl.textContent = `Win: ${winPct.toFixed(1)}%`;
+  handPanel.style.display = 'flex';
+}
+
+/* UI wiring */
+refs.donateBtn && refs.donateBtn.addEventListener('click', handleDonate);
+refs.sitBtn && refs.sitBtn.addEventListener('click', ()=>{
+  if(state.userSeat != null) return;
+  const seat = Math.floor(Math.random()*PLAYER_COUNT);
+  setUserSeat(seat);
+});
+refs.betFromSeatBtn && refs.betFromSeatBtn.addEventListener('click', ()=>{
+  if(state.userSeat == null) return alert('Sit first');
+  const amt = Number(refs.globalBetInput.value) || 1;
+  if(getWallet(USER) <= 0) return alert('Wallet empty. Click Donate to add funds.');
+  setWallet(USER, getWallet(USER) - amt);
+  recordWager(state.userSeat, amt);
+});
+refs.seatBetBtn && refs.seatBetBtn.addEventListener('click', ()=>{
+  if(state.userSeat == null) return alert('Sit first');
+  const amt = Number(refs.seatBetNumber.value) || 1;
+  if(getWallet(USER) <= 0) return alert('Wallet empty. Click Donate to add funds.');
+  setWallet(USER, getWallet(USER) - amt);
+  recordWager(state.userSeat, amt);
+});
+
+/* Mobile double-tap quick bet */
+(function enableMobileShortcuts(){
+  const table = document.getElementById('table');
+  if(!table) return;
+  let lastTap = 0;
+  table.addEventListener('touchend', (e)=>{
+    const now = Date.now();
+    if(now - lastTap < 300){
+      if(state.userSeat != null){
+        const amt = Number(document.getElementById('globalBetInput').value) || 1;
+        if(getWallet(USER) >= amt){
+          setWallet(USER, getWallet(USER) - amt);
+          recordWager(state.userSeat, amt);
+        } else {
+          alert('Wallet empty. Tap Donate to add funds.');
+        }
+      }
+    }
+    lastTap = now;
+  });
+})();
+
+/* Clock loop */
+function tick(){
+  updateHUD();
+  renderCommunity();
+  renderSeatRing();
+  renderLog();
+  renderHandForUser();
+  const clock = computeClock();
+  if(state.lastHandNumber == null) state.lastHandNumber = clock.handNumber;
+  if(clock.handNumber > state.lastHandNumber){
+    const handToResolve = state.lastHandNumber;
+    resolveHand(handToResolve);
+    state.lastHandNumber = clock.handNumber;
+  }
+  requestAnimationFrame(()=>setTimeout(tick, 300));
+}
+
+/* Periodic drip scheduler */
+setInterval(()=>{
+  const now = Date.now();
+  const last = Number(S.rawGet('tp_last_drip_ts', '0')) || 0;
+  if(now - last >= DRIP_INTERVAL_MS){
+    performDrip();
+  }
+  updateHUD();
+}, 30 * 1000);
+
+/* Expose safe API */
+window.tVault = {
+  getVault,
+  setVault,
+  getTotalBurned,
+  getBurnLog,
+  recordWager,
+  performDrip,
+  forceDrip: () => { S.rawSet('tp_last_drip_ts', '0'); return performDrip(); },
+  dumpState: () => ({
+    vault: getVault(),
+    totalBurned: getTotalBurned(),
+    wallet: getWallet(USER),
+    lastDripTs: Number(S.rawGet('tp_last_drip_ts','0')||0),
+    currentHand: currentHandNumber()
+  })
+};
+
+/* Start */
+updateHUD();
+renderLog();
+tick();
+
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

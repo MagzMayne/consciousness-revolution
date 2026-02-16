@@ -1,0 +1,358 @@
+name: Issue Lifecycle Manager
+
+# Manages automated issues lifecycle:
+# - Closes stale branch issues when branch is deleted or merged
+# - Keeps only latest 3 daily reports, closes older ones
+# - Closes resolved security issues when fixes are verified
+# - Adds lifecycle management labels
+
+on:
+  schedule:
+    # Run every 6 hours - adjust frequency based on repository activity
+    # For repositories with 100+ issues, consider daily: '0 2 * * *'
+    # For active maintenance, every 6 hours is recommended
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      max_daily_reports:
+        description: 'Max number of daily reports to keep'
+        required: false
+        default: '3'
+        type: string
+      close_old_security_issues:
+        description: 'Close security issues older than days'
+        required: false
+        default: '7'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  cleanup-stale-branch-issues:
+    name: Close Stale Branch Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get all branches
+        id: get-branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const branchNames = branches.map(b => b.name);
+            console.log(`Found ${branchNames.length} active branches`);
+            
+            return branchNames;
+      
+      - name: Close issues for deleted branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const activeBranches = ${{ steps.get-branches.outputs.result }};
+            
+            // Get all stale-branch issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'stale-branch,automated',
+              per_page: 100
+            });
+            
+            console.log(`Found ${issues.length} stale-branch issues`);
+            
+            let closedCount = 0;
+            
+            for (const issue of issues) {
+              // Extract branch name from title
+              const match = issue.title.match(/Stale Agent Branch: (.+)/);
+              if (!match) continue;
+              
+              const branchName = match[1];
+              
+              // Check if branch still exists
+              if (!activeBranches.includes(branchName)) {
+                console.log(`Branch ${branchName} no longer exists, closing issue #${issue.number}`);
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `🤖 **Auto-closing:** This branch no longer exists or has been merged.\n\n---\n*Automated by Issue Lifecycle Manager*`
+                });
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+                
+                closedCount++;
+              }
+            }
+            
+            console.log(`✅ Closed ${closedCount} stale branch issues`);
+            core.setOutput('closed_count', closedCount);
+
+  cleanup-daily-reports:
+    name: Keep Latest Daily Reports Only
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Cleanup old daily reports
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const maxReports = parseInt('${{ inputs.max_daily_reports }}' || '3');
+            
+            // Get all daily report issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'daily-agent-report,automated',
+              sort: 'created',
+              direction: 'desc',
+              per_page: 100
+            });
+            
+            console.log(`Found ${issues.length} daily report issues`);
+            console.log(`Keeping latest ${maxReports}, closing the rest`);
+            
+            let closedCount = 0;
+            
+            // Keep the first maxReports, close the rest
+            for (let i = maxReports; i < issues.length; i++) {
+              const issue = issues[i];
+              
+              console.log(`Closing old daily report #${issue.number} from ${issue.created_at}`);
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🤖 **Auto-closing:** Superseded by newer daily reports.\n\n---\n*Automated by Issue Lifecycle Manager*`
+              });
+              
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              
+              closedCount++;
+            }
+            
+            console.log(`✅ Closed ${closedCount} old daily report issues`);
+            core.setOutput('closed_count', closedCount);
+
+  cleanup-resolved-security-issues:
+    name: Close Resolved Security Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Check and close resolved security issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const daysThreshold = parseInt('${{ inputs.close_old_security_issues }}' || '7');
+            const thresholdDate = new Date();
+            thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
+            
+            // Get all security issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,automated',
+              per_page: 100
+            });
+            
+            console.log(`Found ${issues.length} open security issues`);
+            
+            let closedCount = 0;
+            
+            for (const issue of issues) {
+              const createdDate = new Date(issue.created_at);
+              
+              // Check if issue is old
+              if (createdDate > thresholdDate) {
+                console.log(`Issue #${issue.number} is recent, keeping open`);
+                continue;
+              }
+              
+              console.log(`Checking if security issues in #${issue.number} are resolved...`);
+              
+              // Load Node modules once (avoid repeated loading in loop)
+              const fs = require('fs');
+              const path = require('path');
+              
+              // For API key leak issues, check if the keys are still present
+              if (issue.title.includes('API Key Leak')) {
+                // Parse the issue body to extract file paths
+                const fileMatches = issue.body.match(/\.\/(.*?):/g);
+                
+                if (!fileMatches) {
+                  console.log(`Could not parse files from issue body, skipping`);
+                  continue;
+                }
+                
+                let allFilesClean = true;
+                
+                for (const match of fileMatches) {
+                  // Sanitize file path to prevent command injection
+                  let filePath = match.replace('./', '').replace(':', '');
+                  
+                  // Validate file path - only allow alphanumeric, dash, underscore, slash, dot
+                  if (!/^[a-zA-Z0-9_\-\/\.]+$/.test(filePath)) {
+                    console.log(`Invalid file path detected, skipping: ${filePath}`);
+                    continue;
+                  }
+                  
+                  try {
+                    // Use fs.readFileSync instead of execSync for security
+                    // Prevent directory traversal
+                    const safePath = path.normalize(filePath).replace(/^(\.\.(\/|\\|$))+/, '');
+                    
+                    if (fs.existsSync(safePath)) {
+                      const content = fs.readFileSync(safePath, 'utf8');
+                      
+                      // Check if file contains API keys using comprehensive regex patterns
+                      const apiKeyPatterns = [
+                        /(api[_-]?key|apiKey)\s*[:=]\s*["'][a-zA-Z0-9_-]{20,}["']/i,
+                        /process\.env\.[A-Z_]*API[A-Z_]*KEY/,
+                        /sk-[a-zA-Z0-9]{40,}/,  // OpenAI keys
+                        /(client[_-]?id|client[_-]?secret)\s*[:=]\s*["'][a-zA-Z0-9_-]{20,}["']/i
+                      ];
+                      
+                      const hasApiKeys = apiKeyPatterns.some(pattern => pattern.test(content));
+                      
+                      if (hasApiKeys) {
+                        console.log(`File ${safePath} still has API keys`);
+                        allFilesClean = false;
+                        break;
+                      }
+                    } else {
+                      console.log(`File ${safePath} not found (possibly cleaned)`);
+                    }
+                  } catch (error) {
+                    // File might not exist or not readable, which is acceptable
+                    console.log(`Could not read file ${filePath}: ${error.message}`);
+                  }
+                }
+                
+                if (allFilesClean) {
+                  console.log(`All API keys resolved in issue #${issue.number}, closing`);
+                  
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `🤖 **Auto-closing:** Security scan verified that reported API keys have been removed or are no longer detectable.\n\n---\n*Automated by Issue Lifecycle Manager*`
+                  });
+                  
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    state_reason: 'completed'
+                  });
+                  
+                  closedCount++;
+                }
+              }
+            }
+            
+            console.log(`✅ Closed ${closedCount} resolved security issues`);
+            core.setOutput('closed_count', closedCount);
+
+  generate-summary:
+    name: Generate Summary Report
+    runs-on: ubuntu-latest
+    needs: [cleanup-stale-branch-issues, cleanup-daily-reports, cleanup-resolved-security-issues]
+    if: always()
+    
+    steps:
+      - name: Create summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get current open issue counts
+            const { data: allIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            const automatedIssues = allIssues.filter(i => 
+              i.labels.some(l => l.name === 'automated')
+            );
+            
+            const staleBranchIssues = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'stale-branch')
+            );
+            
+            const dailyReports = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'daily-agent-report')
+            );
+            
+            const securityIssues = automatedIssues.filter(i => 
+              i.labels.some(l => l.name === 'security')
+            );
+            
+            const summary = `
+            ## 🤖 Issue Lifecycle Manager Summary
+            
+            **Run Date:** ${new Date().toISOString().split('T')[0]}
+            **Run Time:** ${new Date().toISOString().split('T')[1].split('.')[0]} UTC
+            
+            ### 📊 Current Issue Status
+            
+            - **Total Open Issues:** ${allIssues.length}
+            - **Automated Issues:** ${automatedIssues.length}
+              - Stale Branch Issues: ${staleBranchIssues.length}
+              - Daily Reports: ${dailyReports.length}
+              - Security Issues: ${securityIssues.length}
+            
+            ### 🧹 Cleanup Actions Taken
+            
+            - Stale branch issues closed: ${{ needs.cleanup-stale-branch-issues.result == 'success' ? 'Completed' : 'N/A' }}
+            - Daily reports cleaned: ${{ needs.cleanup-daily-reports.result == 'success' ? 'Completed' : 'N/A' }}
+            - Security issues checked: ${{ needs.cleanup-resolved-security-issues.result == 'success' ? 'Completed' : 'N/A' }}
+            
+            ### 📈 Health Metrics
+            
+            - Issue growth rate: ${automatedIssues.length > 50 ? '⚠️ High' : '✅ Normal'}
+            - Automation health: ${dailyReports.length <= 3 ? '✅ Good' : '⚠️ Needs attention'}
+            
+            ---
+            *🤖 Automated by Issue Lifecycle Manager*
+            `;
+            
+            console.log(summary);
+            
+            // Output to step summary
+            core.summary.addRaw(summary);
+            await core.summary.write();

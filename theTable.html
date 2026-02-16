@@ -1,0 +1,699 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: theTable.html
+Declaration ID: IP-C32B91C-MLL2902G
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Unified Table — Blackjack & Texas Hold’em</title>
+<style>
+:root{
+  --bg:#07101a; --panel:#0e1622; --felt:#0f2233; --accent:#00e5ff; --accent2:#7cffd4;
+  --text:#e6f7ff; --muted:#8fa9b8; --pot-purple:#b07cff; --win:#54ffbd; --lose:#ff6b9a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(900px at 50% 10%,#071426 0%,var(--bg) 70%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text)}
+.app{max-width:1200px;margin:0 auto;padding:12px}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px}
+.title{font-weight:900;letter-spacing:1px;color:var(--accent);text-shadow:0 0 18px rgba(0,229,255,0.12)}
+.kbd{background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.12);padding:6px 10px;border-radius:8px;font-family:ui-monospace}
+.balance{display:flex;gap:10px;align-items:center}
+.input{background:transparent;border:1px solid rgba(0,229,255,0.14);padding:8px;border-radius:8px;color:var(--text)}
+.rules{margin-top:8px;text-align:center;color:var(--muted);font-size:12px}
+
+/* Layout */
+.container{display:grid;grid-template-columns:1fr 360px;gap:12px;margin-top:12px}
+@media(max-width:980px){.container{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,rgba(10,16,24,0.96),rgba(6,10,14,0.96));border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px}
+
+/* Table area */
+.table-wrap{position:relative;height:560px;border-radius:12px;overflow:hidden;background:radial-gradient(480px at 50% 40%, rgba(0,229,255,0.06), rgba(0,0,0,0) 70%)}
+.felt{position:absolute;inset:24px;border-radius:50%;background:radial-gradient(600px at 50% 50%, #0f2233 20%, #0a1523 70%);box-shadow:inset 0 0 50px rgba(0,229,255,0.08);}
+
+/* Orb (shared log + pot) */
+.inline-orb{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:260px;height:260px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:4;
+  background:radial-gradient(circle at 40% 30%, rgba(176,124,255,0.18), rgba(176,124,255,0.10) 30%, rgba(0,0,0,0.02) 65%);
+  box-shadow: 0 0 120px rgba(176,124,255,0.28), inset 0 0 56px rgba(176,124,255,0.14);
+  animation:float 4.8s ease-in-out infinite;}
+@keyframes float{0%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-10px)}100%{transform:translate(-50%,-50%) translateY(0)}}
+.inline-orb .orb-inner{width:86%;height:86%;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:linear-gradient(180deg,rgba(20,6,36,0.6),rgba(6,4,10,0.18));border:1px solid rgba(176,124,255,0.18);backdrop-filter: blur(8px)}
+.inline-orb .pot{font-family:ui-monospace;font-weight:800;color:var(--pot-purple);font-size:15px}
+.inline-orb .label{font-size:11px;color:var(--muted);margin-top:6px}
+.inline-orb .stack{position:absolute;top:14px;left:14px;right:14px;bottom:14px;padding:8px;font-family:ui-monospace;font-size:11px;color:#dff;line-height:1.18;text-align:left;pointer-events:auto;overflow:auto}
+
+/* Blackjack elements */
+.spot{position:absolute;width:110px;height:64px;background:rgba(255,255,255,0.04);border:1px solid rgba(0,229,255,0.14);
+  border-radius:10px;color:#7cffd4;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;
+  backdrop-filter: blur(3px);cursor:pointer;pointer-events:auto}
+.spot .bet{position:absolute;bottom:6px;left:6px;right:6px;text-align:center;color:#b07cff;font-family:ui-monospace;font-size:11px}
+
+/* Poker elements */
+.seat{position:absolute;width:100px;height:60px;background:rgba(255,255,255,0.04);border:1px solid rgba(0,229,255,0.14);
+  border-radius:10px;color:#7cffd4;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;backdrop-filter: blur(3px);}
+
+/* Chips row */
+.chips{display:flex;justify-content:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.chip{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;color:#04222a;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,0.55)}
+.chip.gc1{background:#ffd166}
+.chip.gc5{background:#54ffbd}
+.chip.gc25{background:#00a2ff}
+.chip.gc100{background:#ff6b9a}
+.chip.gc500{background:#b07cff;color:#fff}
+.chip.selected{outline:3px solid rgba(255,255,255,0.6)}
+
+/* Controls */
+.controls{display:flex;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:10px 14px;border-radius:8px;font-weight:800;color:#04222a;cursor:pointer}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.14);padding:10px 14px;border-radius:8px;color:var(--accent);cursor:pointer}
+.btn:disabled,.btn-outline:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Cards (CSS-based visual) */
+.card{position:absolute;width:64px;height:96px;border-radius:8px;background:#07111a;border:2px solid #00e5ff;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;box-shadow:0 12px 24px rgba(0,0,0,0.6);z-index:3}
+.card.red{color:#ff6b6b;border-color:#ff6b6b}
+.card.face-down{background:#001827;border-color:#00e5ff;color:#00e5ff}
+
+/* Right column */
+.logArea{font-family:ui-monospace;color:#9df;max-height:420px;overflow:auto;background:transparent;border:none;padding:8px;margin:0;white-space:pre-wrap}
+.small{font-size:13px;color:var(--muted)}
+.infoGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.infoBlock{background:rgba(255,255,255,0.02);border:1px solid rgba(0,229,255,0.06);border-radius:10px;padding:8px}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="balance"><div class="small">Balance</div><div class="kbd" id="balance">GC 25000</div></div>
+    <div class="title">UNIFIED TABLE</div>
+    <div class="balance" style="gap:6px">
+      <div class="small">Mode</div>
+      <select id="gameMode" class="input">
+        <option value="blackjack">Blackjack</option>
+        <option value="poker">Texas Hold'em</option>
+      </select>
+    </div>
+  </div>
+  <div class="rules" id="rulesText">Blackjack pays 3 to 2 • Dealer stands on 17 • Insurance pays 2 to 1</div>
+
+  <div class="container">
+    <!-- Table + controls -->
+    <div>
+      <div class="panel table-wrap">
+        <div class="felt"></div>
+
+        <!-- Orb -->
+        <div class="inline-orb">
+          <div class="orb-inner">
+            <div class="pot" id="orbPot">GC 0</div>
+            <div class="label" id="orbLabel">Pot</div>
+            <div class="stack" id="inlineLog"></div>
+          </div>
+        </div>
+
+        <!-- Blackjack spots -->
+        <div class="spot" id="spot0" style="bottom:10%;left:calc(50% - 55px)">ADD PLAY<div class="bet" id="bet0">GC 0</div></div>
+        <div class="spot" id="spot1" style="bottom:18%;left:20%">ADD PLAY<div class="bet" id="bet1">GC 0</div></div>
+        <div class="spot" id="spot2" style="bottom:18%;right:20%">ADD PLAY<div class="bet" id="bet2">GC 0</div></div>
+
+        <!-- Poker seats (6) -->
+        <div class="seat" id="seat0" style="top:14%;left:50%;transform:translateX(-50%);display:none">You</div>
+        <div class="seat" id="seat1" style="bottom:12%;left:16%;display:none">P2</div>
+        <div class="seat" id="seat2" style="bottom:12%;right:16%;display:none">P3</div>
+        <div class="seat" id="seat3" style="top:20%;left:16%;display:none">P4</div>
+        <div class="seat" id="seat4" style="top:20%;right:16%;display:none">P5</div>
+        <div class="seat" id="seat5" style="top:36%;left:8%;display:none">P6</div>
+      </div>
+
+      <!-- Shared chips row -->
+      <div class="panel">
+        <div class="chips">
+          <div class="chip gc1" data-val="1">GC1</div>
+          <div class="chip gc5" data-val="5">GC5</div>
+          <div class="chip gc25" data-val="25">GC25</div>
+          <div class="chip gc100" data-val="100">GC100</div>
+          <div class="chip gc500" data-val="500">GC500</div>
+        </div>
+
+        <!-- Blackjack controls -->
+        <div id="bjControls" class="controls">
+          <button id="dealBtn" class="btn">Deal</button>
+          <button id="hitBtn" class="btn-outline" disabled>Hit</button>
+          <button id="standBtn" class="btn-outline" disabled>Stand</button>
+          <button id="doubleBtn" class="btn-outline" disabled>Double</button>
+          <button id="splitBtn" class="btn-outline" disabled>Split</button>
+          <button id="insuranceBtn" class="btn-outline" disabled>Insurance</button>
+          <button id="clearBtn" class="btn-outline">Clear bets</button>
+        </div>
+
+        <!-- Poker controls -->
+        <div id="pkControls" class="controls" style="display:none">
+          <button id="pkStartBtn" class="btn">Start hand</button>
+          <button id="pkCheckBtn" class="btn-outline" disabled>Check</button>
+          <button id="pkCallBtn" class="btn-outline" disabled>Call</button>
+          <button id="pkBetBtn" class="btn" disabled>Bet</button>
+          <button id="pkFoldBtn" class="btn-outline" disabled>Fold</button>
+          <button id="pkShowdownBtn" class="btn-outline" disabled>Showdown</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div>
+      <div class="panel">
+        <div class="infoGrid">
+          <div class="infoBlock">
+            <div class="small">Status</div>
+            <div class="kbd" id="status">Idle</div>
+          </div>
+          <div class="infoBlock">
+            <div class="small" id="modeMetricLabel">Dealer total</div>
+            <div class="kbd" id="modeMetric">—</div>
+          </div>
+        </div>
+        <div class="small" style="margin-top:8px">Table log</div>
+        <pre id="log" class="logArea"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Shared state
+  const state = {
+    mode: 'blackjack',
+    balance: 25000,
+    chip: 5,
+    lastLog: null,
+    // Blackjack
+    bj: { bets:[0,0,0], hands:[], dealer:{cards:[], total:0}, deck:[], inRound:false },
+    // Poker
+    pk: { seats:6, pot:0, deck:[], myHole:[], community:[], inHand:false, botsFolded:[false,false,false,false,false], actionEnabled:false }
+  };
+
+  const $ = id => document.getElementById(id);
+  const chipEls = Array.from(document.querySelectorAll('.chip'));
+  const spotEls = ['spot0','spot1','spot2'].map(id=>$(id));
+  const betEls = ['bet0','bet1','bet2'].map(id=>$(id));
+  const seatEls = ['seat0','seat1','seat2','seat3','seat4','seat5'].map(id=>$(id));
+
+  // Logging (dedupe consecutive)
+  function appendLog(msg){
+    const time = new Date().toLocaleTimeString();
+    const line = `[${time}] ${msg}`;
+    if (line === state.lastLog) return;
+    state.lastLog = line;
+    $('log').textContent = line + '\n' + $('log').textContent;
+    $('inlineLog').textContent = line + '\n' + $('inlineLog').textContent;
+    $('inlineLog').textContent = $('inlineLog').textContent.split('\n').slice(0,30).join('\n');
+  }
+  function setStatus(t){ $('status').textContent = t; }
+
+  // Shared UI updates
+  function updateBalance(){ $('balance').textContent = `GC ${state.balance}`; }
+  function updateOrbPotBlackjack(){
+    const total = state.bj.bets.reduce((a,b)=>a+b,0);
+    $('orbPot').textContent = `GC ${total}`;
+    $('orbLabel').textContent = 'Pot';
+  }
+  function updateOrbPotPoker(){
+    $('orbPot').textContent = `GC ${state.pk.pot}`;
+    $('orbLabel').textContent = 'Pot';
+  }
+
+  // Mode switching
+  function switchMode(mode){
+    state.mode = mode;
+    if (mode === 'blackjack'){
+      $('rulesText').textContent = 'Blackjack pays 3 to 2 • Dealer stands on 17 • Insurance pays 2 to 1';
+      // show spots, hide seats
+      spotEls.forEach(el=> el.style.display = 'flex');
+      seatEls.forEach(el=> el.style.display = 'none');
+      // controls
+      $('bjControls').style.display = 'flex';
+      $('pkControls').style.display = 'none';
+      // metric label
+      $('modeMetricLabel').textContent = 'Dealer total';
+      $('modeMetric').textContent = '—';
+      updateOrbPotBlackjack();
+      setStatus('Idle');
+    } else {
+      $('rulesText').textContent = 'Texas Hold’em — Hole cards, flop, turn, river';
+      spotEls.forEach(el=> el.style.display = 'none');
+      seatEls.forEach(el=> el.style.display = 'flex');
+      $('bjControls').style.display = 'none';
+      $('pkControls').style.display = 'flex';
+      $('modeMetricLabel').textContent = 'Round';
+      $('modeMetric').textContent = 'Preflop';
+      $('orbPot').textContent = 'GC 0';
+      $('orbLabel').textContent = 'Pot';
+      setStatus('Idle');
+    }
+  }
+  $('gameMode').addEventListener('change', e => switchMode(e.target.value));
+
+  // Chips
+  chipEls.forEach(el=>{
+    el.addEventListener('click', ()=>{
+      chipEls.forEach(c=>c.classList.remove('selected'));
+      el.classList.add('selected');
+      state.chip = parseInt(el.dataset.val,10);
+      appendLog(`Selected chip GC${state.chip}`);
+    });
+  });
+  chipEls[1].classList.add('selected'); // default GC5
+
+  // Blackjack — deck, values, coords
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  function buildDeck(){ return suits.flatMap(s => ranks.map(r => `${r}${s}`)); }
+  function shuffleDeck(deck){ for (let i=deck.length-1;i>0;i--){ const r = Math.random(); const j = Math.floor(r*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; } return deck; }
+  function cardVal(card){ const r = card.slice(0, card.length-1); if (r==='A') return 11; if (['K','Q','J'].includes(r)) return 10; return parseInt(r,10); }
+  function bjTotal(cards){ let t = cards.reduce((a,c)=>a+cardVal(c),0); let aces = cards.filter(c=>c.startsWith('A')).length; while (t>21 && aces>0){ t-=10; aces--; } return t; }
+
+  // CSS card spawn from center (orb) to target
+  function spawnCard(text, x, y, delayIndex=0, faceUp=true){
+    const wrap = document.querySelector('.table-wrap');
+    const el = document.createElement('div');
+    el.className = 'card' + ((text.includes('♥')||text.includes('♦')) ? ' red' : '');
+    if (!faceUp) el.classList.add('face-down');
+    el.textContent = faceUp ? text : '🂠';
+    el.style.left = '50%'; el.style.top = '42%'; el.style.transform = 'translate(-50%,-50%)';
+    wrap.appendChild(el);
+    const t0 = performance.now() + delayIndex*140;
+    const start = { x: wrap.clientWidth/2, y: wrap.clientHeight*0.42 };
+    const end = { x, y };
+    function frame(now){
+      const t = Math.min(1, (now - t0) / 540);
+      const e = (--t)*t*t + 1;
+      const curX = start.x + (end.x - start.x) * e;
+      const curY = start.y + (end.y - start.y) * e - 40*Math.sin(e*Math.PI);
+      el.style.left = `${curX}px`; el.style.top = `${curY}px`;
+      if (e < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    return el;
+  }
+
+  // Get element coords (center)
+  function centerCoord(el){
+    const wrapRect = document.querySelector('.table-wrap').getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    return { x: rect.left - wrapRect.left + rect.width/2, y: rect.top - wrapRect.top + rect.height/2 - 36 };
+  }
+
+  // Blackjack: place bet
+  spotEls.forEach((el, i)=>{
+    el.addEventListener('click', ()=>{
+      if (state.mode !== 'blackjack'){ appendLog('Switch to Blackjack to place spot bets'); return; }
+      if (state.bj.inRound){ appendLog('Cannot bet during a round'); return; }
+      if (state.balance < state.chip){ appendLog('Insufficient balance'); return; }
+      state.bj.bets[i] += state.chip;
+      state.balance -= state.chip;
+      betEls[i].textContent = `GC ${state.bj.bets[i]}`;
+      updateBalance(); updateOrbPotBlackjack();
+      appendLog(`Bet GC${state.chip} on Spot ${i+1}`);
+    });
+  });
+
+  // Blackjack deal flow
+  $('dealBtn').addEventListener('click', ()=>{
+    if (state.mode !== 'blackjack'){ appendLog('Select Blackjack mode to deal'); return; }
+    const totalBet = state.bj.bets.reduce((a,b)=>a+b,0);
+    if (totalBet <= 0){ appendLog('Place a bet to start'); return; }
+    if (state.bj.inRound){ appendLog('Round already in progress'); return; }
+    // init
+    state.bj.inRound = true; setStatus('Dealing');
+    state.bj.deck = shuffleDeck(buildDeck());
+    state.bj.hands = [];
+    state.bj.dealer = { cards:[], total:0 };
+    // create hands for active spots
+    for (let i=0;i<3;i++) if (state.bj.bets[i] > 0) state.bj.hands.push({ spot:i, cards:[], total:0, bet:state.bj.bets[i], active:true });
+    // clear old cards
+    document.querySelectorAll('.card').forEach(c=>c.remove());
+    appendLog('Dealing cards...');
+    let di = 0, idx = 0;
+    // first to each hand
+    state.bj.hands.forEach(h => {
+      const c = state.bj.deck[idx++]; h.cards.push(c); h.total = bjTotal(h.cards);
+      const coord = centerCoord(spotEls[h.spot]); spawnCard(c, coord.x, coord.y, di++, true);
+    });
+    // dealer up-card
+    { const c = state.bj.deck[idx++]; state.bj.dealer.cards.push(c); state.bj.dealer.total = bjTotal(state.bj.dealer.cards);
+      const wrap = document.querySelector('.table-wrap'); const topX = wrap.clientWidth/2; const topY = 120;
+      spawnCard(c, topX, topY, di++, true); $('modeMetric').textContent = `${state.bj.dealer.total}`; }
+    // second to each hand
+    state.bj.hands.forEach(h => {
+      const c = state.bj.deck[idx++]; h.cards.push(c); h.total = bjTotal(h.cards);
+      const coord = centerCoord(spotEls[h.spot]); const offsetX = coord.x + 18;
+      spawnCard(c, offsetX, coord.y, di++, true);
+    });
+    // dealer hole (face-down)
+    { const c = state.bj.deck[idx++]; state.bj.dealer.cards.push(c);
+      const wrap = document.querySelector('.table-wrap'); const topX = wrap.clientWidth/2 + 18; const topY = 120;
+      spawnCard(c, topX, topY, di++, false); $('modeMetric').textContent = '—'; }
+
+    setTimeout(()=>{
+      setStatus('Player action');
+      enableBJ(true);
+      checkInsurance();
+      focusFirstBJHand();
+    }, di*140 + 300);
+  });
+
+  function enableBJ(on){
+    $('hitBtn').disabled = !on; $('standBtn').disabled = !on; $('doubleBtn').disabled = !on; $('splitBtn').disabled = !on;
+  }
+  function currentBJ(){ return state.bj.hands.find(h => h.active) || null; }
+  function focusFirstBJHand(){ const h = currentBJ(); if (!h) return dealerPlay(); appendLog(`Your turn — Spot ${h.spot+1} (Total ${h.total})`); }
+  function checkInsurance(){ const up = state.bj.dealer.cards[0]; $('insuranceBtn').disabled = !(up && up.startsWith('A')); }
+
+  function bjHit(){
+    const h = currentBJ(); if (!h) return;
+    const c = state.bj.deck.shift(); h.cards.push(c); h.total = bjTotal(h.cards);
+    const coord = centerCoord(spotEls[h.spot]); const offset = coord.x + (h.cards.length-1)*18;
+    spawnCard(c, offset, coord.y, 0, true);
+    appendLog(`Hit — Spot ${h.spot+1} Total ${h.total}`);
+    if (h.total > 21){ appendLog(`Bust — Spot ${h.spot+1}`); h.active = false; nextBJOrDealer(); }
+  }
+  function bjStand(){ const h = currentBJ(); if (!h) return; h.active=false; appendLog(`Stand — Spot ${h.spot+1} Total ${h.total}`); nextBJOrDealer(); }
+  function bjDouble(){
+    const h = currentBJ(); if (!h) return;
+    if (state.balance < h.bet){ appendLog('Insufficient balance to double'); return; }
+    state.balance -= h.bet; h.bet *= 2; updateBalance(); updateOrbPotBlackjack();
+    appendLog(`Double — Spot ${h.spot+1}`);
+    bjHit(); if (h.active){ h.active=false; nextBJOrDealer(); }
+  }
+  function bjSplit(){
+    const h = currentBJ(); if (!h) return;
+    const [c1,c2] = h.cards; const r1=c1.slice(0,c1.length-1), r2=c2.slice(0,c2.length-1);
+    if (r1!==r2){ appendLog('Split requires a pair'); return; }
+    if (state.balance < h.bet){ appendLog('Insufficient balance to split'); return; }
+    state.balance -= h.bet; updateBalance();
+    const idx = state.bj.hands.indexOf(h);
+    const newH = { spot:h.spot, cards:[c2], total:0, bet:h.bet, active:true };
+    h.cards = [c1]; h.total = bjTotal(h.cards);
+    const cA = state.bj.deck.shift(); const cB = state.bj.deck.shift();
+    h.cards.push(cA); h.total = bjTotal(h.cards);
+    newH.cards.push(cB); newH.total = bjTotal(newH.cards);
+    state.bj.hands.splice(idx+1, 0, newH);
+    const coord = centerCoord(spotEls[h.spot]); spawnCard(cA, coord.x+18, coord.y, 0, true); spawnCard(cB, coord.x+18, coord.y, 1, true);
+    appendLog(`Split — Spot ${h.spot+1}`);
+  }
+  function nextBJOrDealer(){ const h = currentBJ(); if (!h) dealerPlay(); else focusFirstBJHand(); }
+  function dealerPlay(){
+    setStatus('Dealer action'); enableBJ(false);
+    appendLog('Dealer reveals hole card');
+    const hole = state.bj.dealer.cards[1];
+    const wrap = document.querySelector('.table-wrap'); const topX = wrap.clientWidth/2 + 18; const topY = 120;
+    spawnCard(hole, topX, topY, 0, true);
+    state.bj.dealer.total = bjTotal(state.bj.dealer.cards); $('modeMetric').textContent = `${state.bj.dealer.total}`;
+    const draw = ()=> {
+      if (state.bj.dealer.total < 17){
+        const c = state.bj.deck.shift(); state.bj.dealer.cards.push(c); state.bj.dealer.total = bjTotal(state.bj.dealer.cards);
+        const x = wrap.clientWidth/2 + (state.bj.dealer.cards.length-1)*18;
+        spawnCard(c, x, topY, 0, true);
+        $('modeMetric').textContent = `${state.bj.dealer.total}`;
+        appendLog(`Dealer draws — Total ${state.bj.dealer.total}`);
+        setTimeout(draw, 700);
+      } else { appendLog(`Dealer stands — Total ${state.bj.dealer.total}`); bjResolve(); }
+    };
+    const isBJ = (state.bj.dealer.total === 21 && state.bj.dealer.cards.length === 2);
+    if (isBJ){ appendLog('Dealer Blackjack'); bjResolve(); } else setTimeout(draw, 700);
+  }
+  function bjResolve(){
+    setStatus('Resolving');
+    let net = 0, d = state.bj.dealer.total;
+    state.bj.hands.forEach(h=>{
+      const t = h.total;
+      if (t>21){ appendLog(`Spot ${h.spot+1}: Bust — Lose GC${h.bet}`); net -= h.bet; }
+      else if (d>21){ appendLog(`Spot ${h.spot+1}: Dealer bust — Win GC${h.bet}`); net += h.bet; }
+      else if (t>d){
+        const bjPay = (t===21 && h.cards.length===2) ? Math.floor(h.bet*1.5) : h.bet;
+        appendLog(`Spot ${h.spot+1}: Win — GC${bjPay}`); net += bjPay;
+      } else if (t<d){ appendLog(`Spot ${h.spot+1}: Lose — GC${h.bet}`); net -= h.bet; }
+      else { appendLog(`Spot ${h.spot+1}: Push — GC${h.bet} returned`); net += h.bet; }
+    });
+    state.balance += net; updateBalance();
+    appendLog(`Round net: GC ${net}`);
+    state.bj.inRound=false; $('insuranceBtn').disabled=true; setStatus('Idle');
+  }
+
+  $('hitBtn').addEventListener('click', bjHit);
+  $('standBtn').addEventListener('click', bjStand);
+  $('doubleBtn').addEventListener('click', bjDouble);
+  $('splitBtn').addEventListener('click', bjSplit);
+  $('insuranceBtn').addEventListener('click', ()=>{
+    const ins = state.bj.hands.reduce((s,h)=> s + Math.floor(h.bet/2), 0);
+    if (ins<=0){ appendLog('No eligible hands for insurance'); return; }
+    if (state.balance < ins){ appendLog('Insufficient balance'); return; }
+    state.balance -= ins; updateBalance(); appendLog(`Insurance purchased — GC ${ins}`);
+  });
+  $('clearBtn').addEventListener('click', ()=>{
+    if (state.bj.inRound){ appendLog('Cannot clear during a round'); return; }
+    const refund = state.bj.bets.reduce((a,b)=>a+b,0);
+    state.balance += refund; state.bj.bets=[0,0,0]; betEls.forEach((b,i)=> b.textContent = 'GC 0'); updateBalance(); updateOrbPotBlackjack();
+    appendLog('Bets cleared'); document.querySelectorAll('.card').forEach(c=>c.remove());
+  });
+
+  // Poker — simplified flow: deal hole/board, bot logs, pot updates
+  function pkReset(){
+    state.pk.pot = 0; state.pk.deck = shuffleDeck(buildDeck()); state.pk.myHole = []; state.pk.community = []; state.pk.inHand=false;
+    state.pk.botsFolded = [false,false,false,false,false]; $('modeMetric').textContent='Preflop';
+    updateOrbPotPoker(); document.querySelectorAll('.card').forEach(c=>c.remove());
+  }
+  function pkStart(){
+    if (state.mode !== 'poker'){ appendLog('Select Poker mode to start'); return; }
+    if (state.pk.inHand){ appendLog('Hand already in progress'); return; }
+    pkReset(); state.pk.inHand = true; setStatus('Dealing');
+    appendLog('Dealing hole cards...');
+    let idx = 0, di = 0;
+    // player hole (2 cards)
+    const youSeat = $('seat0'); const yc = centerCoord(youSeat);
+    const c1 = state.pk.deck[idx++], c2 = state.pk.deck[idx++];
+    state.pk.myHole = [c1,c2];
+    spawnCard(c1, yc.x-18, yc.y, di++, true);
+    spawnCard(c2, yc.x+18, yc.y, di++, true);
+    // bots receive face-down (for visualization)
+    for (let b=1;b<state.pk.seats;b++){
+      const s = $('seat'+b); const sc = centerCoord(s);
+      spawnCard('🂠', sc.x-14, sc.y, di++, false);
+      spawnCard('🂠', sc.x+14, sc.y, di++, false);
+    }
+    setTimeout(()=> {
+      setStatus('Preflop'); enablePK(true);
+      appendLog('Your turn — Preflop');
+      $('modeMetric').textContent='Preflop';
+    }, di*140 + 300);
+  }
+  function enablePK(on){
+    $('pkCheckBtn').disabled=!on; $('pkCallBtn').disabled=!on; $('pkBetBtn').disabled=!on; $('pkFoldBtn').disabled=!on; $('pkShowdownBtn').disabled=!on;
+  }
+  function pkBet(){
+    state.pk.pot += 10; updateOrbPotPoker();
+    appendLog('You bet GC10');
+    pkBotsAct();
+  }
+  function pkCheck(){ appendLog('You checked'); pkBotsAct(); }
+  function pkCall(){ appendLog('You called'); pkBotsAct(); }
+  function pkFold(){ appendLog('You folded'); state.pk.inHand=false; enablePK(false); setStatus('Idle'); }
+  function pkBotsAct(){
+    setStatus('Bots acting');
+    let i=1;
+    function step(){
+      if (i>=state.pk.seats){ // reveal next street
+        nextStreet();
+        return;
+      }
+      const label = $('seat'+i).textContent;
+      appendLog(`${label} is thinking...`);
+      setTimeout(()=>{
+        const r = Math.random();
+        if (r < 0.2){ state.pk.botsFolded[i-1] = true; appendLog(`${label} folded`); }
+        else if (r < 0.55){ appendLog(`${label} checked`); }
+        else { state.pk.pot += 10; updateOrbPotPoker(); appendLog(`${label} bet GC10`); }
+        i++; step();
+      }, 600 + Math.floor(Math.random()*600));
+    }
+    step();
+  }
+  function nextStreet(){
+    if (state.pk.community.length === 0){
+      // Flop
+      appendLog('Flop revealed.');
+      const wrap = document.querySelector('.table-wrap');
+      const baseX = wrap.clientWidth/2 - 64, y = wrap.clientHeight/2 - 10;
+      state.pk.community = [state.pk.deck.pop(), state.pk.deck.pop(), state.pk.deck.pop()];
+      spawnCard(state.pk.community[0], baseX, y, 0, true);
+      spawnCard(state.pk.community[1], baseX+64, y, 1, true);
+      spawnCard(state.pk.community[2], baseX+128, y, 2, true);
+      $('modeMetric').textContent='Flop';
+      setStatus('Your action'); appendLog('Your turn — Flop');
+    } else if (state.pk.community.length === 3){
+      // Turn
+      appendLog('Turn revealed.');
+      const wrap = document.querySelector('.table-wrap'); const x = wrap.clientWidth/2 + 64, y = wrap.clientHeight/2 - 10;
+      const turn = state.pk.deck.pop(); state.pk.community.push(turn);
+      spawnCard(turn, x, y, 0, true);
+      $('modeMetric').textContent='Turn';
+      setStatus('Your action'); appendLog('Your turn — Turn');
+    } else if (state.pk.community.length === 4){
+      // River
+      appendLog('River revealed.');
+      const wrap = document.querySelector('.table-wrap'); const x = wrap.clientWidth/2 + 128, y = wrap.clientHeight/2 - 10;
+      const river = state.pk.deck.pop(); state.pk.community.push(river);
+      spawnCard(river, x, y, 0, true);
+      $('modeMetric').textContent='River';
+      setStatus('Your action'); appendLog('Your turn — River');
+      $('pkShowdownBtn').disabled = false;
+    } else {
+      // done
+      setStatus('Ready for showdown');
+      $('pkShowdownBtn').disabled = false;
+    }
+  }
+  function pkShowdown(){
+    appendLog('Showdown');
+    appendLog('Pot awarded to a random contender (demo)');
+    state.balance += state.pk.pot; updateBalance();
+    state.pk.pot = 0; updateOrbPotPoker();
+    state.pk.inHand=false; enablePK(false); setStatus('Idle');
+  }
+
+  $('pkStartBtn').addEventListener('click', pkStart);
+  $('pkBetBtn').addEventListener('click', pkBet);
+  $('pkCheckBtn').addEventListener('click', pkCheck);
+  $('pkCallBtn').addEventListener('click', pkCall);
+  $('pkFoldBtn').addEventListener('click', pkFold);
+  $('pkShowdownBtn').addEventListener('click', pkShowdown);
+
+  // Init
+  function init(){
+    updateBalance(); setStatus('Idle'); switchMode('blackjack'); appendLog('Ready — pick a mode and play.');
+  }
+  init();
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

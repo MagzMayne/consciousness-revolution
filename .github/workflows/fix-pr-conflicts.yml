@@ -1,0 +1,241 @@
+name: Fix PR Merge Conflicts
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to fix (e.g., 1675)'
+        required: true
+        type: string
+      strategy:
+        description: 'Merge strategy (ours, theirs, manual)'
+        required: true
+        default: 'ours'
+        type: choice
+        options:
+          - ours
+          - theirs
+          - manual
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix-conflicts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get PR branch name
+        id: pr_info
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          
+          # Get PR details using GitHub API
+          PR_DATA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}")
+          
+          BRANCH_NAME=$(echo "$PR_DATA" | jq -r '.head.ref')
+          BASE_BRANCH=$(echo "$PR_DATA" | jq -r '.base.ref')
+          MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
+          MERGEABLE_STATE=$(echo "$PR_DATA" | jq -r '.mergeable_state')
+          
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "base_branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
+          echo "mergeable=$MERGEABLE" >> $GITHUB_OUTPUT
+          echo "mergeable_state=$MERGEABLE_STATE" >> $GITHUB_OUTPUT
+          
+          echo "📊 PR Information:"
+          echo "  PR Number: $PR_NUMBER"
+          echo "  Branch: $BRANCH_NAME"
+          echo "  Base: $BASE_BRANCH"
+          echo "  Mergeable: $MERGEABLE"
+          echo "  State: $MERGEABLE_STATE"
+
+      - name: Fetch branches
+        run: |
+          echo "📥 Fetching latest changes..."
+          git fetch origin
+
+      - name: Checkout PR branch
+        run: |
+          BRANCH_NAME="${{ steps.pr_info.outputs.branch_name }}"
+          echo "🌿 Checking out branch: $BRANCH_NAME"
+          
+          git checkout "$BRANCH_NAME" || {
+            echo "Branch doesn't exist locally, creating from origin..."
+            git checkout -b "$BRANCH_NAME" "origin/$BRANCH_NAME"
+          }
+
+      - name: Attempt merge with selected strategy
+        id: merge
+        run: |
+          BASE_BRANCH="${{ steps.pr_info.outputs.base_branch }}"
+          STRATEGY="${{ inputs.strategy }}"
+          
+          echo "🔀 Merging $BASE_BRANCH with strategy: $STRATEGY"
+          
+          if [ "$STRATEGY" = "ours" ]; then
+            # Prefer PR branch changes
+            git merge "origin/$BASE_BRANCH" --allow-unrelated-histories -X ours --no-edit || {
+              echo "status=failed" >> $GITHUB_OUTPUT
+              echo "message=Merge with 'ours' strategy failed" >> $GITHUB_OUTPUT
+              exit 1
+            }
+          elif [ "$STRATEGY" = "theirs" ]; then
+            # Prefer base branch changes
+            git merge "origin/$BASE_BRANCH" --allow-unrelated-histories -X theirs --no-edit || {
+              echo "status=failed" >> $GITHUB_OUTPUT
+              echo "message=Merge with 'theirs' strategy failed" >> $GITHUB_OUTPUT
+              exit 1
+            }
+          else
+            # Manual strategy - just try merge without auto-resolve
+            echo "⚠️ Manual strategy selected - workflow will fail here for manual review"
+            git merge "origin/$BASE_BRANCH" --allow-unrelated-histories --no-commit --no-ff || {
+              echo "status=needs_manual" >> $GITHUB_OUTPUT
+              echo "message=Conflicts require manual resolution" >> $GITHUB_OUTPUT
+              
+              echo "📋 Conflicted files:"
+              git status --short | grep '^UU\|^AA\|^DD' || true
+              
+              exit 1
+            }
+          fi
+          
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "message=Merge completed successfully" >> $GITHUB_OUTPUT
+
+      - name: Push changes
+        if: steps.merge.outputs.status == 'success'
+        run: |
+          BRANCH_NAME="${{ steps.pr_info.outputs.branch_name }}"
+          echo "⬆️ Pushing changes to $BRANCH_NAME..."
+          
+          git push origin "$BRANCH_NAME"
+          
+          echo "✅ Successfully pushed merge resolution!"
+
+      - name: Add comment to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ inputs.pr_number }};
+            const status = '${{ steps.merge.outputs.status }}';
+            const message = '${{ steps.merge.outputs.message }}';
+            const strategy = '${{ inputs.strategy }}';
+            
+            let body = '';
+            
+            if (status === 'success') {
+              body = `✅ **Merge Conflicts Resolved**
+              
+The merge conflicts in this PR have been automatically resolved using the \`${strategy}\` strategy.
+
+**Details:**
+- Strategy: \`${strategy}\`
+- Merge commit: \`${process.env.GITHUB_SHA}\`
+- Resolution: ${message}
+
+**Next Steps:**
+1. Review the changes to ensure correctness
+2. Run any necessary tests
+3. Merge the PR when ready
+
+This PR should now be ready to merge! 🎉`;
+            } else if (status === 'needs_manual') {
+              body = `⚠️ **Manual Conflict Resolution Required**
+              
+The merge conflicts in this PR could not be automatically resolved.
+
+**Details:**
+- Attempted strategy: \`${strategy}\`
+- Issue: ${message}
+
+**Next Steps:**
+1. Check out the branch locally
+2. Run: \`git merge origin/main --allow-unrelated-histories\`
+3. Manually resolve conflicts
+4. Commit and push the resolution
+
+See [Merge Conflict Resolution Guide](.github/scripts/README_MERGE_CONFLICT_FIXES.md) for detailed instructions.`;
+            } else {
+              body = `❌ **Merge Resolution Failed**
+              
+Failed to automatically resolve merge conflicts in this PR.
+
+**Details:**
+- Strategy attempted: \`${strategy}\`
+- Error: ${message}
+
+**Troubleshooting:**
+1. Check if the branch exists and is up to date
+2. Review the [workflow logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+3. Try a different merge strategy
+4. Consider manual resolution (see guide)
+
+For help, see [Merge Conflict Resolution Guide](.github/scripts/README_MERGE_CONFLICT_FIXES.md).`;
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
+
+      - name: Update PR labels
+        if: steps.merge.outputs.status == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ inputs.pr_number }};
+            
+            // Remove merge conflict label
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                name: 'merge-conflict'
+              });
+            } catch (error) {
+              console.log('Label merge-conflict not found');
+            }
+            
+            // Add resolved label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['conflicts-resolved', 'ready-to-merge']
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Merge Conflict Resolution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR Number**: #${{ inputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.pr_info.outputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Strategy**: ${{ inputs.strategy }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.merge.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Message**: ${{ steps.merge.outputs.message }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.merge.outputs.status }}" = "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Resolution Successful**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The PR is now ready to merge!" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,2664 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: uInv.html
+Declaration ID: IP-1680E8E3-MLL2902M
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Universal Inventory Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- ZXing Barcode Scanner Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+  <style>
+    :root {
+      --bg: #05060a;
+      --bg-alt: #10121a;
+      --fg: #f5f5f7;
+      --accent: #4f8cff;
+      --accent-soft: rgba(79, 140, 255, 0.12);
+      --danger: #ff4f6a;
+      --muted: #9ca3af;
+      --border: #1f2933;
+      --card: #0b0d13;
+      --success: #22c55e;
+      --warning: #facc15;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: radial-gradient(circle at top, #111827 0, #020617 55%, #000 100%);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(3, 7, 18, 0.9);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: conic-gradient(
+        from 210deg,
+        #4f8cff,
+        #22c55e,
+        #f97316,
+        #4f8cff
+      );
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-mark-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #e5e7eb;
+    }
+
+    .brand-text-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .brand-text-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 0.25rem 0.6rem;
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(15, 23, 42, 0.85);
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0.75rem;
+      gap: 0.75rem;
+    }
+
+    @media (min-width: 900px) {
+      main {
+        flex-direction: row;
+      }
+    }
+
+    .panel {
+      background: radial-gradient(circle at top left, #111827 0, #020617 55%);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+    }
+
+    .panel-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .panel-subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    button {
+      font-family: inherit;
+      border-radius: 999px;
+      border: none;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f8cff, #22c55e);
+      color: #0b1020;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(79, 140, 255, 0.45);
+    }
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+    }
+
+    .btn-icon {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .camera-shell {
+      position: relative;
+      border-radius: 0.9rem;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #020617 0, #000 65%);
+      border: 1px solid #111827;
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+
+    .camera-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+    }
+
+    .scan-frame {
+      position: absolute;
+      inset: 16%;
+      border-radius: 1.2rem;
+      border: 1.5px solid rgba(79, 140, 255, 0.7);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 0 40px rgba(79, 140, 255, 0.35);
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 16%;
+      right: 16%;
+      height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(79, 140, 255, 0.9),
+        transparent
+      );
+      animation: scan 2.4s linear infinite;
+      box-shadow: 0 0 18px rgba(79, 140, 255, 0.9);
+    }
+
+    @keyframes scan {
+      0% {
+        top: 18%;
+      }
+      50% {
+        top: 78%;
+      }
+      100% {
+        top: 18%;
+      }
+    }
+
+    .camera-status {
+      position: absolute;
+      left: 0.75rem;
+      bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.7rem;
+    }
+
+    .camera-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: var(--muted);
+    }
+
+    .camera-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--warning);
+      box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.25);
+    }
+
+    .camera-hint {
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px dashed rgba(55, 65, 81, 0.9);
+      color: var(--muted);
+    }
+
+    .camera-top-label {
+      position: absolute;
+      top: 0.6rem;
+      left: 0.6rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .camera-top-label span.dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .camera-fake-view {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 1rem;
+      pointer-events: none;
+    }
+
+    .camera-fake-grid {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(
+          rgba(15, 23, 42, 0.7) 1px,
+          transparent 1px
+        ),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.7) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .camera-fake-items {
+      position: absolute;
+      inset: 18% 18%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .camera-fake-item {
+      border-radius: 0.4rem;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 80%);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .camera-fake-item::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(79, 140, 255, 0.1),
+        transparent 40%,
+        rgba(34, 197, 94, 0.1)
+      );
+      mix-blend-mode: screen;
+    }
+
+    .camera-fake-tag {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      right: 4px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.55rem;
+      color: #9ca3af;
+      padding: 2px 6px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .camera-fake-highlight {
+      position: absolute;
+      inset: 18% 18%;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(79, 140, 255, 0.9);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9),
+        0 0 30px rgba(79, 140, 255, 0.6);
+      pointer-events: none;
+    }
+
+    .camera-fake-highlight-label {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(79, 140, 255, 0.9);
+      font-size: 0.6rem;
+      color: #e5e7eb;
+      white-space: nowrap;
+    }
+
+    .camera-fake-highlight-count {
+      position: absolute;
+      bottom: -14px;
+      right: 50%;
+      transform: translateX(50%);
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(34, 197, 94, 0.9);
+      font-size: 0.6rem;
+      color: #bbf7d0;
+      white-space: nowrap;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+
+    .stat-card {
+      border-radius: 0.8rem;
+      background: radial-gradient(circle at top, #020617 0, #020617 60%);
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .stat-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--muted);
+    }
+
+    .stat-chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .area-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .area-tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .area-tag-confidence {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .inventory-list {
+      border-radius: 0.8rem;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top, #020617 0, #020617 60%);
+      max-height: 360px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .inventory-header {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .inventory-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .inventory-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .inventory-body {
+      overflow-y: auto;
+    }
+
+    .inventory-row {
+      display: grid;
+      grid-template-columns: 1.8fr 0.7fr 0.7fr 0.9fr 0.9fr;
+      gap: 0.4rem;
+      padding: 0.45rem 0.6rem;
+      font-size: 0.75rem;
+      align-items: center;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .inventory-row:nth-child(odd) {
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .inventory-row:last-child {
+      border-bottom: none;
+    }
+
+    .inventory-name {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .inventory-name-main {
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .inventory-name-sub {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .inventory-qty {
+      font-weight: 500;
+    }
+
+    .inventory-value {
+      color: #e5e7eb;
+    }
+
+    .inventory-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.65rem;
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .inventory-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      justify-content: flex-end;
+    }
+
+    .inventory-actions button {
+      font-size: 0.65rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+    }
+
+    .inventory-actions .btn-link {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .inventory-actions .btn-link:active {
+      transform: none;
+    }
+
+    .inventory-actions .btn-mini {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: var(--muted);
+    }
+
+    .inventory-empty {
+      padding: 1.2rem 0.8rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .inventory-empty span {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.7rem;
+      color: #6b7280;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--muted);
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--success);
+    }
+
+    .badge-dot-warning {
+      background: var(--warning);
+    }
+
+    .badge-dot-danger {
+      background: var(--danger);
+    }
+
+    .badge-dot-neutral {
+      background: var(--muted);
+    }
+
+    .footer {
+      padding: 0.5rem 1.25rem 0.8rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      background: rgba(3, 7, 18, 0.9);
+      backdrop-filter: blur(16px);
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .footer-pill {
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .footer-pill-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .footer-pill-value {
+      font-size: 0.7rem;
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .footer-link {
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(75, 85, 99, 0.8);
+      padding-bottom: 1px;
+    }
+
+    .footer-link:hover {
+      color: var(--fg);
+      border-bottom-style: solid;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 1.2rem;
+      transform: translateX(-50%);
+      padding: 0.5rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.75rem;
+      color: var(--fg);
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      z-index: 50;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7);
+    }
+
+    .toast.show {
+      display: inline-flex;
+      animation: toast-in 0.18s ease-out;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 10px);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+
+    .toast-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--success);
+    }
+
+    .toast-undo {
+      border: none;
+      background: transparent;
+      color: var(--accent);
+      font-size: 0.75rem;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .pill-mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .pill-mode span.mode {
+      font-weight: 500;
+      color: var(--fg);
+    }
+
+    .pill-mode-toggle {
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+
+    .pill-mode-toggle:hover {
+      color: var(--accent);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+
+    .tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .tag-soft {
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .tag-warning {
+      border-color: rgba(250, 204, 21, 0.9);
+      color: #facc15;
+    }
+
+    .tag-success {
+      border-color: rgba(34, 197, 94, 0.9);
+      color: #bbf7d0;
+    }
+
+    .tag-danger {
+      border-color: rgba(248, 113, 113, 0.9);
+      color: #fecaca;
+    }
+
+    .pill-mini {
+      padding: 0.15rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 0.65rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .pill-mini-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--muted);
+    }
+
+    .pill-mini-dot-green {
+      background: var(--success);
+    }
+
+    .pill-mini-dot-blue {
+      background: var(--accent);
+    }
+
+    .pill-mini-dot-yellow {
+      background: var(--warning);
+    }
+
+    .pill-mini-dot-red {
+      background: var(--danger);
+    }
+
+    .pill-mini-label {
+      font-size: 0.65rem;
+    }
+
+    .pill-mini-value {
+      font-size: 0.65rem;
+      color: var(--fg);
+    }
+
+    .pill-mini-strong {
+      font-weight: 500;
+      color: var(--fg);
+    }
+
+    .pill-mini-muted {
+      color: var(--muted);
+    }
+
+    .pill-mini-link {
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+
+    .pill-mini-link:hover {
+      color: var(--accent);
+    }
+
+    .pill-mini-icon {
+      font-size: 0.7rem;
+    }
+
+    .pill-mini-badge {
+      padding: 0.1rem 0.35rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.6rem;
+      color: var(--muted);
+    }
+
+    .pill-mini-badge-strong {
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .pill-mini-badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    .pill-mini-badge-dot-green {
+      background: var(--success);
+    }
+
+    .pill-mini-badge-dot-yellow {
+      background: var(--warning);
+    }
+
+    .pill-mini-badge-dot-red {
+      background: var(--danger);
+    }
+
+    .pill-mini-badge-dot-muted {
+      background: var(--muted);
+    }
+
+    .pill-mini-badge-label {
+      margin-left: 0.25rem;
+    }
+
+    .pill-mini-badge-value {
+      margin-left: 0.25rem;
+      color: var(--fg);
+    }
+
+    .pill-mini-badge-muted {
+      color: var(--muted);
+    }
+
+    .pill-mini-badge-link {
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      cursor: pointer;
+    }
+
+    .pill-mini-badge-link:hover {
+      color: var(--accent);
+    }
+
+    .pill-mini-badge-icon {
+      margin-right: 0.25rem;
+    }
+
+    .pill-mini-badge-ghost {
+      background: transparent;
+    }
+
+    .pill-mini-badge-soft {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg {
+      background: rgba(15, 23, 42, 0.9);
+      border-color: rgba(79, 140, 255, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg-green {
+      border-color: rgba(34, 197, 94, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg-yellow {
+      border-color: rgba(250, 204, 21, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg-red {
+      border-color: rgba(248, 113, 113, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg-muted {
+      border-color: rgba(75, 85, 99, 0.9);
+    }
+
+    .pill-mini-badge-strong-bg-label {
+      color: var(--fg);
+    }
+
+    .pill-mini-badge-strong-bg-value {
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .pill-mini-badge-strong-bg-icon {
+      color: var(--accent);
+    }
+
+    .pill-mini-badge-strong-bg-icon-green {
+      color: var(--success);
+    }
+
+    .pill-mini-badge-strong-bg-icon-yellow {
+      color: var(--warning);
+    }
+
+    .pill-mini-badge-strong-bg-icon-red {
+      color: var(--danger);
+    }
+
+    .pill-mini-badge-strong-bg-icon-muted {
+      color: var(--muted);
+    }
+
+    .pill-mini-badge-strong-bg-dot {
+      background: var(--accent);
+    }
+
+    .pill-mini-badge-strong-bg-dot-green {
+      background: var(--success);
+    }
+
+    .pill-mini-badge-strong-bg-dot-yellow {
+      background: var(--warning);
+    }
+
+    .pill-mini-badge-strong-bg-dot-red {
+      background: var(--danger);
+    }
+
+    .pill-mini-badge-strong-bg-dot-muted {
+      background: var(--muted);
+    }
+
+    .pill-mini-badge-strong-bg-link {
+      color: var(--accent);
+    }
+
+    .pill-mini-badge-strong-bg-link:hover {
+      color: #93c5fd;
+    }
+
+    .pill-mini-badge-strong-bg-muted-link {
+      color: var(--muted);
+    }
+
+    .pill-mini-badge-strong-bg-muted-link:hover {
+      color: var(--accent);
+    }
+
+    .pill-mini-badge-strong-bg-subtle {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted {
+      opacity: 0.8;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-label {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-value {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-icon {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-dot {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-link {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-link:hover {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-link {
+      opacity: 0.8;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-link:hover {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted {
+      opacity: 0.8;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-label {
+      opacity: 0.85;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-value {
+      opacity: 0.95;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-icon {
+      opacity: 0.85;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-dot {
+      opacity: 0.85;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-link {
+      opacity: 0.85;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-muted-link:hover {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-label {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-value {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-icon {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-dot {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-link {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-link:hover {
+      opacity: 1;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-label {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-value {
+      opacity: 0.95;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-icon {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-dot {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-link {
+      opacity: 0.9;
+    }
+
+    .pill-mini-badge-strong-bg-subtle-strong-muted-link:hover {
+      opacity: 1;
+    }
+
+    @media (max-width: 899px) {
+      .inventory-row {
+        grid-template-columns: 1.8fr 0.7fr 0.9fr;
+        grid-template-rows: auto auto;
+        row-gap: 0.25rem;
+      }
+
+      .inventory-row > div:nth-child(3),
+      .inventory-row > div:nth-child(4),
+      .inventory-row > div:nth-child(5) {
+        justify-self: flex-start;
+      }
+
+      .inventory-row > div:nth-child(3) {
+        grid-row: 2;
+        grid-column: 1;
+      }
+
+      .inventory-row > div:nth-child(4) {
+        grid-row: 2;
+        grid-column: 2;
+      }
+
+      .inventory-row > div:nth-child(5) {
+        grid-row: 2;
+        grid-column: 3;
+        justify-self: flex-end;
+      }
+
+      .stats-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+      }
+
+      .header-right {
+        align-self: stretch;
+        justify-content: space-between;
+      }
+
+      .stats-row {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .inventory-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.35rem;
+      }
+
+      .footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .footer-right {
+        justify-content: flex-start;
+      }
+    }
+  </style>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">
+          <div class="brand-mark-inner">UI</div>
+        </div>
+        <div>
+          <div class="brand-text-title">Universal Inventory Scanner</div>
+          <div class="brand-text-sub">Camera-native live catalogue & valuation</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="pill">
+          <div class="pill-dot" id="headerCameraStatus"></div>
+          <span>Local-first · Region-aware</span>
+        </div>
+        <div class="pill">
+          <span>Mode:</span>
+          <strong id="modeLabel">Household</strong>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- LEFT: Camera + area understanding -->
+      <section class="panel" style="flex: 1.1;">
+        <div class="panel-title-row">
+          <div>
+            <div class="panel-title">Scan & sense</div>
+            <div class="panel-subtitle">
+              Turn your camera into a live inventory sensor—count, value, and classify the space around you.
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn-secondary" id="toggleModeBtn">
+              <span>Toggle mode</span>
+            </button>
+            <button class="btn-primary" id="startScanBtn">
+              <span>Start scan</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="camera-shell">
+          <video id="cameraFeed" autoplay playsinline></video>
+          <canvas id="scanCanvas" style="display:none;"></canvas>
+
+          <div class="camera-fake-grid"></div>
+          <div class="camera-fake-items">
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Cereal · Pantry</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Pasta · Pantry</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Canned soup</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Snacks</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Cleaning</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Beverages</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Spices</div>
+            </div>
+            <div class="camera-fake-item">
+              <div class="camera-fake-tag">Bulk goods</div>
+            </div>
+          </div>
+          <div class="camera-fake-highlight">
+            <div class="camera-fake-highlight-label">Cereal · SKU 4901</div>
+            <div class="camera-fake-highlight-count">x 3 detected</div>
+          </div>
+
+          <div class="camera-overlay">
+            <div class="scan-frame"></div>
+            <div class="scan-line"></div>
+          </div>
+
+          <div class="camera-top-label">
+            <span class="dot"></span>
+            <span id="cameraStatusLabel">Ready to scan · Offline-first</span>
+          </div>
+
+          <div class="camera-status">
+            <div class="camera-status-pill">
+              <div class="camera-status-dot" id="cameraStatusDot"></div>
+              <span id="cameraStatusText">Camera idle · Using demo data</span>
+            </div>
+            <div class="camera-hint">
+              Move slowly across shelves or bins—each detection updates counts and value in real time.
+            </div>
+          </div>
+
+          <div class="camera-fake-view" id="cameraFakeHint">
+            Live camera view will appear here when enabled.  
+            <br />
+            For now, we’re simulating detections so you can feel the flow.
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Area profile</div>
+            <div class="stat-value" id="areaTypeLabel">Home pantry</div>
+            <div class="stat-sub">
+              <span id="areaConfidenceLabel">Confidence: 92%</span>
+            </div>
+            <div style="margin-top: 0.25rem; display: flex; gap: 0.25rem; flex-wrap: wrap;">
+              <div class="area-tag">
+                <div class="area-tag-dot"></div>
+                <span id="areaTagPrimary">Food & staples</span>
+              </div>
+              <div class="tag tag-soft">
+                <span class="tag-dot"></span>
+                <span id="areaTagSecondary">Household · Low-risk</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Live inventory</div>
+            <div class="stat-value" id="statItemsCount">0 items</div>
+            <div class="stat-sub" id="statItemsSub">No scans yet in this session.</div>
+            <div style="margin-top: 0.25rem; display: flex; gap: 0.25rem; flex-wrap: wrap;">
+              <div class="stat-chip">
+                <div class="stat-chip-dot"></div>
+                <span id="statUniqueItems">0 unique SKUs</span>
+              </div>
+              <div class="stat-chip">
+                <span>Session:</span>
+                <span id="statSessionEvents">0 events</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">Estimated value</div>
+            <div class="stat-value" id="statTotalValue">$0.00</div>
+            <div class="stat-sub" id="statValueSub">Awaiting first detection.</div>
+            <div style="margin-top: 0.25rem; display: flex; gap: 0.25rem; flex-wrap: wrap;">
+              <div class="tag tag-success">
+                <span>Basis:</span>
+                <span id="valuationBasisLabel">Replacement cost</span>
+              </div>
+              <div class="tag tag-soft">
+                <span>Price source:</span>
+                <span id="priceSourceLabel">Local cache</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Inventory list + reorder/value intelligence -->
+      <section class="panel" style="flex: 1;">
+        <div class="panel-title-row">
+          <div>
+            <div class="panel-title">Live catalogue</div>
+            <div class="panel-subtitle">
+              Every scan becomes a structured record—counted, valued, and ready to reorder, ship, or sell.
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button class="btn-secondary" id="simulateScanBtn">
+              <span>Simulate scan</span>
+            </button>
+            <button class="btn-ghost" id="exportBtn">
+              <span>Export</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="inventory-list">
+          <div class="inventory-header">
+            <div class="inventory-header-left">
+              <span>Items in current area</span>
+              <span class="badge">
+                <span class="badge-dot"></span>
+                <span id="locationLabel">Pantry · Household</span>
+              </span>
+            </div>
+            <div class="inventory-header-right">
+              <div class="pill-mode">
+                <span>Counting:</span>
+                <span class="mode" id="countModeLabel">Tap & confirm</span>
+                <span class="pill-mode-toggle" id="toggleCountMode">switch</span>
+              </div>
+            </div>
+          </div>
+          <div class="inventory-body" id="inventoryBody">
+            <div class="inventory-empty" id="inventoryEmpty">
+              No items yet in this session.
+              <span>Tap “Simulate scan” or start the camera to populate live inventory.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            <div class="pill-mini">
+              <span class="pill-mini-dot pill-mini-dot-blue"></span>
+              <span class="pill-mini-label">Reorder engine:</span>
+              <span class="pill-mini-value" id="reorderEngineLabel">Idle · No low-stock items</span>
+            </div>
+            <div class="pill-mini">
+              <span class="pill-mini-dot pill-mini-dot-green"></span>
+              <span class="pill-mini-label">Best price:</span>
+              <span class="pill-mini-value" id="bestPriceLabel">Ready to query suppliers</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+            <div class="pill-mini-badge pill-mini-badge-soft">
+              <span class="pill-mini-badge-dot pill-mini-badge-dot-green"></span>
+              <span class="pill-mini-badge-label">Policy:</span>
+              <span class="pill-mini-badge-value" id="policyLabel">Balanced · Cost vs speed</span>
+            </div>
+            <div class="pill-mini-badge pill-mini-badge-soft">
+              <span class="pill-mini-badge-dot pill-mini-badge-dot-muted"></span>
+              <span class="pill-mini-badge-label">Mode:</span>
+              <span class="pill-mini-badge-value" id="modeDetailLabel">Household · Local-first</span>
+            </div>
+            <div class="pill-mini-badge pill-mini-badge-soft">
+              <span class="pill-mini-badge-dot pill-mini-badge-dot-yellow"></span>
+              <span class="pill-mini-badge-label">Network:</span>
+              <span class="pill-mini-badge-value" id="networkLabel">Offline · Using cached prices</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <div class="footer-pill">
+          <span class="footer-pill-label">Session events:</span>
+          <span class="footer-pill-value" id="footerEvents">0</span>
+        </div>
+        <div class="footer-pill">
+          <span class="footer-pill-label">Last action:</span>
+          <span class="footer-pill-value" id="footerLastAction">None yet</span>
+        </div>
+      </div>
+      <div class="footer-right">
+        <span>Local-first by design · You choose when to sync or price-check.</span>
+      </div>
+    </footer>
+
+    <div class="toast" id="toast">
+      <div class="toast-dot"></div>
+      <span id="toastMessage">Item added</span>
+      <button class="toast-undo" id="toastUndoBtn">Undo</button>
+    </div>
+  </div>
+
+  <script>
+    // --- State -------------------------------------------------------------
+    const state = {
+      mode: "household", // or "business"
+      countMode: "tap", // or "auto"
+      items: [],
+      events: [],
+      lastAction: "None yet",
+      area: {
+        type: "Home pantry",
+        confidence: 0.92,
+        primaryTag: "Food & staples",
+        secondaryTag: "Household · Low-risk",
+      },
+      valuationBasis: "Replacement cost",
+      priceSource: "Local cache",
+      cameraActive: false,
+      lastSimulatedItem: null,
+      undoStack: [],
+      scanningActive: false,
+      detectionCount: 0,
+      lastDetectionTime: null,
+    };
+
+    // --- Vision processing setup -------------------------------------------
+    let codeReader = null;
+    let scanningInterval = null;
+    let processingFrame = false;
+    
+    // Initialize barcode scanner when library is loaded
+    function initBarcodeScanner() {
+      try {
+        if (typeof ZXing !== 'undefined') {
+          codeReader = new ZXing.BrowserMultiFormatReader();
+          console.log('✓ Barcode scanner initialized');
+          return true;
+        } else {
+          console.warn('⚠ ZXing library not available. Barcode scanning disabled.');
+          return false;
+        }
+      } catch (err) {
+        console.warn('Failed to initialize barcode scanner:', err);
+      }
+      return false;
+    }
+    
+    // Check camera quality and provide feedback
+    function assessFrameQuality(videoElement) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      
+      if (canvas.width === 0 || canvas.height === 0) {
+        return { quality: 'unknown', brightness: 0, focus: 0 };
+      }
+      
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      // Calculate average brightness
+      let brightness = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      }
+      brightness = brightness / (data.length / 4) / 255;
+      
+      // Calculate focus estimate (variance of Laplacian - simplified)
+      let variance = 0;
+      let prevGray = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        variance += Math.abs(gray - prevGray);
+        prevGray = gray;
+      }
+      const focus = variance / (data.length / 4) / 255;
+      
+      let quality = 'good';
+      if (brightness < 0.3) quality = 'dark';
+      else if (brightness > 0.8) quality = 'bright';
+      else if (focus < 0.02) quality = 'blurry';
+      
+      return { quality, brightness, focus };
+    }
+
+    const demoItemsPool = [
+      {
+        id: "cereal-4901",
+        name: "Whole Grain Cereal",
+        sku: "4901",
+        category: "Food",
+        context: "Pantry",
+        quantity: 1,
+        unitValue: 4.5,
+        source: "barcode",
+        lowStockThreshold: 2,
+      },
+      {
+        id: "pasta-2210",
+        name: "Penne Pasta",
+        sku: "2210",
+        category: "Food",
+        context: "Pantry",
+        quantity: 1,
+        unitValue: 2.2,
+        source: "barcode",
+        lowStockThreshold: 3,
+      },
+      {
+        id: "cleaner-8802",
+        name: "All-purpose Cleaner",
+        sku: "8802",
+        category: "Cleaning",
+        context: "Household",
+        quantity: 1,
+        unitValue: 5.9,
+        source: "ocr",
+        lowStockThreshold: 1,
+      },
+      {
+        id: "snacks-3305",
+        name: "Snack Variety Pack",
+        sku: "3305",
+        category: "Food",
+        context: "Pantry",
+        quantity: 1,
+        unitValue: 8.75,
+        source: "visual",
+        lowStockThreshold: 1,
+      },
+      {
+        id: "coffee-7712",
+        name: "Ground Coffee",
+        sku: "7712",
+        category: "Beverage",
+        context: "Kitchen",
+        quantity: 1,
+        unitValue: 9.3,
+        source: "barcode",
+        lowStockThreshold: 1,
+      },
+      {
+        id: "batteries-9901",
+        name: "AA Batteries (24-pack)",
+        sku: "9901",
+        category: "Electronics",
+        context: "Household",
+        quantity: 1,
+        unitValue: 12.5,
+        source: "barcode",
+        lowStockThreshold: 1,
+      },
+      {
+        id: "lightbulb-6640",
+        name: "LED Light Bulbs (4-pack)",
+        sku: "6640",
+        category: "Hardware",
+        context: "Household",
+        quantity: 1,
+        unitValue: 10.0,
+        source: "ocr",
+        lowStockThreshold: 1,
+      },
+      {
+        id: "towel-5520",
+        name: "Kitchen Towels (3-pack)",
+        sku: "5520",
+        category: "Household",
+        context: "Kitchen",
+        quantity: 1,
+        unitValue: 7.2,
+        source: "visual",
+        lowStockThreshold: 1,
+      },
+    ];
+
+    // --- DOM references ----------------------------------------------------
+    const modeLabel = document.getElementById("modeLabel");
+    const modeDetailLabel = document.getElementById("modeDetailLabel");
+    const toggleModeBtn = document.getElementById("toggleModeBtn");
+    const startScanBtn = document.getElementById("startScanBtn");
+    const simulateScanBtn = document.getElementById("simulateScanBtn");
+    const exportBtn = document.getElementById("exportBtn");
+    const cameraFeed = document.getElementById("cameraFeed");
+    const scanCanvas = document.getElementById("scanCanvas");
+    const cameraStatusDot = document.getElementById("cameraStatusDot");
+    const cameraStatusText = document.getElementById("cameraStatusText");
+    const cameraStatusLabel = document.getElementById("cameraStatusLabel");
+    const cameraFakeHint = document.getElementById("cameraFakeHint");
+    const headerCameraStatus = document.getElementById("headerCameraStatus");
+
+    const areaTypeLabel = document.getElementById("areaTypeLabel");
+    const areaConfidenceLabel = document.getElementById("areaConfidenceLabel");
+    const areaTagPrimary = document.getElementById("areaTagPrimary");
+    const areaTagSecondary = document.getElementById("areaTagSecondary");
+
+    const statItemsCount = document.getElementById("statItemsCount");
+    const statItemsSub = document.getElementById("statItemsSub");
+    const statUniqueItems = document.getElementById("statUniqueItems");
+    const statSessionEvents = document.getElementById("statSessionEvents");
+    const statTotalValue = document.getElementById("statTotalValue");
+    const statValueSub = document.getElementById("statValueSub");
+    const valuationBasisLabel = document.getElementById("valuationBasisLabel");
+    const priceSourceLabel = document.getElementById("priceSourceLabel");
+
+    const inventoryBody = document.getElementById("inventoryBody");
+    const inventoryEmpty = document.getElementById("inventoryEmpty");
+    const locationLabel = document.getElementById("locationLabel");
+    const countModeLabel = document.getElementById("countModeLabel");
+    const toggleCountMode = document.getElementById("toggleCountMode");
+
+    const reorderEngineLabel = document.getElementById("reorderEngineLabel");
+    const bestPriceLabel = document.getElementById("bestPriceLabel");
+    const policyLabel = document.getElementById("policyLabel");
+    const networkLabel = document.getElementById("networkLabel");
+
+    const footerEvents = document.getElementById("footerEvents");
+    const footerLastAction = document.getElementById("footerLastAction");
+
+    const toast = document.getElementById("toast");
+    const toastMessage = document.getElementById("toastMessage");
+    const toastUndoBtn = document.getElementById("toastUndoBtn");
+
+    // --- Helpers -----------------------------------------------------------
+    function formatCurrency(value) {
+      return "$" + value.toFixed(2);
+    }
+
+    function updateFooter(action) {
+      state.lastAction = action;
+      footerLastAction.textContent = action;
+      footerEvents.textContent = state.events.length.toString();
+    }
+
+    function showToast(message, undoPayload) {
+      toastMessage.textContent = message;
+      toast.classList.add("show");
+      if (undoPayload) {
+        toastUndoBtn.style.display = "inline";
+        state.undoStack.push(undoPayload);
+      } else {
+        toastUndoBtn.style.display = "none";
+      }
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2600);
+    }
+
+    function inferAreaFromItems() {
+      if (state.items.length === 0) {
+        state.area = {
+          type: state.mode === "household" ? "Home pantry" : "Small stockroom",
+          confidence: 0.92,
+          primaryTag: state.mode === "household" ? "Food & staples" : "Mixed retail",
+          secondaryTag:
+            state.mode === "household"
+              ? "Household · Low-risk"
+              : "Business · Light inventory",
+        };
+        return;
+      }
+
+      const categoryCounts = {};
+      let totalValue = 0;
+      let totalQty = 0;
+
+      state.items.forEach((item) => {
+        categoryCounts[item.category] =
+          (categoryCounts[item.category] || 0) + item.quantity;
+        totalValue += item.quantity * item.unitValue;
+        totalQty += item.quantity;
+      });
+
+      const topCategory = Object.entries(categoryCounts).sort(
+        (a, b) => b[1] - a[1]
+      )[0][0];
+
+      let type = "Mixed storage";
+      let primaryTag = "Mixed categories";
+      let secondaryTag = "General storage";
+      let confidence = 0.78;
+
+      if (state.mode === "household") {
+        if (topCategory === "Food" || topCategory === "Beverage") {
+          type = "Home pantry";
+          primaryTag = "Food & staples";
+          secondaryTag = "Household · Low-risk";
+          confidence = 0.93;
+        } else if (topCategory === "Electronics" || topCategory === "Hardware") {
+          type = "Garage / Utility";
+          primaryTag = "Tools & hardware";
+          secondaryTag = "Household · Medium value";
+          confidence = 0.88;
+        } else {
+          type = "Household storage";
+          primaryTag = "Mixed household";
+          secondaryTag = "Home · Mixed value";
+          confidence = 0.84;
+        }
+      } else {
+        if (topCategory === "Food" || topCategory === "Beverage") {
+          type = "Small retail stockroom";
+          primaryTag = "Food & beverage";
+          secondaryTag = "Business · Perishables";
+          confidence = 0.9;
+        } else if (topCategory === "Electronics" || topCategory === "Hardware") {
+          type = "Parts / electronics backroom";
+          primaryTag = "Parts & components";
+          secondaryTag = "Business · Higher value";
+          confidence = 0.9;
+        } else {
+          type = "General stockroom";
+          primaryTag = "Mixed inventory";
+          secondaryTag = "Business · Mixed value";
+          confidence = 0.86;
+        }
+      }
+
+      state.area = {
+        type,
+        confidence,
+        primaryTag,
+        secondaryTag,
+      };
+    }
+
+    function updateAreaUI() {
+      areaTypeLabel.textContent = state.area.type;
+      areaConfidenceLabel.textContent =
+        "Confidence: " + Math.round(state.area.confidence * 100) + "%";
+      areaTagPrimary.textContent = state.area.primaryTag;
+      areaTagSecondary.textContent = state.area.secondaryTag;
+
+      locationLabel.textContent =
+        state.area.type +
+        " · " +
+        (state.mode === "household" ? "Household" : "Business");
+    }
+
+    function updateStatsUI() {
+      const totalItems = state.items.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      );
+      const uniqueItems = state.items.length;
+      const totalValue = state.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitValue,
+        0
+      );
+
+      statItemsCount.textContent =
+        totalItems + (totalItems === 1 ? " item" : " items");
+      statItemsSub.textContent =
+        uniqueItems === 0
+          ? "No scans yet in this session."
+          : uniqueItems + " unique SKUs in this area.";
+      statUniqueItems.textContent = uniqueItems + " unique SKUs";
+      statSessionEvents.textContent = state.events.length.toString();
+      statTotalValue.textContent = formatCurrency(totalValue);
+      statValueSub.textContent =
+        totalItems === 0
+          ? "Awaiting first detection."
+          : "Estimated value based on " +
+            state.valuationBasis.toLowerCase() +
+            ".";
+
+      valuationBasisLabel.textContent = state.valuationBasis;
+      priceSourceLabel.textContent = state.priceSource;
+    }
+
+    function updateReorderAndPriceUI() {
+      const lowStockItems = state.items.filter(
+        (item) => item.quantity <= item.lowStockThreshold
+      );
+
+      if (lowStockItems.length === 0) {
+        reorderEngineLabel.textContent = "Idle · No low-stock items";
+      } else {
+        const names = lowStockItems
+          .slice(0, 2)
+          .map((i) => i.name)
+          .join(", ");
+        const more =
+          lowStockItems.length > 2
+            ? " +" + (lowStockItems.length - 2) + " more"
+            : "";
+        reorderEngineLabel.textContent =
+          "Attention · Low stock: " + names + more;
+      }
+
+      if (state.items.length === 0) {
+        bestPriceLabel.textContent = "Ready to query suppliers";
+      } else {
+        bestPriceLabel.textContent =
+          "Best price suggestions available for " +
+          state.items.length +
+          " items";
+      }
+
+      policyLabel.textContent =
+        state.mode === "household"
+          ? "Balanced · Cost vs speed"
+          : "Business · Cost-aware";
+
+      networkLabel.textContent = state.cameraActive
+        ? "Online-ready · Camera active"
+        : "Offline · Using cached prices";
+    }
+
+    function renderInventory() {
+      if (state.items.length === 0) {
+        inventoryEmpty.style.display = "block";
+        inventoryBody.innerHTML = "";
+        inventoryBody.appendChild(inventoryEmpty);
+        return;
+      }
+
+      inventoryEmpty.style.display = "none";
+      inventoryBody.innerHTML = "";
+
+      state.items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "inventory-row";
+
+        const nameCell = document.createElement("div");
+        nameCell.className = "inventory-name";
+        const nameMain = document.createElement("div");
+        nameMain.className = "inventory-name-main";
+        nameMain.textContent = item.name;
+        const nameSub = document.createElement("div");
+        nameSub.className = "inventory-name-sub";
+        nameSub.textContent =
+          "SKU " +
+          item.sku +
+          " · " +
+          item.category +
+          " · " +
+          item.context;
+        nameCell.appendChild(nameMain);
+        nameCell.appendChild(nameSub);
+
+        const qtyCell = document.createElement("div");
+        qtyCell.className = "inventory-qty";
+        qtyCell.textContent = "x " + item.quantity;
+
+        const valueCell = document.createElement("div");
+        valueCell.className = "inventory-value";
+        valueCell.textContent = formatCurrency(
+          item.quantity * item.unitValue
+        );
+
+        const metaCell = document.createElement("div");
+        const chip = document.createElement("div");
+        chip.className = "inventory-chip";
+        const dot = document.createElement("span");
+        dot.style.width = "6px";
+        dot.style.height = "6px";
+        dot.style.borderRadius = "999px";
+        dot.style.backgroundColor =
+          item.source === "barcode"
+            ? "#4f8cff"
+            : item.source === "ocr"
+            ? "#facc15"
+            : "#22c55e";
+        chip.appendChild(dot);
+        const chipText = document.createElement("span");
+        chipText.textContent =
+          (item.source === "barcode"
+            ? "Barcode"
+            : item.source === "ocr"
+            ? "OCR"
+            : "Visual") + " · " + item.context;
+        chip.appendChild(chipText);
+        metaCell.appendChild(chip);
+
+        const actionsCell = document.createElement("div");
+        actionsCell.className = "inventory-actions";
+
+        const minusBtn = document.createElement("button");
+        minusBtn.className = "btn-mini";
+        minusBtn.textContent = "−";
+        minusBtn.title = "Decrement count";
+        minusBtn.addEventListener("click", () => {
+          adjustItemQuantity(item.id, -1);
+        });
+
+        const plusBtn = document.createElement("button");
+        plusBtn.className = "btn-mini";
+        plusBtn.textContent = "+";
+        plusBtn.title = "Increment count";
+        plusBtn.addEventListener("click", () => {
+          adjustItemQuantity(item.id, 1);
+        });
+
+        const linkBtn = document.createElement("button");
+        linkBtn.className = "btn-link";
+        linkBtn.textContent = "Best price";
+        linkBtn.title = "View best price options (simulated)";
+        linkBtn.addEventListener("click", () => {
+          simulateBestPrice(item);
+        });
+
+        actionsCell.appendChild(minusBtn);
+        actionsCell.appendChild(plusBtn);
+        actionsCell.appendChild(linkBtn);
+
+        row.appendChild(nameCell);
+        row.appendChild(qtyCell);
+        row.appendChild(valueCell);
+        row.appendChild(metaCell);
+        row.appendChild(actionsCell);
+
+        inventoryBody.appendChild(row);
+      });
+    }
+
+    function adjustItemQuantity(id, delta) {
+      const item = state.items.find((i) => i.id === id);
+      if (!item) return;
+
+      const prevQuantity = item.quantity;
+      item.quantity = Math.max(0, item.quantity + delta);
+
+      if (item.quantity === 0) {
+        state.items = state.items.filter((i) => i.id !== id);
+      }
+
+      state.events.push({
+        type: "adjust",
+        itemId: id,
+        delta,
+        timestamp: new Date().toISOString(),
+      });
+
+      updateFooter(
+        (delta > 0 ? "Incremented " : "Decremented ") +
+          item.name +
+          " by " +
+          Math.abs(delta)
+      );
+      inferAreaFromItems();
+      updateAreaUI();
+      updateStatsUI();
+      updateReorderAndPriceUI();
+      renderInventory();
+
+      showToast(
+        (delta > 0 ? "Added " : "Removed ") +
+          Math.abs(delta) +
+          " × " +
+          item.name,
+        {
+          type: "adjust",
+          itemId: id,
+          delta: -delta,
+          prevQuantity,
+        }
+      );
+    }
+
+    function simulateBestPrice(item) {
+      const base = item.unitValue;
+      const suppliers = [
+        {
+          name: "Supplier A",
+          price: base * 0.95,
+          eta: "3 days",
+        },
+        {
+          name: "Supplier B",
+          price: base * 0.9,
+          eta: "5 days",
+        },
+        {
+          name: "Supplier C",
+          price: base * 1.02,
+          eta: "1 day",
+        },
+      ];
+
+      const best = suppliers.sort((a, b) => a.price - b.price)[0];
+      const message =
+        "Best price for " +
+        item.name +
+        ": " +
+        best.name +
+        " at " +
+        formatCurrency(best.price) +
+        " (" +
+        best.eta +
+        ")";
+      showToast(message, null);
+      updateFooter("Queried best price for " + item.name);
+    }
+
+    function simulateScan() {
+      const item =
+        demoItemsPool[Math.floor(Math.random() * demoItemsPool.length)];
+      const existing = state.items.find((i) => i.id === item.id);
+
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        state.items.push({ ...item, quantity: 1 });
+      }
+
+      state.events.push({
+        type: "scan",
+        itemId: item.id,
+        delta: 1,
+        timestamp: new Date().toISOString(),
+      });
+
+      state.lastSimulatedItem = item;
+
+      updateFooter("Detected " + item.name + " (+" + 1 + ")");
+      inferAreaFromItems();
+      updateAreaUI();
+      updateStatsUI();
+      updateReorderAndPriceUI();
+      renderInventory();
+
+      showToast("Detected 1 × " + item.name, {
+        type: "scan",
+        itemId: item.id,
+        delta: -1,
+      });
+    }
+
+    function toggleMode() {
+      state.mode = state.mode === "household" ? "business" : "household";
+      modeLabel.textContent =
+        state.mode === "household" ? "Household" : "Business";
+      modeDetailLabel.textContent =
+        state.mode === "household"
+          ? "Household · Local-first"
+          : "Business · Multi-location";
+
+      inferAreaFromItems();
+      updateAreaUI();
+      updateReorderAndPriceUI();
+      updateFooter("Switched mode to " + state.mode);
+    }
+
+    function toggleCountModeFn() {
+      state.countMode = state.countMode === "tap" ? "auto" : "tap";
+      countModeLabel.textContent =
+        state.countMode === "tap" ? "Tap & confirm" : "Continuous sweep";
+      updateFooter("Switched counting mode to " + state.countMode);
+    }
+
+    // --- Vision sense functions --------------------------------------------
+    
+    // Process video frame for barcode detection
+    async function processVideoFrame() {
+      if (!state.cameraActive || processingFrame || !codeReader) {
+        return;
+      }
+      
+      processingFrame = true;
+      
+      try {
+        const canvas = scanCanvas;
+        const video = cameraFeed;
+        
+        // Ensure video is ready
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+          processingFrame = false;
+          return;
+        }
+        
+        // Capture frame
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Assess frame quality
+        const quality = assessFrameQuality(video);
+        updateCameraQualityFeedback(quality);
+        
+        // Attempt barcode detection
+        try {
+          const result = await codeReader.decodeFromCanvas(canvas);
+          if (result && result.text) {
+            handleBarcodeDetection(result.text, quality);
+          }
+        } catch (err) {
+          // No barcode found in this frame - this is normal
+          if (err.name !== 'NotFoundException') {
+            console.warn('Barcode scan error:', err);
+          }
+        }
+      } catch (err) {
+        console.error('Frame processing error:', err);
+      } finally {
+        processingFrame = false;
+      }
+    }
+    
+    // Handle detected barcode
+    function handleBarcodeDetection(barcode, quality) {
+      const now = Date.now();
+      
+      // Debounce detections (prevent duplicate scans within 2 seconds)
+      if (state.lastDetectionTime && (now - state.lastDetectionTime) < 2000) {
+        return;
+      }
+      
+      state.lastDetectionTime = now;
+      state.detectionCount++;
+      
+      // Try to match barcode to known items or create new item
+      const matchedItem = demoItemsPool.find(item => 
+        item.sku === barcode || item.id.includes(barcode.slice(-4))
+      );
+      
+      if (matchedItem) {
+        addDetectedItem(matchedItem, 'barcode', quality);
+      } else {
+        // Create new item from barcode
+        const newItem = {
+          id: 'barcode-' + barcode,
+          name: 'Unknown Item',
+          sku: barcode,
+          category: 'Unknown',
+          context: state.mode === 'household' ? 'Household' : 'Business',
+          quantity: 1,
+          unitValue: 0.0,
+          source: 'barcode',
+          lowStockThreshold: 1,
+        };
+        addDetectedItem(newItem, 'barcode', quality);
+      }
+      
+      // Provide audio/haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }
+    
+    // Add detected item to inventory
+    function addDetectedItem(item, detectionType, quality) {
+      const existing = state.items.find((i) => i.id === item.id);
+      
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        state.items.push({ 
+          ...item, 
+          quantity: 1,
+          detectionConfidence: quality.quality === 'good' ? 0.95 : 
+                              quality.quality === 'blurry' ? 0.75 : 0.85
+        });
+      }
+      
+      state.events.push({
+        type: 'detection',
+        itemId: item.id,
+        detectionType: detectionType,
+        quality: quality.quality,
+        confidence: quality.quality === 'good' ? 0.95 : 0.85,
+        timestamp: new Date().toISOString(),
+      });
+      
+      updateFooter("Detected " + item.name + " via " + detectionType);
+      inferAreaFromItems();
+      updateAreaUI();
+      updateStatsUI();
+      updateReorderAndPriceUI();
+      renderInventory();
+      
+      showToast("✓ Detected 1 × " + item.name + " (" + quality.quality + " quality)", {
+        type: "detection",
+        itemId: item.id,
+        delta: -1,
+      });
+    }
+    
+    // Update camera quality feedback UI
+    function updateCameraQualityFeedback(quality) {
+      const hint = document.querySelector('.camera-hint');
+      if (!hint) return;
+      
+      let message = "Move slowly across items—detections update in real time.";
+      
+      if (quality.quality === 'dark') {
+        message = "⚠ Low light detected. Move to better lighting for best results.";
+      } else if (quality.quality === 'bright') {
+        message = "⚠ Too bright. Reduce glare for better detection.";
+      } else if (quality.quality === 'blurry') {
+        message = "⚠ Hold steady. Camera needs to focus.";
+      } else if (state.detectionCount > 0) {
+        message = "✓ Good quality. " + state.detectionCount + " items detected this session.";
+      }
+      
+      hint.textContent = message;
+    }
+    
+    // Start frame processing loop
+    function startFrameProcessing() {
+      if (scanningInterval) {
+        return;
+      }
+      
+      state.scanningActive = true;
+      
+      // Process frames at ~2 FPS to balance performance and detection
+      scanningInterval = setInterval(() => {
+        processVideoFrame();
+      }, 500);
+    }
+    
+    // Stop frame processing loop
+    function stopFrameProcessing() {
+      if (scanningInterval) {
+        clearInterval(scanningInterval);
+        scanningInterval = null;
+      }
+      state.scanningActive = false;
+    }
+
+    async function startCamera() {
+      if (state.cameraActive) {
+        stopCamera();
+        return;
+      }
+
+      try {
+        // Initialize barcode scanner if not already done
+        if (!codeReader) {
+          const initialized = initBarcodeScanner();
+          if (!initialized) {
+            showToast("⚠ Barcode scanner not available. Using demo mode.", null);
+          }
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+        });
+        cameraFeed.srcObject = stream;
+        cameraFeed.style.display = "block";
+        cameraFakeHint.style.display = "none";
+        state.cameraActive = true;
+        cameraStatusDot.style.backgroundColor = "#22c55e";
+        headerCameraStatus.style.backgroundColor = "#22c55e";
+        headerCameraStatus.style.boxShadow = "0 0 0 4px rgba(34, 197, 94, 0.25)";
+        cameraStatusText.textContent = "Camera active · Ready to detect";
+        cameraStatusLabel.textContent = "Scanning · Real-time detection";
+        networkLabel.textContent = "Online-ready · Camera active";
+        startScanBtn.innerHTML = "<span>Stop scan</span>";
+        updateFooter("Camera started · Vision processing active");
+        
+        // Start barcode detection loop
+        if (codeReader && state.countMode === 'auto') {
+          startFrameProcessing();
+        }
+      } catch (err) {
+        console.warn("Camera access failed:", err);
+        cameraStatusDot.style.backgroundColor = "#f97316";
+        headerCameraStatus.style.backgroundColor = "#f97316";
+        headerCameraStatus.style.boxShadow = "0 0 0 4px rgba(249, 115, 22, 0.25)";
+        cameraStatusText.textContent =
+          "Camera unavailable · Staying in demo mode";
+        cameraStatusLabel.textContent = "Demo mode · Local simulation";
+        state.cameraActive = false;
+        startScanBtn.innerHTML = "<span>Start scan</span>";
+        
+        // Provide more specific error messages
+        let errorMsg = "Camera unavailable · Using demo mode";
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMsg = "Camera permission denied · Check browser settings";
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          errorMsg = "No camera found · Using demo mode";
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          errorMsg = "Camera already in use · Close other apps";
+        }
+        
+        showToast(errorMsg, null);
+      }
+    }
+
+    function stopCamera() {
+      // Stop frame processing
+      stopFrameProcessing();
+      
+      const stream = cameraFeed.srcObject;
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach((t) => t.stop());
+      }
+      cameraFeed.srcObject = null;
+      cameraFeed.style.display = "none";
+      cameraFakeHint.style.display = "block";
+      state.cameraActive = false;
+      cameraStatusDot.style.backgroundColor = "#facc15";
+      headerCameraStatus.style.backgroundColor = "#facc15";
+      headerCameraStatus.style.boxShadow = "0 0 0 4px rgba(250, 204, 21, 0.25)";
+      cameraStatusText.textContent = "Camera idle · Using demo data";
+      cameraStatusLabel.textContent = "Ready to scan · Offline-first";
+      networkLabel.textContent = "Offline · Using cached prices";
+      startScanBtn.innerHTML = "<span>Start scan</span>";
+      updateFooter("Camera stopped");
+    }
+
+    function exportInventory() {
+      const payload = {
+        mode: state.mode,
+        area: state.area,
+        valuationBasis: state.valuationBasis,
+        priceSource: state.priceSource,
+        items: state.items,
+        events: state.events,
+        exportedAt: new Date().toISOString(),
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "inventory-export.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      updateFooter("Exported inventory as JSON");
+      showToast("Exported inventory.json", null);
+    }
+
+    function handleUndo() {
+      const payload = state.undoStack.pop();
+      if (!payload) return;
+
+      if (payload.type === "adjust") {
+        const item = state.items.find((i) => i.id === payload.itemId);
+        if (!item) return;
+        item.quantity = payload.prevQuantity;
+        if (item.quantity === 0) {
+          state.items = state.items.filter((i) => i.id !== payload.itemId);
+        }
+        state.events.push({
+          type: "undo",
+          itemId: payload.itemId,
+          delta: payload.delta,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (payload.type === "scan") {
+        const item = state.items.find((i) => i.id === payload.itemId);
+        if (!item) return;
+        item.quantity = Math.max(0, item.quantity + payload.delta);
+        if (item.quantity === 0) {
+          state.items = state.items.filter((i) => i.id !== payload.itemId);
+        }
+        state.events.push({
+          type: "undo",
+          itemId: payload.itemId,
+          delta: payload.delta,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      inferAreaFromItems();
+      updateAreaUI();
+      updateStatsUI();
+      updateReorderAndPriceUI();
+      renderInventory();
+      updateFooter("Undid last change");
+      toast.classList.remove("show");
+    }
+
+    // --- Event listeners ---------------------------------------------------
+    toggleModeBtn.addEventListener("click", toggleMode);
+    startScanBtn.addEventListener("click", startCamera);
+    simulateScanBtn.addEventListener("click", simulateScan);
+    exportBtn.addEventListener("click", exportInventory);
+    toggleCountMode.addEventListener("click", () => {
+      toggleCountModeFn();
+      // Start/stop frame processing based on count mode
+      if (state.cameraActive) {
+        if (state.countMode === 'auto') {
+          startFrameProcessing();
+        } else {
+          stopFrameProcessing();
+        }
+      }
+    });
+    toastUndoBtn.addEventListener("click", handleUndo);
+    
+    // Cleanup camera on page unload
+    window.addEventListener('beforeunload', () => {
+      if (state.cameraActive) {
+        stopCamera();
+      }
+    });
+    
+    // Initialize barcode scanner on page load
+    window.addEventListener('load', () => {
+      initBarcodeScanner();
+    });
+
+    // --- Initial render ----------------------------------------------------
+    inferAreaFromItems();
+    updateAreaUI();
+    updateStatsUI();
+    updateReorderAndPriceUI();
+    renderInventory();
+    updateFooter("Session started · No scans yet");
+  </script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

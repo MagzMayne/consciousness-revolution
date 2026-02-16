@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: craps.html
+Declaration ID: IP-391D555C-MLL28ZYM
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <title>Neon Casino — Full Immersive Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; height:100%; background:#000; overflow:hidden; }
+    #hud {
+      position: absolute; top: 12px; left: 12px; right:12px;
+      display: flex; gap: 12px; align-items: center; z-index: 20; color: #0ff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto;
+    }
+    .panel {
+      background: rgba(0,0,0,0.5); border: 1px solid #0a6060; border-radius: 12px;
+      padding: 8px 12px; backdrop-filter: blur(6px);
+    }
+    .btn {
+      background: #0a1f1f; border: 1px solid #1b5a5a; color:#0ff;
+      padding: 8px 12px; border-radius: 8px; cursor:pointer; transition: transform .06s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: scale(.98); }
+    #casino { display:block; }
+    #toast {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.6); color: #fff; padding: 8px 12px; border-radius: 8px; z-index: 30;
+      font-size: 13px; border: 1px solid #333;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="hud">
+    <div class="panel">Neon Casino: Parking lot → Entrance → Interior</div>
+    <button id="btnEnter" class="btn">Start Walk-In</button>
+    <button id="btnToTable" class="btn">Go To Craps Table</button>
+    <button id="btnRoll" class="btn">Roll Dice</button>
+    <button id="btnBetPass" class="btn">Bet: Pass Line 10 BONK</button>
+    <button id="btnBetDont" class="btn">Bet: Don’t Pass 10 BONK</button>
+    <div id="walletStatus" class="panel">Wallet: —</div>
+  </div>
+  <div id="toast" style="display:none;"></div>
+  <canvas id="casino"></canvas>
+
+  <script type="module">
+    // Imports
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { EffectComposer } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://unpkg.com/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import gsap from 'https://unpkg.com/gsap@3.12.5/index.js';
+    import * as CANNON from 'https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js';
+
+    // Renderer/Scene/Camera
+    const canvas = document.getElementById('casino');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 200);
+    camera.position.set(0, 2, 30);
+
+    // Postprocessing Bloom
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.6, 0.4, 0.85);
+    composer.addPass(bloomPass);
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+    const spot = new THREE.SpotLight(0x88ccff, 1.0, 80, Math.PI/6, 0.4);
+    spot.position.set(15, 25, 15);
+    spot.castShadow = true;
+    scene.add(spot);
+
+    // Helpers: toast + wallet status
+    const toastEl = document.getElementById('toast');
+    function toast(msg, time=1800){ toastEl.textContent = msg; toastEl.style.display='block'; setTimeout(()=>toastEl.style.display='none', time); }
+    const walletStatus = document.getElementById('walletStatus');
+
+    // Materials for neon lines
+    const neonCyan = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+    const neonMagenta = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
+    const neonYellow = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+
+    // Parking lot (floor)
+    const lotMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 80),
+      new THREE.MeshBasicMaterial({ color: 0x111111 })
+    );
+    lotMesh.rotation.x = -Math.PI/2;
+    lotMesh.receiveShadow = true;
+    scene.add(lotMesh);
+
+    // Casino exterior wireframe block (placeholder for GLTF)
+    const casinoBoxGeo = new THREE.BoxGeometry(16, 10, 16);
+    const casinoEdges = new THREE.EdgesGeometry(casinoBoxGeo);
+    const casinoWire = new THREE.LineSegments(casinoEdges, neonCyan);
+    casinoWire.position.set(0, 5, 0);
+    scene.add(casinoWire);
+
+    // Neon signs (simple wireframe rectangles)
+    function neonRect(w, h, color) {
+      const geo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, h));
+      const mat = new THREE.LineBasicMaterial({ color });
+      const lines = new THREE.LineSegments(geo, mat);
+      return lines;
+    }
+    const sign1 = neonRect(6, 2, 0xff00ff); sign1.position.set(-8, 6, 2); sign1.rotation.y = Math.PI/6; scene.add(sign1);
+    const sign2 = neonRect(8, 3, 0x00ff88); sign2.position.set(8, 7, -2); sign2.rotation.y = -Math.PI/6; scene.add(sign2);
+
+    // Doors (wireframe panels)
+    const doorGeo = new THREE.BoxGeometry(3, 8, 0.2);
+    const leftDoor = new THREE.LineSegments(new THREE.EdgesGeometry(doorGeo), neonMagenta);
+    leftDoor.position.set(-4, 4, 8);
+    scene.add(leftDoor);
+    const rightDoor = new THREE.LineSegments(new THREE.EdgesGeometry(doorGeo), neonMagenta);
+    rightDoor.position.set(4, 4, 8);
+    scene.add(rightDoor);
+
+    // Robot doorman placeholder (wireframe humanoid)
+    const robotGeo = new THREE.CylinderGeometry(0.8, 0.8, 4.5, 24);
+    const robotLines = new THREE.LineSegments(new THREE.EdgesGeometry(robotGeo), neonYellow);
+    robotLines.position.set(0, 2.25, 7);
+    scene.add(robotLines);
+
+    // Interior floor platform
+    const interiorFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(60, 60),
+      new THREE.MeshBasicMaterial({ color: 0x002a1f })
+    );
+    interiorFloor.rotation.x = -Math.PI/2; interiorFloor.position.set(0, 0, -20);
+    scene.add(interiorFloor);
+
+    // Phantom kiosk: floating orb in lobby
+    const kioskSphereGeo = new THREE.SphereGeometry(1.4, 32, 32);
+    const kioskOrbMesh = new THREE.Mesh(kioskSphereGeo, new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true }));
+    kioskOrbMesh.position.set(0, 2.5, -10);
+    scene.add(kioskOrbMesh);
+    // Add a wireframe outline glow
+    const kioskEdges = new THREE.EdgesGeometry(kioskSphereGeo);
+    const kioskLines = new THREE.LineSegments(kioskEdges, neonCyan);
+    kioskOrbMesh.add(kioskLines);
+
+    // Craps table: table body (wireframe rounded box effect via edges of box)
+    const tableGeo = new THREE.BoxGeometry(20, 2, 10);
+    const tableLines = new THREE.LineSegments(new THREE.EdgesGeometry(tableGeo), new THREE.LineBasicMaterial({ color: 0x00ff88 }));
+    tableLines.position.set(0, 1, -28);
+    scene.add(tableLines);
+
+    // Dice physics world
+    const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+    const groundBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+    groundBody.quaternion.setFromEuler(-Math.PI/2, 0, 0);
+    world.addBody(groundBody);
+
+    // Table physics platform (where dice land)
+    const tableBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Box(new CANNON.Vec3(10, 1, 5)) });
+    tableBody.position.set(0, 1, -28);
+    world.addBody(tableBody);
+
+    // Dice meshes + bodies
+    function makeDie() {
+      const geom = new THREE.BoxGeometry(1, 1, 1);
+      const lines = new THREE.LineSegments(new THREE.EdgesGeometry(geom), new THREE.LineBasicMaterial({ color: 0xffffff }));
+      lines.castShadow = true;
+      const body = new CANNON.Body({
+        mass: 1,
+        shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)),
+        position: new CANNON.Vec3(0, 6, -26),
+      });
+      body.angularDamping = 0.3;
+      world.addBody(body);
+      scene.add(lines);
+      return { mesh: lines, body };
+    }
+    const dieA = makeDie();
+    const dieB = makeDie();
+
+    // Chip stack animation (for bets)
+    function spawnChipStack(amount=10, side='pass') {
+      const color = side === 'pass' ? 0x00ff88 : 0xff0066;
+      for (let i=0;i<Math.min(amount, 12);i++){
+        const chipGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.1, 24);
+        const chipLines = new THREE.LineSegments(new THREE.EdgesGeometry(chipGeo), new THREE.LineBasicMaterial({ color }));
+        chipLines.position.set(side==='pass' ? -6 : 6, 1.2 + i*0.12, -28 + (side==='pass' ? -2 : 2));
+        scene.add(chipLines);
+        gsap.from(chipLines.position, { y: chipLines.position.y + 2, duration: 0.6, ease: 'back.out' });
+      }
+      toast(`${side === 'pass' ? 'Pass Line' : 'Don’t Pass'} bet: ${amount} BONK`);
+    }
+
+    // Camera path (walking in)
+    function startWalkIn() {
+      // Spline-style manual steps
+      gsap.to(camera.position, { x: 0, y: 2, z: 12, duration: 6, ease: 'power2.inOut', onComplete: openDoors });
+      gsap.to(casinoWire.rotation, { y: "+=0.4", duration: 6, ease: 'sine.inOut' });
+      // Subtle robot idle
+      gsap.to(robotLines.rotation, { y: "+=0.6", duration: 6, ease: 'sine.inOut' });
+    }
+    function openDoors() {
+      gsap.to(leftDoor.rotation, { y: Math.PI/2, duration: 2 });
+      gsap.to(rightDoor.rotation, { y: -Math.PI/2, duration: 2 });
+      gsap.to(camera.position, { z: -8, duration: 5, delay: 1.5, ease: 'power2.inOut', onComplete: () => {
+        toast('Welcome inside. Visit the Phantom kiosk to connect.');
+      }});
+    }
+    function goToCrapsTable() {
+      gsap.to(camera.position, { x: 0, y: 2.2, z: -24, duration: 3, ease: 'power2.inOut' });
+      gsap.to(camera.rotation, { x: 0, y: 0, z: 0, duration: 2 });
+      toast('Approached craps table.');
+    }
+
+    // Dice roll
+    function rollDice() {
+      // Randomize initial positions and angular velocity; physics will resolve the result
+      dieA.body.position.set(-2, 6 + Math.random()*2, -26);
+      dieB.body.position.set(2, 6 + Math.random()*2, -26);
+      dieA.body.velocity.set(2 + Math.random()*3, 0, -2 + Math.random()*2);
+      dieB.body.velocity.set(-2 - Math.random()*3, 0, -2 + Math.random()*2);
+      dieA.body.angularVelocity.set(Math.random()*6, Math.random()*6, Math.random()*6);
+      dieB.body.angularVelocity.set(Math.random()*6, Math.random()*6, Math.random()*6);
+      toast('Rolling...');
+      // After settle, compute faces
+      setTimeout(() => {
+        const vLen = dieA.body.angularVelocity.length() + dieB.body.angularVelocity.length() + dieA.body.velocity.length() + dieB.body.velocity.length();
+        // Wait a bit longer if still moving
+        setTimeout(() => {
+          const vA = faceFromQuaternion(dieA.body.quaternion);
+          const vB = faceFromQuaternion(dieB.body.quaternion);
+          const total = vA + vB;
+          toast(`Dice: ${vA} + ${vB} = ${total}`);
+          resolveCraps(total);
+        }, vLen > 1 ? 1000 : 300);
+      }, 1200);
+    }
+
+    // Simplified face detection based on quaternion -> up vector approximation
+    function faceFromQuaternion(q) {
+      const vUp = new CANNON.Vec3(0,1,0);
+      const m = new CANNON.Mat3();
+      q.toRotationMatrix(m);
+      const upTrans = m.vmult(vUp);
+      // Map direction to face numbers roughly (cube orientation heuristic)
+      const ax = Math.abs(upTrans.x), ay = Math.abs(upTrans.y), az = Math.abs(upTrans.z);
+      if (ay > ax && ay > az) return 1; // Top approximated as 1 (you can refine with true die UV/marks)
+      if (ax > ay && ax > az) return 2;
+      if (az > ay && az > ax) return 3;
+      // Fallback to random among remaining faces to avoid getting stuck
+      return 4 + Math.floor(Math.random()*2); // rudimentary; swap with proper die face mapping later
+    }
+
+    // Craps state and resolution
+    const crapsState = {
+      phase: 'come_out', // 'come_out' | 'point'
+      point: null,
+      bets: [] // { id, player, type, amount, token, status }
+    };
+    function placeBet(type, amount=10, token='BONK') {
+      const bet = { id: `${Date.now()}-${Math.random()}`, player: 'local', type, amount, token, status: 'pending' };
+      crapsState.bets.push(bet);
+      spawnChipStack(amount, type === 'pass_line' ? 'pass' : 'dont');
+    }
+    function resolveCraps(total) {
+      if (crapsState.phase === 'come_out') {
+        if (total === 7 || total === 11) {
+          applyOutcomes({ pass_line: 'win', dont_pass: 'lose' });
+          resetPoint();
+        } else if ([2,3,12].includes(total)) {
+          applyOutcomes({ pass_line: 'lose', dont_pass: total === 12 ? 'push' : 'win' });
+          resetPoint();
+        } else {
+          crapsState.point = total;
+          crapsState.phase = 'point';
+        }
+      } else {
+        if (total === crapsState.point) {
+          applyOutcomes({ pass_line: 'win', dont_pass: 'lose' }); resetPoint();
+        } else if (total === 7) {
+          applyOutcomes({ pass_line: 'lose', dont_pass: 'win' }); resetPoint();
+        } else {
+          // side bets could resolve here (place, field, hardways, etc.)
+        }
+      }
+    }
+    function applyOutcomes(map) {
+      crapsState.bets = crapsState.bets.map(b => {
+        const res = map[b.type];
+        if (!res) return b;
+        return { ...b, status: res === 'win' ? 'confirmed' : res === 'lose' ? 'settled' : 'pending' };
+      }).filter(b => b.status !== 'settled');
+    }
+    function resetPoint() { crapsState.point = null; crapsState.phase = 'come_out'; }
+
+    // Kiosk interaction: click to connect wallet
+    const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2();
+    window.addEventListener('click', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects([kioskOrbMesh], true);
+      if (intersects.length) connectPhantom();
+    });
+
+    async function connectPhantom() {
+      const provider = window.solana;
+      if (provider?.isPhantom) {
+        const res = await provider.connect(); // non-gated; user can play without connecting too
+        const pk = res.publicKey.toBase58();
+        walletStatus.textContent = `Wallet: ${pk.slice(0,4)}…${pk.slice(-4)}`;
+        gsap.to(kioskOrbMesh.scale, { x: 1.8, y: 1.8, z: 1.8, duration: 0.4, yoyo: true, repeat: 1 });
+        toast('Phantom connected. Balances will appear above kiosk.');
+        // You can render holographic panels here with balances (SPL reads)
+      } else {
+        toast('Phantom not detected. You can still explore.');
+      }
+    }
+
+    // Local-first P2P sync (stub): room state broadcast via WebRTC DataChannel
+    // You can wire this to a manual SDP exchange or on-chain memo later.
+    class P2PRoom {
+      constructor(roomId) { this.roomId = roomId; this.pc = null; this.dc = null; this.listeners = []; }
+      addListener(f){ this.listeners.push(f); }
+      async createOffer() {
+        this.pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        this.dc = this.pc.createDataChannel('craps');
+        this.dc.onmessage = (ev) => { const m = JSON.parse(ev.data); this.listeners.forEach(fn=>fn(m)); };
+        const offer = await this.pc.createOffer(); await this.pc.setLocalDescription(offer);
+        return offer.sdp;
+      }
+      async acceptOffer(sdp) {
+        this.pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        this.pc.ondatachannel = ev => { this.dc = ev.channel; this.dc.onmessage = (e)=>{ const m = JSON.parse(e.data); this.listeners.forEach(fn=>fn(m)); }; };
+        await this.pc.setRemoteDescription({ type:'offer', sdp });
+        const answer = await this.pc.createAnswer(); await this.pc.setLocalDescription(answer);
+        return answer.sdp;
+      }
+      async setAnswer(sdp) { await this.pc.setRemoteDescription({ type:'answer', sdp }); }
+      send(msg){ if (this.dc?.readyState === 'open') this.dc.send(JSON.stringify(msg)); }
+    }
+    const p2p = new P2PRoom('neon-room-1');
+    p2p.addListener((m) => {
+      if (m.t === 'bet') { crapsState.bets.push(m.bet); spawnChipStack(m.bet.amount, m.bet.type === 'pass_line' ? 'pass' : 'dont'); }
+      if (m.t === 'roll') { rollDice(); }
+    });
+
+    // Animation loop (render + physics)
+    let lastTime;
+    function animate(time) {
+      requestAnimationFrame(animate);
+      const dt = lastTime ? Math.min((time - lastTime)/1000, 1/30) : 1/60; lastTime = time;
+
+      // Float kiosk orb
+      kioskOrbMesh.position.y = 2.5 + Math.sin(time*0.002)*0.35;
+      kioskOrbMesh.rotation.y += 0.01;
+
+      // Physics step
+      world.step(1/60, dt, 3);
+      dieA.mesh.position.copy(toThree(dieA.body.position));
+      dieA.mesh.quaternion.copy(toThreeQ(dieA.body.quaternion));
+      dieB.mesh.position.copy(toThree(dieB.body.position));
+      dieB.mesh.quaternion.copy(toThreeQ(dieB.body.quaternion));
+
+      composer.render();
+    }
+    requestAnimationFrame(animate);
+    function toThree(v){ return new THREE.Vector3(v.x, v.y, v.z); }
+    function toThreeQ(q){ return new THREE.Quaternion(q.x, q.y, q.z, q.w); }
+
+    // Controls
+    document.getElementById('btnEnter').addEventListener('click', startWalkIn);
+    document.getElementById('btnToTable').addEventListener('click', goToCrapsTable);
+    document.getElementById('btnRoll').addEventListener('click', rollDice);
+    document.getElementById('btnBetPass').addEventListener('click', () => {
+      placeBet('pass_line', 10, 'BONK');
+      p2p.send({ t: 'bet', bet: { type: 'pass_line', amount: 10, token: 'BONK' } });
+    });
+    document.getElementById('btnBetDont').addEventListener('click', () => {
+      placeBet('dont_pass', 10, 'BONK');
+      p2p.send({ t: 'bet', bet: { type: 'dont_pass', amount: 10, token: 'BONK' } });
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Optional: auto-start walk-in for demo
+    startWalkIn();
+
+    // Optional fair roll: Commit–reveal (local demo)
+    const commits = {};
+    function commit(pubkey){ const seed = randomHex(32); return { seed, hash: sha256Sync(pubkey + ':' + seed) }; }
+    function randomHex(n){ const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+    function sha256Sync(s){ const enc = new TextEncoder(); const data = enc.encode(s); // simple xorshift stand-in — replace with SubtleCrypto for true SHA; demo only
+      let h=0; for (let i=0;i<data.length;i++){ h = (h ^ data[i]) & 0xffffffff; h = (h<<5 | h>>>27) & 0xffffffff; } return ('00000000'+(h>>>0).toString(16)).slice(-8); }
+    // Use browser SubtleCrypto for real SHA-256 when wiring full fairness.
+
+    // Notes:
+    // - Replace placeholders with GLTF models for building, robot, doors, table, dice with UV faces.
+    // - Integrate real wallet balance panels as holograms above kiosk after connect.
+    // - Expand craps odds: place bets, field, hardways, propositions; animate chip movements to zones.
+    // - Wire WebRTC signaling (QR/URL) or on-chain memo to make P2P room join frictionless.
+
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

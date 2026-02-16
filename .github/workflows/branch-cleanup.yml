@@ -1,0 +1,206 @@
+name: Branch Cleanup and Maintenance
+
+on:
+  schedule:
+    # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Cleanup action to perform'
+        required: true
+        type: choice
+        options:
+          - analyze-only
+          - delete-merged
+          - full-cleanup
+        default: 'analyze-only'
+      dry-run:
+        description: 'Dry run (no deletions)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  analyze-branches:
+    name: Analyze Repository Branches
+    runs-on: ubuntu-latest
+    outputs:
+      total-branches: ${{ steps.count.outputs.total }}
+      merged-branches: ${{ steps.count.outputs.merged }}
+      stale-branches: ${{ steps.count.outputs.stale }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Fetch all branches
+        run: |
+          git fetch --all --prune
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Count branches
+        id: count
+        run: |
+          TOTAL=$(git branch -r | grep -v HEAD | wc -l)
+          MERGED=$(git branch -r --merged main | grep -v main | grep -v HEAD | wc -l)
+          
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "merged=$MERGED" >> $GITHUB_OUTPUT
+          echo "stale=0" >> $GITHUB_OUTPUT
+          
+          echo "📊 Branch Statistics:"
+          echo "  Total branches: $TOTAL"
+          echo "  Merged branches: $MERGED"
+      
+      - name: Generate branch report
+        run: |
+          echo "# Branch Analysis Report" > branch-report.md
+          echo "" >> branch-report.md
+          echo "Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> branch-report.md
+          echo "" >> branch-report.md
+          echo "## Statistics" >> branch-report.md
+          echo "" >> branch-report.md
+          echo "- **Total Branches**: $(git branch -r | grep -v HEAD | wc -l)" >> branch-report.md
+          echo "- **Merged Branches**: $(git branch -r --merged main | grep -v main | grep -v HEAD | wc -l)" >> branch-report.md
+          echo "- **Main Branch**: main" >> branch-report.md
+          echo "" >> branch-report.md
+          echo "## Merged Branches (Ready for Deletion)" >> branch-report.md
+          echo "" >> branch-report.md
+          git branch -r --merged main | grep -v main | grep -v HEAD | sed 's/origin\///' | while read branch; do
+            echo "- \`$branch\`" >> branch-report.md
+          done
+          
+          cat branch-report.md
+      
+      - name: Upload branch report
+        uses: actions/upload-artifact@v4
+        with:
+          name: branch-analysis-report
+          path: branch-report.md
+          retention-days: 90
+  
+  cleanup-merged-branches:
+    name: Cleanup Merged Branches
+    runs-on: ubuntu-latest
+    needs: analyze-branches
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      (github.event.inputs.action == 'delete-merged' || github.event.inputs.action == 'full-cleanup')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Fetch all branches
+        run: |
+          git fetch --all --prune
+      
+      - name: List merged branches
+        id: list-merged
+        run: |
+          echo "Finding branches merged into main..."
+          git branch -r --merged main | 
+            grep -v main | 
+            grep -v HEAD |
+            grep 'origin/copilot/' |
+            sed 's/origin\///' > merged-branches.txt
+          
+          echo "Found $(wc -l < merged-branches.txt) merged branches"
+          cat merged-branches.txt
+      
+      - name: Delete merged branches (Dry Run)
+        if: github.event.inputs.dry-run == 'true'
+        run: |
+          echo "🔍 DRY RUN - Would delete the following branches:"
+          cat merged-branches.txt
+          echo ""
+          echo "Total: $(wc -l < merged-branches.txt) branches"
+      
+      - name: Delete merged branches (Live)
+        if: github.event.inputs.dry-run != 'true'
+        run: |
+          echo "🗑️  Deleting merged branches..."
+          
+          DELETED=0
+          FAILED=0
+          
+          while read branch; do
+            if git push origin --delete "$branch" 2>&1; then
+              echo "✅ Deleted: $branch"
+              DELETED=$((DELETED + 1))
+            else
+              echo "❌ Failed to delete: $branch"
+              FAILED=$((FAILED + 1))
+            fi
+          done < merged-branches.txt
+          
+          echo ""
+          echo "📊 Results:"
+          echo "  Deleted: $DELETED"
+          echo "  Failed: $FAILED"
+          echo "  Total: $(wc -l < merged-branches.txt)"
+      
+      - name: Create cleanup summary
+        if: always()
+        run: |
+          echo "# Branch Cleanup Summary" > cleanup-summary.md
+          echo "" >> cleanup-summary.md
+          echo "**Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> cleanup-summary.md
+          echo "**Action**: ${{ github.event.inputs.action }}" >> cleanup-summary.md
+          echo "**Dry Run**: ${{ github.event.inputs.dry-run }}" >> cleanup-summary.md
+          echo "" >> cleanup-summary.md
+          echo "## Branches Processed" >> cleanup-summary.md
+          echo "" >> cleanup-summary.md
+          cat merged-branches.txt | while read branch; do
+            echo "- $branch" >> cleanup-summary.md
+          done
+          
+          cat cleanup-summary.md
+      
+      - name: Upload cleanup summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-summary
+          path: cleanup-summary.md
+          retention-days: 90
+  
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [analyze-branches, cleanup-merged-branches]
+    if: always()
+    
+    steps:
+      - name: Create summary
+        run: |
+          echo "## 🌳 Branch Management Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Branch Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Branches**: ${{ needs.analyze-branches.outputs.total-branches }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Merged Branches**: ${{ needs.analyze-branches.outputs.merged-branches }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "### Action Performed" >> $GITHUB_STEP_SUMMARY
+            echo "- **Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Dry Run**: ${{ github.event.inputs.dry-run }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch analysis report available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Cleanup summary available in artifacts" >> $GITHUB_STEP_SUMMARY

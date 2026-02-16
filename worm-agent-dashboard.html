@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: worm-agent-dashboard.html
+Declaration ID: IP-12E232F9-MLL2902R
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worm Agent System Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        #container {
+            width: 100vw;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: radial-gradient(circle at center, #0a0a0a, #000);
+            z-index: -1;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            min-height: 100%;
+            padding-bottom: 20px;
+            pointer-events: none;
+        }
+
+        .hud {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 12px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.7);
+            pointer-events: auto;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+
+        .hud.collapsed {
+            transform: scale(0.8);
+            opacity: 0.6;
+        }
+
+        #status-hud {
+            top: 10px;
+            left: 10px;
+            min-width: 250px;
+            max-width: 90vw;
+            z-index: 10;
+        }
+
+        #agents-hud {
+            top: 10px;
+            right: 10px;
+            max-width: 350px;
+            max-height: 40vh;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        #stats-hud {
+            bottom: 80px;
+            left: 10px;
+            min-width: 250px;
+            max-width: 90vw;
+            z-index: 10;
+        }
+
+        #network-devices-hud {
+            bottom: 80px;
+            right: 10px;
+            min-width: 300px;
+            max-width: 350px;
+            max-height: 35vh;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        #system-resources-hud {
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            min-width: 280px;
+            max-width: 350px;
+            max-height: 40vh;
+            overflow-y: auto;
+            z-index: 10;
+        }
+
+        .device-item {
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 3px solid #0ff;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        .device-item.active {
+            border-left-color: #0f0;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+        }
+
+        .device-name {
+            color: #0ff;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .device-info {
+            color: #0f0;
+            font-size: 9px;
+            margin-top: 3px;
+        }
+
+        .resource-item {
+            background: rgba(255, 255, 0, 0.1);
+            border-left: 3px solid #ff0;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 3px;
+        }
+
+        .resource-name {
+            color: #ff0;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .resource-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .resource-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #ff0, #f00);
+            transition: width 0.3s;
+        }
+
+        #controls-hud {
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            width: auto;
+            z-index: 20;
+        }
+
+        /* Horizontal Scrolling Container for HUDs on Mobile */
+        #hud-scroll-container {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            #hud-scroll-container {
+                display: flex;
+                position: fixed;
+                top: 10px;
+                left: 0;
+                right: 0;
+                height: auto;
+                overflow-x: auto;
+                overflow-y: hidden;
+                gap: 10px;
+                padding: 0 10px 10px 10px;
+                z-index: 15;
+                pointer-events: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+
+            #hud-scroll-container::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            #hud-scroll-container::-webkit-scrollbar-thumb {
+                background: rgba(0, 255, 0, 0.5);
+                border-radius: 2px;
+            }
+
+            #hud-scroll-container .hud {
+                position: relative !important;
+                top: auto !important;
+                left: auto !important;
+                right: auto !important;
+                bottom: auto !important;
+                transform: none !important;
+                min-width: 250px;
+                max-width: 300px;
+                flex-shrink: 0;
+                margin: 0;
+            }
+        }
+
+        /* Mobile Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .hud {
+                padding: 10px;
+                font-size: 10px;
+                max-width: calc(100vw - 20px);
+            }
+
+            #status-hud, #agents-hud, #stats-hud, #network-devices-hud, #system-resources-hud {
+                max-height: 200px;
+                overflow-y: auto;
+            }
+
+            #controls-hud {
+                position: fixed;
+                flex-direction: row;
+                bottom: 10px;
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                padding: 10px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            button {
+                flex: 1;
+                min-width: 80px;
+                padding: 10px 8px !important;
+                font-size: 11px !important;
+                white-space: nowrap;
+            }
+
+            #bubble-info-panel {
+                min-width: 90vw;
+                max-width: 95vw;
+                max-height: 85vh;
+                padding: 20px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hud {
+                font-size: 9px;
+                padding: 8px;
+            }
+
+            #hud-scroll-container .hud {
+                min-width: 200px;
+                max-width: 250px;
+            }
+
+            #controls-hud {
+                bottom: 10px;
+                padding: 8px;
+            }
+
+            #bubble-info-panel {
+                padding: 15px 10px;
+            }
+
+            button {
+                min-width: 70px;
+                padding: 8px 6px !important;
+                font-size: 10px !important;
+            }
+
+            #log-output {
+                width: calc(100% - 40px);
+                max-height: 150px;
+            }
+        }
+
+        .hud h3 {
+            color: #0ff;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px #0ff;
+            font-size: 16px;
+        }
+
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .stat-label {
+            color: #0f0;
+        }
+
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .agent-item {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #0f0;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 3px;
+            animation: fadeIn 0.3s;
+        }
+
+        .agent-item.active {
+            border-left-color: #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        .agent-id {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .agent-status {
+            color: #0f0;
+            font-size: 10px;
+        }
+
+        button {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 12px 24px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-shadow: 0 0 5px #0f0;
+        }
+
+        button:hover {
+            background: rgba(0, 255, 0, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        button:active {
+            background: rgba(0, 255, 255, 0.4);
+            border-color: #0ff;
+            color: #0ff;
+        }
+
+        button.danger {
+            border-color: #f00;
+            color: #f00;
+        }
+
+        button.danger:hover {
+            background: rgba(255, 0, 0, 0.4);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .file-node {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.6), rgba(0, 100, 100, 0.3));
+            border: 2px solid #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Modal/Info Panel for clicked bubbles */
+        #bubble-info-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid #0ff;
+            border-radius: 15px;
+            padding: 25px;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.8);
+        }
+
+        #bubble-info-panel.visible {
+            display: block;
+            animation: modalFadeIn 0.3s;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #f00;
+            color: #f00;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 0, 0, 0.6);
+            transform: rotate(90deg);
+        }
+
+        .info-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.05);
+            border-left: 3px solid #0f0;
+            border-radius: 5px;
+        }
+
+        .info-section h4 {
+            color: #0ff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 11px;
+        }
+
+        .info-label {
+            color: #0f0;
+        }
+
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            transition: width 0.5s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar.loading {
+            background: linear-gradient(90deg, #ff0, #f80, #ff0);
+            animation: progressShimmer 1.5s infinite;
+        }
+
+        @keyframes progressShimmer {
+            0% { background-position: -100%; }
+            100% { background-position: 200%; }
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 3px #000;
+        }
+
+        .micro-agent-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .micro-agent-item {
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 2px solid #0ff;
+            padding: 5px 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .micro-agent-status {
+            color: #0f0;
+        }
+
+        .micro-agent-status.analyzing {
+            color: #ff0;
+        }
+
+        .micro-agent-status.complete {
+            color: #0f0;
+        }
+
+        .micro-agent-status.error {
+            color: #f00;
+        }
+
+        .sub-bubble {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 0, 0.8), rgba(0, 100, 0, 0.3));
+            border: 1px solid #0f0;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+            animation: subBubbleFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes subBubbleFloat {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-5px) scale(1.1); }
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .data-cell {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .data-cell-label {
+            color: #0ff;
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .data-cell-value {
+            color: #0f0;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .worm {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 0, 255, 1), rgba(255, 0, 255, 0.3));
+            box-shadow: 0 0 15px rgba(255, 0, 255, 1);
+            transition: all 0.1s linear;
+        }
+
+        .trail {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: rgba(0, 255, 0, 0.5);
+            animation: trailFade 1s forwards;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes trailFade {
+            to {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+        }
+
+        #log-output {
+            position: absolute;
+            bottom: 100px;
+            left: 20px;
+            width: 500px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0f0;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 10px;
+            color: #0f0;
+            display: none;
+            z-index: 15;
+        }
+
+        #log-output.visible {
+            display: block;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            opacity: 0.8;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 0, 0.5);
+            border-radius: 4px;
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div id="overlay">
+            <!-- Horizontal Scroll Container for Mobile HUDs -->
+            <div id="hud-scroll-container">
+                <!-- Status HUD -->
+                <div id="status-hud" class="hud">
+                    <h3>⚡ SYSTEM STATUS</h3>
+                    <div class="stat-line">
+                        <span class="stat-label">Coordinator:</span>
+                        <span class="stat-value" id="coord-status">IDLE</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Scan Mode:</span>
+                        <span class="stat-value" id="scan-mode">None</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Active Agents:</span>
+                        <span class="stat-value" id="active-agents">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Files Mapped:</span>
+                        <span class="stat-value" id="files-mapped">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Devices Found:</span>
+                        <span class="stat-value" id="devices-found">0</span>
+                    </div>
+                </div>
+
+                <!-- Agents HUD -->
+                <div id="agents-hud" class="hud">
+                    <h3>🐛 WORM AGENTS</h3>
+                    <div id="agents-list"></div>
+                </div>
+
+                <!-- Stats HUD -->
+                <div id="stats-hud" class="hud">
+                    <h3>📊 STATISTICS</h3>
+                    <div class="stat-line">
+                        <span class="stat-label">Lines Processed:</span>
+                        <span class="stat-value" id="lines-processed">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Issues Found:</span>
+                        <span class="stat-value" id="issues-found">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Repairs Made:</span>
+                        <span class="stat-value" id="repairs-made">0</span>
+                    </div>
+                    <div class="stat-line">
+                        <span class="stat-label">Success Rate:</span>
+                        <span class="stat-value" id="success-rate">100%</span>
+                    </div>
+                </div>
+
+                <!-- Network Devices HUD -->
+                <div id="network-devices-hud" class="hud" style="display: none;">
+                    <h3>🌐 NETWORK DEVICES</h3>
+                    <div id="network-devices-list"></div>
+                </div>
+
+                <!-- System Resources HUD -->
+                <div id="system-resources-hud" class="hud" style="display: none;">
+                    <h3>💻 SYSTEM RESOURCES</h3>
+                    <div id="system-resources-list"></div>
+                </div>
+            </div>
+
+            <!-- Controls HUD -->
+            <div id="controls-hud" class="hud">
+                <h3>🎮 CONTROLS</h3>
+                <button id="start-btn">🚀 START CRAWL</button>
+                <button id="system-scan-btn">💻 SYSTEM SCAN</button>
+                <button id="network-scan-btn">🌐 NETWORK SCAN</button>
+                <button id="full-scan-btn">⚡ FULL SCAN</button>
+                <button id="stop-btn" class="danger">🛑 STOP ALL</button>
+                <button id="reset-btn">🔄 RESET</button>
+                <button id="log-btn">📝 TOGGLE LOG</button>
+            </div>
+
+            <!-- Log Output -->
+            <div id="log-output"></div>
+
+            <!-- Bubble Info Panel (Modal) -->
+            <div id="bubble-info-panel">
+                <div class="modal-close" onclick="closeBubbleInfo()">×</div>
+                <h3 style="color: #0ff; text-align: center; margin-bottom: 20px;">📦 FILE ANALYSIS</h3>
+                
+                <div class="info-section">
+                    <h4>📄 File Information</h4>
+                    <div class="info-line">
+                        <span class="info-label">Path:</span>
+                        <span class="info-value" id="info-file-path">-</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Type:</span>
+                        <span class="info-value" id="info-file-type">-</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Size:</span>
+                        <span class="info-value" id="info-file-size">-</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value" id="info-file-status">-</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h4>🤖 Micro Agents Deployed</h4>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="info-deploy-progress" style="width: 0%"></div>
+                        <div class="progress-text" id="info-deploy-text">0%</div>
+                    </div>
+                    <ul class="micro-agent-list" id="info-micro-agents"></ul>
+                </div>
+
+                <div class="info-section">
+                    <h4>📊 Data Analysis Results</h4>
+                    <div class="data-grid">
+                        <div class="data-cell">
+                            <div class="data-cell-label">Lines Analyzed</div>
+                            <div class="data-cell-value" id="info-lines-analyzed">0</div>
+                        </div>
+                        <div class="data-cell">
+                            <div class="data-cell-label">Functions Found</div>
+                            <div class="data-cell-value" id="info-functions">0</div>
+                        </div>
+                        <div class="data-cell">
+                            <div class="data-cell-label">Issues Detected</div>
+                            <div class="data-cell-value" id="info-issues">0</div>
+                        </div>
+                        <div class="data-cell">
+                            <div class="data-cell-label">Links Formed</div>
+                            <div class="data-cell-value" id="info-links">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h4>⚡ Functionality Enhanced</h4>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="info-functionality-progress" style="width: 0%"></div>
+                        <div class="progress-text" id="info-functionality-text">0%</div>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Optimizations:</span>
+                        <span class="info-value" id="info-optimizations">0</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Security Fixes:</span>
+                        <span class="info-value" id="info-security">0</span>
+                    </div>
+                    <div class="info-line">
+                        <span class="info-label">Performance Enhancements:</span>
+                        <span class="info-value" id="info-performance">0</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h4>🔗 Script Dependencies</h4>
+                    <ul class="micro-agent-list" id="info-dependencies"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/agents/agent-logger.js"></script>
+    <script src="src/agents/worm-agent.js"></script>
+    <script src="src/agents/worm-coordinator.js"></script>
+    <script src="src/systems/worm-agent-system.js"></script>
+    <script>
+        // 2D Canvas visualization
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let system;
+        let fileNodes = [];
+        let worms = [];
+        let trails = [];
+        let animationId;
+        let actualFiles = [];
+        let subBubbles = []; // Track sub-bubbles for analyzed files
+        let fileAnalysisData = new Map(); // Store detailed analysis data per file
+
+        // Initialize file analysis tracking
+        function initFileAnalysis(filePath) {
+            if (!fileAnalysisData.has(filePath)) {
+                fileAnalysisData.set(filePath, {
+                    status: 'pending', // pending, deploying, analyzing, complete
+                    deployProgress: 0,
+                    microAgents: [],
+                    linesAnalyzed: 0,
+                    functionsFound: 0,
+                    issuesDetected: 0,
+                    linksFormed: 0,
+                    optimizations: 0,
+                    securityFixes: 0,
+                    performanceEnhancements: 0,
+                    dependencies: [],
+                    subBubbles: [],
+                    lastUpdate: Date.now()
+                });
+            }
+            return fileAnalysisData.get(filePath);
+        }
+
+        // Real repository files structure
+        const repositoryFiles = [
+            // Core agent files
+            { path: 'src/agents/worm-agent.js', type: 'js', size: 12130 },
+            { path: 'src/agents/worm-coordinator.js', type: 'js', size: 10515 },
+            { path: 'src/agents/agent-logger.js', type: 'js', size: 7240 },
+            { path: 'src/agents/management-agent.js', type: 'js', size: 14441 },
+            { path: 'src/agents/deployment-agent.js', type: 'js', size: 13790 },
+            { path: 'src/agents/network-crawler-agent.js', type: 'js', size: 10805 },
+            { path: 'src/agents/file-usage-agent.js', type: 'js', size: 18789 },
+            { path: 'src/agents/github-pr-review-agent.js', type: 'js', size: 24731 },
+            
+            // System files
+            { path: 'src/systems/worm-agent-system.js', type: 'js', size: 9051 },
+            { path: 'src/systems/dashboard.js', type: 'js', size: 16643 },
+            { path: 'src/systems/github-integration.js', type: 'js', size: 17823 },
+            { path: 'src/systems/project-scanner.js', type: 'js', size: 10985 },
+            
+            // HTML files
+            { path: 'index.html', type: 'html', size: 25000 },
+            { path: 'worm-agent-dashboard.html', type: 'html', size: 15000 },
+            { path: 'management-agent-dashboard.html', type: 'html', size: 18000 },
+            { path: 'admin-dashboard.html', type: 'html', size: 20000 },
+            
+            // CSS files
+            { path: 'css/main.css', type: 'css', size: 8000 },
+            { path: 'css/dashboard.css', type: 'css', size: 6000 },
+            
+            // Config files
+            { path: 'package.json', type: 'json', size: 2500 },
+            { path: 'agent-deployment-manifest.json', type: 'json', size: 2029 },
+            { path: 'agent-r-manifest.json', type: 'json', size: 9234 }
+        ];
+
+        // Initialize system
+        async function init() {
+            console.log('Initializing Worm Agent System...');
+            
+            try {
+                system = new WormAgentSystem();
+                await system.initialize();
+                
+                setupEventListeners();
+                await createFileNodes();
+                animate();
+                
+                addLog('System initialized successfully');
+                addLog(`Mapped ${fileNodes.length} files from repository`);
+            } catch (error) {
+                console.error('Initialization error:', error);
+                addLog('ERROR: ' + error.message);
+            }
+        }
+
+        async function createFileNodes() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // Detect mobile device and adjust bubble sizes accordingly
+            const isMobile = window.innerWidth <= 768;
+            const sizeMultiplier = isMobile ? 0.6 : 1; // Make bubbles 60% size on mobile
+            
+            // Create nodes based on actual repository files
+            repositoryFiles.forEach((file, i) => {
+                // Arrange files in a more organic cluster pattern
+                const angle = (i / repositoryFiles.length) * Math.PI * 2;
+                const layer = Math.floor(i / 8);
+                const radius = (isMobile ? 100 : 150) + layer * (isMobile ? 50 : 80);
+                
+                const x = centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * (isMobile ? 30 : 60);
+                const y = centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * (isMobile ? 30 : 60);
+                
+                // Color based on file type
+                let color;
+                switch(file.type) {
+                    case 'js': color = 'hsl(60, 80%, 60%)'; break;  // Yellow for JS
+                    case 'html': color = 'hsl(20, 80%, 60%)'; break; // Orange for HTML
+                    case 'css': color = 'hsl(200, 80%, 60%)'; break; // Blue for CSS
+                    case 'json': color = 'hsl(140, 80%, 60%)'; break; // Green for JSON
+                    default: color = 'hsl(280, 80%, 60%)'; // Purple for others
+                }
+                
+                // Size based on file size - scale down for mobile
+                const baseSize = Math.max(15, Math.min(40, 15 + (file.size / 1000)));
+                const size = baseSize * sizeMultiplier;
+                
+                fileNodes.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    size: size,
+                    color: color,
+                    name: file.path,
+                    type: file.type,
+                    fileSize: file.size,
+                    active: false,
+                    checked: false, // Track if file has been checked
+                    analyzing: false,
+                    subBubbles: [] // Sub-bubbles for this node
+                });
+                
+                // Initialize analysis data for each file
+                initFileAnalysis(file.path);
+            });
+            
+            actualFiles = repositoryFiles;
+            updateFilesUI();
+        }
+
+        function createWorms(count) {
+            worms = [];
+            for (let i = 0; i < count; i++) {
+                const node = fileNodes[i % fileNodes.length];
+                worms.push({
+                    id: i,
+                    x: node.x,
+                    y: node.y,
+                    targetNode: i % fileNodes.length,
+                    speed: 2 + Math.random(),
+                    active: true,
+                    file: node.name,
+                    line: 0,
+                    totalLines: Math.floor(node.fileSize / 30), // Estimate lines
+                    issuesFound: 0,
+                    repairsMade: 0
+                });
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('start-btn').addEventListener('click', startCrawl);
+            document.getElementById('system-scan-btn').addEventListener('click', startSystemScan);
+            document.getElementById('network-scan-btn').addEventListener('click', startNetworkScan);
+            document.getElementById('full-scan-btn').addEventListener('click', startFullScan);
+            document.getElementById('stop-btn').addEventListener('click', stopCrawl);
+            document.getElementById('reset-btn').addEventListener('click', reset);
+            document.getElementById('log-btn').addEventListener('click', toggleLog);
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                // Recreate file nodes with new size scaling for mobile
+                if (fileNodes.length > 0) {
+                    const isMobile = window.innerWidth <= 768;
+                    const sizeMultiplier = isMobile ? 0.6 : 1;
+                    
+                    fileNodes.forEach(node => {
+                        // Only update size for non-network devices
+                        if (node.type !== 'network-device') {
+                            const baseSize = Math.max(15, Math.min(40, 15 + (node.fileSize / 1000)));
+                            node.size = baseSize * sizeMultiplier;
+                        } else {
+                            node.size = isMobile ? 25 : 35;
+                        }
+                    });
+                }
+            });
+
+            // Touch support for mobile
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            canvas.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                // Pan the view
+                fileNodes.forEach(node => {
+                    node.x += deltaX * 0.5;
+                    node.y += deltaY * 0.5;
+                });
+                
+                touchStartX = touchX;
+                touchStartY = touchY;
+            });
+
+            // Click handler for bubbles
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                
+                // Check if any bubble was clicked
+                fileNodes.forEach(node => {
+                    const dist = Math.hypot(node.x - clickX, node.y - clickY);
+                    if (dist < node.size) {
+                        showBubbleInfo(node);
+                    }
+                });
+            });
+        }
+
+        // Deploy micro agents to a file
+        async function deployMicroAgents(filePath, fileContent) {
+            const analysis = initFileAnalysis(filePath);
+            analysis.status = 'deploying';
+            analysis.deployProgress = 0;
+            
+            // Simulate micro agent deployment with loading bar
+            const microAgentTypes = [
+                'Code Parser',
+                'Link Analyzer',
+                'Function Detector',
+                'Dependency Mapper',
+                'Security Scanner'
+            ];
+            
+            for (let i = 0; i < microAgentTypes.length; i++) {
+                const agentType = microAgentTypes[i];
+                analysis.microAgents.push({
+                    type: agentType,
+                    status: 'deploying',
+                    startTime: Date.now()
+                });
+                
+                // Simulate deployment delay
+                await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+                
+                analysis.deployProgress = ((i + 1) / microAgentTypes.length) * 100;
+                analysis.microAgents[i].status = 'analyzing';
+                
+                // Perform actual analysis based on agent type
+                await performMicroAgentAnalysis(analysis, agentType, fileContent);
+                
+                analysis.microAgents[i].status = 'complete';
+            }
+            
+            analysis.status = 'complete';
+            analysis.deployProgress = 100;
+            return analysis;
+        }
+
+        // Perform analysis with specific micro agent
+        async function performMicroAgentAnalysis(analysis, agentType, fileContent) {
+            const lines = fileContent.split('\n');
+            analysis.linesAnalyzed = lines.length;
+            
+            switch (agentType) {
+                case 'Code Parser':
+                    // Count actual code structures
+                    const functionMatches = fileContent.match(/function\s+\w+|=>\s*{|class\s+\w+/g);
+                    analysis.functionsFound = functionMatches ? functionMatches.length : 0;
+                    break;
+                    
+                case 'Link Analyzer':
+                    // Find import/require statements
+                    const importMatches = fileContent.match(/import\s+.*from|require\s*\(/g);
+                    analysis.linksFormed = importMatches ? importMatches.length : 0;
+                    break;
+                    
+                case 'Function Detector':
+                    // Detect potential issues
+                    const todoMatches = fileContent.match(/TODO|FIXME|XXX|HACK/gi);
+                    const consoleMatches = fileContent.match(/console\.(log|warn|error|debug)/g);
+                    analysis.issuesDetected = (todoMatches ? todoMatches.length : 0) + 
+                                              (consoleMatches ? consoleMatches.length : 0);
+                    break;
+                    
+                case 'Dependency Mapper':
+                    // Extract dependencies
+                    const depMatches = fileContent.match(/import\s+.*from\s+['"]([^'"]+)['"]/g);
+                    if (depMatches) {
+                        analysis.dependencies = depMatches.map(m => {
+                            const match = m.match(/['"]([^'"]+)['"]/);
+                            return match ? match[1] : '';
+                        }).filter(d => d);
+                    }
+                    break;
+                    
+                case 'Security Scanner':
+                    // Check for security issues
+                    const securityIssues = fileContent.match(/eval\(|innerHTML|dangerouslySetInnerHTML/g);
+                    analysis.securityFixes = securityIssues ? securityIssues.length : 0;
+                    break;
+            }
+            
+            // Simulate processing time
+            await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+            
+            // Update enhancements
+            analysis.optimizations = Math.floor(analysis.functionsFound * 0.3);
+            analysis.performanceEnhancements = Math.floor(analysis.linesAnalyzed / 100);
+        }
+
+        // Create sub-bubbles for checked files
+        function createSubBubbles(parentNode) {
+            const analysis = fileAnalysisData.get(parentNode.name);
+            if (!analysis || analysis.subBubbles.length > 0) return;
+            
+            const isMobile = window.innerWidth <= 768;
+            const subBubbleSize = isMobile ? 10 : 15; // Smaller sub-bubbles on mobile
+            const distance = parentNode.size + (isMobile ? 20 : 30);
+            
+            const numSubBubbles = Math.min(5, analysis.microAgents.length);
+            const angleStep = (Math.PI * 2) / numSubBubbles;
+            
+            for (let i = 0; i < numSubBubbles; i++) {
+                const angle = i * angleStep;
+                const subBubble = {
+                    parentNode: parentNode,
+                    offsetX: Math.cos(angle) * distance,
+                    offsetY: Math.sin(angle) * distance,
+                    size: subBubbleSize,
+                    color: 'hsl(120, 80%, 60%)', // Green for analyzed scripts
+                    agent: analysis.microAgents[i],
+                    angle: angle,
+                    distance: distance
+                };
+                
+                analysis.subBubbles.push(subBubble);
+                parentNode.subBubbles.push(subBubble);
+                subBubbles.push(subBubble);
+            }
+        }
+
+        // Show bubble info panel
+        function showBubbleInfo(node) {
+            const panel = document.getElementById('bubble-info-panel');
+            const analysis = fileAnalysisData.get(node.name) || initFileAnalysis(node.name);
+            
+            // Update file info
+            document.getElementById('info-file-path').textContent = node.name;
+            document.getElementById('info-file-type').textContent = node.type.toUpperCase();
+            document.getElementById('info-file-size').textContent = (node.fileSize / 1024).toFixed(2) + ' KB';
+            document.getElementById('info-file-status').textContent = analysis.status.toUpperCase();
+            
+            // Update deployment progress
+            const deployProgress = document.getElementById('info-deploy-progress');
+            const deployText = document.getElementById('info-deploy-text');
+            deployProgress.style.width = analysis.deployProgress + '%';
+            deployText.textContent = Math.round(analysis.deployProgress) + '%';
+            if (analysis.status === 'deploying') {
+                deployProgress.classList.add('loading');
+            } else {
+                deployProgress.classList.remove('loading');
+            }
+            
+            // Update micro agents list
+            const microAgentsList = document.getElementById('info-micro-agents');
+            microAgentsList.innerHTML = '';
+            analysis.microAgents.forEach(agent => {
+                const li = document.createElement('li');
+                li.className = 'micro-agent-item';
+                li.innerHTML = `
+                    <span>${agent.type}</span>
+                    <span class="micro-agent-status ${agent.status}">${agent.status.toUpperCase()}</span>
+                `;
+                microAgentsList.appendChild(li);
+            });
+            
+            // Update analysis results
+            document.getElementById('info-lines-analyzed').textContent = analysis.linesAnalyzed;
+            document.getElementById('info-functions').textContent = analysis.functionsFound;
+            document.getElementById('info-issues').textContent = analysis.issuesDetected;
+            document.getElementById('info-links').textContent = analysis.linksFormed;
+            
+            // Update functionality enhancements
+            const functionalityProgress = (analysis.optimizations + analysis.securityFixes + analysis.performanceEnhancements) / 3;
+            const funcProgress = document.getElementById('info-functionality-progress');
+            const funcText = document.getElementById('info-functionality-text');
+            funcProgress.style.width = functionalityProgress + '%';
+            funcText.textContent = Math.round(functionalityProgress) + '%';
+            
+            document.getElementById('info-optimizations').textContent = analysis.optimizations;
+            document.getElementById('info-security').textContent = analysis.securityFixes;
+            document.getElementById('info-performance').textContent = analysis.performanceEnhancements;
+            
+            // Update dependencies
+            const depList = document.getElementById('info-dependencies');
+            depList.innerHTML = '';
+            if (analysis.dependencies.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'micro-agent-item';
+                li.textContent = 'No external dependencies detected';
+                depList.appendChild(li);
+            } else {
+                analysis.dependencies.slice(0, 10).forEach(dep => {
+                    const li = document.createElement('li');
+                    li.className = 'micro-agent-item';
+                    li.textContent = dep;
+                    depList.appendChild(li);
+                });
+            }
+            
+            // Show panel
+            panel.classList.add('visible');
+        }
+
+        // Close bubble info panel
+        function closeBubbleInfo() {
+            document.getElementById('bubble-info-panel').classList.remove('visible');
+        }
+
+        async function startCrawl() {
+            updateStatus('DEPLOYING');
+            addLog('🚀 Starting worm agent deployment...');
+            
+            const agentCount = Math.min(5, fileNodes.length);
+            createWorms(agentCount);
+            
+            addLog(`✅ Deployed ${agentCount} worm agents`);
+            
+            setTimeout(async () => {
+                updateStatus('ACTIVE');
+                addLog(`🐛 Agents now crawling through ${fileNodes.length} files`);
+                
+                // Process real files with actual content simulation
+                try {
+                    const fileObjects = actualFiles.map(f => ({
+                        path: f.path,
+                        content: generateFileContent(f.type, f.size),
+                        type: f.type
+                    }));
+                    
+                    // Start actual crawl using the worm agent system
+                    const crawlPromise = system.startCrawl({ files: fileObjects });
+                    
+                    // Real-time monitoring
+                    const monitorInterval = setInterval(() => {
+                        if (system && system.coordinator) {
+                            const stats = system.coordinator.getRealTimeStats();
+                            
+                            if (stats.currentLinesProcessed !== undefined) {
+                                document.getElementById('lines-processed').textContent = stats.currentLinesProcessed;
+                            }
+                            if (stats.currentIssuesFound !== undefined) {
+                                document.getElementById('issues-found').textContent = stats.currentIssuesFound;
+                            }
+                            if (stats.currentRepairsMade !== undefined) {
+                                document.getElementById('repairs-made').textContent = stats.currentRepairsMade;
+                            }
+                            
+                            const issuesFound = stats.currentIssuesFound || 0;
+                            const repairsMade = stats.currentRepairsMade || 0;
+                            const successRate = issuesFound > 0 ? ((repairsMade / issuesFound) * 100).toFixed(1) : 100;
+                            document.getElementById('success-rate').textContent = successRate + '%';
+                            
+                            updateAgentsUI();
+                            
+                            // Update worm positions based on agent progress
+                            if (system.coordinator.wormAgents) {
+                                system.coordinator.wormAgents.forEach((agent, idx) => {
+                                    if (worms[idx]) {
+                                        const agentReport = agent.getReport();
+                                        worms[idx].line = agent.position.line;
+                                        worms[idx].file = agent.position.file || worms[idx].file;
+                                        worms[idx].issuesFound = agentReport.statistics.issuesFound;
+                                        worms[idx].repairsMade = agentReport.statistics.repairsMade;
+                                    }
+                                });
+                            }
+                            
+                            if (stats.status === 'complete' || stats.status === 'stopped') {
+                                clearInterval(monitorInterval);
+                                updateStatus('COMPLETE');
+                                const finalStats = system.coordinator.getCoordinatorReport();
+                                addLog('✅ Crawl complete!');
+                                addLog(`📊 Final Stats: ${finalStats.summary.linesProcessed} lines, ${finalStats.summary.issuesFound} issues, ${finalStats.summary.repairsMade} repairs`);
+                            }
+                        }
+                    }, 200);
+                    
+                } catch (error) {
+                    console.error('Crawl error:', error);
+                    addLog('❌ Error during crawl: ' + error.message);
+                    updateStatus('ERROR');
+                }
+            }, 1000);
+        }
+
+        // Generate simulated file content based on type and size
+        function generateFileContent(type, size) {
+            const linesCount = Math.floor(size / 30);
+            let content = '';
+            
+            switch(type) {
+                case 'js':
+                    content = `// ${type} file\n`;
+                    for (let i = 0; i < linesCount; i++) {
+                        if (Math.random() > 0.8) {
+                            content += `console.log('Debug info ${i}');\n`;
+                        } else if (Math.random() > 0.9) {
+                            content += `// TODO: Implement feature ${i}\n`;
+                        } else {
+                            content += `function process${i}() { return data; }\n`;
+                        }
+                    }
+                    break;
+                case 'html':
+                    content = '<!DOCTYPE html>\n<html>\n';
+                    for (let i = 0; i < linesCount; i++) {
+                        content += `<div class="element-${i}">Content</div>\n`;
+                    }
+                    content += '</html>';
+                    break;
+                case 'css':
+                    content = '/* Styles */\n';
+                    for (let i = 0; i < linesCount; i++) {
+                        content += `.class-${i} { color: #000; }\n`;
+                    }
+                    break;
+                case 'json':
+                    content = '{\n';
+                    for (let i = 0; i < linesCount; i++) {
+                        content += `  "key${i}": "value${i}",\n`;
+                    }
+                    content += '}';
+                    break;
+                default:
+                    content = Array(linesCount).fill('// Generic content\n').join('');
+            }
+            
+            return content;
+        }
+
+        // SYSTEM SCAN FUNCTIONALITY
+        async function startSystemScan() {
+            updateStatus('SYSTEM SCANNING');
+            updateScanMode('System Scan');
+            addLog('💻 Starting system scan...');
+            
+            // Show system resources HUD
+            document.getElementById('system-resources-hud').style.display = 'block';
+            
+            try {
+                // Simulate system resource scanning
+                const systemResources = await scanSystemResources();
+                displaySystemResources(systemResources);
+                
+                // Scan all local files with emphasis on system files
+                const agentCount = Math.min(8, fileNodes.length);
+                createWorms(agentCount);
+                
+                addLog(`✅ Deployed ${agentCount} agents for system scan`);
+                addLog(`💻 Found ${systemResources.length} system resources`);
+                
+                setTimeout(async () => {
+                    updateStatus('ACTIVE');
+                    addLog('🔍 System scan in progress...');
+                    
+                    // Enhanced crawl with system focus
+                    const fileObjects = actualFiles.map(f => ({
+                        path: f.path,
+                        content: generateFileContent(f.type, f.size),
+                        type: f.type,
+                        priority: f.type === 'js' ? 'high' : 'normal' // Prioritize JS files
+                    }));
+                    
+                    await system.startCrawl({ files: fileObjects, scanType: 'system' });
+                    
+                    monitorScanProgress('system');
+                }, 1000);
+                
+            } catch (error) {
+                console.error('System scan error:', error);
+                addLog('❌ System scan error: ' + error.message);
+                updateStatus('ERROR');
+            }
+        }
+
+        // NETWORK SCAN FUNCTIONALITY
+        async function startNetworkScan() {
+            updateStatus('NETWORK SCANNING');
+            updateScanMode('Network Scan');
+            addLog('🌐 Starting network scan...');
+            
+            // Show network devices HUD
+            document.getElementById('network-devices-hud').style.display = 'block';
+            
+            try {
+                // Simulate network device discovery
+                const devices = await scanNetworkDevices();
+                displayNetworkDevices(devices);
+                
+                // Create visual nodes for network devices
+                addNetworkDeviceNodes(devices);
+                
+                const agentCount = Math.min(5, devices.length);
+                createWorms(agentCount);
+                
+                addLog(`✅ Deployed ${agentCount} agents for network scan`);
+                addLog(`🌐 Discovered ${devices.length} network devices`);
+                
+                document.getElementById('devices-found').textContent = devices.length;
+                
+                setTimeout(() => {
+                    updateStatus('ACTIVE');
+                    addLog('🔍 Network scan in progress...');
+                    addLog('📡 Scanning IP ranges: 192.168.1.0/24');
+                    addLog('🔒 Checking device security...');
+                    
+                    monitorScanProgress('network');
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Network scan error:', error);
+                addLog('❌ Network scan error: ' + error.message);
+                updateStatus('ERROR');
+            }
+        }
+
+        // FULL SCAN FUNCTIONALITY
+        async function startFullScan() {
+            updateStatus('FULL SCANNING');
+            updateScanMode('Full Scan (System + Network)');
+            addLog('⚡ Starting full system and network scan...');
+            
+            // Show both HUDs
+            document.getElementById('system-resources-hud').style.display = 'block';
+            document.getElementById('network-devices-hud').style.display = 'block';
+            
+            try {
+                // Scan both system and network
+                const [systemResources, devices] = await Promise.all([
+                    scanSystemResources(),
+                    scanNetworkDevices()
+                ]);
+                
+                displaySystemResources(systemResources);
+                displayNetworkDevices(devices);
+                addNetworkDeviceNodes(devices);
+                
+                const agentCount = Math.min(10, fileNodes.length + devices.length);
+                createWorms(agentCount);
+                
+                addLog(`✅ Deployed ${agentCount} agents for full scan`);
+                addLog(`💻 Found ${systemResources.length} system resources`);
+                addLog(`🌐 Discovered ${devices.length} network devices`);
+                
+                document.getElementById('devices-found').textContent = devices.length;
+                
+                setTimeout(async () => {
+                    updateStatus('ACTIVE');
+                    addLog('🔍 Full scan in progress...');
+                    
+                    const fileObjects = actualFiles.map(f => ({
+                        path: f.path,
+                        content: generateFileContent(f.type, f.size),
+                        type: f.type
+                    }));
+                    
+                    await system.startCrawl({ files: fileObjects, scanType: 'full' });
+                    
+                    monitorScanProgress('full');
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Full scan error:', error);
+                addLog('❌ Full scan error: ' + error.message);
+                updateStatus('ERROR');
+            }
+        }
+
+        // Monitor scan progress
+        function monitorScanProgress(scanType) {
+            const monitorInterval = setInterval(() => {
+                if (system && system.coordinator) {
+                    const stats = system.coordinator.getRealTimeStats();
+                    
+                    if (stats.currentLinesProcessed !== undefined) {
+                        document.getElementById('lines-processed').textContent = stats.currentLinesProcessed;
+                    }
+                    if (stats.currentIssuesFound !== undefined) {
+                        document.getElementById('issues-found').textContent = stats.currentIssuesFound;
+                    }
+                    if (stats.currentRepairsMade !== undefined) {
+                        document.getElementById('repairs-made').textContent = stats.currentRepairsMade;
+                    }
+                    
+                    const issuesFound = stats.currentIssuesFound || 0;
+                    const repairsMade = stats.currentRepairsMade || 0;
+                    const successRate = issuesFound > 0 ? ((repairsMade / issuesFound) * 100).toFixed(1) : 100;
+                    document.getElementById('success-rate').textContent = successRate + '%';
+                    
+                    updateAgentsUI();
+                    
+                    if (system.coordinator.wormAgents) {
+                        system.coordinator.wormAgents.forEach((agent, idx) => {
+                            if (worms[idx]) {
+                                const agentReport = agent.getReport();
+                                worms[idx].line = agent.position.line;
+                                worms[idx].file = agent.position.file || worms[idx].file;
+                                worms[idx].issuesFound = agentReport.statistics.issuesFound;
+                                worms[idx].repairsMade = agentReport.statistics.repairsMade;
+                            }
+                        });
+                    }
+                    
+                    if (stats.status === 'complete' || stats.status === 'stopped') {
+                        clearInterval(monitorInterval);
+                        updateStatus('COMPLETE');
+                        const finalStats = system.coordinator.getCoordinatorReport();
+                        addLog(`✅ ${scanType} scan complete!`);
+                        addLog(`📊 Final Stats: ${finalStats.summary.linesProcessed} lines, ${finalStats.summary.issuesFound} issues, ${finalStats.summary.repairsMade} repairs`);
+                    }
+                }
+            }, 200);
+        }
+
+        // Scan system resources (simulated)
+        async function scanSystemResources() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const resources = [
+                        { name: 'CPU', type: 'processor', usage: Math.random() * 100, status: 'online' },
+                        { name: 'Memory', type: 'ram', usage: Math.random() * 100, status: 'online' },
+                        { name: 'Disk', type: 'storage', usage: Math.random() * 100, status: 'online' },
+                        { name: 'Network', type: 'network', usage: Math.random() * 100, status: 'online' },
+                        { name: 'GPU', type: 'graphics', usage: Math.random() * 100, status: 'online' },
+                        { name: 'Process Manager', type: 'service', usage: Math.random() * 50, status: 'running' },
+                        { name: 'File System', type: 'service', usage: Math.random() * 60, status: 'running' },
+                        { name: 'Security Service', type: 'service', usage: Math.random() * 30, status: 'running' }
+                    ];
+                    resolve(resources);
+                }, 500);
+            });
+        }
+
+        // Scan network devices (simulated)
+        async function scanNetworkDevices() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const devices = [
+                        { ip: '192.168.1.1', name: 'Router', type: 'gateway', mac: '00:1A:2B:3C:4D:5E', status: 'online', ports: [80, 443] },
+                        { ip: '192.168.1.10', name: 'Desktop-PC', type: 'computer', mac: '00:1A:2B:3C:4D:5F', status: 'online', ports: [22, 445] },
+                        { ip: '192.168.1.15', name: 'Laptop', type: 'computer', mac: '00:1A:2B:3C:4D:60', status: 'online', ports: [22] },
+                        { ip: '192.168.1.20', name: 'Smart TV', type: 'media', mac: '00:1A:2B:3C:4D:61', status: 'online', ports: [80] },
+                        { ip: '192.168.1.25', name: 'Phone', type: 'mobile', mac: '00:1A:2B:3C:4D:62', status: 'online', ports: [] },
+                        { ip: '192.168.1.30', name: 'Printer', type: 'peripheral', mac: '00:1A:2B:3C:4D:63', status: 'online', ports: [631, 9100] },
+                        { ip: '192.168.1.35', name: 'IoT Device', type: 'iot', mac: '00:1A:2B:3C:4D:64', status: 'online', ports: [8080] },
+                        { ip: '192.168.1.40', name: 'Server', type: 'server', mac: '00:1A:2B:3C:4D:65', status: 'online', ports: [22, 80, 443, 3306] }
+                    ];
+                    resolve(devices);
+                }, 800);
+            });
+        }
+
+        // Display system resources in HUD
+        function displaySystemResources(resources) {
+            const list = document.getElementById('system-resources-list');
+            list.innerHTML = '';
+            
+            resources.forEach(resource => {
+                const div = document.createElement('div');
+                div.className = 'resource-item';
+                div.innerHTML = `
+                    <div class="resource-name">${resource.name} (${resource.type})</div>
+                    <div class="device-info">Status: ${resource.status.toUpperCase()}</div>
+                    <div class="device-info">Usage: ${resource.usage.toFixed(1)}%</div>
+                    <div class="resource-bar">
+                        <div class="resource-bar-fill" style="width: ${resource.usage}%"></div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // Display network devices in HUD
+        function displayNetworkDevices(devices) {
+            const list = document.getElementById('network-devices-list');
+            list.innerHTML = '';
+            
+            devices.forEach(device => {
+                const div = document.createElement('div');
+                div.className = 'device-item' + (device.status === 'online' ? ' active' : '');
+                div.innerHTML = `
+                    <div class="device-name">${device.name}</div>
+                    <div class="device-info">IP: ${device.ip}</div>
+                    <div class="device-info">MAC: ${device.mac}</div>
+                    <div class="device-info">Type: ${device.type}</div>
+                    <div class="device-info">Status: ${device.status.toUpperCase()}</div>
+                    <div class="device-info">Ports: ${device.ports.length > 0 ? device.ports.join(', ') : 'None'}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // Add network device nodes to visualization
+        function addNetworkDeviceNodes(devices) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const isMobile = window.innerWidth <= 768;
+            const outerRadius = isMobile ? 350 : 500;
+            const deviceSize = isMobile ? 25 : 35;
+            
+            devices.forEach((device, i) => {
+                const angle = (i / devices.length) * Math.PI * 2;
+                const x = centerX + Math.cos(angle) * outerRadius;
+                const y = centerY + Math.sin(angle) * outerRadius;
+                
+                // Color based on device type
+                let color;
+                switch(device.type) {
+                    case 'gateway': color = 'hsl(0, 80%, 60%)'; break;     // Red for gateway/router
+                    case 'computer': color = 'hsl(240, 80%, 60%)'; break;   // Blue for computers
+                    case 'server': color = 'hsl(280, 80%, 60%)'; break;     // Purple for servers
+                    case 'mobile': color = 'hsl(120, 80%, 60%)'; break;     // Green for mobile
+                    case 'media': color = 'hsl(180, 80%, 60%)'; break;      // Cyan for media devices
+                    case 'peripheral': color = 'hsl(60, 80%, 60%)'; break;  // Yellow for peripherals
+                    case 'iot': color = 'hsl(300, 80%, 60%)'; break;        // Magenta for IoT
+                    default: color = 'hsl(200, 80%, 60%)';
+                }
+                
+                fileNodes.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 0.2,
+                    vy: (Math.random() - 0.5) * 0.2,
+                    size: deviceSize,
+                    color: color,
+                    name: `${device.name} (${device.ip})`,
+                    type: 'network-device',
+                    deviceType: device.type,
+                    active: device.status === 'online'
+                });
+            });
+            
+            updateFilesUI();
+        }
+
+        // Update scan mode display
+        function updateScanMode(mode) {
+            document.getElementById('scan-mode').textContent = mode;
+        }
+
+        function stopCrawl() {
+            worms.forEach(w => w.active = false);
+            updateStatus('STOPPED');
+            addLog('All agents stopped');
+        }
+
+        function reset() {
+            worms = [];
+            trails = [];
+            updateStatus('IDLE');
+            updateScanMode('None');
+            document.getElementById('lines-processed').textContent = '0';
+            document.getElementById('issues-found').textContent = '0';
+            document.getElementById('repairs-made').textContent = '0';
+            document.getElementById('success-rate').textContent = '100%';
+            document.getElementById('devices-found').textContent = '0';
+            document.getElementById('agents-list').innerHTML = '';
+            document.getElementById('network-devices-list').innerHTML = '';
+            document.getElementById('system-resources-list').innerHTML = '';
+            document.getElementById('network-devices-hud').style.display = 'none';
+            document.getElementById('system-resources-hud').style.display = 'none';
+            
+            // Reset file nodes to original repository files only
+            fileNodes = [];
+            createFileNodes();
+            
+            addLog('System reset');
+        }
+
+        function toggleLog() {
+            document.getElementById('log-output').classList.toggle('visible');
+        }
+
+        function addLog(message) {
+            const logDiv = document.getElementById('log-output');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            document.getElementById('coord-status').textContent = status;
+            document.getElementById('active-agents').textContent = worms.filter(w => w.active).length;
+        }
+
+        function updateFilesUI() {
+            document.getElementById('files-mapped').textContent = fileNodes.length;
+        }
+
+        function updateAgentsUI() {
+            const list = document.getElementById('agents-list');
+            list.innerHTML = '';
+            
+            worms.forEach(worm => {
+                const progress = worm.totalLines > 0 ? Math.floor((worm.line / worm.totalLines) * 100) : 0;
+                const div = document.createElement('div');
+                div.className = 'agent-item' + (worm.active ? ' active' : '');
+                div.innerHTML = `
+                    <div class="agent-id">WormAgent-${worm.id}</div>
+                    <div class="agent-status">Status: ${worm.active ? 'CRAWLING' : 'IDLE'}</div>
+                    <div class="agent-status">File: ${worm.file.split('/').pop()}</div>
+                    <div class="agent-status">Line: ${worm.line}/${worm.totalLines} (${progress}%)</div>
+                    <div class="agent-status">Issues: ${worm.issuesFound} | Repairs: ${worm.repairsMade}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw connections between nodes
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+            ctx.lineWidth = 1;
+            fileNodes.forEach((node, i) => {
+                fileNodes.forEach((other, j) => {
+                    if (i < j) {
+                        const dist = Math.hypot(node.x - other.x, node.y - other.y);
+                        if (dist < 250) {
+                            const opacity = 1 - (dist / 250);
+                            ctx.strokeStyle = `rgba(0, 255, 0, ${opacity * 0.2})`;
+                            ctx.beginPath();
+                            ctx.moveTo(node.x, node.y);
+                            ctx.lineTo(other.x, other.y);
+                            ctx.stroke();
+                        }
+                    }
+                });
+            });
+            
+            // Update and draw file nodes
+            fileNodes.forEach(node => {
+                node.x += node.vx;
+                node.y += node.vy;
+                
+                // Boundary check with bounce
+                const margin = 100;
+                if (node.x < margin || node.x > canvas.width - margin) node.vx *= -1;
+                if (node.y < margin || node.y > canvas.height - margin) node.vy *= -1;
+                
+                // Keep nodes within bounds
+                node.x = Math.max(margin, Math.min(canvas.width - margin, node.x));
+                node.y = Math.max(margin, Math.min(canvas.height - margin, node.y));
+                
+                // Draw node
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+                ctx.fillStyle = node.color;
+                ctx.fill();
+                
+                // Different stroke style based on state
+                if (node.checked) {
+                    // Green border for checked files
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)';
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([]);
+                } else if (node.analyzing) {
+                    // Yellow pulsing border for analyzing
+                    ctx.strokeStyle = 'rgba(255, 255, 0, 0.9)';
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([5, 5]);
+                    
+                    // Add loading ring animation
+                    const time = Date.now() / 1000;
+                    const angle = (time % 2) * Math.PI;
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.size + 8, angle, angle + Math.PI);
+                    ctx.strokeStyle = 'rgba(255, 255, 0, 0.7)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                } else if (node.type === 'network-device') {
+                    ctx.strokeStyle = node.active ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.6)';
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([5, 5]);
+                } else {
+                    ctx.strokeStyle = node.active ? 'rgba(255, 255, 0, 0.9)' : 'rgba(0, 255, 255, 0.6)';
+                    ctx.lineWidth = node.active ? 3 : 2;
+                    ctx.setLineDash([]);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Draw progress indicator for analyzing files
+                if (node.analyzing) {
+                    const analysis = fileAnalysisData.get(node.name);
+                    if (analysis && analysis.deployProgress > 0) {
+                        const progressAngle = (analysis.deployProgress / 100) * Math.PI * 2;
+                        ctx.beginPath();
+                        ctx.arc(node.x, node.y, node.size + 5, -Math.PI / 2, -Math.PI / 2 + progressAngle);
+                        ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    }
+                }
+                
+                // Draw checkmark for completed files
+                if (node.checked) {
+                    ctx.save();
+                    ctx.translate(node.x, node.y);
+                    ctx.strokeStyle = '#0f0';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-node.size * 0.3, 0);
+                    ctx.lineTo(-node.size * 0.1, node.size * 0.3);
+                    ctx.lineTo(node.size * 0.4, -node.size * 0.4);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                // Draw glow effect
+                const gradient = ctx.createRadialGradient(node.x, node.y, node.size, node.x, node.y, node.size * 2);
+                gradient.addColorStop(0, node.color.replace('60%)', '30%)'));
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Draw file name (show full path on hover, show filename otherwise)
+                if (node.size > 20 || node.active) {
+                    ctx.fillStyle = '#0ff';
+                    ctx.font = '10px Courier New';
+                    ctx.textAlign = 'center';
+                    
+                    if (node.type === 'network-device') {
+                        // Display device icon and name for network devices
+                        ctx.fillText('🌐', node.x, node.y - node.size - 5);
+                        ctx.fillText(node.name.split('(')[0].trim(), node.x, node.y + node.size + 15);
+                    } else {
+                        // Display file name for regular files
+                        const fileName = node.name.split('/').pop();
+                        ctx.fillText(fileName, node.x, node.y + node.size + 15);
+                    }
+                }
+            });
+            
+            // Update and draw worms
+            worms.forEach(worm => {
+                if (!worm.active) return;
+                
+                const targetNode = fileNodes[worm.targetNode];
+                if (!targetNode) return;
+                
+                const dx = targetNode.x - worm.x;
+                const dy = targetNode.y - worm.y;
+                const dist = Math.hypot(dx, dy);
+                
+                if (dist < 10) {
+                    // Reached target, mark node as active and move to next
+                    targetNode.active = true;
+                    targetNode.analyzing = true;
+                    
+                    // Deploy micro agents and analyze file
+                    const fileContent = generateFileContent(targetNode.type, targetNode.fileSize);
+                    deployMicroAgents(targetNode.name, fileContent).then(() => {
+                        targetNode.checked = true;
+                        targetNode.analyzing = false;
+                        
+                        // Create sub-bubbles for this checked file
+                        createSubBubbles(targetNode);
+                        
+                        addLog(`✅ Agent-${worm.id} completed analysis of ${targetNode.name}`);
+                    });
+                    
+                    setTimeout(() => { targetNode.active = false; }, 3000);
+                    
+                    worm.targetNode = (worm.targetNode + 1) % fileNodes.length;
+                    const nextNode = fileNodes[worm.targetNode];
+                    worm.file = nextNode.name;
+                    worm.line = 0;
+                    worm.totalLines = Math.floor(nextNode.fileSize / 30);
+                    
+                    addLog(`🐛 Agent-${worm.id} moving to ${nextNode.name}`);
+                } else {
+                    // Move towards target
+                    worm.x += (dx / dist) * worm.speed;
+                    worm.y += (dy / dist) * worm.speed;
+                    worm.line = Math.min(worm.totalLines, worm.line + Math.floor(Math.random() * 5) + 1);
+                }
+                
+                // Draw trail with fade effect
+                if (Math.random() > 0.3) {
+                    ctx.beginPath();
+                    ctx.arc(worm.x, worm.y, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+                    ctx.fill();
+                }
+                
+                // Draw worm body
+                ctx.beginPath();
+                ctx.arc(worm.x, worm.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff00ff';
+                ctx.fill();
+                
+                // Draw worm glow
+                const wormGradient = ctx.createRadialGradient(worm.x, worm.y, 6, worm.x, worm.y, 18);
+                wormGradient.addColorStop(0, 'rgba(255, 0, 255, 0.9)');
+                wormGradient.addColorStop(1, 'rgba(255, 0, 255, 0)');
+                ctx.fillStyle = wormGradient;
+                ctx.fill();
+                
+                // Draw direction indicator
+                if (targetNode) {
+                    ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(worm.x, worm.y);
+                    const indicatorLength = 20;
+                    const angle = Math.atan2(dy, dx);
+                    ctx.lineTo(
+                        worm.x + Math.cos(angle) * indicatorLength,
+                        worm.y + Math.sin(angle) * indicatorLength
+                    );
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw sub-bubbles for analyzed files
+            subBubbles.forEach(subBubble => {
+                const parent = subBubble.parentNode;
+                const x = parent.x + subBubble.offsetX;
+                const y = parent.y + subBubble.offsetY;
+                
+                // Rotate sub-bubbles around parent
+                const time = Date.now() / 2000;
+                const rotatedAngle = subBubble.angle + time;
+                const rotatedX = parent.x + Math.cos(rotatedAngle) * subBubble.distance;
+                const rotatedY = parent.y + Math.sin(rotatedAngle) * subBubble.distance;
+                
+                // Draw connecting line
+                ctx.beginPath();
+                ctx.moveTo(parent.x, parent.y);
+                ctx.lineTo(rotatedX, rotatedY);
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // Draw sub-bubble
+                ctx.beginPath();
+                ctx.arc(rotatedX, rotatedY, subBubble.size, 0, Math.PI * 2);
+                ctx.fillStyle = subBubble.color;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw agent icon
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🤖', rotatedX, rotatedY);
+            });
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

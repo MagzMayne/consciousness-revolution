@@ -1,0 +1,763 @@
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: aaaaSpark.html
+Declaration ID: IP-715384-MLL28ZXR
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+# Project consolidation and merge plan
+
+This captures all features discussed, organizes them into a clean deliverable, and ensures we ship a mobile‑friendly dashboard with live pricing, steep per‑type differentials, and deflationary Sparklet mechanics. It ends with a complete, single‑file HTML (scripts included) ready to deploy.
+
+---
+
+## Objectives
+
+- Live, deflationary pricing tied to Sparklet market cap and circulating supply.
+- Steep per‑type price differentials within tiers using inverse‑square scarcity weighting.
+- $10 base for Standard packs; higher tiers scale steeply while staying dynamic.
+- Clean, mobile‑first UI with clear tables, controls, and a “what to buy” roadmap.
+- Modular code: easy to adjust mint costs, tier anchors, allocations, and burn rules.
+
+---
+
+## Todo list
+
+### Data and configuration
+- **Seed registry:** Define each seed type with rarity and supply (from your latest counts).
+- **Tier anchors:** Set target average price per tier (Standard = $10 baseline, Limited ≈ $100, Rare ≈ $1,000, Ultra‑Rare ≈ $10,000).
+- **Mint costs:** Configure Sparklet mint costs per rarity (e.g., Standard 100, Limited 150, Rare 200, Ultra‑Rare 300).
+- **Allocations (optional):** Allow percentage allocations per rarity; keep model driven by anchors + scarcity.
+- **Holders display:** Show approximate holders (~3,000) for context; do not hard‑depend on it for price.
+
+### Core pricing logic
+- **Sparklet price:** Price = Market Cap ÷ Sparklet Circulating Supply.
+- **Deflation/Burn:** When minting, subtract the mint cost from Sparklet supply; recompute Sparklet price live.
+- **Per‑type price (extra steep):** Use inverse‑square weighting in each tier so scarcer types cost more:
+  - Compute per‑type weight = 1 / supply².
+  - Normalize weights within the tier so the weighted average equals the tier anchor.
+  - Final USD price per seed = TierAnchor × normalizedWeight.
+- **Alternative path:** Also compute mint‑cost × SparkletPrice (for reference), but display steep model as primary.
+
+### UI/UX
+- **Mobile‑first layout:** Single column, sticky controls, readable tables, large tap targets.
+- **Controls:** Inputs for market cap, Sparklet supply, tier anchors, multipliers, rarity allocations, and a burn toggle.
+- **Tables:** Live updating seed table with per‑type price, supply, rarity, share.
+- **Roadmap:** “What to buy” recommendations based on price‑to‑scarcity leverage and budget.
+- **Theme:** Light, clean, accessible color contrast; system font stack for performance.
+- **Persistence:** Save settings to localStorage so values persist between sessions.
+
+### Interactions
+- **Mint simulation:** Buttons to simulate minting packs (burn Sparklet), update supply if applicable, recompute prices.
+- **Filters/sort:** Sort by price, rarity, supply; filter by rarity.
+- **Validation:** Guard against zero/negative values; clamp ranges; give clear messages.
+- **Performance:** Debounce slider/inputs; compute once per tick; reuse DOM nodes.
+
+### Testing and safety
+- **Edge cases:** Very small supplies, changing allocations, large burns, mobile viewport widths.
+- **Numeric stability:** Avoid division by zero; cap extreme outputs; format currency with separators.
+- **Accessibility:** Labels, aria roles, focus states, keyboard navigation, no tiny text.
+
+### Merge checklist
+- **Unify logic:** Replace prior mild-weight tables with extra‑steep inverse‑square model tied to $10 base.
+- **Integrate deflation:** Live Sparklet supply and price recalculation on mint.
+- **Confirm tiers:** Anchors default to 10/100/1,000/10,000; user-adjustable with sensible bounds.
+- **Finalize UI:** Responsive CSS, mobile layout, sticky header inputs.
+- **Persist and defaults:** Load prior settings from localStorage; fall back to sensible defaults.
+- **Ship single file:** Deliver a standalone HTML with scripts and styles embedded.
+
+---
+
+# Complete HTML with all scripts included
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Sparklet Economy Dashboard</title>
+  <meta name="description" content="Live deflationary pricing for seed packs tied to Sparklet market cap, with steep per-type differentials." />
+  <style>
+    :root{
+      --bg:#0b0c0f;
+      --panel:#12141a;
+      --panel-2:#171923;
+      --text:#f5f7fb;
+      --muted:#b6bccb;
+      --accent:#4ea8ff;
+      --accent-2:#7c4dff;
+      --danger:#ff4d6d;
+      --ok:#2ecc71;
+      --warn:#ffcc00;
+      --border:#232739;
+    }
+    *{ box-sizing:border-box }
+    html,body{ height:100%; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,sans-serif }
+    a{ color:var(--accent) }
+    .app{
+      max-width:1100px; margin:0 auto; padding:16px;
+    }
+    header{
+      position:sticky; top:0; z-index:10; background:linear-gradient(180deg,var(--panel),var(--panel) 70%,transparent);
+      border-bottom:1px solid var(--border); padding:12px; margin-bottom:16px;
+    }
+    .controls{
+      display:grid; gap:12px; grid-template-columns:repeat(2,1fr);
+    }
+    @media (max-width:720px){
+      .controls{ grid-template-columns:1fr }
+    }
+    .card{
+      background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px;
+    }
+    .card h2{ margin:0 0 8px; font-size:1.05rem }
+    .field{
+      display:flex; gap:10px; align-items:center; margin-bottom:8px;
+    }
+    .field label{ flex:1; color:var(--muted); font-size:0.9rem }
+    .field input, .field select{
+      flex:1.2; min-width:0; background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+      border-radius:8px; padding:8px 10px; font-size:0.95rem;
+    }
+    .row{
+      display:grid; gap:12px; grid-template-columns:1fr 1fr;
+    }
+    @media (max-width:900px){ .row{ grid-template-columns:1fr } }
+
+    .table{
+      width:100%; border-collapse:collapse; font-size:0.93rem;
+    }
+    .table th, .table td{
+      border-bottom:1px solid var(--border); padding:8px; text-align:left;
+    }
+    .table th{
+      position:sticky; top:62px; z-index:5; background:var(--panel); font-weight:600; color:#e6ebf5;
+    }
+    .pill{
+      display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.8rem; border:1px solid var(--border);
+    }
+    .pill.std{ background:#0b2a20; color:#97e8c2 }
+    .pill.lim{ background:#2a203e; color:#cbb7ff }
+    .pill.rare{ background:#2a0c15; color:#ffb0c1 }
+    .pill.ultra{ background:#1b0f2e; color:#d2b9ff }
+
+    .flex{ display:flex; gap:8px; flex-wrap:wrap }
+    .btn{
+      background:var(--accent); color:white; border:none; border-radius:10px; padding:10px 12px; font-weight:600; cursor:pointer;
+    }
+    .btn.secondary{ background:var(--panel-2); border:1px solid var(--border); color:var(--text) }
+    .btn.danger{ background:var(--danger) }
+    .grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px }
+    @media (max-width:720px){ .grid-3{ grid-template-columns:1fr } }
+
+    .stat{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px }
+    .stat .label{ color:var(--muted); font-size:0.85rem }
+    .stat .value{ font-weight:700; font-size:1.15rem }
+
+    .footer{ color:var(--muted); font-size:0.85rem; margin-top:20px }
+    .warn{ color:var(--warn) }
+    .ok{ color:var(--ok) }
+    .danger{ color:var(--danger) }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="card">
+      <h1>Sparklet Economy Dashboard</h1>
+      <div class="controls">
+        <div class="card">
+          <h2>Market settings</h2>
+          <div class="field">
+            <label for="marketCap">Sparklet market cap (USD)</label>
+            <input id="marketCap" type="number" min="1000" step="1000" />
+          </div>
+          <div class="field">
+            <label for="supply">Sparklet circulating supply (coins)</label>
+            <input id="supply" type="number" min="1" step="1" />
+          </div>
+          <div class="field">
+            <label for="holders">Approx. holders</label>
+            <input id="holders" type="number" min="1" step="1" />
+          </div>
+          <div class="flex">
+            <button id="resetDefaults" class="btn secondary">Reset defaults</button>
+            <button id="saveSettings" class="btn">Save settings</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Tier anchors and mint costs</h2>
+          <div class="grid-3">
+            <div>
+              <div class="field"><label for="anchorStandard">Standard anchor ($)</label><input id="anchorStandard" type="number" min="1" step="1" /></div>
+              <div class="field"><label for="costStandard">Standard mint cost (Sparklet)</label><input id="costStandard" type="number" min="1" step="1" /></div>
+            </div>
+            <div>
+              <div class="field"><label for="anchorLimited">Limited anchor ($)</label><input id="anchorLimited" type="number" min="10" step="10" /></div>
+              <div class="field"><label for="costLimited">Limited mint cost (Sparklet)</label><input id="costLimited" type="number" min="1" step="1" /></div>
+            </div>
+            <div>
+              <div class="field"><label for="anchorRare">Rare anchor ($)</label><input id="anchorRare" type="number" min="100" step="50" /></div>
+              <div class="field"><label for="costRare">Rare mint cost (Sparklet)</label><input id="costRare" type="number" min="1" step="1" /></div>
+            </div>
+          </div>
+          <div class="field"><label for="anchorUltra">Ultra‑Rare anchor ($)</label><input id="anchorUltra" type="number" min="1000" step="100" /></div>
+          <div class="field"><label for="costUltra">Ultra‑Rare mint cost (Sparklet)</label><input id="costUltra" type="number" min="1" step="1" /></div>
+          <div class="field">
+            <label for="steepness">Scarcity steepness (1=balanced, 2=extra steep)</label>
+            <select id="steepness">
+              <option value="1">1 (balanced)</option>
+              <option value="2" selected>2 (extra steep)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="row">
+      <div class="card">
+        <h2>Live market stats</h2>
+        <div class="grid-3">
+          <div class="stat">
+            <div class="label">Sparklet price</div>
+            <div id="sparkletPrice" class="value">$0.00</div>
+          </div>
+          <div class="stat">
+            <div class="label">Total per‑type USD value (sum)</div>
+            <div id="sumUsd" class="value">$0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Approx. holders</div>
+            <div id="holdersOut" class="value">0</div>
+          </div>
+        </div>
+        <div class="flex" style="margin-top:10px">
+          <button id="mintStandard" class="btn">Mint Standard (burn)</button>
+          <button id="mintLimited" class="btn">Mint Limited (burn)</button>
+          <button id="mintRare" class="btn">Mint Rare (burn)</button>
+          <button id="mintUltra" class="btn danger">Mint Ultra‑Rare (burn)</button>
+        </div>
+        <div class="footer warn">Minting burns Sparklet supply based on mint costs. Prices update live.</div>
+      </div>
+
+      <div class="card">
+        <h2>What to buy (recommendations)</h2>
+        <div id="recommendations" class="flex"></div>
+        <div class="footer">Ranked by scarcity leverage and current steep pricing. Filtered to the top 6 opportunities.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Seed packs (live steep pricing)</h2>
+      <div class="flex" style="margin-bottom:8px">
+        <button id="sortPrice" class="btn secondary">Sort by price</button>
+        <button id="sortSupply" class="btn secondary">Sort by supply</button>
+        <button id="sortRarity" class="btn secondary">Sort by rarity</button>
+        <button id="filterAll" class="btn secondary">All</button>
+        <button id="filterStd" class="btn secondary">Standard</button>
+        <button id="filterLim" class="btn secondary">Limited</button>
+        <button id="filterRare" class="btn secondary">Rare</button>
+        <button id="filterUltra" class="btn secondary">Ultra‑Rare</button>
+      </div>
+      <table class="table" id="seedTable">
+        <thead>
+          <tr>
+            <th>Seed type</th>
+            <th>Rarity</th>
+            <th>Supply</th>
+            <th>Steep price (USD)</th>
+            <th>Mint ref (Sparklet × price)</th>
+            <th>Share leverage</th>
+          </tr>
+        </thead>
+        <tbody id="seedBody"></tbody>
+      </table>
+    </div>
+
+    <div class="footer">Built for clarity and growth: accessible entry pricing with steep scarcity premiums, live with deflation.</div>
+  </div>
+
+  <script>
+    // --- Configuration and defaults ---
+    const defaults = {
+      marketCap: 5000000,
+      supply: 1000000,           // initial Sparklet circulating supply
+      holders: 3000,             // approx holders
+      anchors: {                 // tier anchors in USD
+        Standard: 10,
+        Limited: 100,
+        Rare: 1000,
+        Ultra: 10000
+      },
+      mintCost: {                // mint costs in Sparklet
+        Standard: 100,
+        Limited: 150,
+        Rare: 200,
+        Ultra: 300
+      },
+      steepness: 2               // 1=balanced, 2=extra steep (inverse-square)
+    };
+
+    // Seed dataset (latest counts from your input)
+    const seeds = [
+      { name:"White Rose", rarity:"Ultra", supply:41 },
+      { name:"Purple Tulip", rarity:"Ultra", supply:47 },
+      { name:"Oil Palm Tree", rarity:"Ultra", supply:142 },
+
+      { name:"Lavender", rarity:"Rare", supply:160 },
+      { name:"Orange Daisy", rarity:"Rare", supply:208 },
+      { name:"Red Rose", rarity:"Rare", supply:162 },
+      { name:"Weeping Willow Tree", rarity:"Rare", supply:160 },
+      { name:"Magnolia Tree", rarity:"Rare", supply:314 },
+
+      { name:"White Tulip", rarity:"Limited", supply:152 },
+      { name:"Red Tulip", rarity:"Limited", supply:180 },
+      { name:"Yellow Rose", rarity:"Limited", supply:196 },
+      { name:"Pink Rose", rarity:"Limited", supply:167 },
+      { name:"Boxwood", rarity:"Limited", supply:428 },
+
+      { name:"Lawn Grass", rarity:"Standard", supply:507 },
+      { name:"Arborvitae", rarity:"Standard", supply:390 },
+      { name:"Pine Tree", rarity:"Standard", supply:297 },
+      { name:"Maple Tree", rarity:"Standard", supply:320 }
+    ];
+
+    // --- State ---
+    const state = {
+      marketCap: defaults.marketCap,
+      supply: defaults.supply,
+      holders: defaults.holders,
+      anchors: { ...defaults.anchors },
+      mintCost: { ...defaults.mintCost },
+      steepness: defaults.steepness,
+      filter: "All",
+      sortBy: "price"
+    };
+
+    // --- Utilities ---
+    const fmtUSD = (n) => {
+      if (!isFinite(n)) return "$0";
+      return n.toLocaleString(undefined, { style:"currency", currency:"USD", maximumFractionDigits:0 });
+    };
+    const fmtUSDFine = (n) => {
+      if (!isFinite(n)) return "$0";
+      return n.toLocaleString(undefined, { style:"currency", currency:"USD", maximumFractionDigits:2 });
+    };
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const rarityOrder = { "Ultra":4, "Rare":3, "Limited":2, "Standard":1 };
+    const rarityClass = (r) => r==="Ultra"?"ultra":(r==="Rare"?"rare":(r==="Limited"?"lim":"std"));
+
+    // Persist
+    function saveLocal(){
+      localStorage.setItem("sparkletDash", JSON.stringify(state));
+    }
+    function loadLocal(){
+      try{
+        const raw = localStorage.getItem("sparkletDash");
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        Object.assign(state, saved);
+      }catch(e){ /* ignore */ }
+    }
+    loadLocal();
+
+    // --- DOM refs ---
+    const elMarketCap = document.getElementById("marketCap");
+    const elSupply = document.getElementById("supply");
+    const elHolders = document.getElementById("holders");
+    const elSparkletPrice = document.getElementById("sparkletPrice");
+    const elSumUsd = document.getElementById("sumUsd");
+    const elHoldersOut = document.getElementById("holdersOut");
+
+    const elAnchorStd = document.getElementById("anchorStandard");
+    const elAnchorLim = document.getElementById("anchorLimited");
+    const elAnchorRare = document.getElementById("anchorRare");
+    const elAnchorUltra = document.getElementById("anchorUltra");
+
+    const elCostStd = document.getElementById("costStandard");
+    const elCostLim = document.getElementById("costLimited");
+    const elCostRare = document.getElementById("costRare");
+    const elCostUltra = document.getElementById("costUltra");
+
+    const elSteepness = document.getElementById("steepness");
+
+    const elSeedBody = document.getElementById("seedBody");
+    const elRecommendations = document.getElementById("recommendations");
+
+    // Buttons
+    document.getElementById("resetDefaults").addEventListener("click", () => {
+      Object.assign(state, {
+        marketCap: defaults.marketCap,
+        supply: defaults.supply,
+        holders: defaults.holders,
+        anchors: { ...defaults.anchors },
+        mintCost: { ...defaults.mintCost },
+        steepness: defaults.steepness,
+        filter: "All", sortBy: "price"
+      });
+      saveLocal();
+      bindInputs();
+      render();
+    });
+    document.getElementById("saveSettings").addEventListener("click", () => {
+      saveLocal();
+      render();
+    });
+
+    document.getElementById("mintStandard").addEventListener("click", () => burnMint("Standard"));
+    document.getElementById("mintLimited").addEventListener("click", () => burnMint("Limited"));
+    document.getElementById("mintRare").addEventListener("click", () => burnMint("Rare"));
+    document.getElementById("mintUltra").addEventListener("click", () => burnMint("Ultra"));
+
+    document.getElementById("sortPrice").addEventListener("click", () => { state.sortBy="price"; renderTable(); });
+    document.getElementById("sortSupply").addEventListener("click", () => { state.sortBy="supply"; renderTable(); });
+    document.getElementById("sortRarity").addEventListener("click", () => { state.sortBy="rarity"; renderTable(); });
+
+    document.getElementById("filterAll").addEventListener("click", () => { state.filter="All"; renderTable(); });
+    document.getElementById("filterStd").addEventListener("click", () => { state.filter="Standard"; renderTable(); });
+    document.getElementById("filterLim").addEventListener("click", () => { state.filter="Limited"; renderTable(); });
+    document.getElementById("filterRare").addEventListener("click", () => { state.filter="Rare"; renderTable(); });
+    document.getElementById("filterUltra").addEventListener("click", () => { state.filter="Ultra"; renderTable(); });
+
+    // Bind inputs
+    function bindInputs(){
+      elMarketCap.value = state.marketCap;
+      elSupply.value = state.supply;
+      elHolders.value = state.holders;
+
+      elAnchorStd.value = state.anchors.Standard;
+      elAnchorLim.value = state.anchors.Limited;
+      elAnchorRare.value = state.anchors.Rare;
+      elAnchorUltra.value = state.anchors.Ultra;
+
+      elCostStd.value = state.mintCost.Standard;
+      elCostLim.value = state.mintCost.Limited;
+      elCostRare.value = state.mintCost.Rare;
+      elCostUltra.value = state.mintCost.Ultra;
+
+      elSteepness.value = String(state.steepness);
+    }
+    bindInputs();
+
+    // Input listeners (debounced)
+    function onNum(el, cb){
+      let t;
+      el.addEventListener("input", () => {
+        clearTimeout(t);
+        t = setTimeout(() => cb(Number(el.value)), 150);
+      });
+    }
+    onNum(elMarketCap, v => { state.marketCap = clamp(v, 1000, 1e12); render(); });
+    onNum(elSupply, v => { state.supply = clamp(v, 1, 1e12); render(); });
+    onNum(elHolders, v => { state.holders = clamp(v, 1, 1e9); render(); });
+
+    onNum(elAnchorStd, v => { state.anchors.Standard = clamp(v, 1, 1e6); render(); });
+    onNum(elAnchorLim, v => { state.anchors.Limited = clamp(v, 10, 1e6); render(); });
+    onNum(elAnchorRare, v => { state.anchors.Rare = clamp(v, 50, 1e7); render(); });
+    onNum(elAnchorUltra, v => { state.anchors.Ultra = clamp(v, 100, 1e8); render(); });
+
+    onNum(elCostStd, v => { state.mintCost.Standard = clamp(v, 1, 1e9); render(); });
+    onNum(elCostLim, v => { state.mintCost.Limited = clamp(v, 1, 1e9); render(); });
+    onNum(elCostRare, v => { state.mintCost.Rare = clamp(v, 1, 1e9); render(); });
+    onNum(elCostUltra, v => { state.mintCost.Ultra = clamp(v, 1, 1e9); render(); });
+
+    elSteepness.addEventListener("change", () => { state.steepness = Number(elSteepness.value); render(); });
+
+    // --- Pricing engine ---
+    function getSparkletPrice(){
+      const price = state.marketCap / state.supply;
+      return price;
+    }
+
+    // Compute per-type steep prices based on inverse supply^steepness within each tier
+    function computeSteepPrices(){
+      const anchors = state.anchors;
+      const byRarity = { Standard:[], Limited:[], Rare:[], Ultra:[] };
+      seeds.forEach(s => byRarity[s.rarity].push(s));
+
+      const steepPrices = new Map();
+
+      ["Standard","Limited","Rare","Ultra"].forEach(r => {
+        const arr = byRarity[r];
+        if (!arr.length) return;
+
+        const p = state.steepness; // 1=balanced, 2=extra steep
+        // weights = 1 / supply^p
+        const weights = arr.map(s => 1 / Math.pow(Math.max(s.supply,1), p));
+        const sumW = weights.reduce((a,b)=>a+b,0);
+        // normalized weight for each type
+        const norm = weights.map(w => w / sumW);
+
+        // Ensure the weighted average equals the anchor
+        // Per-type price USD = anchor * (norm_i * arr.length) * (arr.length) is not correct; instead:
+        // We want sum(norm_i * price_i) = anchor
+        // Let price_i = norm_i * arr.length * anchor? That would sum to anchor*arr.length, too high.
+        // Correct approach: price_i = norm_i * arr.length * anchor / arr.length = norm_i * anchor so that sum(norm_i*anchor)=anchor.
+        // But we also want stronger separation; we can scale by count to widen range while keeping average around anchor.
+        // We'll use: price_i = anchor * (norm_i * arr.length)
+        // Then compute avg and renormalize to anchor.
+        let prelim = norm.map(n => anchors[r] * n * arr.length);
+        const avg = prelim.reduce((a,b)=>a+b,0) / arr.length;
+        const scale = anchors[r] / avg;
+        const finalPrices = prelim.map(v => v * scale);
+
+        arr.forEach((s, i) => {
+          steepPrices.set(s.name, finalPrices[i]);
+        });
+      });
+
+      return steepPrices;
+    }
+
+    // Optional: reference mint-price in USD from Sparklet price
+    function computeMintUsd(){
+      const sp = getSparkletPrice();
+      return {
+        Standard: state.mintCost.Standard * sp,
+        Limited: state.mintCost.Limited * sp,
+        Rare: state.mintCost.Rare * sp,
+        Ultra: state.mintCost.Ultra * sp
+      };
+    }
+
+    // Share leverage: how much of tier anchor captured per unit relative to peers
+    function computeLeverage(steep){
+      const byRarity = { Standard:[], Limited:[], Rare:[], Ultra:[] };
+      seeds.forEach(s => byRarity[s.rarity].push(s));
+      const lev = new Map();
+
+      ["Standard","Limited","Rare","Ultra"].forEach(r => {
+        const arr = byRarity[r];
+        if (!arr.length) return;
+        const prices = arr.map(s => steep.get(s.name) || 0);
+        const maxP = Math.max(...prices);
+        arr.forEach(s => {
+          const p = steep.get(s.name) || 0;
+          const rel = maxP > 0 ? p / maxP : 0;
+          // Higher price => higher scarcity leverage; we also factor supply inverse
+          const factor = rel * (1 / Math.max(s.supply,1));
+          lev.set(s.name, factor);
+        });
+      });
+      return lev;
+    }
+
+    // Burn mint (simulate)
+    function burnMint(rarity){
+      const cost = state.mintCost[rarity];
+      if (!cost || cost <= 0) return;
+      const newSupply = clamp(state.supply - cost, 1, 1e12);
+      state.supply = newSupply;
+      saveLocal();
+      render();
+    }
+
+    // --- Rendering ---
+    function renderStats(sumUsd){
+      const sp = getSparkletPrice();
+      elSparkletPrice.textContent = fmtUSDFine(sp);
+      elSumUsd.textContent = fmtUSD(sumUsd);
+      elHoldersOut.textContent = state.holders.toLocaleString();
+    }
+
+    function renderRecommendations(steep, leverage){
+      // Pick top 6 by leverage across all rarities except Standard if user prefers prestige
+      const items = seeds.map(s => ({
+        name: s.name,
+        rarity: s.rarity,
+        supply: s.supply,
+        price: steep.get(s.name) || 0,
+        lev: leverage.get(s.name) || 0
+      }));
+      items.sort((a,b) => b.lev - a.lev);
+
+      const top = items.slice(0,6);
+      elRecommendations.innerHTML = "";
+      top.forEach(it => {
+        const div = document.createElement("div");
+        div.className = "stat";
+        const cls = rarityClass(it.rarity);
+        div.innerHTML = `
+          <div class="label">${it.name} • <span class="pill ${cls}">${it.rarity}</span></div>
+          <div class="value">${fmtUSD(it.price)} | Supply ${it.supply.toLocaleString()}</div>
+        `;
+        elRecommendations.appendChild(div);
+      });
+    }
+
+    function renderTable(){
+      const steep = computeSteepPrices();
+      const mintUsd = computeMintUsd();
+
+      let rows = seeds.map(s => ({
+        ...s,
+        price: steep.get(s.name) || 0,
+        mintRef: (state.mintCost[s.rarity] * getSparkletPrice()),
+      }));
+
+      // Filter
+      if (state.filter !== "All"){
+        rows = rows.filter(r => r.rarity === state.filter);
+      }
+
+      // Sort
+      if (state.sortBy === "price"){
+        rows.sort((a,b) => b.price - a.price);
+      } else if (state.sortBy === "supply"){
+        rows.sort((a,b) => a.supply - b.supply);
+      } else if (state.sortBy === "rarity"){
+        rows.sort((a,b) => rarityOrder[b.rarity] - rarityOrder[a.rarity]);
+      }
+
+      elSeedBody.innerHTML = "";
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        const cls = rarityClass(r.rarity);
+        const lev = 1 / Math.max(r.supply,1);
+        tr.innerHTML = `
+          <td>${r.name}</td>
+          <td><span class="pill ${cls}">${r.rarity}</span></td>
+          <td>${r.supply.toLocaleString()}</td>
+          <td>${fmtUSD(r.price)}</td>
+          <td>${state.mintCost[r.rarity].toLocaleString()} × ${fmtUSDFine(getSparkletPrice())} = ${fmtUSDFine(r.mintRef)}</td>
+          <td>${lev.toFixed(4)}</td>
+        `;
+        elSeedBody.appendChild(tr);
+      });
+
+      // Update sum
+      const sumUsd = rows.reduce((a,b)=>a+(b.price||0),0);
+      renderStats(sumUsd);
+    }
+
+    function render(){
+      renderTable();
+      const steep = computeSteepPrices();
+      const lev = computeLeverage(steep);
+      renderRecommendations(steep, lev);
+    }
+
+    // Initial render
+    render();
+
+    // --- Notes ---
+    // The steep pricing ensures each tier's weighted average matches its anchor ($10, $100, $1,000, $10,000),
+    // while inverse-square weights (steepness=2) produce strong per-type gaps.
+    // Mint simulation reduces Sparklet supply, increasing Sparklet price and the mint USD reference;
+    // steep prices remain anchored by tier settings but can be adjusted live via inputs.
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+```

@@ -1,0 +1,870 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: devVal.html
+Declaration ID: IP-723F3673-MLL28ZYO
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="utf-8" />
+  <title>Dev Value Hub — Live GitHub Valuation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121821;
+      --accent: #3aa0ff;
+      --muted: #8aa0b6;
+      --text: #e7eef7;
+      --good: #3fd38b;
+      --warn: #ffb02e;
+      --bad: #ff6b6b;
+      --border: #1f2a37;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, #0b0f14 60%, rgba(11,15,20,0.7));
+      border-bottom: 1px solid var(--border);
+      padding: env(safe-area-inset-top) 12px 10px 12px;
+    }
+
+    .titlebar {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .titlebar .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #7bd3ff 60%);
+      box-shadow: 0 2px 12px rgba(58,160,255,0.45);
+    }
+    .titlebar h1 { font-size: 18px; margin: 0; }
+
+    .toolbar { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+    @media (min-width: 640px) { .toolbar { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 960px) { .toolbar { grid-template-columns: repeat(4, 1fr); } }
+
+    .btn {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1;
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    }
+    .btn.primary { border-color: #2b6cb0; background: #0f1722; color: #cfe9ff; }
+    .btn:active { transform: translateY(1px); }
+
+    .content { padding: 10px; }
+    .section { margin-bottom: 16px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .card-title { font-weight: 600; font-size: 15px; }
+    .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); font-size: 12px; }
+
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .chip { padding: 6px 8px; border-radius: 999px; border: 1px solid var(--border); background: #0e131b; font-size: 12px; }
+
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-top: 8px; }
+    .value { font-weight: 700; color: var(--good); }
+    .value.low { color: var(--warn); }
+    .value.bad { color: var(--bad); }
+
+    .progress { height: 8px; background: #0e131b; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #7bd3ff); width: 0%; }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+    .footer { color: var(--muted); font-size: 12px; text-align: center; padding: 12px; }
+
+    .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .input, .select {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: #0e131b; color: var(--text); font-size: 14px;
+    }
+    .input::placeholder { color: #6c8098; }
+
+    .link { color: #a8d9ff; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="titlebar">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>Dev Value Hub</h1>
+      </div>
+
+      <div class="toolbar" role="toolbar">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">GitHub connection</div>
+          </div>
+          <div class="inputs">
+            <input class="input" id="ghUsername" placeholder="GitHub username (e.g., octocat)" />
+            <input class="input" id="ghToken" placeholder="GitHub Personal Access Token (classic)" />
+          </div>
+          <div class="chips" style="margin-top:8px;">
+            <span class="chip">Scopes: public_repo (for public), repo (to include private)</span>
+            <span class="chip">Token stored locally (OPFS)</span>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn primary" id="btnConnect">⟳ Connect & Sync</button>
+            <button class="btn" id="btnDisconnect">✖ Disconnect</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Calibration & controls</div>
+          </div>
+          <div class="chips">
+            <span class="chip" id="typingSpeedChip">t_char: — ms</span>
+            <span class="chip" id="alphaChip">α overhead: 0.35</span>
+            <span class="chip" id="betaChip">β complexity: 0.25</span>
+            <span class="chip" id="gammaChip">γ novelty: 0.15</span>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" id="btnCalibrate">⌚ Calibrate</button>
+            <button class="btn" id="btnExport">⇪ Export audit snapshot</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Status</div>
+            <div id="statusBadge" class="chip">Idle</div>
+          </div>
+          <div class="meta">
+            <div>Last sync: <span id="lastSync">Never</span></div>
+            <div>Repos: <span id="repoCount">0</span></div>
+            <div>Files: <span id="fileCount">0</span></div>
+          </div>
+          <div class="chips" style="margin-top:8px;">
+            <span class="chip">Live polling every 60s</span>
+            <span class="chip">Full-tree ingestion per repo</span>
+            <span class="chip">Dollar valuation updated in real time</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Support & payment</div>
+          </div>
+          <div class="meta">
+            <div>To use or support this tool, send payments to:</div>
+            <div><a class="link" href="mailto:BarbrickDesign@gmail.com?subject=Dev%20Value%20Hub%20Access&body=Please%20share%20access%20details.">BarbrickDesign@gmail.com</a></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="main">
+      <div class="section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Your hub</div>
+          </div>
+          <div class="grid" id="hubGrid"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Leaderboard</div>
+          </div>
+          <div id="leaderboard"></div>
+        </div>
+      </div>
+
+      <div class="footer">Local-first • Offline-ready • Auditable • Live GitHub valuation</div>
+    </main>
+  </div>
+
+  <script>
+    // --- Utilities ---
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const nowISO = () => new Date().toISOString();
+
+    async function sha256Hex(str) {
+      const enc = new TextEncoder().encode(str);
+      const digest = await crypto.subtle.digest('SHA-256', enc);
+      return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // --- Service Worker (offline) ---
+    (function registerSW() {
+      const swCode = `
+        self.addEventListener('install', e => { self.skipWaiting(); });
+        self.addEventListener('activate', e => { self.clients.claim(); });
+        self.addEventListener('fetch', () => {});
+      `;
+      if ('serviceWorker' in navigator) {
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl).catch(() => {});
+      }
+    })();
+
+    // --- OPFS Storage ---
+    const OPFS = (() => {
+      let root;
+      async function init() {
+        if (!root) {
+          root = await navigator.storage.getDirectory();
+          root = await root.getDirectoryHandle('dev-value-hub', { create: true });
+        }
+        return root;
+      }
+      async function getFileHandle(path, create = true) {
+        const parts = path.split('/').filter(Boolean);
+        let dir = await init();
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create });
+        }
+        return dir.getFileHandle(parts.at(-1), { create });
+      }
+      async function writeJSON(path, obj) {
+        const fh = await getFileHandle(path, true);
+        const ws = await fh.createWritable();
+        await ws.write(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+        await ws.close();
+      }
+      async function readJSON(path, def = null) {
+        try {
+          const fh = await getFileHandle(path, false);
+          const f = await fh.getFile();
+          const text = await f.text();
+          return JSON.parse(text);
+        } catch { return def; }
+      }
+      async function appendText(path, text) {
+        const prev = await readText(path, '');
+        const fh = await getFileHandle(path, true);
+        const ws = await fh.createWritable();
+        await ws.write(prev + text);
+        await ws.close();
+      }
+      async function readText(path, def = '') {
+        try {
+          const fh = await getFileHandle(path, false);
+          const f = await fh.getFile();
+          return await f.text();
+        } catch { return def; }
+      }
+      return { writeJSON, readJSON, appendText, readText };
+    })();
+
+    // --- Audit Log ---
+    const Audit = (() => {
+      async function append(entry) {
+        const prev = await OPFS.readText('audit/log.txt', '');
+        const prevHash = prev ? (prev.trim().split('\n').pop().split(' | ').at(-1) || '') : '';
+        const payload = JSON.stringify(entry);
+        const thisHash = await sha256Hex(payload + prevHash);
+        const line = `${nowISO()} | ${payload} | ${thisHash}\n`;
+        await OPFS.appendText('audit/log.txt', line);
+      }
+      return { append };
+    })();
+
+    // --- Event Bus ---
+    const Bus = (() => {
+      const subs = new Map();
+      function on(topic, fn) {
+        if (!subs.has(topic)) subs.set(topic, new Set());
+        subs.get(topic).add(fn);
+        return () => subs.get(topic)?.delete(fn);
+      }
+      async function emit(topic, data) {
+        const set = subs.get(topic);
+        if (!set) return;
+        for (const fn of set) { try { await fn(data); } catch (e) { console.error('Bus handler error', e); } }
+      }
+      return { on, emit };
+    })();
+
+    // --- Parameters (valuation and $ mapping) ---
+    const Params = {
+      version: 1,
+      t_char_ms: 25,        // ms/character default
+      alpha: 0.35,          // overhead factor
+      beta: 0.25,           // complexity factor
+      gamma: 0.15,          // novelty bonus factor
+      nonsense_threshold: 0.35,
+      linkage: { lambda_in: 0.08, lambda_out: 0.05, lambda_collab: 0.12 },
+      // Dollar value mapping
+      usd_per_ms: 0.000004, // $ per ms of effective manual time (tunable)
+      idea_multiplier: 0.6
+    };
+
+    // --- GitHub API Client ---
+    const GitHub = (() => {
+      let token = '';
+      let username = '';
+      const base = 'https://api.github.com';
+
+      function setAuth(u, t) { username = u; token = t; }
+      function isReady() { return !!(username && token); }
+
+      async function ghFetch(url, opts = {}) {
+        const headers = { 'Accept': 'application/vnd.github+json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(url, { ...opts, headers });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`GitHub ${res.status}: ${text}`);
+        }
+        return res.json();
+      }
+
+      async function listAllRepos() {
+        // Paginate through /users/{username}/repos and /user/repos if token owner matches
+        let page = 1, repos = [];
+        while (true) {
+          const batch = await ghFetch(`${base}/users/${username}/repos?per_page=100&page=${page}`);
+          repos = repos.concat(batch);
+          if (batch.length < 100) break;
+          page++;
+        }
+        // If token belongs to the same user, include private repos via /user/repos
+        try {
+          const me = await ghFetch(`${base}/user`);
+          if (me && me.login && me.login.toLowerCase() === username.toLowerCase()) {
+            page = 1;
+            while (true) {
+              const batch = await ghFetch(`${base}/user/repos?per_page=100&page=${page}&affiliation=owner`);
+              repos = repos.concat(batch);
+              if (batch.length < 100) break;
+              page++;
+            }
+          }
+        } catch {}
+        // Deduplicate by full_name
+        const seen = new Set();
+        return repos.filter(r => {
+          const k = r.full_name;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        });
+      }
+
+      async function getDefaultBranch(repo) {
+        return repo.default_branch || 'main';
+      }
+
+      async function listTree(owner, name, sha) {
+        // /repos/{owner}/{repo}/git/trees/{sha}?recursive=1
+        const tree = await ghFetch(`${base}/repos/${owner}/${name}/git/trees/${sha}?recursive=1`);
+        return tree.tree || [];
+      }
+
+      async function getHeadSHA(owner, name, branch) {
+        const ref = await ghFetch(`${base}/repos/${owner}/${name}/git/refs/heads/${branch}`);
+        return ref.object && ref.object.sha ? ref.object.sha : branch;
+      }
+
+      return { setAuth, isReady, listAllRepos, getDefaultBranch, listTree, getHeadSHA };
+    })();
+
+    // --- Signals & Valuation ---
+    function qualityScoreFromRepo(repo) {
+      // Proxy quality signals from repo metadata (best-effort when not running CI):
+      // Use forks/stars/watchers to hint utility; normalize to [0,1]
+      const s = (repo.stargazers_count || 0);
+      const f = (repo.forks_count || 0);
+      const w = (repo.watchers_count || 0);
+      const cap = Math.max(10, s + f + w);
+      const social = Math.min(1, (s * 0.6 + f * 0.3 + w * 0.1) / cap);
+      // Basic doc signal: has README?
+      const hasReadme = true; // tree check later can adjust
+      const docs = hasReadme ? 0.7 : 0.3;
+      // Rough runtime signal: recent push
+      const pushed = repo.pushed_at ? ((Date.now() - new Date(repo.pushed_at).getTime()) / (1000*60*60*24)) : 999;
+      const recency = Math.max(0, Math.min(1, 1 - (pushed / 90))); // 0–1 over last 90 days
+      // Lint/tests unknown client-side; keep balanced
+      const lint = 0.7;
+      const tests = 0.5;
+      return (lint * 0.2) + (tests * 0.2) + (docs * 0.2) + (social * 0.2) + (recency * 0.2);
+    }
+
+    function complexityScoreFromTree(stats) {
+      // stats: { files, codeFiles, extCounts }
+      const filesNorm = Math.min(1, stats.codeFiles / 200);
+      const extSpread = Math.min(1, Object.keys(stats.extCounts).length / 10);
+      // No cyclomatic here without parsing; use breadth as proxy
+      return (filesNorm * 0.7) + (extSpread * 0.3);
+    }
+
+    function linkageFactorFromRepo(repo) {
+      // Approximate linkage from forks + topics size
+      const topics = (repo.topics || []).length;
+      return 1 + (Params.linkage.lambda_in * (repo.forks_count || 0)) + (Params.linkage.lambda_out * topics) + (Params.linkage.lambda_collab * (repo.subscribers_count || 0));
+    }
+
+    function completionPercentFromRepo(repo, stats) {
+      // Best-effort: completion increases with code files vs total files and recency
+      const base = Math.round(Math.min(100, (stats.codeFiles / Math.max(1, stats.files)) * 80));
+      const pushedDays = repo.pushed_at ? ((Date.now() - new Date(repo.pushed_at).getTime()) / (1000*60*60*24)) : 999;
+      const recencyBoost = Math.max(0, 20 - Math.min(20, Math.round(pushedDays)));
+      return Math.min(100, base + recencyBoost);
+    }
+
+    function effectiveTimeMs(chars, cScore, novelty=0.6) {
+      const T_chars = chars * Params.t_char_ms;
+      const T_over = Params.alpha * T_chars;
+      const T_complex = Params.beta * cScore * T_chars;
+      const T_reuse = Params.gamma * novelty * T_chars;
+      return T_chars + T_over + T_complex + T_reuse;
+    }
+
+    function valueUSD(timeMs, qScore, lkFactor) {
+      const base = timeMs * Params.usd_per_ms;
+      const qualityMultiplier = 0.5 + qScore / 2; // 0.5–1.0
+      return base * qualityMultiplier * lkFactor;
+    }
+
+    function classifyNonsense(qScore) {
+      return qScore < Params.nonsense_threshold;
+    }
+
+    // --- Ingest and Build ---
+    const Ingestor = (() => {
+      async function syncAll() {
+        const repos = await GitHub.listAllRepos();
+        const all = [];
+        let totalFiles = 0;
+
+        for (const repo of repos) {
+          try {
+            const owner = repo.owner.login;
+            const name = repo.name;
+            const branch = await GitHub.getDefaultBranch(repo);
+            const headSHA = await GitHub.getHeadSHA(owner, name, branch);
+            const tree = await GitHub.listTree(owner, name, headSHA);
+
+            // Stats
+            const stats = {
+              files: 0,
+              codeFiles: 0,
+              bytes: 0,
+              extCounts: {}
+            };
+
+            const textLike = /\.(js|jsx|ts|tsx|py|rs|go|java|kt|c|cc|cpp|h|hpp|m|mm|cs|rb|php|swift|scala|sh|bash|zsh|ps1|yaml|yml|toml|json|html|css|md|rst|txt|ini|cfg|conf)$/i;
+
+            for (const node of tree) {
+              if (node.type === 'blob') {
+                stats.files++;
+                totalFiles++;
+                stats.bytes += (node.size || 0);
+                const ext = (node.path.split('.').pop() || '').toLowerCase();
+                stats.extCounts[ext] = (stats.extCounts[ext] || 0) + 1;
+                if (textLike.test(node.path)) stats.codeFiles++;
+              }
+            }
+
+            const chars = Math.round(stats.bytes); // Treat bytes as character proxy
+            const cScore = complexityScoreFromTree(stats);
+            const qScore = qualityScoreFromRepo(repo);
+            const lkFactor = linkageFactorFromRepo(repo);
+            const timeMs = effectiveTimeMs(chars, cScore);
+            const usd = valueUSD(timeMs, qScore, lkFactor);
+            const nonsense = classifyNonsense(qScore);
+            const completion = completionPercentFromRepo(repo, stats);
+
+            all.push({
+              id: repo.full_name,
+              repo,
+              stats,
+              metrics: {
+                chars, cScore, qScore, lkFactor,
+                timeMs: Math.round(timeMs),
+                usd: usd,
+                nonsense,
+                completion
+              },
+              updated: nowISO()
+            });
+
+            await Audit.append({ type: 'repo_synced', repo: repo.full_name, files: stats.files, bytes: stats.bytes, usd: Number(usd.toFixed(2)) });
+          } catch (e) {
+            console.warn('Repo sync error:', e);
+            await Audit.append({ type: 'repo_error', repo: repo.full_name, error: String(e.message || e) });
+          }
+        }
+
+        const snapshot = { username: repos[0]?.owner?.login || null, repos: all, totals: { files: totalFiles } };
+        await OPFS.writeJSON('data/snapshot.json', snapshot);
+        await Audit.append({ type: 'ingest_complete', repos: all.length, files: totalFiles });
+        return snapshot;
+      }
+
+      async function load() {
+        return (await OPFS.readJSON('data/snapshot.json', null)) || { username: null, repos: [], totals: { files: 0 } };
+      }
+
+      return { syncAll, load };
+    })();
+
+    // --- Aggregation ---
+    function aggregateByDeveloper(snapshot) {
+      const byOwner = new Map();
+      for (const r of snapshot.repos) {
+        const owner = r.repo.owner.login;
+        const dev = byOwner.get(owner) || { name: owner, valueUSD: 0, repos: [] };
+        if (!r.metrics.nonsense) {
+          dev.valueUSD += r.metrics.usd;
+          dev.repos.push(r);
+        }
+        byOwner.set(owner, dev);
+      }
+      return [...byOwner.values()].sort((a,b) => b.valueUSD - a.valueUSD);
+    }
+
+    // --- Calibration ---
+    async function runCalibration() {
+      const sample = "def value(x):\n    return x * 2  # calibrate\n";
+      alert("Calibration: you'll type a short snippet to estimate typing speed.\n\nYou'll see the text, then type it exactly into the prompt.");
+      await sleep(250);
+      const start = performance.now();
+      const input = prompt("Type exactly:\n\n" + sample);
+      const end = performance.now();
+      const durationMs = end - start;
+      if (!input || input !== sample) {
+        alert("Calibration canceled or mismatch. Keeping defaults.");
+        return Params.t_char_ms;
+      }
+      const chars = sample.length;
+      const tChar = durationMs / chars;
+      const clamped = Math.max(5, Math.min(120, Math.round(tChar)));
+      Params.t_char_ms = clamped;
+      await Audit.append({ type: 'calibration', t_char_ms: clamped, durationMs, chars });
+      updateParamChips();
+      return clamped;
+    }
+
+    // --- UI Helpers ---
+    function currency(amount) {
+      return `$${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    function setStatus(text) {
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = text;
+    }
+
+    function updateCounts(snapshot) {
+      document.getElementById('repoCount').textContent = snapshot.repos.length;
+      const files = snapshot.repos.reduce((sum, r) => sum + r.stats.files, 0);
+      document.getElementById('fileCount').textContent = files;
+    }
+
+    function updateParamChips() {
+      document.getElementById('typingSpeedChip').textContent = `t_char: ${Params.t_char_ms} ms`;
+      document.getElementById('alphaChip').textContent = `α overhead: ${Params.alpha}`;
+      document.getElementById('betaChip').textContent = `β complexity: ${Params.beta}`;
+      document.getElementById('gammaChip').textContent = `γ novelty: ${Params.gamma}`;
+    }
+
+    function renderHub(snapshot) {
+      const grid = document.getElementById('hubGrid');
+      grid.innerHTML = '';
+
+      const items = snapshot.repos.sort((a,b) => new Date(b.repo.pushed_at || b.updated) - new Date(a.repo.pushed_at || a.updated));
+
+      for (const r of items) {
+        const m = r.metrics;
+        const comp = m.completion;
+        const usd = currency(m.nonsense ? 0 : m.usd);
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="card-title">${r.repo.name} <span class="chip">${r.repo.private ? 'private' : 'public'}</span></div>
+            <div class="chips">
+              <span class="chip">${(r.repo.language || 'mixed')}</span>
+              <span class="chip">${m.chars} chars*</span>
+              <span class="chip">q=${m.qScore.toFixed(2)}</span>
+              <span class="chip">c=${m.cScore.toFixed(2)}</span>
+              <span class="chip">lk=${m.lkFactor.toFixed(2)}</span>
+            </div>
+          </div>
+          <div class="meta">
+            <div>Updated: ${new Date(r.repo.pushed_at || r.updated).toLocaleString()}</div>
+            <div>Owner: ${r.repo.owner.login}</div>
+            <div><a class="link" href="${r.repo.html_url}" target="_blank" rel="noopener">View on GitHub</a></div>
+          </div>
+          <div class="row">
+            <div>Dollar value</div>
+            <div class="value ${m.nonsense ? 'bad' : (m.qScore < 0.5 ? 'low' : '')}">${m.nonsense ? 'Excluded (nonsense)' : usd}</div>
+          </div>
+          <div class="row">
+            <div>Completion</div>
+            <div style="min-width:120px">${comp}%</div>
+          </div>
+          <div class="progress" aria-label="Completion progress"><span style="width:${comp}%"></span></div>
+          <div class="meta" style="margin-top:8px;"><div>* chars derived from total bytes across repository tree</div></div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function renderLeaderboard(devs) {
+      const el = document.getElementById('leaderboard');
+      el.innerHTML = '';
+      for (const [i, d] of devs.entries()) {
+        const row = document.createElement('div');
+        row.className = 'card';
+        row.innerHTML = `
+          <div class="card-header">
+            <div class="card-title">#${i+1} ${d.name}</div>
+            <div class="value">${currency(d.valueUSD)}</div>
+          </div>
+          <div class="meta">
+            <div>Repos: ${d.repos.length}</div>
+            <div><a class="link" href="mailto:BarbrickDesign@gmail.com?subject=Dev%20Value%20Hub%20Support&body=I%20want%20to%20use%20this%20tool.">Support: BarbrickDesign@gmail.com</a></div>
+          </div>
+        `;
+        el.appendChild(row);
+      }
+    }
+
+    // --- Export Snapshot ---
+    async function exportSnapshot() {
+      const snapshot = await Ingestor.load();
+      const audit = await OPFS.readText('audit/log.txt', '');
+      const payload = { exportedAt: nowISO(), params: Params, snapshot, audit };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `dev-value-hub-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      await Audit.append({ type: 'export', bytes: blob.size });
+    }
+
+    // --- Connection Management ---
+    async function saveAuth(u, t) {
+      await OPFS.writeJSON('auth.json', { username: u, token: t });
+      await Audit.append({ type: 'auth_set', username: u, hasToken: !!t });
+    }
+    async function loadAuth() {
+      return await OPFS.readJSON('auth.json', { username: '', token: '' });
+    }
+    async function clearAuth() {
+      await OPFS.writeJSON('auth.json', { username: '', token: '' });
+      await Audit.append({ type: 'auth_cleared' });
+    }
+
+    // --- Refresh Pipeline ---
+    async function refresh({ resync = false } = {}) {
+      setStatus(resync ? 'Syncing…' : 'Refreshing…');
+      let snapshot;
+      if (resync && GitHub.isReady()) {
+        snapshot = await Ingestor.syncAll();
+      } else {
+        snapshot = await Ingestor.load();
+      }
+      updateCounts(snapshot);
+      renderHub(snapshot);
+      const devs = aggregateByDeveloper(snapshot);
+      renderLeaderboard(devs);
+      document.getElementById('lastSync').textContent = new Date().toLocaleString();
+      setStatus('Idle');
+    }
+
+    // --- Wire up controls ---
+    document.getElementById('btnConnect').addEventListener('click', async () => {
+      const u = document.getElementById('ghUsername').value.trim();
+      const t = document.getElementById('ghToken').value.trim();
+      if (!u || !t) {
+        alert('Please enter both GitHub username and a Personal Access Token.');
+        return;
+      }
+      await saveAuth(u, t);
+      GitHub.setAuth(u, t);
+      await refresh({ resync: true });
+    });
+
+    document.getElementById('btnDisconnect').addEventListener('click', async () => {
+      await clearAuth();
+      GitHub.setAuth('', '');
+      document.getElementById('ghUsername').value = '';
+      document.getElementById('ghToken').value = '';
+      await refresh({ resync: false });
+    });
+
+    document.getElementById('btnCalibrate').addEventListener('click', () => runCalibration());
+    document.getElementById('btnExport').addEventListener('click', () => exportSnapshot());
+
+    // --- Boot ---
+    (async function boot() {
+      updateParamChips();
+      await Audit.append({ type: 'boot', ua: navigator.userAgent });
+      const auth = await loadAuth();
+      if (auth.username && auth.token) {
+        document.getElementById('ghUsername').value = auth.username;
+        document.getElementById('ghToken').value = auth.token;
+        GitHub.setAuth(auth.username, auth.token);
+        await refresh({ resync: true });
+      } else {
+        await refresh();
+      }
+    })();
+
+    // --- Live polling every 60s ---
+    setInterval(async () => {
+      const auth = await loadAuth();
+      if (auth.username && auth.token) {
+        GitHub.setAuth(auth.username, auth.token);
+        await refresh({ resync: true });
+      }
+    }, 60000);
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

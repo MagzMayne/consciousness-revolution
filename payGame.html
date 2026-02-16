@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: payGame.html
+Declaration ID: IP-1082B7A1-MLL2901H
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>One-file Payout Game — $50/day USDC</title>
+<!-- Phantom wallet adapter + Solana web3 from CDN -->
+<script src="https://unpkg.com/@solana/web3.js@1.95.6/lib/index.iife.min.js"></script>
+<script src="https://unpkg.com/@solana/wallet-adapter-base@0.9.23/lib/umd/index.min.js"></script>
+<script src="https://unpkg.com/@solana/wallet-adapter-phantom@0.9.23/lib/umd/index.min.js"></script>
+<script src="https://unpkg.com/@solana/spl-token@0.3.11/dist/index.iife.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0a0f16; color:#dfe7f1; font-family: Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #182236; }
+  .brand { font-weight:700; letter-spacing:.4px; }
+  .hud { display:flex; align-items:center; gap:10px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  .wrap { display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px; padding:16px; }
+  .panel { background:#0f1622; border:1px solid #182236; border-radius:12px; padding:16px; }
+  .panel h2 { margin:0 0 12px; font-size:18px; }
+  .controls { display:flex; gap:10px; align-items:center; margin:8px 0; flex-wrap:wrap; }
+  button { background:#2a5fff; color:white; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; }
+  button.secondary { background:#173155; }
+  button.danger { background:#b3261e; }
+  button:disabled { opacity:0.5; cursor:not-allowed; }
+  .kv { display:flex; justify-content:space-between; align-items:center; margin:6px 0; }
+  .list { list-style:none; padding:0; margin:10px 0 0; }
+  .list li { padding:8px 0; border-bottom:1px dashed #182236; }
+  .meter { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:8px; }
+  .cell { background:#0a121b; border:1px solid #182236; border-radius:10px; padding:10px; }
+  .foot { font-size:12px; opacity:.65; margin-top:8px; }
+  .reels { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin:10px 0 6px; }
+  .symbol { height:74px; display:flex; align-items:center; justify-content:center; font-size:28px; background:#0a121b; border:1px solid #182236; border-radius:10px; }
+  .anim { animation:pulse .6s ease-in-out; }
+  @keyframes pulse { 0%{ transform:scale(1);} 50%{ transform:scale(1.08);} 100%{ transform:scale(1);} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<header>
+  <div class="brand">Payout Game — $50/day</div>
+  <div class="hud">
+    <button id="connectPlayer">Connect player wallet</button>
+    <button id="connectOperator" class="secondary">Connect operator wallet</button>
+    <button id="reset" class="secondary">Reset local state</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel">
+    <h2>Play</h2>
+    <div class="kv"><div><b>Eligibility:</b></div><div id="elig" class="mono">Unqualified</div></div>
+    <div class="reels">
+      <div id="r1" class="symbol">◼︎</div>
+      <div id="r2" class="symbol">◼︎</div>
+      <div id="r3" class="symbol">◼︎</div>
+    </div>
+    <div class="controls">
+      <button id="spin">Spin</button>
+      <button id="claim" class="secondary" disabled>Claim $50</button>
+      <span id="playStatus" class="mono"></span>
+    </div>
+    <div class="meter">
+      <div class="cell"><b>Player:</b><div id="playerPk" class="mono small"></div></div>
+      <div class="cell"><b>Operator:</b><div id="operatorPk" class="mono small"></div></div>
+      <div class="cell"><b>USDC mint:</b><div id="mintAddr" class="mono small"></div></div>
+    </div>
+    <div class="meter">
+      <div class="cell"><b>Trust score</b><div id="trust"></div></div>
+      <div class="cell"><b>Ethics strikes</b><div id="strikes"></div></div>
+      <div class="cell"><b>Spins today</b><div id="spins"></div></div>
+    </div>
+    <div class="controls">
+      <button id="trustPlus" class="secondary">Trust +</button>
+      <button id="trustMinus" class="secondary">Trust -</button>
+      <button id="strikePlus" class="secondary">Strike +</button>
+      <button id="strikeMinus" class="secondary">Strike -</button>
+    </div>
+    <div class="foot">Base pay requires trust ≥ 500, 0 strikes, and minimum activity. Claim button triggers a real USDC transfer from the connected operator to the connected player.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Payouts</h2>
+    <div class="kv"><div><b>Today:</b></div><div id="today" class="mono"></div></div>
+    <div class="kv"><div><b>Eligibility state:</b></div><div id="eligExplain" class="mono"></div></div>
+    <div class="controls">
+      <button id="fundOperator" class="secondary">Fund operator ATA (devnet test)</button>
+      <button id="transfer50" class="danger" disabled>Operator: send $50 to player</button>
+    </div>
+    <ul id="log" class="list"></ul>
+  </section>
+</main>
+
+<script>
+/* ---------- Configuration (edit if needed) ---------- */
+// Network: devnet or mainnet-beta
+const RPC_URL = "https://api.devnet.solana.com";
+// USDC mint: replace with devnet test mint you control OR mainnet USDC
+// Devnet example (mock): create your own mint and paste it here
+const USDC_MINT = "ReplaceThisWithYourDevnetMintAddress";
+
+/* ---------- Solana setup ---------- */
+const { Connection, PublicKey, Keypair, SystemProgram, Transaction } = solanaWeb3;
+const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, transferChecked, getMint, getAccount, createTransferCheckedInstruction } = splToken;
+const conn = new Connection(RPC_URL, "confirmed");
+
+// Phantom adapters
+let playerWallet = null;
+let operatorWallet = null;
+
+async function connectPhantom(role){
+  if (!window?.phantom?.solana) { alert("Phantom wallet not found. Install Phantom and reload."); return null; }
+  const res = await window.phantom.solana.connect();
+  if (role === "player") { playerWallet = window.phantom.solana; }
+  if (role === "operator") { operatorWallet = window.phantom.solana; }
+  renderWallets();
+  return res.publicKey.toBase58();
+}
+
+/* ---------- Local state ---------- */
+const STORE = "onefile_payout_game_v1";
+function load(){
+  const raw = localStorage.getItem(STORE);
+  if (!raw) {
+    const seed = {
+      player: { trust: 600, strikes: 0 },
+      spinsToday: 0,
+      lastClaimYyyymmdd: 0,
+    };
+    localStorage.setItem(STORE, JSON.stringify(seed));
+    return seed;
+  }
+  return JSON.parse(raw);
+}
+function save(s){ localStorage.setItem(STORE, JSON.stringify(s)); }
+function todayYMD(){ return Number(new Date().toISOString().slice(0,10).replace(/-/g,"")); }
+
+/* ---------- Game logic ---------- */
+const symbols = ["⭐","🔷","💠","♦️","🔶","✨","🔹","🔸"];
+function spin(){
+  const s = load();
+  const r = [pick(), pick(), pick()];
+  s.spinsToday += 1;
+  save(s);
+  renderStats();
+  renderReels(r);
+  const matches = matchCount(r);
+  const msg = matches===3 ? "Triple match!" : matches===2 ? "Pair!" : "Keep going.";
+  document.getElementById("playStatus").textContent = msg;
+  recomputeEligibility();
+}
+function pick(){ return symbols[Math.floor(Math.random()*symbols.length)]; }
+function matchCount([a,b,c]){ if(a===b && b===c) return 3; if(a===b||b===c||a===c) return 2; return 1; }
+
+function adjustTrust(d){ const s = load(); s.player.trust = Math.min(1000, Math.max(0, s.player.trust + d)); save(s); renderStats(); recomputeEligibility(); }
+function adjustStrikes(d){ const s = load(); s.player.strikes = Math.max(0, s.player.strikes + d); save(s); renderStats(); recomputeEligibility(); }
+
+/* ---------- Eligibility & claim ---------- */
+function qualified(){
+  const s = load();
+  const minSpins = 20; // simple activity gate
+  return s.player.trust >= 500 && s.player.strikes === 0 && s.spinsToday >= minSpins;
+}
+function recomputeEligibility(){
+  const q = qualified();
+  const s = load();
+  const lastClaimDay = s.lastClaimYyyymmdd;
+  const today = todayYMD();
+  const alreadyClaimed = lastClaimDay === today;
+  document.getElementById("elig").textContent = q ? (alreadyClaimed ? "Qualified (claimed)" : "Qualified") : "Unqualified";
+  document.getElementById("claim").disabled = !(q && !alreadyClaimed && !!playerWallet && !!operatorWallet);
+  document.getElementById("transfer50").disabled = !(q && !alreadyClaimed && !!playerWallet && !!operatorWallet);
+  document.getElementById("eligExplain").textContent = `Trust≥500, strikes=0, spins≥20. Today=${today}, claimed=${alreadyClaimed}`;
+}
+
+/* ---------- Wallets & token helpers ---------- */
+function renderWallets(){
+  document.getElementById("playerPk").textContent = playerWallet ? playerWallet.publicKey.toBase58() : "(not connected)";
+  document.getElementById("operatorPk").textContent = operatorWallet ? operatorWallet.publicKey.toBase58() : "(not connected)";
+  document.getElementById("mintAddr").textContent = USDC_MINT;
+  recomputeEligibility();
+}
+
+async function ensureATA(ownerPk){
+  const mintPk = new PublicKey(USDC_MINT);
+  const owner = new PublicKey(ownerPk);
+  const ata = await getAssociatedTokenAddress(mintPk, owner);
+  const info = await conn.getAccountInfo(ata);
+  if (info) return ata;
+  const ix = createAssociatedTokenAccountInstruction(
+    operatorWallet.publicKey, ata, owner, mintPk
+  );
+  const tx = new Transaction().add(ix);
+  tx.feePayer = operatorWallet.publicKey;
+  tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+  const signed = await operatorWallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  await conn.confirmTransaction(sig, "confirmed");
+  log(`Created ATA for ${ownerPk}: ${ata.toBase58()}`);
+  return ata;
+}
+
+/* ---------- Operator funding (devnet) ---------- */
+async function fundOperatorDevnet(){
+  try {
+    if (!operatorWallet) return alert("Connect operator wallet first.");
+    // Airdrop SOL for fees (devnet)
+    const sig = await conn.requestAirdrop(operatorWallet.publicKey, 1e9);
+    await conn.confirmTransaction(sig, "confirmed");
+    log("Operator airdropped 1 SOL (devnet).");
+  } catch (e){ log("Funding failed: "+e.message); }
+}
+
+/* ---------- USDC $50 transfer ---------- */
+async function transfer50(){
+  try {
+    if (!playerWallet || !operatorWallet) return alert("Connect both wallets.");
+    if (!qualified()) return alert("Player not qualified.");
+    if (USDC_MINT === "ReplaceThisWithYourDevnetMintAddress") return alert("Set USDC_MINT to a real mint address.");
+
+    const mintPk = new PublicKey(USDC_MINT);
+    const operatorPk = operatorWallet.publicKey;
+    const playerPk = playerWallet.publicKey;
+
+    const operatorAta = await ensureATA(operatorPk.toBase58());
+    const playerAta = await ensureATA(playerPk.toBase58());
+
+    // Amount: $50 with mint decimals
+    const mintInfo = await getMint(conn, mintPk);
+    const decimals = mintInfo.decimals;
+    const amount = BigInt(50) * BigInt(10 ** decimals); // 50 * 10^decimals
+
+    const ix = createTransferCheckedInstruction(
+      operatorAta, mintPk, playerAta, operatorPk, Number(amount), decimals
+    );
+    const tx = new Transaction().add(ix);
+    tx.feePayer = operatorPk;
+    tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+
+    const signed = await operatorWallet.signTransaction(tx);
+    const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+    await conn.confirmTransaction(sig, "confirmed");
+
+    const s = load();
+    s.lastClaimYyyymmdd = todayYMD();
+    save(s);
+    recomputeEligibility();
+    log(`Transferred $50 to player. Tx: ${sig}`);
+  } catch (e){ log("Transfer failed: "+e.message); }
+}
+
+/* ---------- UI rendering ---------- */
+function renderReels(r){
+  ["r1","r2","r3"].forEach((id,i) => { const el = document.getElementById(id); el.textContent = r[i]; el.classList.remove("anim"); void el.offsetWidth; el.classList.add("anim"); });
+}
+function renderStats(){
+  const s = load();
+  document.getElementById("trust").textContent = s.player.trust;
+  document.getElementById("strikes").textContent = s.player.strikes;
+  document.getElementById("spins").textContent = s.spinsToday;
+  document.getElementById("today").textContent = todayYMD();
+}
+function log(msg){
+  const ul = document.getElementById("log");
+  const li = document.createElement("li");
+  li.textContent = msg;
+  ul.prepend(li);
+}
+
+/* ---------- Events ---------- */
+document.getElementById("connectPlayer").addEventListener("click", async () => { await connectPhantom("player"); });
+document.getElementById("connectOperator").addEventListener("click", async () => { await connectPhantom("operator"); });
+document.getElementById("spin").addEventListener("click", spin);
+document.getElementById("claim").addEventListener("click", transfer50);
+document.getElementById("transfer50").addEventListener("click", transfer50);
+document.getElementById("fundOperator").addEventListener("click", fundOperatorDevnet);
+document.getElementById("reset").addEventListener("click", () => { localStorage.removeItem(STORE); location.reload(); });
+document.getElementById("trustPlus").addEventListener("click", () => adjustTrust(10));
+document.getElementById("trustMinus").addEventListener("click", () => adjustTrust(-10));
+document.getElementById("strikePlus").addEventListener("click", () => adjustStrikes(1));
+document.getElementById("strikeMinus").addEventListener("click", () => adjustStrikes(-1));
+
+/* ---------- Boot ---------- */
+renderWallets();
+renderStats();
+recomputeEligibility();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+name: Conflict Detection & Error Handling
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to check'
+        required: false
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  detect-conflicts:
+    name: Detect Conflicts and Errors
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prNumber;
+            
+            // Determine PR number from event or input
+            if (context.eventName === 'pull_request') {
+              prNumber = context.issue.number;
+            } else if (context.eventName === 'workflow_dispatch') {
+              prNumber = ${{ github.event.inputs.pr_number || 'null' }};
+              if (!prNumber) {
+                core.setFailed('PR number required for manual trigger');
+                return;
+              }
+            } else {
+              core.setFailed('Unsupported event type');
+              return;
+            }
+            
+            core.info(`Checking PR #${prNumber}`);
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            // Get base and head branch info
+            const baseRef = pr.base.ref;
+            const headRef = pr.head.ref;
+            const baseSha = pr.base.sha;
+            const headSha = pr.head.sha;
+            
+            core.info(`Base branch: ${baseRef} (${baseSha.substring(0, 7)})`);
+            core.info(`Head branch: ${headRef} (${headSha.substring(0, 7)})`);
+            core.info(`Mergeable: ${pr.mergeable}`);
+            core.info(`Mergeable state: ${pr.mergeable_state}`);
+            
+            core.setOutput('pr_number', prNumber);
+            core.setOutput('base_ref', baseRef);
+            core.setOutput('head_ref', headRef);
+            core.setOutput('base_sha', baseSha);
+            core.setOutput('head_sha', headSha);
+            core.setOutput('mergeable', pr.mergeable);
+            core.setOutput('mergeable_state', pr.mergeable_state);
+            core.setOutput('behind_by', pr.behind_by || 0);
+            
+            return pr;
+      
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ steps.pr-details.outputs.base_ref }}:${{ steps.pr-details.outputs.base_ref }}
+      
+      - name: Check if branch is behind
+        id: check-behind
+        run: |
+          BASE_REF="${{ steps.pr-details.outputs.base_ref }}"
+          HEAD_SHA="${{ steps.pr-details.outputs.head_sha }}"
+          
+          echo "## 🔍 Branch Synchronization Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get the merge base
+          MERGE_BASE=$(git merge-base origin/$BASE_REF $HEAD_SHA)
+          BASE_SHA=$(git rev-parse origin/$BASE_REF)
+          
+          echo "Merge base: $MERGE_BASE" >> $GITHUB_STEP_SUMMARY
+          echo "Base branch SHA: $BASE_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "Head branch SHA: $HEAD_SHA" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if branch is behind
+          if [ "$MERGE_BASE" != "$BASE_SHA" ]; then
+            # Count commits behind
+            BEHIND_COUNT=$(git rev-list --count $HEAD_SHA..$BASE_SHA)
+            AHEAD_COUNT=$(git rev-list --count $BASE_SHA..$HEAD_SHA)
+            
+            echo "is_behind=true" >> $GITHUB_OUTPUT
+            echo "behind_count=$BEHIND_COUNT" >> $GITHUB_OUTPUT
+            echo "ahead_count=$AHEAD_COUNT" >> $GITHUB_OUTPUT
+            
+            echo "⚠️ **Branch Status:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Behind base by: $BEHIND_COUNT commits" >> $GITHUB_STEP_SUMMARY
+            echo "- Ahead of base by: $AHEAD_COUNT commits" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Get commits that are in base but not in head
+            echo "### Commits in base branch not in PR:" >> $GITHUB_STEP_SUMMARY
+            git log --oneline $HEAD_SHA..$BASE_SHA | head -10 >> $GITHUB_STEP_SUMMARY || echo "Unable to list commits" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "is_behind=false" >> $GITHUB_OUTPUT
+            echo "behind_count=0" >> $GITHUB_OUTPUT
+            
+            echo "✅ **Branch is up to date with base**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Attempt test merge
+        id: test-merge
+        continue-on-error: true
+        run: |
+          BASE_REF="${{ steps.pr-details.outputs.base_ref }}"
+          
+          echo "## 🧪 Test Merge Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Create a temporary branch for testing
+          git checkout -b temp-merge-test
+          
+          # Attempt merge
+          if git merge --no-commit --no-ff origin/$BASE_REF 2>&1 | tee merge-output.txt; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "✅ **Test merge successful - no conflicts detected**" >> $GITHUB_STEP_SUMMARY
+            git merge --abort 2>/dev/null || true
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            echo "❌ **Test merge failed - conflicts detected**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Get list of conflicted files
+            CONFLICTED_FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "")
+            
+            if [ -n "$CONFLICTED_FILES" ]; then
+              echo "### Conflicted Files:" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$CONFLICTED_FILES" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              # Save conflicted files list
+              echo "$CONFLICTED_FILES" > conflicted-files.txt
+              echo "has_conflicts=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_conflicts=false" >> $GITHUB_OUTPUT
+              echo "Merge failed but no conflicted files detected (may be other error)" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Show merge output
+            echo "### Merge Output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat merge-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            git merge --abort 2>/dev/null || true
+          fi
+          
+          # Cleanup
+          git checkout ${{ steps.pr-details.outputs.head_sha }}
+          git branch -D temp-merge-test 2>/dev/null || true
+      
+      - name: Detect error types
+        id: error-detection
+        if: steps.test-merge.outputs.merge_success == 'false'
+        run: |
+          echo "## 🔎 Error Classification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          HAS_CONFLICTS="${{ steps.test-merge.outputs.has_conflicts }}"
+          
+          if [ "$HAS_CONFLICTS" == "true" ]; then
+            echo "error_type=conflict" >> $GITHUB_OUTPUT
+            echo "is_retryable=false" >> $GITHUB_OUTPUT
+            echo "- **Error Type:** Merge Conflict" >> $GITHUB_STEP_SUMMARY
+            echo "- **Retryable:** No (requires manual resolution)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "error_type=non_conflict" >> $GITHUB_OUTPUT
+            echo "is_retryable=true" >> $GITHUB_OUTPUT
+            echo "- **Error Type:** Non-conflict error" >> $GITHUB_STEP_SUMMARY
+            echo "- **Retryable:** Yes" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Retry non-conflict errors
+        id: retry-merge
+        if: steps.error-detection.outputs.is_retryable == 'true'
+        run: |
+          echo "## 🔄 Retry Logic" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES..." >> $GITHUB_STEP_SUMMARY
+            
+            sleep $RETRY_DELAY
+            
+            # Fetch latest changes
+            git fetch origin ${{ steps.pr-details.outputs.base_ref }}
+            
+            # Create temporary branch
+            git checkout -b temp-retry-$i ${{ steps.pr-details.outputs.head_sha }}
+            
+            # Try merge again
+            if git merge --no-commit --no-ff origin/${{ steps.pr-details.outputs.base_ref }} 2>&1; then
+              echo "✅ Retry $i successful!" >> $GITHUB_STEP_SUMMARY
+              echo "retry_success=true" >> $GITHUB_OUTPUT
+              git merge --abort 2>/dev/null || true
+              git checkout ${{ steps.pr-details.outputs.head_sha }}
+              git branch -D temp-retry-$i 2>/dev/null || true
+              exit 0
+            else
+              echo "❌ Retry $i failed" >> $GITHUB_STEP_SUMMARY
+              git merge --abort 2>/dev/null || true
+              git checkout ${{ steps.pr-details.outputs.head_sha }}
+              git branch -D temp-retry-$i 2>/dev/null || true
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ All retry attempts exhausted" >> $GITHUB_STEP_SUMMARY
+          echo "retry_success=false" >> $GITHUB_OUTPUT
+      
+      - name: Generate conflict report
+        id: generate-report
+        if: steps.test-merge.outputs.merge_success == 'false'
+        run: |
+          mkdir -p reports
+          
+          cat > reports/conflict-report.md << 'EOF'
+          # Conflict Detection Report
+          
+          **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **PR Number:** #${{ steps.pr-details.outputs.pr_number }}
+          **Base Branch:** ${{ steps.pr-details.outputs.base_ref }}
+          **Head Branch:** ${{ steps.pr-details.outputs.head_ref }}
+          
+          ## Summary
+          
+          - **Branch Behind By:** ${{ steps.check-behind.outputs.behind_count || 0 }} commits
+          - **Merge Status:** ${{ steps.test-merge.outputs.merge_success == 'true' && '✅ Success' || '❌ Failed' }}
+          - **Has Conflicts:** ${{ steps.test-merge.outputs.has_conflicts == 'true' && 'Yes' || 'No' }}
+          - **Error Type:** ${{ steps.error-detection.outputs.error_type || 'None' }}
+          
+          ## Analysis
+          
+          EOF
+          
+          if [ "${{ steps.test-merge.outputs.has_conflicts }}" == "true" ]; then
+            cat >> reports/conflict-report.md << 'EOF'
+          ### Conflicted Files
+          
+          The following files have merge conflicts:
+          
+          EOF
+            if [ -f conflicted-files.txt ]; then
+              while IFS= read -r file; do
+                echo "- \`$file\`" >> reports/conflict-report.md
+              done < conflicted-files.txt
+            fi
+          fi
+          
+          cat >> reports/conflict-report.md << 'EOF'
+          
+          ## Next Steps
+          
+          EOF
+          
+          if [ "${{ steps.test-merge.outputs.has_conflicts }}" == "true" ]; then
+            cat >> reports/conflict-report.md << 'EOF'
+          1. Pull the latest changes from the base branch
+          2. Merge the base branch into your PR branch
+          3. Resolve conflicts in the listed files
+          4. Commit the resolved changes
+          5. Push to update the PR
+          
+          ### Manual Resolution Commands
+          
+          \`\`\`bash
+          git fetch origin ${{ steps.pr-details.outputs.base_ref }}
+          git merge origin/${{ steps.pr-details.outputs.base_ref }}
+          # Resolve conflicts in your editor
+          git add .
+          git commit -m "Resolve merge conflicts with ${{ steps.pr-details.outputs.base_ref }}"
+          git push
+          \`\`\`
+          EOF
+          else
+            cat >> reports/conflict-report.md << 'EOF'
+          The merge failure may be due to a transient error. Please:
+          
+          1. Review the error logs above
+          2. Retry the merge operation
+          3. Contact repository maintainers if issues persist
+          EOF
+          fi
+          
+          echo "Report generated successfully"
+      
+      - name: Comment on PR with conflict details
+        if: steps.test-merge.outputs.merge_success == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.pr-details.outputs.pr_number }};
+            const hasConflicts = '${{ steps.test-merge.outputs.has_conflicts }}' === 'true';
+            const behindCount = '${{ steps.check-behind.outputs.behind_count }}';
+            const errorType = '${{ steps.error-detection.outputs.error_type }}';
+            const retrySuccess = '${{ steps.retry-merge.outputs.retry_success }}';
+            
+            let commentBody = '## 🚨 Conflict Detection Alert\n\n';
+            
+            if (hasConflicts) {
+              commentBody += '❌ **Merge conflicts detected** - This PR cannot be merged automatically.\n\n';
+              
+              commentBody += '### 📊 Status\n';
+              commentBody += `- Your branch is **${behindCount} commits behind** the base branch\n`;
+              commentBody += '- Conflicts must be resolved manually\n\n';
+              
+              // Read conflicted files if available
+              commentBody += '### 📁 Conflicted Files\n\n';
+              commentBody += 'The following files have conflicts:\n\n';
+              
+              try {
+                const fs = require('fs');
+                if (fs.existsSync('conflicted-files.txt')) {
+                  const files = fs.readFileSync('conflicted-files.txt', 'utf8').trim().split('\n');
+                  files.forEach(file => {
+                    commentBody += `- \`${file}\`\n`;
+                  });
+                }
+              } catch (error) {
+                commentBody += '_Unable to list conflicted files_\n';
+              }
+              
+              commentBody += '\n### 🔧 Resolution Steps\n\n';
+              commentBody += '1. **Sync your branch with the base:**\n';
+              commentBody += '   ```bash\n';
+              commentBody += '   git fetch origin ${{ steps.pr-details.outputs.base_ref }}\n';
+              commentBody += '   git merge origin/${{ steps.pr-details.outputs.base_ref }}\n';
+              commentBody += '   ```\n\n';
+              commentBody += '2. **Resolve conflicts** in your editor:\n';
+              commentBody += '   - Open each conflicted file\n';
+              commentBody += '   - Look for conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`)\n';
+              commentBody += '   - Edit to keep the desired changes\n';
+              commentBody += '   - Remove conflict markers\n\n';
+              commentBody += '3. **Complete the merge:**\n';
+              commentBody += '   ```bash\n';
+              commentBody += '   git add .\n';
+              commentBody += '   git commit -m "Resolve merge conflicts with ${{ steps.pr-details.outputs.base_ref }}"\n';
+              commentBody += '   git push\n';
+              commentBody += '   ```\n\n';
+              commentBody += '4. **Verify:** This workflow will automatically re-run to verify the conflicts are resolved.\n\n';
+              
+              commentBody += '### 📚 Resources\n\n';
+              commentBody += '- [GitHub: Resolving Merge Conflicts](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/addressing-merge-conflicts)\n';
+              commentBody += '- [Git Documentation: Merge Conflicts](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented)\n';
+            } else {
+              commentBody += '⚠️ **Merge failed due to non-conflict error**\n\n';
+              
+              if (retrySuccess === 'true') {
+                commentBody += '✅ **Resolved:** The issue was resolved after retry attempts.\n';
+              } else {
+                commentBody += '❌ **Retry failed:** The merge error persisted after multiple attempts.\n\n';
+                commentBody += '### 🔍 Troubleshooting\n\n';
+                commentBody += '1. Check the workflow logs for detailed error messages\n';
+                commentBody += '2. Ensure your branch is up to date\n';
+                commentBody += '3. Verify no build or test failures\n';
+                commentBody += '4. Contact repository maintainers if the issue persists\n';
+              }
+            }
+            
+            commentBody += '\n---\n';
+            commentBody += '*🤖 Automated by Conflict Detection & Error Handling Workflow*';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
+      
+      - name: Create issue for persistent conflicts
+        if: steps.test-merge.outputs.has_conflicts == 'true' && steps.check-behind.outputs.behind_count > 10
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.pr-details.outputs.pr_number }};
+            const behindCount = ${{ steps.check-behind.outputs.behind_count }};
+            
+            const issueBody = `## 🚨 Persistent Merge Conflicts Detected
+            
+            PR #${prNumber} has significant merge conflicts that require attention.
+            
+            ### Status
+            - **Branch behind by:** ${behindCount} commits
+            - **Has conflicts:** Yes
+            - **Automatic resolution:** Not possible
+            
+            ### Required Action
+            
+            This PR has fallen significantly behind the base branch and has merge conflicts.
+            Manual intervention is required to:
+            
+            1. Bring the branch up to date with base
+            2. Resolve all merge conflicts
+            3. Ensure all tests pass after resolution
+            
+            ### Related PR
+            - PR #${prNumber}
+            
+            ### Priority
+            ${behindCount > 50 ? '🔴 **High Priority** - Branch is very far behind' : '🟡 **Medium Priority** - Conflicts need resolution'}
+            
+            ---
+            *🤖 Automated by Conflict Detection & Error Handling Workflow*
+            *Detected on: ${new Date().toISOString()}*`;
+            
+            // Check if similar issue already exists
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'merge-conflict,automated'
+            });
+            
+            const existingIssue = issues.find(issue => 
+              issue.title.includes(`PR #${prNumber}`) && 
+              issue.title.includes('Persistent Merge Conflicts')
+            );
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Persistent Merge Conflicts in PR #${prNumber}`,
+                body: issueBody,
+                labels: ['merge-conflict', 'automated', 'needs-attention']
+              });
+              
+              core.info('Issue created for persistent conflicts');
+            } else {
+              core.info('Issue already exists for this PR');
+            }
+      
+      - name: Upload conflict report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conflict-report-pr-${{ steps.pr-details.outputs.pr_number }}
+          path: |
+            reports/conflict-report.md
+            conflicted-files.txt
+            merge-output.txt
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Trigger automatic conflict resolution
+        if: steps.test-merge.outputs.has_conflicts == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.pr-details.outputs.pr_number }};
+            
+            core.info(`Triggering automatic conflict resolution for PR #${prNumber}`);
+            
+            try {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'auto-conflict-resolver.yml',
+                ref: context.ref || 'main',
+                inputs: {
+                  pr_number: prNumber.toString(),
+                  strategy: 'auto'
+                }
+              });
+              
+              core.info('✅ Automatic conflict resolution workflow triggered');
+            } catch (error) {
+              core.warning(`Failed to trigger auto-resolution: ${error.message}`);
+              core.info('The auto-resolution workflow may need to be run manually');
+            }
+      
+      - name: Success notification
+        if: steps.test-merge.outputs.merge_success == 'true' && steps.check-behind.outputs.is_behind == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.pr-details.outputs.pr_number }};
+            const behindCount = '${{ steps.check-behind.outputs.behind_count }}';
+            
+            const commentBody = `## ℹ️ Branch Status Update
+            
+            Your branch is ${behindCount} commits behind the base branch, but can be merged without conflicts.
+            
+            ### Recommendation
+            Consider updating your branch to include the latest changes:
+            
+            \`\`\`bash
+            git fetch origin ${{ steps.pr-details.outputs.base_ref }}
+            git merge origin/${{ steps.pr-details.outputs.base_ref }}
+            git push
+            \`\`\`
+            
+            This will ensure your PR includes all recent changes from the base branch.
+            
+            ---
+            *🤖 Automated by Conflict Detection & Error Handling Workflow*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });

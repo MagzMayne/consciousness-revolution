@@ -1,0 +1,613 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: liveSafeMap.html
+Declaration ID: IP-3C6DEB6-MLL2900O
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Safety Map — Audio Snippets, Bearing & Distance</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{ --bg:#031321; --muted:#9fb0be; --accent:#06b6d4; --danger:#ef4444; }
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+.header{display:flex;gap:12px;align-items:center;padding:12px}
+h1{font-size:16px;margin:0}
+.container{max-width:980px;margin:10px auto;padding:12px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+button.warn{background:var(--danger);color:#fff}
+label{font-size:13px;color:var(--muted)}
+.small{font-size:13px;padding:6px 8px}
+#map{height:60vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+#log{max-height:160px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+canvas{width:100%;height:110px;border-radius:8px;background:#02121b}
+.info{font-size:13px;color:var(--muted)}
+.popupRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.playBtn{background:#0b1220;border:1px solid rgba(255,255,255,0.04);color:#cfeffc;padding:6px 8px;border-radius:8px}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for location tracking features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="header">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Live Safety Map — Audio Snippets</h1>
+    <div class="info">Tap a red marker to play the recorded snippet and inspect estimated bearing & distance</div>
+  </div>
+</div>
+
+<main class="container">
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Controls</div>
+      <div style="font-size:13px;color:var(--muted)">Privacy radius protects exact location</div>
+    </div>
+
+    <div class="controls" style="margin-top:8px">
+      <button id="btnEnable" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="0.2" max="4" step="0.1" value="1" />
+      <label>Privacy radius (m)</label>
+      <input id="privacyRadius" type="number" value="150" min="50" max="2000" style="width:120px" />
+      <label>SPL cal (dB@1m)</label>
+      <input id="splCal" type="number" value="140" style="width:120px" />
+    </div>
+
+    <div style="margin-top:10px"><canvas id="viz"></canvas></div>
+    <div id="status" class="info" style="margin-top:8px">Status: idle</div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Live Map</div>
+      <div style="font-size:13px;color:var(--muted)">Map centers while logging; red markers store audio snippets</div>
+    </div>
+    <div id="map" style="margin-top:8px"></div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Event Log</div>
+      <div style="font-size:13px;color:var(--muted)">Click a row to center the map on that event</div>
+    </div>
+    <div id="log" style="margin-top:8px" aria-live="polite"></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/*
+Features implemented:
+- Continuous audio monitoring + event detection (RMS threshold)
+- Keeps circular audio buffer (pre-event) and records a short post-event snippet using MediaRecorder
+- On detection, saves a Blob (WAV/OGG depending on device) representing the snippet; event includes timestamp, estimatedDistance, estimatedBearing (device orientation), lat/lon randomized within privacy radius
+- Markers are clickable: popup includes play button to play the saved snippet locally
+- Distance computed from SPL calibration (heuristic); bearing uses DeviceOrientation if available (approximate)
+- CSV export includes base64-encoded audio column (optional) - be mindful of file sizes
+*/
+
+//// DOM
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const sensEl = document.getElementById('sens');
+const privacyRadiusEl = document.getElementById('privacyRadius');
+const splCalEl = document.getElementById('splCal');
+const viz = document.getElementById('viz');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+
+let audioCtx = null;
+let micStream = null;
+let sourceNode = null;
+let scriptNode = null;
+let mediaRecorder = null;
+let mediaChunks = [];
+let circularBuffer = null; // Float32Array circular buffer for pre-event
+let circularWriteIdx = 0;
+let circularLength = 0;
+let sampleRate = 48000;
+let running = false;
+let lastEventAt = 0;
+const refractoryMs = 700;
+const preEventSec = 1.5; // keep 1.5s pre-event audio
+const postEventSec = 1.5; // record 1.5s after detection
+
+// device orientation
+let deviceHeading = null;
+if (window.DeviceOrientationEvent) {
+  window.addEventListener('deviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation', (ev)=>{
+    // alpha is rotation around z axis (compass heading) in degrees; browser differences exist
+    if(ev.absolute === true || ev.alpha !== null) deviceHeading = ev.alpha || null;
+  }, true);
+}
+
+//// Map setup
+const map = L.map('map', { zoomControl:true }).setView([20,0], 3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const shotLayer = L.layerGroup().addTo(map);
+let userMarker = null;
+let safeCircle = null;
+let currentPos = null;
+let watchId = null;
+let events = []; // each event: {id, timestamp, lat, lon, amplitude, dominantHz, distanceM, bearingDeg, blob, privacyRadius}
+
+function ensureUserMarker(lat, lon) {
+  if(!userMarker) userMarker = L.circleMarker([lat, lon], {radius:6, color:'#16a34a', fillColor:'#16a34a', fillOpacity:1}).addTo(map);
+  else userMarker.setLatLng([lat, lon]);
+}
+function ensureSafeCircle(lat, lon, radius) {
+  const r = Math.max(80, radius);
+  if(!safeCircle) safeCircle = L.circle([lat, lon], {radius:r, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12}).addTo(map);
+  else { safeCircle.setLatLng([lat, lon]); safeCircle.setRadius(r); }
+}
+
+function startLocationWatch(){
+  if(!navigator.geolocation) { setStatus('Geolocation not supported'); return; }
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    currentPos = {lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy};
+    ensureUserMarker(currentPos.lat, currentPos.lon);
+    ensureSafeCircle(currentPos.lat, currentPos.lon, parseFloat(privacyRadiusEl.value || 150));
+    if(running) map.setView([currentPos.lat, currentPos.lon], 13, {animate:false});
+  }, err => {
+    console.warn('geo watch error', err);
+  }, { maximumAge:3000, enableHighAccuracy:false, timeout:5000 });
+}
+function stopLocationWatch(){
+  if(watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+}
+
+//// Canvas viz
+const canvasCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvasCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+function drawWaveform(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#02121b'; canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.lineWidth = 1.2; canvasCtx.strokeStyle = '#06b6d4';
+  canvasCtx.beginPath();
+  const step = Math.ceil(buf.length / w);
+  for(let i=0;i<w;i++){
+    const v = buf[i*step] || 0;
+    const y = (1 - (v + 1)/2) * h;
+    if(i===0) canvasCtx.moveTo(i,y); else canvasCtx.lineTo(i,y);
+  }
+  canvasCtx.stroke();
+}
+
+//// Utilities
+function setStatus(s){ statusEl.textContent = 'Status: ' + s; }
+function rms(arr){ let s=0; for(let i=0;i<arr.length;i++){ s+=arr[i]*arr[i]; } return Math.sqrt(s/arr.length); }
+function zeroCrossFreq(buffer, sr){ let crossings=0; for(let i=1;i<buffer.length;i++){ if(buffer[i-1]<=0 && buffer[i]>0) crossings++; } const seconds = buffer.length / sr; return (crossings/seconds)/2 || 0; }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function base64FromBlob(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onload = ()=>res(fr.result.split(',')[1]); fr.readAsDataURL(blob); }); }
+
+//// Recording infrastructure
+async function prepareAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sampleRate = audioCtx.sampleRate || 48000;
+  circularLength = Math.ceil(preEventSec * sampleRate);
+  circularBuffer = new Float32Array(circularLength);
+  circularWriteIdx = 0;
+  sourceNode = audioCtx.createMediaStreamSource(micStream);
+  scriptNode = audioCtx.createScriptProcessor(2048,1,1);
+  scriptNode.onaudioprocess = (ev) => {
+    if(!running) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    // append to circular buffer
+    for(let i=0;i<input.length;i++){
+      circularBuffer[circularWriteIdx] = input[i];
+      circularWriteIdx = (circularWriteIdx + 1) % circularLength;
+    }
+    drawWaveform(input);
+    // detection
+    const amp = rms(input);
+    const threshold = 0.12 * parseFloat(sensEl.value || 1);
+    const now = performance.now();
+    if(amp > threshold && (now - lastEventAt) > refractoryMs){
+      lastEventAt = now;
+      triggerEvent(amp, input);
+    }
+  };
+  sourceNode.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  // start MediaRecorder on the micStream to capture audio for post-event; we will slice pre-event from circularBuffer and combine with recorded post-event blob
+  mediaRecorder = new MediaRecorder(micStream);
+  mediaRecorder.ondataavailable = (ev) => { if(ev.data && ev.data.size > 0) mediaChunks.push(ev.data); };
+  mediaRecorder.onstop = ()=>{};
+}
+
+async function startMicAndRecording(){
+  if(!micStream) micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+  await prepareAudio();
+  mediaChunks = [];
+  mediaRecorder.start();
+}
+
+//// Event trigger: capture pre buffer + wait postEventSec, then assemble snippet
+async function triggerEvent(amp, recentBuffer){
+  setStatus('Impulse detected — capturing snippet');
+  // get pre-buffer copy
+  const pre = new Float32Array(circularLength);
+  // read circular buffer in proper order
+  let p = circularWriteIdx;
+  for(let i=0;i<circularLength;i++){ pre[i] = circularBuffer[p]; p = (p+1) % circularLength; }
+  // wait for postEventSec while recording collects chunks
+  await new Promise(res => setTimeout(res, postEventSec * 1000));
+  // stop the recorder momentarily to get current blob then restart
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.requestData();
+  }
+  // combine pre + mediaChunks audio blob (mediaChunks contains post-event audio segments)
+  // Convert pre Float32 -> WAV PCM, append recorded blob bytes if same codec is PCM WAV; otherwise store both separately by saving pre WAV + post blob concatenated base64 (implemented here as two-part package)
+  const preWav = float32ToWavBlob(pre, sampleRate);
+  // assemble post-event blob
+  const postBlob = new Blob(mediaChunks, { type: mediaChunks.length ? mediaChunks[0].type : 'audio/webm' });
+  // Clear mediaChunks for next event but keep recorder running
+  mediaChunks = [];
+  // compute dominant freq on pre buffer (center)
+  const dominantHz = zeroCrossFreq(pre, sampleRate);
+  // estimate distance using SPL heuristic: map RMS -> dBSPL via offset and inverse-square using user SPL cal
+  const measuredDbfs = 20 * Math.log10(rms(pre) + 1e-12);
+  const calibOffset = 120; // heuristic offset; user must calibrate
+  const measuredSPL = measuredDbfs + calibOffset;
+  const sourceDbAt1m = parseFloat(splCalEl.value || 140);
+  let distanceM = Math.pow(10, (sourceDbAt1m - measuredSPL) / 20);
+  if(!isFinite(distanceM) || distanceM < 0) distanceM = null;
+  // bearing: if deviceHeading available we provide crude bearing relative to device; else null
+  const bearing = deviceHeading != null ? (deviceHeading + 0) % 360 : null; // device heading is the heading the device points to; we can't know exact direction of sound on a single microphone, so this is advisory
+  // compute plotted lat/lon with randomized offset within privacy radius if we have geolocation
+  let lat, lon;
+  const privacyRadius = Math.max(50, Math.min( parseFloat(privacyRadiusEl.value || 150), 2000 ));
+  if(currentPos){
+    const angle = Math.random() * 2 * Math.PI;
+    const r = (Math.random() * 0.6 + 0.2) * privacyRadius;
+    const dLat = (r * Math.cos(angle)) / 111320;
+    const dLon = (r * Math.sin(angle)) / (111320 * Math.cos(currentPos.lat * Math.PI / 180));
+    lat = currentPos.lat + dLat;
+    lon = currentPos.lon + dLon;
+  } else {
+    const center = map.getCenter();
+    lat = center.lat; lon = center.lng;
+  }
+  // create event record
+  const id = uid();
+  const timestamp = new Date().toISOString();
+  const event = {
+    id, timestamp, lat, lon,
+    amplitude: amp, dominantHz, distanceM, bearing,
+    privacyRadius, measuredSPL
+  };
+  // store the two blobs on the event: preWav and postBlob; for playback we'll create a single combined blob by concatenating preWav + postBlob if possible; for simplicity, we'll play preWav first then postBlob sequentially when user clicks play
+  event.preWav = preWav;
+  event.postBlob = postBlob;
+  events.unshift(event);
+  addEventToMap(event);
+  addEventToLog(event);
+  setStatus('Event captured: ' + timestamp);
+}
+
+//// WAV conversion for Float32Array (PCM 16-bit) -> Blob WAV
+function float32ToWavBlob(float32Array, sampleRate){
+  // convert to 16-bit PCM
+  const len = float32Array.length;
+  const buffer = new ArrayBuffer(44 + len * 2);
+  const view = new DataView(buffer);
+  function writeString(view, offset, string){
+    for(let i=0;i<string.length;i++) view.setUint8(offset+i, string.charCodeAt(i));
+  }
+  writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + len * 2, true); writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  writeString(view, 36, 'data'); view.setUint32(40, len * 2, true);
+  // write PCM samples
+  let offset = 44;
+  for(let i=0;i<len;i++){
+    let s = Math.max(-1, Math.min(1, float32Array[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+//// Add event to map & popup with playback
+function addEventToMap(e){
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1 }).addTo(shotLayer);
+  const bubble = L.circle([e.lat, e.lon], { radius:e.privacyRadius, color:'#ef4444', fillColor:'rgba(239,68,68,0.12)', weight:2, fillOpacity:0.12 }).addTo(shotLayer);
+  const popupContent = document.createElement('div');
+  popupContent.className = 'popupRow';
+  popupContent.innerHTML = `<div style="font-weight:700">Detected impulse</div>
+    <div style="font-size:13px;color:${'#9fb0be'}">${e.timestamp}</div>`;
+  const playBtn = document.createElement('button'); playBtn.className = 'playBtn'; playBtn.textContent = 'Play snippet';
+  const info = document.createElement('div'); info.style.fontSize='13px'; info.style.color='#9fb0be';
+  info.innerHTML = `Freq: ${Math.round(e.dominantHz)} Hz • Est dist: ${e.distanceM? e.distanceM.toFixed(1) + ' m':'unknown'} • Bearing: ${e.bearing!=null? Math.round(e.bearing) + '°':'n/a'}`;
+  popupContent.appendChild(playBtn);
+  popupContent.appendChild(info);
+  playBtn.addEventListener('click', async ()=>{
+    // Play preWav then postBlob sequentially
+    try{
+      playBtn.disabled = true; playBtn.textContent = 'Loading...';
+      const preUrl = URL.createObjectURL(e.preWav);
+      const preAudio = new Audio(preUrl);
+      await preAudio.play();
+      preAudio.onended = async ()=> {
+        URL.revokeObjectURL(preUrl);
+        // postBlob may be same codec; create URL and play
+        if(e.postBlob && e.postBlob.size > 0){
+          const postUrl = URL.createObjectURL(e.postBlob);
+          const postAudio = new Audio(postUrl);
+          await postAudio.play();
+          postAudio.onended = ()=>{ URL.revokeObjectURL(postUrl); playBtn.disabled=false; playBtn.textContent='Play snippet'; };
+        } else {
+          playBtn.disabled=false; playBtn.textContent='Play snippet';
+        }
+      };
+    }catch(err){
+      console.error(err);
+      playBtn.disabled=false; playBtn.textContent='Play snippet';
+      alert('Playback failed: ' + err.message);
+    }
+  });
+  marker.bindPopup(popupContent);
+  // auto-open popup briefly to show playback UI
+  marker.on('click', ()=> marker.openPopup());
+  // remove after 10 minutes
+  setTimeout(()=>{ try{ shotLayer.removeLayer(marker); shotLayer.removeLayer(bubble); }catch(e){} }, 10*60*1000);
+}
+
+//// Add entry to textual log
+function addEventToLog(e){
+  const row = document.createElement('div');
+  row.style.padding='8px'; row.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+  row.innerHTML = `<div style="font-weight:700">${e.timestamp}</div>
+    <div style="color:#9fb0be;font-size:13px">Dominant: ${Math.round(e.dominantHz)} Hz • Dist: ${e.distanceM? e.distanceM.toFixed(1)+' m':'unknown'} • Bearing: ${e.bearing!=null? Math.round(e.bearing)+'°':'n/a'}</div>`;
+  row.addEventListener('click', ()=> map.setView([e.lat, e.lon], 15, {animate:true}));
+  logEl.prepend(row);
+  btnExport.disabled = false;
+}
+
+//// Export CSV; includes audio as base64 (warning: may be large). If you prefer to exclude audio, omit audio columns.
+btnExport.addEventListener('click', async ()=>{
+  if(events.length===0) return alert('No events');
+  const includeAudio = confirm('Include audio as base64 in CSV? Warning: may create large file. OK to include audio?');
+  const hdr = ['id,timestamp,lat,lon,dominantHz,amplitude,distanceM,bearing,privacyRadius,measuredSPL'];
+  if(includeAudio){ hdr.push('preWavBase64'); hdr.push('postBlobBase64'); }
+  const rows = [];
+  for(const e of events){
+    let preB64 = '', postB64 = '';
+    if(includeAudio){
+      preB64 = await base64FromBlob(e.preWav);
+      postB64 = e.postBlob && e.postBlob.size ? await base64FromBlob(e.postBlob) : '';
+    }
+    rows.push([
+      e.id, e.timestamp, e.lat.toFixed(6), e.lon.toFixed(6), Math.round(e.dominantHz), e.amplitude.toFixed(5),
+      e.distanceM? e.distanceM.toFixed(2):'', e.bearing!=null? Math.round(e.bearing):'', e.privacyRadius, e.measuredSPL? e.measuredSPL.toFixed(2):'', preB64, postB64
+    ].join(','));
+  }
+  const csv = [hdr.join(',')].concat(rows).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+//// Main flow: enable, start, stop
+btnEnable.addEventListener('click', async ()=>{
+  setStatus('Requesting microphone...');
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+    setStatus('Microphone enabled. Allow location when prompted.');
+    btnStart.disabled = false;
+    btnEnable.disabled = true;
+  }catch(err){
+    console.error(err);
+    setStatus('Microphone permission denied or unavailable');
+    alert('Microphone permission required');
+  }
+});
+
+btnStart.addEventListener('click', async ()=>{
+  if(!micStream) return alert('Enable microphone first');
+  try{
+    await startMicAndRecording();
+    running = true;
+    setStatus('Logging active');
+    btnStart.disabled = true; btnStop.disabled = false; btnExport.disabled = false;
+    // start location watch
+    startLocationWatch();
+  }catch(err){
+    console.error(err);
+    alert('Start failed: ' + err.message);
+  }
+});
+
+btnStop.addEventListener('click', ()=>{
+  running = false;
+  try{
+    if(scriptNode) scriptNode.disconnect();
+    if(sourceNode) sourceNode.disconnect();
+    if(audioCtx) audioCtx.close();
+    if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+  }catch(e){}
+  audioCtx = null; sourceNode = null; scriptNode = null; mediaRecorder = null;
+  setStatus('Stopped');
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  stopLocationWatch();
+});
+
+//// Start by trying to get a coarse GPS fix to center the map
+if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p=> map.setView([p.coords.latitude, p.coords.longitude], 13), ()=>{}, { enableHighAccuracy:false, maximumAge:60000, timeout:3000 });
+
+setStatus('Ready');
+
+//// Helper: startMicAndRecording uses prepareAudio that sets up circular buffer & recorder
+async function startMicAndRecording(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sampleRate = audioCtx.sampleRate || 48000;
+  }
+  // re-prepare buffer and nodes if already exist
+  circularLength = Math.ceil(preEventSec * sampleRate);
+  circularBuffer = new Float32Array(circularLength);
+  circularWriteIdx = 0;
+  // connect nodes
+  if(!sourceNode) sourceNode = audioCtx.createMediaStreamSource(micStream);
+  if(!scriptNode){
+    scriptNode = audioCtx.createScriptProcessor(2048,1,1);
+    scriptNode.onaudioprocess = (ev) => {
+      if(!running) return;
+      const input = ev.inputBuffer.getChannelData(0);
+      // write to circular buffer
+      for(let i=0;i<input.length;i++){ circularBuffer[circularWriteIdx] = input[i]; circularWriteIdx = (circularWriteIdx + 1) % circularLength; }
+      drawWaveform(input);
+      const amp = rms(input);
+      const threshold = 0.12 * parseFloat(sensEl.value || 1);
+      const now = performance.now();
+      if(amp > threshold && (now - lastEventAt) > refractoryMs){
+        lastEventAt = now;
+        triggerEvent(amp, input);
+      }
+    };
+  }
+  sourceNode.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  // MediaRecorder to capture post-event data; ensure it is started
+  if(!mediaRecorder || mediaRecorder.state !== 'recording'){
+    mediaChunks = [];
+    mediaRecorder = new MediaRecorder(micStream);
+    mediaRecorder.ondataavailable = (ev) => { if(ev.data && ev.data.size > 0) mediaChunks.push(ev.data); };
+    mediaRecorder.start();
+  }
+}
+
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+``` [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/balamca7/SC/tree/74511161258972b8b37b1231a348d67cf07e149f/chat%2Fwritable%2Fupdates%2F6.4.0%2Fcometchat_backup%2Fjs%2Frecorderworker.js?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=C9C63962-9951-4559-8C57-E803F686D55D,339476F7-F0A0-408A-93BF-58985A0CC950,CF9EBC7C-09F3-41C6-A966-9097A16B2EE0,4426E9B3-AD21-4E8E-AD07-31DD80054E23&citationTitle=github.com%20+3&citationFullTitle=github.com%20+3&chatItemId=g4FPfULfPFpZZ7vMcb9ha)

@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: archiveScript.html
+Declaration ID: IP-EB150CC-MLL28ZY2
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en" class="mobile-enhanced">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merlin Archive Script</title>
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<script>
+(function(){
+  /* -------------------- Config -------------------- */
+  const OWNER = 'barbrickdesign';
+  const REPO  = 'barbrickdesign.github.io';
+  const API_TREE = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/HEAD?recursive=1`;
+  const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/HEAD`;
+  const LIVE_BASE = `https://${OWNER}.github.io`;
+  const SNAP_KEY  = 'merlin_repo_snapshot_v5';
+  const FUND_KEY  = 'merlin_funding_v2';
+  const PINS_KEY  = 'merlin_pins';
+  const GOVERNANCE_TOKEN_MINT = 'DPHcbu7wJEbcrnCYjXC8vHBkM39kT9xZg4mYayvrpump';
+
+  /* -------------------- Styles (readable, high contrast) -------------------- */
+  const css = `
+    :root {
+      --bg:#0b1117; --panel:#0e151c; --card:#111a26; --border:#2a3a50;
+      --text:#f6f9ff; --muted:#c4cfdd; --accent:#5dd1ff; --accent2:#ff6da3;
+      --ok:#66f0a6; --warn:#ffd061; --error:#ff6b6b;
+    }
+    body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+    * { box-sizing:border-box; }
+    .merlin-toggle {
+      position:fixed; top:12px; right:12px; z-index:99999;
+      background:linear-gradient(135deg,#1a2533,#0f1720); border:1px solid var(--border); color:var(--text);
+      padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700; letter-spacing:.2px;
+      box-shadow:0 10px 26px rgba(0,0,0,.45);
+    }
+    .merlin-panel {
+      position:fixed; top:60px; left:50%; transform:translateX(-50%);
+      width:min(1280px,95vw); height:min(86vh,820px);
+      background:var(--panel); border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 32px 90px rgba(0,0,0,.6); display:none; z-index:99999;
+      display:grid; grid-template-rows:auto 1fr auto;
+    }
+    .merlin-panel.open { display:grid; }
+    .merlin-head {
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,#162133 0%,#0e151c 100%);
+    }
+    .merlin-title { font-weight:800; letter-spacing:.3px; color:var(--accent); }
+    .merlin-sub { color:var(--muted); font-size:12px; }
+    .merlin-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .input, .btn, .select {
+      all:unset; background:#182230; border:1px solid var(--border); color:var(--text);
+      padding:8px 12px; border-radius:10px; font-weight:700;
+    }
+    .input::placeholder { color:var(--muted); }
+    .btn:hover, .select:hover { background:#213047; }
+    .wallet-box {
+      display:flex; gap:8px; align-items:center; background:#182230; border:1px solid var(--border);
+      padding:6px 8px; border-radius:10px;
+    }
+    .addr { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; color:#bde0ff; }
+    .pill { font-size:11px; border:1px solid var(--border); border-radius:999px; padding:3px 10px; }
+    .ok { color:var(--ok); border-color:#245a3f; text-shadow:0 0 6px rgba(102,240,166,.5); }
+    .warn { color:var(--warn); border-color:#5a4a24; text-shadow:0 0 6px rgba(255,208,97,.5); }
+    .error { color:var(--error); border-color:#5a2a2a; text-shadow:0 0 6px rgba(255,107,107,.5); }
+    .merlin-body { display:grid; grid-template-columns:1fr 380px; border-top:1px solid var(--border); }
+    .left { position:relative; overflow:hidden; }
+    .right { border-left:1px solid var(--border); overflow:auto; background:#101826; }
+    .foot {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 16px; border-top:1px solid var(--border); color:var(--muted); font-size:12px;
+    }
+
+    /* Coverflow track */
+    .track-wrap { position:absolute; inset:0; overflow:hidden; }
+    .track { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      display:flex; gap:26px; perspective:1400px; padding:26px; }
+    .card {
+      width:340px; height:400px; border-radius:14px;
+      background:linear-gradient(180deg,#162133,#111a26); border:1px solid var(--border); overflow:hidden; position:relative;
+      box-shadow:0 18px 42px rgba(0,0,0,.5);
+      transform-style:preserve-3d; transition:transform .25s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .card:hover { border-color:var(--accent); box-shadow:0 28px 84px rgba(0,0,0,.55); }
+    .thumb { position:relative; height:56%; background:#0c1218; border-bottom:1px solid var(--border); overflow:hidden; }
+    .preview-frame { position:absolute; top:0; left:0; width:1200px; height:800px; border:0; transform-origin:0 0; background:#0c1218; }
+    .loading { position:absolute; inset:0; display:grid; place-items:center; font-size:12px; color:#b9c6d8;
+      background:linear-gradient(180deg, rgba(12,18,24,.55), rgba(12,18,24,.25)); }
+    .card-body { padding:12px; display:flex; flex-direction:column; gap:10px; height:44%; }
+    .name { font-weight:800; color:#eaf6ff; text-shadow:0 0 8px rgba(93,209,255,.35); }
+    .path { color:var(--muted); font-size:12px; word-break:break-all; }
+    .tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .tag { font-size:11px; color:var(--accent2); border:1px dashed var(--border); padding:2px 6px; border-radius:999px; background:#1a2230; }
+    .fund-row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:end; }
+    .progress { height:10px; background:#182230; border:1px solid var(--border); border-radius:999px; overflow:hidden; }
+    .bar { height:100%; width:0%; transition:width .4s ease; }
+    .bar.low { background:linear-gradient(90deg,#ff6b6b,#ffd061); }
+    .bar.mid { background:linear-gradient(90deg,#ffd061,#5dd1ff); }
+    .bar.full { background:linear-gradient(90deg,#5dd1ff,#66f0a6); }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .link {
+      all:unset; cursor:pointer; color:var(--text); background:#1a2533; border:1px solid var(--border);
+      padding:6px 10px; border-radius:8px; font-weight:700; transition:background .2s ease, transform .1s ease;
+    }
+    .link:hover { background:#213047; transform:translateY(-1px); }
+
+    /* Navigation */
+    .nav { position:absolute; inset:auto 16px 16px; display:flex; gap:10px; }
+    .nav .btn { cursor:pointer; }
+
+    /* Sidebar panels */
+    .panel-box { background:#162133; border:1px solid var(--border); border-radius:12px; padding:12px; margin:12px; }
+    .panel-title { font-weight:800; color:var(--accent); margin-bottom:8px; }
+    .kv { display:grid; grid-template-columns:140px 1fr; gap:8px; color:var(--muted); font-size:12.5px; }
+  `;
+  const styleEl=document.createElement('style'); styleEl.textContent=css; document.head.appendChild(styleEl);
+
+  /* -------------------- Panel scaffold -------------------- */
+  const panel = document.createElement('div');
+  panel.innerHTML = `
+    <button class="merlin-toggle" id="merlinToggle">Merlin Gallery</button>
+    <div class="merlin-panel" id="merlinPanel" role="dialog" aria-label="Merlin Repo Gallery">
+      <div class="merlin-head">
+        <div>
+          <div class="merlin-title">3D coverflow • HTML page cards</div>
+          <div class="merlin-sub">Readable theme • Token-gated pledges • Offline restore</div>
+        </div>
+        <div class="merlin-actions">
+          <input class="input" id="filterInput" placeholder="Filter by title or path…" />
+          <select class="select" id="pageSize"><option>12</option><option selected>24</option><option>48</option></select>
+          <button class="btn" id="refreshBtn">Refresh</button>
+          <button class="btn" id="closeBtn">Close</button>
+          <div class="wallet-box">
+            <button class="btn" id="connectBtn">Connect</button>
+            <button class="btn" id="genBtn" title="Generate local wallet">Generate</button>
+            <span class="addr" id="addr">—</span>
+            <span class="pill" id="solBalance">SOL: —</span>
+            <span class="pill" id="tokenStatus">Token: —</span>
+          </div>
+        </div>
+      </div>
+      <div class="merlin-body">
+        <div class="left">
+          <div class="track-wrap"><div class="track" id="track"></div></div>
+          <div class="nav">
+            <button class="btn" id="prevBtn">Prev</button>
+            <span class="pill" id="pageInfo">Page 1 / 1</span>
+            <button class="btn" id="nextBtn">Next</button>
+          </div>
+        </div>
+        <div class="right">
+          <div class="panel-box">
+            <div class="panel-title">Governance mint</div>
+            <div class="kv">
+              <div>Token mint</div><div style="font-family:ui-monospace,monospace; font-size:12px;">${GOVERNANCE_TOKEN_MINT}</div>
+              <div>Status</div><div class="pill" id="gateStatus">Not connected</div>
+            </div>
+          </div>
+          <div class="panel-box">
+            <div class="panel-title">Repo snapshot</div>
+            <div class="kv">
+              <div>Entries</div><div id="snapCount">—</div>
+              <div>Last refresh</div><div id="snapTime">—</div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button class="btn" id="exportSnap">Export snapshot</button>
+              <button class="btn" id="importSnap">Import snapshot</button>
+              <input type="file" id="snapFile" accept="application/json" style="display:none;" />
+            </div>
+          </div>
+          <div class="panel-box">
+            <div class="panel-title">Funding overview</div>
+            <div class="kv">
+              <div>Total goal</div><div id="totalGoal">—</div>
+              <div>Total invested</div><div id="totalInvested">—</div>
+            </div>
+            <div class="merlin-sub" style="margin-top:6px;">Pledges recorded locally for transparency; pledge button unlocks when governance token is held.</div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">
+        <div class="status">
+          <span class="pill ok" id="cacheStatus">Offline cache: Ready</span>
+          <span class="pill" id="snapshotStatus">Snapshot: Pending</span>
+        </div>
+        <div class="merlin-sub">Coverflow previews use iframes scaled like screenshots for portability.</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  /* -------------------- Elements -------------------- */
+  const ui = {
+    toggle: panel.querySelector('#merlinToggle'),
+    panel: panel.querySelector('#merlinPanel'),
+    filter: panel.querySelector('#filterInput'),
+    pageSize: panel.querySelector('#pageSize'),
+    refresh: panel.querySelector('#refreshBtn'),
+    close: panel.querySelector('#closeBtn'),
+    track: panel.querySelector('#track'),
+    prev: panel.querySelector('#prevBtn'),
+    next: panel.querySelector('#nextBtn'),
+    pageInfo: panel.querySelector('#pageInfo'),
+    cacheStatus: panel.querySelector('#cacheStatus'),
+    snapshotStatus: panel.querySelector('#snapshotStatus'),
+    snapCount: panel.querySelector('#snapCount'),
+    snapTime: panel.querySelector('#snapTime'),
+    exportSnap: panel.querySelector('#exportSnap'),
+    importSnap: panel.querySelector('#importSnap'),
+    snapFile: panel.querySelector('#snapFile'),
+    connectBtn: panel.querySelector('#connectBtn'),
+    genBtn: panel.querySelector('#genBtn'),
+    addr: panel.querySelector('#addr'),
+    solBalance: panel.querySelector('#solBalance'),
+    tokenStatus: panel.querySelector('#tokenStatus'),
+    gateStatus: panel.querySelector('#gateStatus'),
+    totalGoal: panel.querySelector('#totalGoal'),
+    totalInvested: panel.querySelector('#totalInvested')
+  };
+  ui.toggle.addEventListener('click', () => ui.panel.classList.toggle('open'));
+  ui.close.addEventListener('click', () => ui.panel.classList.remove('open'));
+
+  /* -------------------- Data helpers -------------------- */
+  function fetchJSON(url, timeout = 20000) {
+    return new Promise((resolve, reject) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => { ctrl.abort(); reject(new Error('timeout')); }, timeout);
+      fetch(url, { signal: ctrl.signal, headers: { 'Accept':'application/vnd.github+json' } })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('http '+r.status)))
+        .then(j => { clearTimeout(t); resolve(j); })
+        .catch(err => { clearTimeout(t); reject(err); });
+    });
+  }
+
+  async function listHtmlFiles() {
+    try {
+      const tree = await fetchJSON(API_TREE, 25000);
+      return (tree.tree || []).filter(n => n.type==='blob' && n.path.toLowerCase().endsWith('.html')).map(n => n.path);
+    } catch (e) {
+      const snap = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+      return snap.map(x => x.path);
+    }
+  }
+
+  async function enrichPage(path) {
+    const rawUrl = `${RAW_BASE}/${path}`;
+    const liveUrl = `${LIVE_BASE}/${path.replace('index.html','')}`;
+    let title = path.split('/').slice(-1)[0];
+    let tags = [];
+    try {
+      const html = await fetch(rawUrl).then(r => r.ok ? r.text() : '');
+      const tMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (tMatch) title = tMatch[1].trim();
+      const metaTags = [...html.matchAll(/<meta[^>]+name=["']?keywords["']?[^>]+content=["']([^"']+)["']/ig)]
+        .map(m => m[1].split(',').map(x => x.trim())).flat();
+      tags = metaTags.slice(0, 5);
+    } catch (e) {}
+    return { path, title, liveUrl, rawUrl, tags };
+  }
+
+  /* -------------------- Funding model -------------------- */
+  function getFunding(path) {
+    const store = JSON.parse(localStorage.getItem(FUND_KEY) || '{}');
+    return store[path] || { goal: 1000, invested: 0 };
+  }
+  function setFunding(path, data) {
+    const store = JSON.parse(localStorage.getItem(FUND_KEY) || '{}');
+    store[path] = data;
+    localStorage.setItem(FUND_KEY, JSON.stringify(store));
+    refreshFundingTotals();
+  }
+  function refreshFundingTotals() {
+    const store = JSON.parse(localStorage.getItem(FUND_KEY) || '{}');
+    let totalGoal = 0, totalInvested = 0;
+    Object.values(store).forEach(({goal, invested}) => { totalGoal += Number(goal)||0; totalInvested += Number(invested)||0; });
+    ui.totalGoal.textContent = Intl.NumberFormat().format(totalGoal);
+    ui.totalInvested.textContent = Intl.NumberFormat().format(totalInvested);
+  }
+
+  /* -------------------- Coverflow rendering -------------------- */
+  const MAX_IFRAME_WIDTH = 1200, MAX_IFRAME_HEIGHT = 800;
+  function computeScale() {
+    const thumbH = 0.56 * 400;
+    const thumbW = 340;
+    const sx = thumbW / MAX_IFRAME_WIDTH, sy = thumbH / MAX_IFRAME_HEIGHT;
+    return Math.min(sx, sy);
+  }
+
+  function progressClass(pct) {
+    if (pct >= 100) return 'full';
+    if (pct >= 50) return 'mid';
+    return 'low';
+  }
+
+  function cardHTML(item, scale) {
+    const f = getFunding(item.path);
+    const pct = Math.max(0, Math.min(100, (f.invested / Math.max(1, f.goal)) * 100));
+    const barClass = progressClass(pct);
+    return `
+      <div class="card" data-title="${item.title.toLowerCase()}" data-path="${item.path.toLowerCase()}">
+        <div class="thumb">
+          <div class="loading">Loading preview…</div>
+          <iframe class="preview-frame" sandbox="allow-scripts allow-same-origin" src="${item.liveUrl}"
+            style="transform: scale(${scale}); width:${MAX_IFRAME_WIDTH}px; height:${MAX_IFRAME_HEIGHT}px;" title="Preview of ${item.title}"></iframe>
+        </div>
+        <div class="card-body">
+          <div class="name">${item.title}</div>
+          <div class="path">${item.path}</div>
+          <div class="tags">${(item.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+          <div class="fund-row">
+            <div>
+              <div class="merlin-sub">Goal</div>
+              <div><input class="input" type="number" min="0" value="${f.goal}" data-goal="${item.path}" style="width:100%;"></div>
+            </div>
+            <div>
+              <div class="merlin-sub">Invested</div>
+              <div class="${f.invested>=f.goal?'status-funded':'pill warn'}" data-funded="${item.path}">${Intl.NumberFormat().format(f.invested)}${f.invested>=f.goal?' • Funded':''}</div>
+            </div>
+          </div>
+          <div class="progress"><div class="bar ${barClass}" style="width:${pct}%"></div></div>
+          <div class="actions">
+            <a class="link" href="${item.liveUrl}" target="_blank" rel="noopener">Open</a>
+            <a class="link" href="${item.rawUrl}" target="_blank" rel="noopener">Raw</a>
+            <button class="link" data-copy="${item.liveUrl}">Copy URL</button>
+            <button class="link" data-pin="${item.path}">Pin</button>
+            <input class="input" type="number" min="0" placeholder="GBUV pledge" style="width:130px;" data-pledge="${item.path}">
+            <button class="link" data-pledge-btn="${item.path}" disabled>Pledge (token-gated)</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTrack(items, page, pageSize) {
+    const start = page * pageSize;
+    const slice = items.slice(start, start + pageSize);
+    const scale = computeScale();
+    ui.track.innerHTML = slice.map(it => cardHTML(it, scale)).join('');
+
+    const cards = [...ui.track.querySelectorAll('.card')];
+    function layout(centerIdx) {
+      cards.forEach((card, i) => {
+        const d = i - centerIdx;
+        const rotY = d * -18;
+        const tz = -Math.abs(d) * 90;
+        const tx = d * 68;
+        card.style.transform = `translate3d(${tx}px, 0, ${tz}px) rotateY(${rotY}deg)`;
+      });
+    }
+    let center = Math.floor(cards.length / 2);
+    layout(center);
+
+    cards.forEach(card => {
+      const iframe = card.querySelector('.preview-frame');
+      const loader = card.querySelector('.loading');
+      iframe.addEventListener('load', () => loader.style.display='none');
+
+      card.addEventListener('mousemove', (e) => {
+        const r = card.getBoundingClientRect();
+        const x = ((e.clientX - r.left)/r.width - 0.5) * 8;
+        const y = ((e.clientY - r.top)/r.height - 0.5) * -6;
+        const base = `translate3d(${card.style.transform.match(/translate3d\([^)]+\)/)?.[0]?.split('translate3d(')[1] || '0px, 0px, 0px'}) rotateY(${card.style.transform.match(/rotateY\([^)]+\)/)?.[0]?.split('rotateY(')[1] || '0deg'})`;
+        card.style.transform = base + ` rotateX(${y}deg) rotateY(${x}deg)`;
+      });
+      card.addEventListener('mouseleave', () => layout(center));
+
+      const copyBtn = card.querySelector('button[data-copy]');
+      copyBtn.addEventListener('click', () => {
+        const url = copyBtn.getAttribute('data-copy');
+        navigator.clipboard.writeText(url).then(()=>{ copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy URL',1200); });
+      });
+
+      const pinBtn = card.querySelector('button[data-pin]');
+      pinBtn.addEventListener('click', () => {
+        const path = pinBtn.getAttribute('data-pin');
+        const pins = JSON.parse(localStorage.getItem(PINS_KEY)||'[]');
+        if (!pins.includes(path)) pins.push(path);
+        localStorage.setItem(PINS_KEY, JSON.stringify(pins));
+        pinBtn.textContent='Pinned'; setTimeout(()=>pinBtn.textContent='Pin',1200);
+      });
+
+      const goalInput = card.querySelector('input[data-goal]');
+      goalInput.addEventListener('change', () => {
+        const path = goalInput.getAttribute('data-goal');
+        const f = getFunding(path);
+        f.goal = Math.max(0, Number(goalInput.value)||0);
+        setFunding(path, f);
+        const status = card.querySelector(`*[data-funded="${path}"]`);
+        const pct = Math.max(0, Math.min(100, (f.invested / Math.max(1, f.goal))*100));
+        const bar = card.querySelector('.bar');
+        bar.style.width = pct+'%';
+        bar.className = 'bar ' + progressClass(pct);
+        status.className = f.invested>=f.goal ? 'status-funded' : 'pill warn';
+        status.textContent = Intl.NumberFormat().format(f.invested) + (f.invested>=f.goal?' • Funded':'');
+      });
+
+      const pledgeInput = card.querySelector('input[data-pledge]');
+      const pledgeBtn = card.querySelector('button[data-pledge-btn]');
+      pledgeBtn.addEventListener('click', () => {
+        const path = pledgeBtn.getAttribute('data-pledge-btn');
+        const amt = Math.max(0, Number(pledgeInput.value)||0);
+        if (amt <= 0) { pledgeBtn.textContent='Enter amount'; setTimeout(()=>pledgeBtn.textContent='Pledge (token-gated)',1200); return; }
+        const f = getFunding(path);
+        f.invested = Math.max(0, Number(f.invested)||0) + amt;
+        setFunding(path, f);
+        const status = card.querySelector(`*[data-funded="${path}"]`);
+        const pct = Math.max(0, Math.min(100, (f.invested / Math.max(1, f.goal))*100));
+        const bar = card.querySelector('.bar');
+        bar.style.width = pct+'%';
+        bar.className = 'bar ' + progressClass(pct);
+        status.className = f.invested>=f.goal ? 'status-funded' : 'pill warn';
+        status.textContent = Intl.NumberFormat().format(f.invested) + (f.invested>=f.goal?' • Funded':'');
+        pledgeBtn.textContent='Recorded'; setTimeout(()=>pledgeBtn.textContent='Pledge (token-gated)',1200);
+      });
+
+      // Enable if token verified
+      if (tokenHeld) pledgeBtn.removeAttribute('disabled'); else pledgeBtn.setAttribute('disabled','');
+    });
+
+    ui.prev.disabled = page <= 0;
+    const pages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
+    ui.next.disabled = page >= pages - 1;
+    ui.pageInfo.textContent = `Page ${Math.min(page+1, pages)} / ${pages}`;
+  }
+
+  /* -------------------- Filter + pagination -------------------- */
+  let allEntries = [], filteredEntries = [], currentPage = 0;
+  ui.filter.addEventListener('input', () => {
+    const q = ui.filter.value.trim().toLowerCase();
+    filteredEntries = allEntries.filter(x => x.title.toLowerCase().includes(q) || x.path.toLowerCase().includes(q));
+    currentPage = 0;
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+  });
+  ui.pageSize.addEventListener('change', () => {
+    currentPage = 0;
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+  });
+  ui.prev.addEventListener('click', () => {
+    currentPage = Math.max(0, currentPage - 1);
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+  });
+  ui.next.addEventListener('click', () => {
+    const pages = Math.max(1, Math.ceil(filteredEntries.length / parseInt(ui.pageSize.value,10)));
+    currentPage = Math.min(pages - 1, currentPage + 1);
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+  });
+
+  /* -------------------- Snapshot + restore -------------------- */
+  function saveSnapshot(entries) {
+    localStorage.setItem(SNAP_KEY, JSON.stringify(entries));
+    ui.snapshotStatus.textContent = `Snapshot: ${entries.length} pages`;
+    ui.snapshotStatus.classList.add('ok');
+    ui.snapCount.textContent = String(entries.length);
+    ui.snapTime.textContent = new Date().toLocaleString();
+  }
+  ui.exportSnap.addEventListener('click', () => {
+    const snap = localStorage.getItem(SNAP_KEY) || '[]';
+    const blob = new Blob([snap], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'repo_snapshot.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  ui.importSnap.addEventListener('click', () => ui.snapFile.click());
+  ui.snapFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      localStorage.setItem(SNAP_KEY, JSON.stringify(data));
+      allEntries = data; filteredEntries = data.slice(); currentPage = 0;
+      renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+      saveSnapshot(data);
+    } catch { alert('Invalid snapshot JSON'); }
+  });
+
+  /* -------------------- Boot -------------------- */
+  async function boot() {
+    ui.snapshotStatus.textContent = 'Snapshot: Loading…';
+    const paths = await listHtmlFiles();
+    const entries = [];
+    for (const p of paths) {
+      if (p.startsWith('node_modules') || p.startsWith('dist/') || p.startsWith('build/')) continue;
+      entries.push(await enrichPage(p));
+      const f = getFunding(p); setFunding(p, f);
+    }
+    allEntries = entries;
+    filteredEntries = entries.slice();
+    currentPage = 0;
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+    saveSnapshot(entries);
+    refreshFundingTotals();
+  }
+
+  ui.refresh.addEventListener('click', boot);
+
+  // Preload from snapshot if present
+  const snap = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+  if (snap.length) {
+    allEntries = snap; filteredEntries = snap.slice(); currentPage = 0;
+    renderTrack(filteredEntries, currentPage, parseInt(ui.pageSize.value,10));
+    ui.snapCount.textContent = String(snap.length);
+    ui.snapTime.textContent = new Date().toLocaleString();
+    refreshFundingTotals();
+  }
+  boot();
+
+  /* -------------------- Service Worker (offline cache) -------------------- */
+  (function registerSW(){
+    if (!('serviceWorker' in navigator)) {
+      ui.cacheStatus.textContent = 'Offline cache: Unsupported';
+      ui.cacheStatus.classList.add('warn'); return;
+    }
+    const swCode = `
+      const CACHE='merlin-coverflow-v2';
+      const ORIGINS=['${LIVE_BASE}','https://raw.githubusercontent.com','https://api.github.com'];
+      self.addEventListener('install',e=>{self.skipWaiting(); e.waitUntil(caches.open(CACHE));});
+      self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
+      self.addEventListener('fetch',e=>{
+        const u=new URL(e.request.url);
+        if (ORIGINS.some(o=>u.origin.startsWith(o))) {
+          e.respondWith((async()=>{
+            const c=await caches.open(CACHE);
+            const hit=await c.match(e.request);
+            if (hit) return hit;
+            try {
+              const res=await fetch(e.request);
+              if (res.ok && e.request.method==='GET') c.put(e.request,res.clone());
+              return res;
+            } catch(err) {
+              return hit || new Response('Offline',{status:503});
+            }
+          })());
+        }
+      });
+    `;
+    const blob = new Blob([swCode],{type:'text/javascript'});
+    const url = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url).then(()=>{
+      ui.cacheStatus.textContent='Offline cache: Ready';
+      ui.cacheStatus.classList.add('ok');
+    }).catch(()=>{
+      ui.cacheStatus.textContent='Offline cache: Disabled';
+      ui.cacheStatus.classList.add('warn');
+    });
+  })();
+
+  /* -------------------- Solana wallet + token gate -------------------- */
+  let solana = null, connection = null, wallet = null, externalPK = null, tokenHeld = false;
+
+  function solanaReady() {
+    solana = window.solanaWeb3;
+    connection = new solana.Connection('https://api.mainnet-beta.solana.com','confirmed');
+    ui.genBtn.addEventListener('click', generateLocalWallet);
+    ui.connectBtn.addEventListener('click', connectInjectedWallet);
+    const saved = localStorage.getItem('merlin_local_wallet');
+    if (saved) {
+      try {
+        const arr = Uint8Array.from(JSON.parse(saved));
+        const kp = solana.Keypair.fromSecretKey(arr);
+        wallet = { publicKey: kp.publicKey, secretKey: kp.secretKey };
+        ui.addr.textContent = kp.publicKey.toBase58();
+        refreshBalances().then(checkGovernanceToken);
+      } catch {}
+    }
+  }
+
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js';
+  s.onload = solanaReady;
+  document.head.appendChild(s);
+
+  function generateLocalWallet() {
+    if (!solana) return;
+    const kp = solana.Keypair.generate();
+    localStorage.setItem('merlin_local_wallet', JSON.stringify(Array.from(kp.secretKey)));
+    wallet = { publicKey: kp.publicKey, secretKey: kp.secretKey }; externalPK = null;
+    ui.addr.textContent = kp.publicKey.toBase58();
+    refreshBalances().then(checkGovernanceToken);
+  }
+
+  async function connectInjectedWallet() {
+    try {
+      const provider = window.solana && window.solana.isPhantom ? window.solana : null;
+      if (!provider) { alert('No injected Solana wallet found. Use "Generate" to create a local wallet.'); return; }
+      const res = await provider.connect();
+      externalPK = new solana.PublicKey(res.publicKey.toString());
+      wallet = null;
+      ui.addr.textContent = externalPK.toBase58();
+      await refreshBalances(); await checkGovernanceToken();
+    } catch { alert('Wallet connect failed.'); }
+  }
+
+  async function refreshBalances() {
+    const pk = wallet ? wallet.publicKey : externalPK;
+    if (!pk || !connection) return;
+    try {
+      const lamports = await connection.getBalance(pk);
+      const sol = lamports / (solana ? solana.LAMPORTS_PER_SOL : 1_000_000_000);
+      ui.solBalance.textContent = `SOL: ${sol.toFixed(4)}`;
+      ui.solBalance.classList.add('ok');
+      ui.gateStatus.textContent = 'Connected';
+    } catch {
+      ui.solBalance.textContent = 'SOL: —';
+      ui.solBalance.classList.add('warn');
+    }
+  }
+
+  async function checkGovernanceToken() {
+    const pk = wallet ? wallet.publicKey : externalPK;
+    if (!pk || !connection) { ui.tokenStatus.textContent='Token: —'; return; }
+    try {
+      const tokenProgramId = new (solana.PublicKey)('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+      const res = await connection.getParsedTokenAccountsByOwner(pk, { programId: tokenProgramId });
+      tokenHeld = false;
+      for (const { account } of res.value) {
+        const info = account.data.parsed.info;
+        if (info.mint === GOVERNANCE_TOKEN_MINT) {
+          const amt = parseFloat(info.tokenAmount.uiAmountString || '0');
+          if (amt > 0) { tokenHeld = true; break; }
+        }
+      }
+      ui.tokenStatus.textContent = tokenHeld ? 'Token: Held' : 'Token: None';
+      ui.tokenStatus.classList.toggle('ok', tokenHeld);
+      ui.tokenStatus.classList.toggle('warn', !tokenHeld);
+      ui.gateStatus.textContent = tokenHeld ? 'Governance token verified' : 'No governance token';
+      document.querySelectorAll('button[data-pledge-btn]').forEach(btn=>{
+        if (tokenHeld) btn.removeAttribute('disabled'); else btn.setAttribute('disabled','');
+      });
+    } catch {
+      ui.tokenStatus.textContent = 'Token: Error';
+      ui.tokenStatus.classList.add('error');
+    }
+  }
+
+})();
+</script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

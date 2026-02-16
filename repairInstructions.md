@@ -1,0 +1,1335 @@
+# Repair Bundle
+
+This ZIP was assembled by the Barbrick Design Function Checker.
+It contains only:
+- Original files that include stub or incomplete functions (unmodified).
+- This REPAIR_INSTRUCTIONS.md describing what needs to be implemented.
+
+## Session metadata
+
+- Session ID: MJTAUHQE-R55RS8
+- Project: barbrickdesign/barbrickdesign.github.io (GitHub)
+- Donation: Admin Testing Mode
+- Mode: UPGRADE
+
+## Stub functions by file (with priorities)
+
+### 1. add-self-healing.py
+- Function `should_process_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `has_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `inject_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `process_html_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `main` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `should_process_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `has_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `inject_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `process_html_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `main` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `should_process_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `has_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `inject_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `process_html_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `main` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `should_process_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `has_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `inject_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `process_html_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `main` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `should_process_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `has_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `inject_self_healing_script` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `process_html_file` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `main` (python)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 2. city-3d/3d-roompure-css/dist/script.js
+- Function `navToTablet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToCity` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToTablet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToCity` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToTablet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToCity` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToTablet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToCity` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToTablet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `navToCity` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 3. city-3d/dist/script.js
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 4. city-3d/src/script.js
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onWindowResize` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `mathRandom` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `onMouseMove` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateCar` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Empty body
+- Function `createCars` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `generateLines` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `cameraSet` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 5. crawl-network-links.js
+- Function `findFiles` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `classifyLink` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `generateStatistics` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `findFiles` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `classifyLink` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `generateStatistics` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `findFiles` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `classifyLink` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `generateStatistics` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `findFiles` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `classifyLink` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `generateStatistics` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `findFiles` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `classifyLink` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `generateStatistics` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+
+### 6. deploy-merlin-minions.js
+- Function `hasTracker` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasTracker` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasTracker` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasTracker` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasTracker` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 7. ember-terminal-main/ember-terminal-main/client-sync.js
+- Function `$` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$all` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `safeJSON` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `escapeHtml` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `loadHoldersStatic` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `startPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `stopPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `init` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getState` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$all` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `safeJSON` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `escapeHtml` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `loadHoldersStatic` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `startPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `stopPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `init` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getState` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$all` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `safeJSON` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `escapeHtml` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `loadHoldersStatic` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `startPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `stopPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `init` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getState` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$all` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `safeJSON` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `escapeHtml` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `loadHoldersStatic` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `startPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `stopPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `init` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getState` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `$all` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `safeJSON` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `escapeHtml` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `loadHoldersStatic` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `startPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `stopPolling` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `init` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getState` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 8. ember-terminal-main/ember-terminal-main/relay-server.js
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeNonce` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeChallenge` (javascript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `verifySignedPayload` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `sendSSE` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeNonce` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeChallenge` (javascript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `verifySignedPayload` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `sendSSE` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeNonce` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeChallenge` (javascript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `verifySignedPayload` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `sendSSE` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeNonce` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeChallenge` (javascript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `verifySignedPayload` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `sendSSE` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeNonce` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `makeChallenge` (javascript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `verifySignedPayload` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `sendSSE` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 9. ember-terminal-main/ember-terminal-main/server.js
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `checkTokenHolding` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `canonical` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `verifyHolderMiddleware` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `ghFetch` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `checkTokenHolding` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `canonical` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `verifyHolderMiddleware` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `ghFetch` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `checkTokenHolding` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `canonical` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `verifyHolderMiddleware` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `ghFetch` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `checkTokenHolding` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `canonical` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `verifyHolderMiddleware` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `ghFetch` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `recoverSigner` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `checkTokenHolding` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `now` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `canonical` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `verifyHolderMiddleware` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `ghFetch` (javascript)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 10. ember-terminal-main/ember-terminal-main/src/app/layout.tsx
+- Function `RootLayout` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `RootLayout` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `RootLayout` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `RootLayout` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `RootLayout` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+
+### 11. ember-terminal-main/ember-terminal-main/src/app/page.tsx
+- Function `Home` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `Home` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `Home` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `Home` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+- Function `Home` (typescript)
+  - Priority: HIGH
+  - Reasons: No obvious logic or side effects
+
+### 12. google-data-integration.js
+- Function `gtag` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `gtag` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `gtag` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `gtag` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `gtag` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 13. inject-mobile-enhancements.js
+- Function `hasEnhancements` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasEnhancements` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasEnhancements` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasEnhancements` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `hasEnhancements` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 14. js/leaderboard.js
+- Function `createLeaderboardUI` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `createUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateDemoLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `setLeaderboardFilter` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `sortLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `displayUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createLeaderboardUI` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `createUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateDemoLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `setLeaderboardFilter` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `sortLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `displayUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createLeaderboardUI` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `createUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateDemoLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `setLeaderboardFilter` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `sortLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `displayUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createLeaderboardUI` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `createUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateDemoLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `setLeaderboardFilter` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `sortLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `displayUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createLeaderboardUI` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `createUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `generateDemoLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `setLeaderboardFilter` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `sortLeaderboardData` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `displayUserProfile` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+
+### 15. js/mobile-enhancer.js
+- Function `addScrollAnimations` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `enhanceImages` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addScrollAnimations` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `enhanceImages` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addScrollAnimations` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `enhanceImages` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addScrollAnimations` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `enhanceImages` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addScrollAnimations` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `enhanceImages` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 16. js/pumpfun-token-config.js
+- Function `getTokenPrice` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `getTokenBalance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `formatTokenAmount` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenDisplayInfo` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenPrice` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `getTokenBalance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `formatTokenAmount` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenDisplayInfo` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenPrice` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `getTokenBalance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `formatTokenAmount` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenDisplayInfo` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenPrice` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `getTokenBalance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `formatTokenAmount` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenDisplayInfo` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenPrice` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `getTokenBalance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `formatTokenAmount` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `getTokenDisplayInfo` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 17. js/universal-wallet-system.js
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `closeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 18. js/utils.js
+- Function `createModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `validateEmail` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `validateApiKey` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `getCurrentPage` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `handleError` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addXP` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `isWalletConnected` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `formatAddress` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `measurePerformance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `validateEmail` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `validateApiKey` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `getCurrentPage` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `handleError` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addXP` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `isWalletConnected` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `formatAddress` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `measurePerformance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `validateEmail` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `validateApiKey` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `getCurrentPage` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `handleError` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addXP` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `isWalletConnected` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `formatAddress` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `measurePerformance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `validateEmail` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `validateApiKey` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `getCurrentPage` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `handleError` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addXP` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `isWalletConnected` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `formatAddress` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `measurePerformance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `createModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `validateEmail` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `validateApiKey` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `showToast` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `getCurrentPage` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `handleError` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `addXP` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `isWalletConnected` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `formatAddress` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `measurePerformance` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+
+### 19. main.py
+- Function `signup` (python)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `submit_project` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_projects` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_activity` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `signup` (python)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `submit_project` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_projects` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_activity` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `signup` (python)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `submit_project` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_projects` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_activity` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `signup` (python)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `submit_project` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_projects` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_activity` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `signup` (python)
+  - Priority: HIGH
+  - Reasons: Very short body
+- Function `submit_project` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_projects` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+- Function `get_activity` (python)
+  - Priority: HIGH
+  - Reasons: Very short body; No obvious logic or side effects
+
+### 20. mandem.os/workspace/forge.js
+- Function `renderForgeAssetGrid` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `filterForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `loadForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `showForgeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderGLBModel` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `animate` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderForgeAssetGrid` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `filterForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `loadForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `showForgeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderGLBModel` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `animate` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderForgeAssetGrid` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `filterForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `loadForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `showForgeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderGLBModel` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `animate` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderForgeAssetGrid` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `filterForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `loadForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `showForgeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderGLBModel` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `animate` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderForgeAssetGrid` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `filterForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `loadForgeAssets` (javascript)
+  - Priority: MEDIUM
+  - Reasons: Very short body
+- Function `showForgeModal` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `renderGLBModel` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+- Function `animate` (javascript)
+  - Priority: MEDIUM
+  - Reasons: No obvious logic or side effects
+
+---
+These files are provided to help you focus repairs.
+You (or your local AI tools) remain fully responsible for all modifications.
+If this bundle was useful, consider supporting via PayPal: BarbrickDesign@gmail.com

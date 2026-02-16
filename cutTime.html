@@ -1,0 +1,1481 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: cutTime.html
+Declaration ID: IP-2E69AE0A-MLL28ZYN
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>cutTime — Faceting Timer & Leaderboard</title>
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#00c2a8;--accent2:#7c5cff;--glass:rgba(255,255,255,0.03)}
+  html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Arial;background:linear-gradient(180deg,#071021 0%,#071827 100%);color:#e6eef6}
+  .wrap{max-width:1100px;margin:28px auto;padding:20px}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  h1{font-size:20px;margin:0}
+  h2{font-size:18px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+  .grid{display:grid;grid-template-columns:1fr 420px;gap:16px}
+  @media (max-width: 900px) {
+    .grid{grid-template-columns:1fr}
+  }
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  input,select,button{font-size:14px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+  .row{display:flex;gap:8px;align-items:center}
+  .controls{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .big{font-size:28px;font-weight:600}
+  .muted{color:var(--muted);font-size:13px}
+  .timer{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .facet-list{max-height:220px;overflow:auto;margin-top:8px;border-radius:8px;padding:8px;background:var(--glass)}
+  .facet-item{display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;margin-bottom:6px;background:linear-gradient(90deg,rgba(255,255,255,0.01),transparent)}
+  .badge{display:inline-block;padding:6px 8px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#04101a;font-weight:700;font-size:12px}
+  .leaderboard{margin-top:12px}
+  .small{font-size:12px;color:var(--muted)}
+  .chart{height:80px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:8px;padding:8px}
+  footer{margin-top:18px;color:var(--muted);font-size:13px}
+  .danger{color:#ff7b7b}
+  .success{color:#7ef0c9}
+  .flex-col{display:flex;flex-direction:column}
+  .flex{display:flex;gap:8px;align-items:center}
+  .btn{cursor:pointer;border:none;padding:10px 16px;border-radius:8px;background:var(--accent);color:#04101a;font-weight:700;font-size:14px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit}
+  .small-muted{font-size:12px;color:var(--muted)}
+  .config{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width: 600px) {
+    .config{grid-template-columns:1fr}
+  }
+  pre{white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;font-size:12px}
+  .progress-bar{height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;margin:8px 0}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.3s ease}
+  .btn:disabled{opacity:0.4;cursor:not-allowed}
+  .btn.pause{background:var(--accent2)}
+  .delete-btn{background:#ff7b7b;color:#fff;padding:4px 8px;font-size:11px;border-radius:4px;cursor:pointer;border:none;min-height:32px}
+  .delete-btn:hover{background:#ff5252}
+  
+  /* Enhanced Mobile Styles */
+  @media (max-width: 600px) {
+    .wrap{margin:12px auto;padding:12px}
+    header{flex-direction:column;gap:12px;align-items:stretch}
+    header .card{padding:12px;text-align:center}
+    h1{font-size:24px}
+    h2{font-size:18px;margin-top:0}
+    .card{padding:16px}
+    .config{grid-template-columns:1fr;gap:12px}
+    .controls{gap:10px}
+    .controls button{flex:1 1 auto;min-width:120px}
+    input,select{font-size:16px;padding:12px;min-height:44px}
+    .btn{padding:12px 16px;font-size:15px;min-height:48px}
+    .big{font-size:32px}
+    label{font-size:14px;margin-bottom:8px}
+    .small-muted{font-size:13px}
+    .muted{font-size:14px}
+    .row{flex-wrap:wrap}
+    .timer .row{gap:12px}
+    .timer .row > div{flex:1 1 45%}
+    .timer .row > div:last-child{text-align:left}
+    .timer-controls{flex-direction:column;align-items:stretch}
+    .timer-controls > div{width:100%!important;flex:1 1 100%!important;min-width:100%!important}
+    .timer-controls .row{width:100%;justify-content:stretch}
+    .timer-controls .row button{flex:1;min-width:0}
+    .facet-list{max-height:300px;padding:12px}
+    .facet-item{padding:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+    .badge{padding:8px 12px;font-size:13px;margin-bottom:4px}
+    footer{font-size:14px}
+    footer > div{flex-direction:column;align-items:flex-start;gap:12px}
+    footer .card{padding:16px}
+    footer .btn{width:100%;justify-content:center}
+    #paypal-donation-container{width:100%;margin-top:12px}
+    #paypal-donation-container a{display:block;width:100%}
+    .leaderboard .card{padding:12px}
+    .progress-bar{height:8px;margin:12px 0}
+    .small{font-size:13px}
+  }
+  
+  @media (max-width: 400px) {
+    .wrap{padding:8px}
+    .card{padding:12px}
+    h1{font-size:20px}
+    h2{font-size:16px}
+    .btn{min-height:44px;padding:10px 14px;font-size:14px}
+    input,select{font-size:16px;padding:10px}
+  }
+</style>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="card" style="padding:10px 14px">
+      <h1>cutTime</h1>
+      <div class="muted">Faceting timer, logger, estimator, and leaderboard</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="card" style="padding:10px 14px;text-align:right">
+      <div class="small-muted">Local logs</div>
+      <div id="logCount" class="big">0 sessions</div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card" aria-label="Main controls">
+      <h2 style="margin-top:0">Session Setup</h2>
+      <div class="config">
+        <div style="grid-column: 1 / -1">
+          <label>Facet design & shape</label>
+          <select id="facetDesign">
+            <option value="">Custom (set manually)</option>
+            <optgroup label="Standard Round Cuts">
+              <option value="round-brilliant-57" data-facets="57" data-grits="3" data-complexity="1.0">Round Brilliant Cut (57 facets)</option>
+              <option value="round-brilliant-58" data-facets="58" data-grits="3" data-complexity="1.0">Round Brilliant Cut (58 facets)</option>
+              <option value="round-single-18" data-facets="18" data-grits="3" data-complexity="0.7">Round Single Cut (18 facets)</option>
+              <option value="round-swiss-73" data-facets="73" data-grits="3" data-complexity="1.15">Round Swiss Cut (73 facets)</option>
+            </optgroup>
+            <optgroup label="Rectangular & Square Cuts">
+              <option value="emerald-cut-57" data-facets="57" data-grits="3" data-complexity="0.95">Emerald Cut (57 facets)</option>
+              <option value="asscher-cut-58" data-facets="58" data-grits="3" data-complexity="1.0">Asscher Cut (58 facets)</option>
+              <option value="baguette-25" data-facets="25" data-grits="3" data-complexity="0.8">Baguette (25 facets)</option>
+              <option value="princess-cut-76" data-facets="76" data-grits="3" data-complexity="1.2">Princess Cut (76 facets)</option>
+              <option value="radiant-cut-70" data-facets="70" data-grits="3" data-complexity="1.15">Radiant Cut (70 facets)</option>
+            </optgroup>
+            <optgroup label="Fancy Cuts">
+              <option value="cushion-64" data-facets="64" data-grits="3" data-complexity="1.1">Cushion Cut (64 facets)</option>
+              <option value="oval-brilliant-69" data-facets="69" data-grits="3" data-complexity="1.05">Oval Brilliant (69 facets)</option>
+              <option value="pear-71" data-facets="71" data-grits="3" data-complexity="1.1">Pear Shape (71 facets)</option>
+              <option value="marquise-55" data-facets="55" data-grits="3" data-complexity="1.15">Marquise (55 facets)</option>
+              <option value="heart-59" data-facets="59" data-grits="3" data-complexity="1.2">Heart Shape (59 facets)</option>
+              <option value="trillion-50" data-facets="50" data-grits="3" data-complexity="1.1">Trillion (50 facets)</option>
+            </optgroup>
+            <optgroup label="Step Cuts">
+              <option value="step-cut-49" data-facets="49" data-grits="3" data-complexity="0.9">Octagonal Step Cut (49 facets)</option>
+              <option value="barion-square-61" data-facets="61" data-grits="3" data-complexity="1.1">Barion Square (61 facets)</option>
+              <option value="scissor-cut-65" data-facets="65" data-grits="3" data-complexity="1.05">Scissor Cut (65 facets)</option>
+            </optgroup>
+            <optgroup label="Mixed Cuts">
+              <option value="portuguese-161" data-facets="161" data-grits="3" data-complexity="1.5">Portuguese Cut (161 facets)</option>
+              <option value="flower-cut-90" data-facets="90" data-grits="3" data-complexity="1.3">Flower Cut (90 facets)</option>
+              <option value="buff-top-45" data-facets="45" data-grits="3" data-complexity="0.85">Buff Top (45 facets)</option>
+            </optgroup>
+            <optgroup label="Specialty Designs">
+              <option value="cabochon-0" data-facets="0" data-grits="4" data-complexity="0.6">Cabochon (no facets)</option>
+              <option value="rose-cut-24" data-facets="24" data-grits="3" data-complexity="0.8">Rose Cut (24 facets)</option>
+              <option value="checkerboard-variable" data-facets="80" data-grits="3" data-complexity="1.4">Checkerboard (80+ facets)</option>
+              <option value="concave-cut-variable" data-facets="100" data-grits="4" data-complexity="1.6">Concave Cut (100+ facets)</option>
+            </optgroup>
+          </select>
+          <div class="small-muted" style="margin-top:4px">
+            <span id="designInfo">Select a design to auto-fill facet count and complexity</span>
+          </div>
+        </div>
+        <div style="grid-column: 1 / -1">
+          <label>Stone type & material</label>
+          <select id="stoneType">
+            <option value="">Custom (enter below)</option>
+            <optgroup label="Soft Stones (Mohs 2-4)">
+              <option value="Gypsum" data-hardness="2" data-multiplier="0.7">Gypsum (Mohs 2)</option>
+              <option value="Calcite" data-hardness="3" data-multiplier="0.75">Calcite (Mohs 3)</option>
+              <option value="Fluorite" data-hardness="4" data-multiplier="0.8">Fluorite (Mohs 4)</option>
+              <option value="Apatite" data-hardness="5" data-multiplier="0.85">Apatite (Mohs 5)</option>
+            </optgroup>
+            <optgroup label="Medium Stones (Mohs 5-7)">
+              <option value="Opal" data-hardness="5.5" data-multiplier="0.9">Opal (Mohs 5.5)</option>
+              <option value="Orthoclase" data-hardness="6" data-multiplier="0.95">Orthoclase/Moonstone (Mohs 6)</option>
+              <option value="Quartz" data-hardness="7" data-multiplier="1.0" selected>Quartz/Amethyst/Citrine (Mohs 7)</option>
+              <option value="Garnet" data-hardness="7" data-multiplier="1.0">Garnet (Mohs 7-7.5)</option>
+              <option value="Tourmaline" data-hardness="7.5" data-multiplier="1.05">Tourmaline (Mohs 7-7.5)</option>
+              <option value="Emerald" data-hardness="7.5" data-multiplier="1.1">Emerald/Beryl (Mohs 7.5-8)</option>
+            </optgroup>
+            <optgroup label="Hard Stones (Mohs 8-9)">
+              <option value="Topaz" data-hardness="8" data-multiplier="1.15">Topaz (Mohs 8)</option>
+              <option value="Spinel" data-hardness="8" data-multiplier="1.15">Spinel (Mohs 8)</option>
+              <option value="Chrysoberyl" data-hardness="8.5" data-multiplier="1.2">Chrysoberyl (Mohs 8.5)</option>
+              <option value="Ruby" data-hardness="9" data-multiplier="1.3">Ruby (Mohs 9)</option>
+              <option value="Sapphire" data-hardness="9" data-multiplier="1.3">Sapphire (Mohs 9)</option>
+            </optgroup>
+            <optgroup label="Very Hard Stones (Mohs 9-10)">
+              <option value="Diamond" data-hardness="10" data-multiplier="1.6">Diamond (Mohs 10)</option>
+              <option value="Moissanite" data-hardness="9.25" data-multiplier="1.4">Moissanite (Mohs 9.25)</option>
+            </optgroup>
+            <optgroup label="Specialty & Rare">
+              <option value="Tanzanite" data-hardness="6.5" data-multiplier="0.95">Tanzanite (Mohs 6.5-7)</option>
+              <option value="Peridot" data-hardness="6.5" data-multiplier="0.95">Peridot (Mohs 6.5-7)</option>
+              <option value="Zircon" data-hardness="7.5" data-multiplier="1.05">Zircon (Mohs 7.5)</option>
+              <option value="Kunzite" data-hardness="6.5" data-multiplier="0.95">Kunzite (Mohs 6.5-7)</option>
+              <option value="Iolite" data-hardness="7" data-multiplier="1.0">Iolite (Mohs 7-7.5)</option>
+              <option value="Alexandrite" data-hardness="8.5" data-multiplier="1.2">Alexandrite (Mohs 8.5)</option>
+            </optgroup>
+          </select>
+          <div class="small-muted" style="margin-top:4px">
+            <span id="stoneHardnessInfo">Select a stone to see hardness info</span>
+          </div>
+        </div>
+        <div>
+          <label>Custom stone name (optional)</label>
+          <input id="stoneName" placeholder="e.g., Round Brilliant Cut" />
+        </div>
+        <div>
+          <label>Facets F</label>
+          <input id="facets" type="number" min="0" value="57" />
+        </div>
+        <div>
+          <label>Grit stages G</label>
+          <input id="grits" type="number" min="1" value="3" />
+        </div>
+        <div>
+          <label>Material multiplier (auto-set)</label>
+          <input id="material" type="number" step="0.1" min="0.5" max="2" value="1" readonly style="background:rgba(255,255,255,0.02)" />
+          <div class="small-muted" style="margin-top:2px">Auto-set based on stone type</div>
+        </div>
+        <div>
+          <label>Precision multiplier k_precision</label>
+          <select id="precision">
+            <option value="1">Standard finish 1.0</option>
+            <option value="1.15">High polish 1.15</option>
+            <option value="1.3">Ultra precision 1.3</option>
+          </select>
+        </div>
+        <div>
+          <label>Fixed overhead minutes</label>
+          <input id="overhead" type="number" min="0" step="0.1" value="5" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label for="sessionNotes">Session notes (optional)</label>
+        <input id="sessionNotes" placeholder="Notes about this session..." />
+        <div class="small-muted" style="margin-top:6px">Add notes to help remember this session later.</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Estimated per‑facet per‑grit time t (seconds)</label>
+        <input id="tSeconds" type="number" min="1" value="60" />
+        <div class="small-muted" style="margin-top:6px">You can enter a starting t or let the app learn it from your logs.</div>
+      </div>
+
+      <div class="controls">
+        <button id="startSession" class="btn">Start Session</button>
+        <button id="endSession" class="btn secondary" disabled>End Session</button>
+        <button id="exportLogs" class="btn secondary">Export Logs</button>
+        <button id="importLogs" class="btn secondary">Import Logs</button>
+      </div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)" />
+
+      <div class="timer">
+        <div class="row">
+          <div>
+            <div class="muted">Session timer</div>
+            <div id="sessionTimer" class="big">00:00:00</div>
+          </div>
+          <div style="margin-left:auto;text-align:right">
+            <div class="muted">Current facet</div>
+            <div id="currentFacet" class="big">—</div>
+          </div>
+        </div>
+        
+        <div class="progress-bar" id="progressBar" style="display:none">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div id="progressText" class="small-muted" style="display:none;text-align:center"></div>
+
+        <div style="margin-top:8px" class="row timer-controls">
+          <div style="flex:1;min-width:120px">
+            <label>Facet index</label>
+            <input id="facetIndex" type="number" min="1" value="1" />
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label>Grit stage</label>
+            <select id="gritStage">
+              <option value="1">1 Form</option>
+              <option value="2">2 Pre‑polish</option>
+              <option value="3">3 Polish</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto;min-width:100%">
+            <label>&nbsp;</label>
+            <div class="row" style="gap:10px">
+              <button id="startTimer" class="btn" disabled style="flex:1">Start</button>
+              <button id="pauseTimer" class="btn pause" disabled style="display:none;flex:1">Pause</button>
+              <button id="stopTimer" class="btn secondary" disabled style="flex:1">Stop</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="facet-list" id="facetList" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2 style="margin-top:0">Analytics & Leaderboard</h2>
+
+      <div>
+        <label>Personal averages</label>
+        <div id="averages" class="small-muted">No data yet</div>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Estimate for current setup</label>
+        <div id="estimate" class="big">—</div>
+        <div class="small-muted">Based on your t and multipliers</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Stone type statistics</label>
+        <div id="stoneStats" class="small-muted" style="max-height:120px;overflow:auto;padding:6px;background:var(--glass);border-radius:8px">
+          No data yet
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Badges</label>
+        <div id="badges" style="margin-top:8px"></div>
+      </div>
+
+      <div class="leaderboard card" style="margin-top:12px;padding:10px">
+        <div class="row">
+          <div><strong>Leaderboard</strong></div>
+          <div style="margin-left:auto" class="small-muted">Global sync optional</div>
+        </div>
+        <div id="leaderboardList" style="margin-top:8px"></div>
+
+        <div style="margin-top:10px">
+          <label>Global sync endpoint (optional)</label>
+          <input id="syncEndpoint" placeholder="https://example.com/leaderboard" />
+          <div class="small-muted">Set an endpoint that accepts POST JSON {name,stone,totalMinutes,date}</div>
+          <div style="margin-top:8px" class="row">
+            <button id="syncNow" class="btn secondary">Sync Local Best</button>
+            <button id="clearLocal" class="btn secondary">Clear Local Logs</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Session history (latest 10)</label>
+        <div id="history" class="small-muted" style="max-height:160px;overflow:auto;padding:8px;background:var(--glass);border-radius:8px"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Quick tips</label>
+        <ul class="small-muted">
+          <li><strong>New!</strong> Select a facet design to auto-fill facet count and complexity.</li>
+          <li>Choose from 25+ popular gem cuts including Round Brilliant, Emerald, Princess, and more.</li>
+          <li>Select stone type to auto-set hardness multiplier.</li>
+          <li>The app learns from your logs and provides stone-specific estimates.</li>
+          <li>Use per‑facet timing to find slow steps and optimize.</li>
+          <li>Log every session; the estimator improves with data.</li>
+          <li>Use badges to motivate consistent improvement.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="card">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div class="small-muted">Local storage key: <code>cutTime_logs_v1</code></div>
+      <div style="margin-left:auto" class="small-muted">Made for facetors • Keep iterating</div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.03)">
+      <div class="small-muted"><strong>Keyboard Shortcuts:</strong></div>
+      <div class="small-muted" style="margin-top:4px">
+        • <strong>Space</strong>: Start/Pause/Resume timer
+        • <strong>Ctrl+S</strong>: Start session
+        • <strong>Ctrl+E</strong>: End session
+        • <strong>Ctrl+Enter</strong>: Stop timer (record facet)
+      </div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.03)">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div class="small-muted">
+          <strong>Gem Bot Controller:</strong> Control your gem cutting machine with our 3D interface
+        </div>
+        <a href="gembot-control-3d.html" class="btn" style="font-size:13px;padding:8px 16px">
+          💎 Open Gem Bot
+        </a>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.03)">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div class="small-muted">
+          <strong>Share Your Cut Logs:</strong> Join the community and share your faceting progress
+        </div>
+        <a href="https://www.facebook.com/share/v/188eM2sXgz/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" class="btn" style="font-size:13px;padding:8px 16px">
+          📱 Share on Facebook
+        </a>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.03)">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div class="small-muted">
+          <strong>Support this project:</strong> If you find cutTime useful, consider supporting development
+        </div>
+        <div id="paypal-donation-container"></div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* cutTime.html
+   Single-file faceting timer, logger, estimator, and optional leaderboard sync.
+   Privacy: logs stored in localStorage under key 'cutTime_logs_v1'.
+   To enable global leaderboard sync, set a POST endpoint that accepts JSON:
+     { name, stone, totalMinutes, facets, grits, date }
+*/
+
+(() => {
+  // Utilities
+  const $ = id => document.getElementById(id);
+  const fmtTime = s => {
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
+    return [h,m,sec].map(x=>String(x).padStart(2,'0')).join(':');
+  };
+  const nowISO = () => new Date().toISOString();
+
+  // Storage
+  const STORAGE_KEY = 'cutTime_logs_v1';
+  const TIMER_STATE_KEY = 'cutTime_timerState_v1';
+  const loadLogs = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  };
+  const saveLogs = logs => localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+  const loadTimerState = () => {
+    try {
+      const raw = localStorage.getItem(TIMER_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  };
+  const saveTimerState = state => localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+  const clearTimerState = () => localStorage.removeItem(TIMER_STATE_KEY);
+
+  // State
+  let session = null; // {id,stone,stoneType,hardness,facets,grits,material,precision,overhead,startAt,entries:[],notes:''}
+  let timer = null;
+  let timerStart = 0;
+  let timerAccum = 0;
+  let timerPaused = false;
+
+  // Stone database - comprehensive list with properties
+  const STONE_DATABASE = {
+    'Gypsum': { hardness: 2, multiplier: 0.7 },
+    'Calcite': { hardness: 3, multiplier: 0.75 },
+    'Fluorite': { hardness: 4, multiplier: 0.8 },
+    'Apatite': { hardness: 5, multiplier: 0.85 },
+    'Opal': { hardness: 5.5, multiplier: 0.9 },
+    'Orthoclase': { hardness: 6, multiplier: 0.95 },
+    'Quartz': { hardness: 7, multiplier: 1.0 },
+    'Garnet': { hardness: 7, multiplier: 1.0 },
+    'Tourmaline': { hardness: 7.5, multiplier: 1.05 },
+    'Emerald': { hardness: 7.5, multiplier: 1.1 },
+    'Topaz': { hardness: 8, multiplier: 1.15 },
+    'Spinel': { hardness: 8, multiplier: 1.15 },
+    'Chrysoberyl': { hardness: 8.5, multiplier: 1.2 },
+    'Ruby': { hardness: 9, multiplier: 1.3 },
+    'Sapphire': { hardness: 9, multiplier: 1.3 },
+    'Diamond': { hardness: 10, multiplier: 1.6 },
+    'Moissanite': { hardness: 9.25, multiplier: 1.4 },
+    'Tanzanite': { hardness: 6.5, multiplier: 0.95 },
+    'Peridot': { hardness: 6.5, multiplier: 0.95 },
+    'Zircon': { hardness: 7.5, multiplier: 1.05 },
+    'Kunzite': { hardness: 6.5, multiplier: 0.95 },
+    'Iolite': { hardness: 7, multiplier: 1.0 },
+    'Alexandrite': { hardness: 8.5, multiplier: 1.2 }
+  };
+
+  // Facet design database with complexity multipliers
+  const FACET_DESIGN_DATABASE = {
+    'round-brilliant-57': { name: 'Round Brilliant Cut', facets: 57, grits: 3, complexity: 1.0, description: 'Classic 57-facet brilliant cut' },
+    'round-brilliant-58': { name: 'Round Brilliant Cut', facets: 58, grits: 3, complexity: 1.0, description: '58-facet brilliant (with culet)' },
+    'round-single-18': { name: 'Round Single Cut', facets: 18, grits: 3, complexity: 0.7, description: 'Simple 18-facet cut for small stones' },
+    'round-swiss-73': { name: 'Round Swiss Cut', facets: 73, grits: 3, complexity: 1.15, description: 'Swiss cut with extra facets' },
+    'emerald-cut-57': { name: 'Emerald Cut', facets: 57, grits: 3, complexity: 0.95, description: 'Step cut rectangular shape' },
+    'asscher-cut-58': { name: 'Asscher Cut', facets: 58, grits: 3, complexity: 1.0, description: 'Square step cut with cropped corners' },
+    'baguette-25': { name: 'Baguette', facets: 25, grits: 3, complexity: 0.8, description: 'Simple rectangular step cut' },
+    'princess-cut-76': { name: 'Princess Cut', facets: 76, grits: 3, complexity: 1.2, description: 'Square brilliant cut' },
+    'radiant-cut-70': { name: 'Radiant Cut', facets: 70, grits: 3, complexity: 1.15, description: 'Modified brilliant rectangular cut' },
+    'cushion-64': { name: 'Cushion Cut', facets: 64, grits: 3, complexity: 1.1, description: 'Rounded square brilliant' },
+    'oval-brilliant-69': { name: 'Oval Brilliant', facets: 69, grits: 3, complexity: 1.05, description: 'Elongated brilliant cut' },
+    'pear-71': { name: 'Pear Shape', facets: 71, grits: 3, complexity: 1.1, description: 'Teardrop brilliant cut' },
+    'marquise-55': { name: 'Marquise', facets: 55, grits: 3, complexity: 1.15, description: 'Pointed oval brilliant' },
+    'heart-59': { name: 'Heart Shape', facets: 59, grits: 3, complexity: 1.2, description: 'Heart-shaped brilliant' },
+    'trillion-50': { name: 'Trillion', facets: 50, grits: 3, complexity: 1.1, description: 'Triangular brilliant cut' },
+    'step-cut-49': { name: 'Octagonal Step Cut', facets: 49, grits: 3, complexity: 0.9, description: 'Eight-sided step cut' },
+    'barion-square-61': { name: 'Barion Square', facets: 61, grits: 3, complexity: 1.1, description: 'Square mixed cut' },
+    'scissor-cut-65': { name: 'Scissor Cut', facets: 65, grits: 3, complexity: 1.05, description: 'Step cut with crossed facets' },
+    'portuguese-161': { name: 'Portuguese Cut', facets: 161, grits: 3, complexity: 1.5, description: 'Complex multi-tier brilliant' },
+    'flower-cut-90': { name: 'Flower Cut', facets: 90, grits: 3, complexity: 1.3, description: 'Decorative flower pattern' },
+    'buff-top-45': { name: 'Buff Top', facets: 45, grits: 3, complexity: 0.85, description: 'Domed top with faceted pavilion' },
+    'cabochon-0': { name: 'Cabochon', facets: 0, grits: 4, complexity: 0.6, description: 'Smooth domed surface, no facets' },
+    'rose-cut-24': { name: 'Rose Cut', facets: 24, grits: 3, complexity: 0.8, description: 'Flat-bottomed dome with triangular facets' },
+    'checkerboard-variable': { name: 'Checkerboard', facets: 80, grits: 3, complexity: 1.4, description: 'Grid pattern on crown' },
+    'concave-cut-variable': { name: 'Concave Cut', facets: 100, grits: 4, complexity: 1.6, description: 'Concave facets for extra brilliance' }
+  };
+
+  // Elements
+  const el = {
+    startSession: $('startSession'),
+    endSession: $('endSession'),
+    exportLogs: $('exportLogs'),
+    importLogs: $('importLogs'),
+    sessionTimer: $('sessionTimer'),
+    currentFacet: $('currentFacet'),
+    facetIndex: $('facetIndex'),
+    gritStage: $('gritStage'),
+    startTimer: $('startTimer'),
+    pauseTimer: $('pauseTimer'),
+    stopTimer: $('stopTimer'),
+    facetList: $('facetList'),
+    logCount: $('logCount'),
+    averages: $('averages'),
+    estimate: $('estimate'),
+    tSeconds: $('tSeconds'),
+    facets: $('facets'),
+    grits: $('grits'),
+    material: $('material'),
+    precision: $('precision'),
+    overhead: $('overhead'),
+    stoneName: $('stoneName'),
+    stoneType: $('stoneType'),
+    stoneHardnessInfo: $('stoneHardnessInfo'),
+    stoneStats: $('stoneStats'),
+    sessionNotes: $('sessionNotes'),
+    badges: $('badges'),
+    leaderboardList: $('leaderboardList'),
+    syncEndpoint: $('syncEndpoint'),
+    syncNow: $('syncNow'),
+    history: $('history'),
+    clearLocal: $('clearLocal'),
+    progressBar: $('progressBar'),
+    progressFill: $('progressFill'),
+    progressText: $('progressText'),
+    facetDesign: $('facetDesign'),
+    designInfo: $('designInfo')
+  };
+
+  // Stone type selection handler
+  el.stoneType.addEventListener('change', () => {
+    const selected = el.stoneType.value;
+    const option = el.stoneType.selectedOptions[0];
+    
+    if (selected && option.dataset.hardness) {
+      const hardness = parseFloat(option.dataset.hardness);
+      const multiplier = parseFloat(option.dataset.multiplier);
+      
+      // Update material multiplier automatically
+      el.material.value = multiplier;
+      
+      // Update hardness info display
+      el.stoneHardnessInfo.innerHTML = `<strong>${selected}</strong>: Mohs ${hardness} hardness • ${multiplier}× cutting time multiplier`;
+      
+      // Update stone name if not custom and field is empty or matches a placeholder pattern
+      if (!el.stoneName.value || el.stoneName.value === el.stoneName.placeholder || el.stoneName.value.match(/\w+ cut$/)) {
+        el.stoneName.placeholder = `${selected} cut`;
+        el.stoneName.value = '';
+      }
+    } else {
+      el.stoneHardnessInfo.textContent = 'Custom stone - manually set values if needed';
+    }
+    
+    updateEstimate();
+  });
+
+  // Facet design selection handler
+  el.facetDesign.addEventListener('change', () => {
+    const designId = el.facetDesign.value;
+    
+    if (designId && FACET_DESIGN_DATABASE[designId]) {
+      const design = FACET_DESIGN_DATABASE[designId];
+      
+      // Auto-populate facet count and grit stages
+      el.facets.value = design.facets;
+      el.grits.value = design.grits;
+      
+      // Apply complexity multiplier to precision
+      // Complexity affects how precise the cuts need to be
+      const baselinePrecision = parseFloat(el.precision.value || 1);
+      if (baselinePrecision === 1.0) {
+        // Only auto-adjust if user hasn't customized precision
+        el.precision.value = design.complexity;
+      }
+      
+      // Update design info display
+      el.designInfo.innerHTML = `<strong>${design.name}</strong>: ${design.facets} facets • ${design.description} • Complexity ${design.complexity}×`;
+      
+      // Update stone name placeholder if empty
+      if (!el.stoneName.value || el.stoneName.value === el.stoneName.placeholder) {
+        const stoneType = el.stoneType.value || 'Stone';
+        el.stoneName.placeholder = `${stoneType} ${design.name}`;
+      }
+    } else {
+      el.designInfo.textContent = 'Custom design - manually set facet count and grit stages';
+    }
+    
+    updateEstimate();
+  });
+
+  // Load initial
+  let logs = loadLogs();
+  updateLogCount();
+  renderHistory();
+  renderLeaderboard();
+  renderStoneStats();
+
+  // Initialize stone type info
+  if (el.stoneType.value) {
+    el.stoneType.dispatchEvent(new Event('change'));
+  }
+
+  // Restore timer state if exists
+  const savedTimerState = loadTimerState();
+  if (savedTimerState) {
+    session = savedTimerState.session;
+    timerAccum = savedTimerState.timerAccum || 0;
+    timerPaused = savedTimerState.timerPaused || false;
+    
+    // Restore UI state
+    el.startSession.disabled = true;
+    el.endSession.disabled = false;
+    el.startTimer.disabled = false;
+    
+    // Restore input values
+    el.stoneName.value = session.stone;
+    el.facets.value = session.facets;
+    el.grits.value = session.grits;
+    el.material.value = session.material;
+    el.precision.value = session.precision;
+    el.overhead.value = session.overhead;
+    el.sessionNotes.value = session.notes || '';
+    
+    // Calculate elapsed time since page was closed
+    if (savedTimerState.facetTimerStart && !timerPaused) {
+      const elapsed = Date.now() - savedTimerState.facetTimerStart;
+      timerAccum += elapsed;
+    }
+    
+    // Restart timers
+    startSessionClock();
+    renderFacetList();
+    updateEstimate();
+    updateProgress();
+    
+    if (!timerPaused && savedTimerState.facetTimerStart) {
+      // Resume facet timer
+      timerStart = Date.now();
+      timer = setInterval(() => {
+        const elapsed = (Date.now() - timerStart + timerAccum)/1000;
+        el.sessionTimer.textContent = fmtTime(Math.floor((Date.now() - session.startAt)/1000));
+        el.currentFacet.textContent = fmtTime(Math.floor(elapsed));
+      }, 200);
+      el.startTimer.style.display = 'none';
+      el.pauseTimer.style.display = 'inline-block';
+      el.pauseTimer.disabled = false;
+      el.stopTimer.disabled = false;
+      el.currentFacet.textContent = fmtTime(0);
+    } else if (timerPaused) {
+      el.currentFacet.textContent = fmtTime(Math.floor(timerAccum/1000));
+      el.startTimer.style.display = 'inline-block';
+      el.startTimer.textContent = 'Resume';
+      el.pauseTimer.style.display = 'none';
+    } else {
+      el.currentFacet.textContent = 'Ready';
+    }
+    
+    showToast('Session restored from previous visit');
+  }
+
+  // Session controls
+  el.startSession.addEventListener('click', () => {
+    if (session) return alert('Session already running');
+    
+    // Validate inputs
+    const stoneType = el.stoneType.value || 'Custom';
+    const stoneName = el.stoneName.value.trim() || stoneType;
+    const facets = parseInt(el.facets.value);
+    const grits = parseInt(el.grits.value);
+    const facetDesignId = el.facetDesign.value;
+    const facetDesignName = facetDesignId && FACET_DESIGN_DATABASE[facetDesignId] 
+      ? FACET_DESIGN_DATABASE[facetDesignId].name 
+      : 'Custom';
+    
+    if (!stoneName) {
+      alert('Please enter a stone name or select a stone type');
+      el.stoneName.focus();
+      return;
+    }
+    if (isNaN(facets) || facets < 0) {
+      alert('Facets must be 0 or more (0 for cabochon)');
+      el.facets.focus();
+      return;
+    }
+    if (isNaN(grits) || grits < 1) {
+      alert('Grit stages must be at least 1');
+      el.grits.focus();
+      return;
+    }
+    
+    // Get hardness info from stone type
+    let hardness = 7; // default to quartz
+    if (stoneType && STONE_DATABASE[stoneType]) {
+      hardness = STONE_DATABASE[stoneType].hardness;
+    }
+    
+    session = {
+      id: 's_' + Date.now(),
+      stone: stoneName,
+      stoneType: stoneType,
+      hardness: hardness,
+      facetDesign: facetDesignName,
+      facetDesignId: facetDesignId,
+      facets, grits,
+      material: parseFloat(el.material.value||1),
+      precision: parseFloat(el.precision.value||1),
+      overhead: parseFloat(el.overhead.value||0),
+      notes: el.sessionNotes.value || '',
+      startAt: Date.now(),
+      entries: []
+    };
+    timerAccum = 0;
+    timerPaused = false;
+    timerStart = Date.now();
+    startSessionClock();
+    el.currentFacet.textContent = 'Ready';
+    el.startSession.disabled = true;
+    el.endSession.disabled = false;
+    el.startTimer.disabled = false;
+    renderFacetList();
+    updateEstimate();
+    updateProgress();
+    
+    // Save session state
+    saveTimerState({
+      session,
+      timerAccum: 0,
+      timerPaused: false,
+      facetTimerStart: null
+    });
+    
+    showToast('Session started');
+  });
+
+  el.endSession.addEventListener('click', () => {
+    if (!session) return alert('No session running');
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    stopSessionClock();
+    session.endedAt = Date.now();
+    // compute totals
+    const totalSeconds = session.entries.reduce((s,e)=>s+e.seconds,0) + (session.overhead*60);
+    session.totalMinutes = Math.round((totalSeconds/60)*100)/100;
+    logs.unshift(session);
+    // keep logs reasonable
+    if (logs.length > 500) logs = logs.slice(0,500);
+    saveLogs(logs);
+    session = null;
+    timerPaused = false;
+    el.startSession.disabled = false;
+    el.endSession.disabled = true;
+    el.startTimer.disabled = true;
+    el.pauseTimer.style.display = 'none';
+    el.stopTimer.disabled = true;
+    updateLogCount();
+    renderHistory();
+    renderLeaderboard();
+    renderStoneStats();
+    renderFacetList();
+    updateEstimate();
+    updateProgress();
+    
+    // Clear timer state
+    clearTimerState();
+    
+    showToast('Session saved');
+  });
+
+  // Timer controls
+  el.startTimer.addEventListener('click', () => {
+    if (!session) return alert('Start a session first');
+    if (timer) return;
+    timerStart = Date.now();
+    timerPaused = false;
+    timer = setInterval(() => {
+      const elapsed = (Date.now() - timerStart + timerAccum)/1000;
+      el.sessionTimer.textContent = fmtTime(Math.floor((Date.now() - session.startAt)/1000));
+      el.currentFacet.textContent = fmtTime(Math.floor(elapsed));
+      
+      // Periodically save state (every 5 seconds)
+      if (Math.floor(elapsed) % 5 === 0) {
+        saveTimerState({
+          session,
+          timerAccum,
+          timerPaused: false,
+          facetTimerStart: timerStart
+        });
+      }
+    }, 200);
+    el.startTimer.style.display = 'none';
+    el.pauseTimer.style.display = 'inline-block';
+    el.pauseTimer.disabled = false;
+    el.stopTimer.disabled = false;
+    
+    // Save timer state
+    saveTimerState({
+      session,
+      timerAccum,
+      timerPaused: false,
+      facetTimerStart: timerStart
+    });
+  });
+
+  el.pauseTimer.addEventListener('click', () => {
+    if (!session || !timer) return;
+    clearInterval(timer);
+    timer = null;
+    timerAccum += Date.now() - timerStart;
+    timerPaused = true;
+    el.pauseTimer.style.display = 'none';
+    el.startTimer.style.display = 'inline-block';
+    el.startTimer.textContent = 'Resume';
+    
+    // Save paused state
+    saveTimerState({
+      session,
+      timerAccum,
+      timerPaused: true,
+      facetTimerStart: null
+    });
+    
+    showToast('Timer paused');
+  });
+
+  el.stopTimer.addEventListener('click', () => {
+    if (!session) return alert('Start a session first');
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    const elapsedMs = (timerPaused ? timerAccum : (Date.now() - timerStart + timerAccum));
+    const seconds = Math.round(elapsedMs/1000);
+    timerAccum = 0;
+    timerPaused = false;
+    // record entry
+    const facet = Math.max(1, parseInt(el.facetIndex.value||1));
+    const grit = Math.max(1, parseInt(el.gritStage.value||1));
+    const entry = {
+      facet, grit, seconds, at: Date.now()
+    };
+    session.entries.push(entry);
+    renderFacetList();
+    updateEstimate();
+    updateProgress();
+    el.currentFacet.textContent = '—';
+    el.startTimer.style.display = 'inline-block';
+    el.startTimer.textContent = 'Start';
+    el.pauseTimer.style.display = 'none';
+    el.stopTimer.disabled = true;
+    
+    // Save updated session state
+    saveTimerState({
+      session,
+      timerAccum: 0,
+      timerPaused: false,
+      facetTimerStart: null
+    });
+    
+    showToast(`Recorded facet ${facet} grit ${grit} ${seconds}s`);
+  });
+
+  function startSessionClock(){
+    el.sessionTimer.textContent = '00:00:00';
+    const tick = () => {
+      if (!session) return;
+      el.sessionTimer.textContent = fmtTime(Math.floor((Date.now() - session.startAt)/1000));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  function stopSessionClock(){ /* nothing extra */ }
+
+  // Render facet list
+  function renderFacetList(){
+    el.facetList.innerHTML = '';
+    if (!session) {
+      el.facetList.innerHTML = '<div class="small-muted">No active session</div>';
+      el.currentFacet.textContent = '—';
+      return;
+    }
+    const grouped = {};
+    session.entries.forEach((e, idx) => {
+      const key = `F${e.facet} G${e.grit}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({...e, idx});
+    });
+    const keys = Object.keys(grouped).sort((a,b)=>a.localeCompare(b));
+    if (keys.length === 0) {
+      el.facetList.innerHTML = '<div class="small-muted">No facet times recorded yet</div>';
+      return;
+    }
+    keys.forEach(k => {
+      const arr = grouped[k];
+      const avg = Math.round((arr.reduce((s,x)=>s+x.seconds,0)/arr.length)*10)/10;
+      const elItem = document.createElement('div');
+      elItem.className = 'facet-item';
+      elItem.innerHTML = `<div><strong>${k}</strong><div class="small-muted">${arr.length} records</div></div><div style="text-align:right"><div class="big">${avg}s</div><div class="small-muted">best ${Math.min(...arr.map(x=>x.seconds))}s</div></div>`;
+      
+      // Add delete button for last entry in this group
+      if (arr.length > 0) {
+        const lastEntry = arr[arr.length - 1];
+        const delBtn = document.createElement('button');
+        delBtn.className = 'delete-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'Delete last entry';
+        delBtn.setAttribute('aria-label', `Delete ${k} entry`);
+        delBtn.addEventListener('click', () => deleteEntry(lastEntry.idx));
+        elItem.appendChild(delBtn);
+      }
+      
+      el.facetList.appendChild(elItem);
+    });
+  }
+
+  function deleteEntry(idx) {
+    if (!session) return;
+    if (!confirm('Delete this facet entry?')) return;
+    session.entries.splice(idx, 1);
+    renderFacetList();
+    updateEstimate();
+    updateProgress();
+    showToast('Entry deleted');
+  }
+
+  function updateProgress() {
+    if (!session) {
+      el.progressBar.style.display = 'none';
+      el.progressText.style.display = 'none';
+      return;
+    }
+    const totalExpected = session.facets * session.grits;
+    const completed = session.entries.length;
+    const percent = Math.min(100, Math.round((completed / totalExpected) * 100));
+    el.progressBar.style.display = 'block';
+    el.progressText.style.display = 'block';
+    el.progressFill.style.width = percent + '%';
+    el.progressText.textContent = `Progress: ${completed}/${totalExpected} facet-grits (${percent}%)`;
+  }
+
+  // Analytics & estimate
+  function computePersonalT(){
+    // compute average seconds per facet per grit across logs
+    const allEntries = logs.flatMap(s => s.entries || []);
+    if (allEntries.length === 0) return null;
+    // normalize per facet per grit: seconds
+    const avg = allEntries.reduce((s,e)=>s+e.seconds,0) / allEntries.length;
+    return avg; // seconds
+  }
+
+  function computePersonalTForStone(stoneType) {
+    // compute average seconds per facet per grit for specific stone type
+    if (!stoneType) return null;
+    const stoneLogs = logs.filter(s => s.stoneType === stoneType);
+    const allEntries = stoneLogs.flatMap(s => s.entries || []);
+    if (allEntries.length === 0) return null;
+    const avg = allEntries.reduce((s,e)=>s+e.seconds,0) / allEntries.length;
+    return avg; // seconds
+  }
+
+  function updateEstimate(){
+    const F = Math.max(3, parseInt(el.facets.value||57));
+    const G = Math.max(1, parseInt(el.grits.value||3));
+    const k_material = parseFloat(el.material.value||1);
+    const k_precision = parseFloat(el.precision.value||1);
+    const overhead = parseFloat(el.overhead.value||0);
+    const tManual = Math.max(1, parseFloat(el.tSeconds.value||60)); // seconds
+    
+    // Get stone type for adaptive learning
+    const stoneType = el.stoneType.value;
+    
+    // Try stone-specific learned time first, then general learned time, then manual
+    const stoneSpecificT = computePersonalTForStone(stoneType);
+    const generalLearnedT = computePersonalT();
+    const t = stoneSpecificT || generalLearnedT || tManual;
+    
+    const totalSeconds = F * G * t * k_material * k_precision + overhead*60;
+    const minutes = Math.round((totalSeconds/60)*100)/100;
+    
+    // Show estimate with confidence indicator
+    let confidence = '';
+    if (stoneSpecificT) {
+      const stoneLogCount = logs.filter(s => s.stoneType === stoneType).length;
+      confidence = ` (based on ${stoneLogCount} ${stoneType} session${stoneLogCount > 1 ? 's' : ''})`;
+    } else if (generalLearnedT) {
+      confidence = ' (general average)';
+    } else {
+      confidence = ' (default estimate)';
+    }
+    
+    el.estimate.innerHTML = `${minutes} min <span class="small-muted">(t=${Math.round(t)}s${confidence})</span>`;
+    
+    // averages display
+    const personal = computePersonalT();
+    if (personal) {
+      const totalEntries = logs.flatMap(s=>s.entries||[]).length;
+      let avgHtml = `<div>Personal t average: <strong>${Math.round(personal)}s</strong> per facet per grit</div>`;
+      avgHtml += `<div class="small-muted">Based on ${totalEntries} recorded facets across ${logs.length} sessions</div>`;
+      
+      // Show stone-specific data if available
+      if (stoneType && stoneSpecificT) {
+        const stoneLogCount = logs.filter(s => s.stoneType === stoneType).length;
+        const stoneEntries = logs.filter(s => s.stoneType === stoneType).flatMap(s=>s.entries||[]).length;
+        avgHtml += `<div style="margin-top:6px"><strong>${stoneType}:</strong> ${Math.round(stoneSpecificT)}s avg (${stoneEntries} facets, ${stoneLogCount} sessions)</div>`;
+      }
+      
+      el.averages.innerHTML = avgHtml;
+    } else {
+      el.averages.innerHTML = `<div class="small-muted">No personal data yet. Using t=${Math.round(tManual)}s</div>`;
+    }
+    renderBadges();
+    renderStoneStats();
+  }
+
+  // Render stone type statistics
+  function renderStoneStats() {
+    if (logs.length === 0) {
+      el.stoneStats.innerHTML = '<div class="small-muted">No data yet</div>';
+      return;
+    }
+    
+    // Group logs by stone type
+    const stoneGroups = {};
+    logs.forEach(s => {
+      const type = s.stoneType || 'Custom';
+      if (!stoneGroups[type]) {
+        stoneGroups[type] = {
+          count: 0,
+          totalFacets: 0,
+          avgTime: 0,
+          hardness: s.hardness || null
+        };
+      }
+      stoneGroups[type].count++;
+      const entries = s.entries || [];
+      stoneGroups[type].totalFacets += entries.length;
+      if (entries.length > 0) {
+        const avg = entries.reduce((sum, e) => sum + e.seconds, 0) / entries.length;
+        stoneGroups[type].avgTime = ((stoneGroups[type].avgTime * (stoneGroups[type].count - 1)) + avg) / stoneGroups[type].count;
+      }
+    });
+    
+    // Sort by count descending
+    const sortedStones = Object.entries(stoneGroups).sort((a, b) => b[1].count - a[1].count);
+    
+    let html = '';
+    sortedStones.forEach(([type, data]) => {
+      const hardnessInfo = data.hardness ? ` • Mohs ${data.hardness}` : '';
+      html += `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.02)">`;
+      html += `<div style="display:flex;justify-content:space-between">`;
+      html += `<div><strong>${type}</strong>${hardnessInfo}</div>`;
+      html += `<div class="small-muted">${Math.round(data.avgTime)}s avg</div>`;
+      html += `</div>`;
+      html += `<div class="small-muted">${data.count} session${data.count > 1 ? 's' : ''} • ${data.totalFacets} facets</div>`;
+      html += `</div>`;
+    });
+    
+    el.stoneStats.innerHTML = html;
+  }
+
+  // Badges
+  function renderBadges(){
+    const container = el.badges;
+    container.innerHTML = '';
+    const allEntries = logs.flatMap(s => s.entries || []);
+    if (allEntries.length === 0) {
+      container.innerHTML = '<div class="small-muted">No badges yet — log sessions to earn them</div>';
+      return;
+    }
+    // fastest facet badge
+    const best = allEntries.reduce((a,b)=> a.seconds < b.seconds ? a : b);
+    const avg = Math.round(allEntries.reduce((s,e)=>s+e.seconds,0)/allEntries.length);
+    const consistency = Math.round((allEntries.filter(e=>e.seconds <= avg*1.2).length / allEntries.length)*100);
+    const badges = [
+      {name:'Speed Demon',desc:`Fastest facet ${best.seconds}s`},
+      {name:'Consistent Cutter',desc:`${consistency}% facets within 20% of avg`},
+      {name:'Session Streak',desc:`${Math.min(7, logs.length)} sessions logged`},
+    ];
+    badges.forEach(b=>{
+      const elb = document.createElement('span');
+      elb.className = 'badge';
+      elb.style.marginRight = '8px';
+      elb.textContent = b.name;
+      elb.title = b.desc;
+      container.appendChild(elb);
+    });
+  }
+
+  // Leaderboard (local + optional global)
+  function renderLeaderboard(){
+    // local bests: fastest totalMinutes for same facet count
+    const groups = {};
+    logs.forEach(s => {
+      const key = `${s.facets}f_${s.grits}g`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s);
+    });
+    const keys = Object.keys(groups).sort();
+    el.leaderboardList.innerHTML = '';
+    if (keys.length === 0) {
+      el.leaderboardList.innerHTML = '<div class="small-muted">No local entries</div>';
+      return;
+    }
+    keys.slice(0,6).forEach(k=>{
+      const arr = groups[k].sort((a,b)=>a.totalMinutes - b.totalMinutes).slice(0,3);
+      const title = document.createElement('div');
+      title.className = 'small-muted';
+      title.textContent = `${k.replace('_',' / ')} — top ${arr.length}`;
+      el.leaderboardList.appendChild(title);
+      arr.forEach(s=>{
+        const row = document.createElement('div');
+        row.style.display='flex';row.style.justifyContent='space-between';row.style.padding='6px 0';
+        row.innerHTML = `<div><strong>${s.stone}</strong> <span class="small-muted">(${new Date(s.startAt).toLocaleDateString()})</span></div><div class="small-muted">${s.totalMinutes} min</div>`;
+        el.leaderboardList.appendChild(row);
+      });
+    });
+  }
+
+  // History
+  function renderHistory(){
+    el.history.innerHTML = '';
+    if (logs.length === 0) {
+      el.history.innerHTML = '<div class="small-muted">No sessions logged</div>';
+      return;
+    }
+    logs.slice(0,10).forEach(s=>{
+      const elRow = document.createElement('div');
+      elRow.style.padding='6px 0'; elRow.style.borderBottom='1px dashed rgba(255,255,255,0.02)';
+      const stoneInfo = s.stoneType ? `${s.stoneType}` : s.stone;
+      const hardnessInfo = s.hardness ? ` (Mohs ${s.hardness})` : '';
+      const designInfo = s.facetDesign ? `<div class="small-muted" style="margin-top:2px">📐 ${escapeHtml(s.facetDesign)}</div>` : '';
+      const notesHtml = s.notes ? `<div class="small-muted" style="margin-top:2px">📝 ${escapeHtml(s.notes)}</div>` : '';
+      elRow.innerHTML = `<div style="display:flex;justify-content:space-between"><div><strong>${stoneInfo}</strong>${hardnessInfo} <span class="small-muted">(${s.facets}f ${s.grits}g)</span>${designInfo}${notesHtml}</div><div class="small-muted">${s.totalMinutes} min</div></div>`;
+      el.history.appendChild(elRow);
+    });
+  }
+
+  // Export / Import
+  el.exportLogs.addEventListener('click', () => {
+    const data = JSON.stringify(logs, null, 2);
+    // Create downloadable JSON file
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cutTime_logs_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Logs exported as JSON');
+    
+    // Also offer CSV export
+    setTimeout(() => {
+      if (confirm('Also export as CSV for spreadsheet analysis?')) {
+        exportCSV();
+      }
+    }, 500);
+  });
+  
+  function exportCSV() {
+    let csv = 'Date,Stone Type,Custom Name,Hardness,Facet Design,Facets,Grits,Material,Precision,Overhead,Total Minutes,Notes\n';
+    logs.forEach(s => {
+      const date = new Date(s.startAt).toISOString().split('T')[0];
+      const stoneType = (s.stoneType || 'Custom').replace(/,/g, ';');
+      const stoneName = (s.stone || '').replace(/,/g, ';');
+      const hardness = s.hardness || '';
+      const facetDesign = (s.facetDesign || 'Custom').replace(/,/g, ';');
+      const notes = (s.notes || '').replace(/,/g, ';');
+      csv += `${date},"${stoneType}","${stoneName}",${hardness},"${facetDesign}",${s.facets},${s.grits},${s.material},${s.precision},${s.overhead},${s.totalMinutes},"${notes}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cutTime_logs_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Logs exported as CSV');
+  }
+  el.importLogs.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const arr = JSON.parse(event.target.result);
+          if (!Array.isArray(arr)) throw new Error('Not an array');
+          // Validate structure
+          const valid = arr.every(s => s.stone && s.facets && s.grits && s.startAt);
+          if (!valid) throw new Error('Invalid log structure');
+          logs = arr.concat(logs);
+          // Remove duplicates by session id, keeping most recent
+          const seenMap = new Map();
+          logs.forEach(s => seenMap.set(s.id, s));
+          logs = Array.from(seenMap.values());
+          saveLogs(logs);
+          updateLogCount();
+          renderHistory();
+          renderLeaderboard();
+          renderStoneStats();
+          updateEstimate();
+          showToast(`Imported ${arr.length} sessions`);
+        } catch(e) {
+          alert('Invalid log file: ' + e.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  });
+
+  // Sync local best to global endpoint
+  el.syncNow.addEventListener('click', async () => {
+    const endpoint = el.syncEndpoint.value.trim();
+    if (!endpoint) return alert('Set a sync endpoint first');
+    if (logs.length === 0) return alert('No local logs to sync');
+    // pick best overall by totalMinutes
+    const best = logs.reduce((a,b)=> a.totalMinutes < b.totalMinutes ? a : b);
+    const payload = {
+      name: 'Anonymous',
+      stone: best.stone,
+      totalMinutes: best.totalMinutes,
+      facets: best.facets,
+      grits: best.grits,
+      date: new Date(best.startAt).toISOString()
+    };
+    try {
+      const res = await fetch(endpoint, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Network error');
+      showToast('Synced best to global leaderboard');
+    } catch(e) {
+      alert('Sync failed: ' + e.message);
+    }
+  });
+
+  // Clear local logs
+  el.clearLocal.addEventListener('click', () => {
+    if (!confirm('Clear all local logs? This cannot be undone.')) return;
+    logs = [];
+    saveLogs(logs);
+    updateLogCount();
+    renderHistory();
+    renderLeaderboard();
+    renderStoneStats();
+    showToast('Local logs cleared');
+  });
+
+  // Helpers
+  function updateLogCount(){
+    el.logCount.textContent = `${logs.length} sessions`;
+  }
+  function showToast(msg){
+    // simple ephemeral message in title area
+    const prev = document.querySelector('.toast');
+    if (prev) prev.remove();
+    const t = document.createElement('div');
+    t.className = 'toast card';
+    t.style.position='fixed'; t.style.right='20px'; t.style.bottom='20px'; t.style.padding='10px 14px';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),2200);
+  }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+
+  // Initial estimate render
+  updateEstimate();
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Space bar: Start/Pause/Resume timer (when not in input field)
+    if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && !e.target.isContentEditable) {
+      e.preventDefault();
+      if (session && !timer && !el.startTimer.disabled) {
+        el.startTimer.click();
+      } else if (session && timer && !el.pauseTimer.disabled) {
+        el.pauseTimer.click();
+      }
+    }
+    // S key: Start session
+    if (e.code === 'KeyS' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      if (!session) el.startSession.click();
+    }
+    // E key: End session
+    if (e.code === 'KeyE' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      if (session) el.endSession.click();
+    }
+    // Enter: Stop timer (record facet)
+    if (e.code === 'Enter' && e.ctrlKey && timer) {
+      e.preventDefault();
+      el.stopTimer.click();
+    }
+  });
+
+  // Auto-save session on unload
+  window.addEventListener('beforeunload', () => {
+    if (session) {
+      // Save timer state for restoration
+      saveTimerState({
+        session,
+        timerAccum: timer ? (Date.now() - timerStart + timerAccum) : timerAccum,
+        timerPaused,
+        facetTimerStart: timer ? timerStart : null
+      });
+    }
+  });
+
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // Render PayPal donation button
+  if (typeof PayPalIntegration !== 'undefined') {
+    PayPalIntegration.init().then(() => {
+      // Create a simple donation button pointing to PayPal email
+      const container = document.getElementById('paypal-donation-container');
+      if (container) {
+        const btn = document.createElement('a');
+        btn.href = 'https://www.paypal.com/donate?business=BarbrickDesign@gmail.com';
+        btn.target = '_blank';
+        btn.rel = 'noopener noreferrer';
+        btn.style.cssText = 'display:inline-block;padding:8px 16px;background:linear-gradient(90deg,#00c2a8,#7c5cff);color:#04101a;font-weight:700;border-radius:8px;text-decoration:none;font-size:13px;cursor:pointer;transition:opacity 0.2s';
+        btn.textContent = '☕ Donate via PayPal';
+        btn.onmouseover = () => btn.style.opacity = '0.85';
+        btn.onmouseout = () => btn.style.opacity = '1';
+        container.appendChild(btn);
+      }
+    }).catch(() => {
+      // Fallback if PayPal integration fails - still show donation link
+      const container = document.getElementById('paypal-donation-container');
+      if (container) {
+        const btn = document.createElement('a');
+        btn.href = 'https://www.paypal.com/donate?business=BarbrickDesign@gmail.com';
+        btn.target = '_blank';
+        btn.rel = 'noopener noreferrer';
+        btn.style.cssText = 'display:inline-block;padding:8px 16px;background:linear-gradient(90deg,#00c2a8,#7c5cff);color:#04101a;font-weight:700;border-radius:8px;text-decoration:none;font-size:13px;cursor:pointer;transition:opacity 0.2s';
+        btn.textContent = '☕ Donate via PayPal';
+        btn.onmouseover = () => btn.style.opacity = '0.85';
+        btn.onmouseout = () => btn.style.opacity = '1';
+        container.appendChild(btn);
+      }
+    });
+  } else {
+    // PayPal integration not available, create direct link
+    const container = document.getElementById('paypal-donation-container');
+    if (container) {
+      const btn = document.createElement('a');
+      btn.href = 'https://www.paypal.com/donate?business=BarbrickDesign@gmail.com';
+      btn.target = '_blank';
+      btn.rel = 'noopener noreferrer';
+      btn.style.cssText = 'display:inline-block;padding:8px 16px;background:linear-gradient(90deg,#00c2a8,#7c5cff);color:#04101a;font-weight:700;border-radius:8px;text-decoration:none;font-size:13px;cursor:pointer;transition:opacity 0.2s';
+      btn.textContent = '☕ Donate via PayPal';
+      btn.onmouseover = () => btn.style.opacity = '0.85';
+      btn.onmouseout = () => btn.style.opacity = '1';
+      container.appendChild(btn);
+    }
+  }
+</script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

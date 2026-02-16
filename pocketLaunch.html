@@ -1,0 +1,2988 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: pocketLaunch.html
+Declaration ID: IP-29494D90-MLL2901J
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🚀 NASA Rocket Scientist Training Simulator - pocketLaunch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <!-- PeerJS for WebRTC -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --nasa-blue: #0B3D91;
+      --nasa-red: #FC3D21;
+      --space-black: #000814;
+      --star-white: #F5F5F5;
+      --mission-gold: #FFD60A;
+      --tech-cyan: #00D9FF;
+      --warning-orange: #FF6B35;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Orbitron', 'Courier New', monospace, system-ui;
+      background: linear-gradient(135deg, var(--space-black) 0%, #001d3d 50%, #000814 100%);
+      color: var(--star-white);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated Star Background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 80%, white, transparent);
+      background-size: 200% 200%;
+      animation: starfield 60s linear infinite;
+      opacity: 0.5;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @keyframes starfield {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+
+    /* Main Header - NASA Style */
+    header {
+      background: linear-gradient(90deg, var(--nasa-blue) 0%, #003366 100%);
+      padding: 1rem 2rem;
+      box-shadow: 0 4px 20px rgba(0, 217, 255, 0.3);
+      border-bottom: 3px solid var(--tech-cyan);
+      position: relative;
+      z-index: 1000;
+    }
+
+    header h1 {
+      font-size: clamp(1.2rem, 3vw, 2rem);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 10px var(--tech-cyan), 0 0 20px var(--tech-cyan);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .mission-badge {
+      background: var(--mission-gold);
+      color: var(--space-black);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.6em;
+      font-weight: bold;
+      box-shadow: 0 0 10px var(--mission-gold);
+    }
+
+    /* Hub Container */
+    #hubContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 100px);
+      padding: 2rem;
+      perspective: 1500px;
+    }
+
+    #hubContainer.hidden {
+      display: none;
+    }
+
+    /* Main Hub Title */
+    .hub-title {
+      font-size: clamp(1.5rem, 4vw, 3rem);
+      text-align: center;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      text-shadow: 0 0 20px var(--tech-cyan);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Certification Status Bar */
+    .cert-status {
+      position: fixed;
+      top: 90px;
+      right: 20px;
+      background: rgba(11, 61, 145, 0.9);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+      padding: 1rem;
+      min-width: 250px;
+      box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+      z-index: 999;
+      backdrop-filter: blur(10px);
+    }
+
+    .cert-level {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--mission-gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .cert-progress {
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      height: 20px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+    }
+
+    .cert-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--mission-gold) 0%, var(--warning-orange) 100%);
+      transition: width 0.5s ease;
+      box-shadow: 0 0 10px var(--mission-gold);
+    }
+
+    .cert-badges {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 1.5rem;
+      filter: grayscale(100%);
+      opacity: 0.3;
+      transition: all 0.3s;
+    }
+
+    .badge.earned {
+      filter: grayscale(0%);
+      opacity: 1;
+      animation: badgeEarn 0.5s ease;
+    }
+
+    @keyframes badgeEarn {
+      0% { transform: scale(0) rotate(0deg); }
+      50% { transform: scale(1.3) rotate(180deg); }
+      100% { transform: scale(1) rotate(360deg); }
+    }
+
+    /* 3D Menu Carousel */
+    .menu-carousel {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      height: 400px;
+      margin: 2rem auto;
+      transform-style: preserve-3d;
+    }
+
+    .menu-items {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.5s;
+    }
+
+    .menu-button-3d {
+      position: absolute;
+      width: 200px;
+      height: 120px;
+      left: 50%;
+      top: 50%;
+      margin-left: -100px;
+      margin-top: -60px;
+      background: linear-gradient(135deg, var(--nasa-blue) 0%, #001d3d 100%);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+      transform-style: preserve-3d;
+    }
+
+    .menu-button-3d:hover {
+      transform: translateZ(30px) scale(1.05);
+      box-shadow: 0 20px 40px rgba(0, 217, 255, 0.6);
+      border-color: var(--mission-gold);
+    }
+
+    .menu-button-3d:active {
+      transform: translateZ(20px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 217, 255, 0.5);
+    }
+
+    @media (hover: none) and (pointer: coarse) {
+      .menu-button-3d:hover {
+        transform: none;
+      }
+      
+      .menu-button-3d:active {
+        transform: scale(0.98);
+        border-color: var(--mission-gold);
+        box-shadow: 0 5px 20px rgba(0, 217, 255, 0.6);
+      }
+    }
+
+    .menu-button-3d .emoji {
+      font-size: 2.5rem;
+      filter: drop-shadow(0 0 10px var(--tech-cyan));
+    }
+
+    .menu-button-3d .title {
+      font-size: 0.9rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .menu-button-3d .description {
+      font-size: 0.7rem;
+      opacity: 0.8;
+      text-align: center;
+      padding: 0 0.5rem;
+    }
+
+    /* Circular arrangement of menu buttons */
+    .menu-button-3d:nth-child(1) { transform: rotateY(0deg) translateZ(350px); }
+    .menu-button-3d:nth-child(2) { transform: rotateY(60deg) translateZ(350px); }
+    .menu-button-3d:nth-child(3) { transform: rotateY(120deg) translateZ(350px); }
+    .menu-button-3d:nth-child(4) { transform: rotateY(180deg) translateZ(350px); }
+    .menu-button-3d:nth-child(5) { transform: rotateY(240deg) translateZ(350px); }
+    .menu-button-3d:nth-child(6) { transform: rotateY(300deg) translateZ(350px); }
+
+    /* Navigation arrows */
+    .carousel-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      background: rgba(11, 61, 145, 0.8);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      font-size: 1.5rem;
+      transition: all 0.3s;
+    }
+
+    .carousel-nav:hover {
+      background: var(--nasa-blue);
+      box-shadow: 0 0 20px var(--tech-cyan);
+    }
+
+    .carousel-nav:active {
+      background: var(--nasa-blue);
+      transform: translateY(-50%) scale(0.95);
+    }
+
+    .carousel-nav.left { left: -25px; }
+    .carousel-nav.right { right: -25px; }
+
+    /* Mission Control View */
+    #missionControl {
+      display: none;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    #missionControl.active {
+      display: block;
+      animation: slideIn 0.5s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .mission-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: rgba(11, 61, 145, 0.3);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+    }
+
+    .back-button {
+      background: var(--nasa-red);
+      color: white;
+      border: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      box-shadow: 0 0 20px rgba(252, 61, 33, 0.5);
+      transition: all 0.3s;
+    }
+
+    .back-button:hover {
+      background: #ff1a00;
+      box-shadow: 0 0 30px rgba(252, 61, 33, 0.8);
+      transform: scale(1.05);
+    }
+
+    .step-indicator {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .step {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid var(--tech-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .step.active {
+      background: var(--mission-gold);
+      color: var(--space-black);
+      box-shadow: 0 0 20px var(--mission-gold);
+      transform: scale(1.2);
+    }
+
+    .step.completed {
+      background: var(--tech-cyan);
+      color: var(--space-black);
+    }
+
+    /* Main Content Grid */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 2rem;
+      min-height: 600px;
+    }
+
+    .control-panel {
+      background: rgba(11, 61, 145, 0.3);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+      overflow-y: auto;
+      max-height: 80vh;
+    }
+
+    .panel-section {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      border-left: 4px solid var(--tech-cyan);
+    }
+
+    .panel-section h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--mission-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .panel-section h2 .emoji {
+      font-size: 1.3rem;
+    }
+
+    /* 3D Styled Inputs */
+    .input-group {
+      margin-bottom: 1rem;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+      color: var(--tech-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 0.7rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 8px;
+      color: var(--star-white);
+      font-size: 0.9rem;
+      font-family: 'Courier New', monospace;
+      transition: all 0.3s;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: var(--mission-gold);
+      box-shadow: 0 0 15px rgba(255, 214, 10, 0.5);
+    }
+
+    /* 3D Action Buttons */
+    .action-button {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--tech-cyan) 0%, var(--nasa-blue) 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 5px 15px rgba(0, 217, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .action-button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.5s, height 0.5s;
+    }
+
+    .action-button:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    .action-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(0, 217, 255, 0.6);
+    }
+
+    .action-button:active {
+      transform: translateY(0);
+    }
+
+    .action-button.launch {
+      background: linear-gradient(135deg, var(--nasa-red) 0%, var(--warning-orange) 100%);
+      box-shadow: 0 5px 15px rgba(252, 61, 33, 0.3);
+      font-size: 1.2rem;
+      padding: 1.5rem;
+      animation: launchPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes launchPulse {
+      0%, 100% { box-shadow: 0 5px 15px rgba(252, 61, 33, 0.3); }
+      50% { box-shadow: 0 10px 30px rgba(252, 61, 33, 0.8); }
+    }
+
+    /* Map Container */
+    .map-container {
+      position: relative;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+      overflow: hidden;
+      min-height: 600px;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 600px;
+    }
+
+    /* Data Display */
+    .data-display {
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid var(--tech-cyan);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+
+    .data-display .data-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+    }
+
+    .data-display .data-row:last-child {
+      border-bottom: none;
+    }
+
+    .data-display .data-label {
+      color: var(--tech-cyan);
+    }
+
+    .data-display .data-value {
+      color: var(--mission-gold);
+      font-weight: bold;
+    }
+
+    /* Flight Log Viewer */
+    .flight-log {
+      max-height: 400px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .flight-entry {
+      background: rgba(11, 61, 145, 0.3);
+      border-left: 4px solid var(--mission-gold);
+      border-radius: 5px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      transition: all 0.3s;
+    }
+
+    .flight-entry:hover {
+      background: rgba(11, 61, 145, 0.5);
+      transform: translateX(5px);
+    }
+
+    .flight-entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .flight-number {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--mission-gold);
+    }
+
+    .flight-status {
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .flight-status.success {
+      background: #22c55e;
+      color: white;
+    }
+
+    .flight-status.pending {
+      background: var(--warning-orange);
+      color: white;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cert-status {
+        position: static;
+        margin: 1rem auto;
+        width: 90%;
+      }
+
+      .receiver-panel {
+        position: static;
+        margin: 1rem auto;
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .menu-carousel {
+        height: 300px;
+      }
+
+      .menu-button-3d {
+        width: 160px;
+        height: 100px;
+      }
+
+      .menu-button-3d:nth-child(1) { transform: rotateY(0deg) translateZ(250px); }
+      .menu-button-3d:nth-child(2) { transform: rotateY(60deg) translateZ(250px); }
+      .menu-button-3d:nth-child(3) { transform: rotateY(120deg) translateZ(250px); }
+      .menu-button-3d:nth-child(4) { transform: rotateY(180deg) translateZ(250px); }
+      .menu-button-3d:nth-child(5) { transform: rotateY(240deg) translateZ(250px); }
+      .menu-button-3d:nth-child(6) { transform: rotateY(300deg) translateZ(250px); }
+    }
+
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 1rem;
+      }
+
+      .mission-badge {
+        font-size: 0.5em;
+      }
+
+      .menu-carousel {
+        height: 250px;
+      }
+
+      .menu-button-3d {
+        width: 140px;
+        height: 90px;
+      }
+
+      .menu-button-3d .emoji {
+        font-size: 2rem;
+      }
+
+      .menu-button-3d:nth-child(1) { transform: rotateY(0deg) translateZ(200px); }
+      .menu-button-3d:nth-child(2) { transform: rotateY(60deg) translateZ(200px); }
+      .menu-button-3d:nth-child(3) { transform: rotateY(120deg) translateZ(200px); }
+      .menu-button-3d:nth-child(4) { transform: rotateY(180deg) translateZ(200px); }
+      .menu-button-3d:nth-child(5) { transform: rotateY(240deg) translateZ(200px); }
+      .menu-button-3d:nth-child(6) { transform: rotateY(300deg) translateZ(200px); }
+
+      .control-panel {
+        max-height: none;
+      }
+
+      #missionControl {
+        padding: 1rem;
+      }
+
+      .carousel-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+      }
+
+      .map-container {
+        min-height: 400px;
+      }
+
+      .receiver-panel {
+        display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header {
+        padding: 0.75rem 1rem;
+      }
+
+      header h1 {
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+      }
+
+      .mission-badge {
+        font-size: 0.45em;
+        padding: 0.2rem 0.5rem;
+      }
+
+      #hubContainer {
+        padding: 1rem 0.5rem;
+        min-height: calc(100vh - 80px);
+      }
+
+      .hub-title {
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+      }
+
+      .menu-carousel {
+        height: 220px;
+        max-width: 100%;
+      }
+
+      .menu-button-3d {
+        width: 120px;
+        height: 80px;
+        margin-left: -60px;
+        margin-top: -40px;
+      }
+
+      .menu-button-3d .emoji {
+        font-size: 1.8rem;
+      }
+
+      .menu-button-3d .title {
+        font-size: 0.75rem;
+      }
+
+      .menu-button-3d .description {
+        font-size: 0.6rem;
+        padding: 0 0.3rem;
+      }
+
+      .menu-button-3d:nth-child(1) { transform: rotateY(0deg) translateZ(160px); }
+      .menu-button-3d:nth-child(2) { transform: rotateY(60deg) translateZ(160px); }
+      .menu-button-3d:nth-child(3) { transform: rotateY(120deg) translateZ(160px); }
+      .menu-button-3d:nth-child(4) { transform: rotateY(180deg) translateZ(160px); }
+      .menu-button-3d:nth-child(5) { transform: rotateY(240deg) translateZ(160px); }
+      .menu-button-3d:nth-child(6) { transform: rotateY(300deg) translateZ(160px); }
+
+      .carousel-nav {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+      }
+
+      .carousel-nav.left { left: -10px; }
+      .carousel-nav.right { right: -10px; }
+
+      #missionControl {
+        padding: 0.5rem;
+      }
+
+      .control-panel {
+        padding: 1rem;
+      }
+
+      .panel-section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .panel-section h2 {
+        font-size: 1.2rem;
+      }
+
+      .map-container {
+        min-height: 300px;
+        height: 50vh;
+      }
+
+      .input-group {
+        width: 100% !important;
+        min-width: unset !important;
+      }
+
+      .input-group input,
+      .input-group select {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+      }
+
+      .action-button {
+        font-size: 0.9rem;
+        padding: 0.8rem 1.5rem;
+        width: 100%;
+        margin: 0.3rem 0;
+      }
+
+      .back-button {
+        font-size: 0.9rem;
+        padding: 0.6rem 1rem;
+      }
+
+      .data-display {
+        font-size: 0.85rem;
+      }
+
+      .cert-status {
+        width: 95%;
+        padding: 0.75rem;
+        min-width: unset;
+      }
+
+      .cert-level {
+        font-size: 1rem;
+      }
+
+      .receiver-panel {
+        display: none;
+      }
+    }
+
+    /* Loading Animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 217, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--tech-cyan);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Notification Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(11, 61, 145, 0.95);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      border: 2px solid var(--tech-cyan);
+      box-shadow: 0 5px 20px rgba(0, 217, 255, 0.5);
+      z-index: 10000;
+      animation: slideInUp 0.3s ease;
+    }
+
+    @keyframes slideInUp {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-color: #22c55e;
+      box-shadow: 0 5px 20px rgba(34, 197, 94, 0.5);
+    }
+
+    .toast.error {
+      border-color: var(--nasa-red);
+      box-shadow: 0 5px 20px rgba(252, 61, 33, 0.5);
+    }
+
+    /* Receiver Management Styles */
+    .receiver-panel {
+      position: fixed;
+      top: 90px;
+      left: 20px;
+      background: rgba(11, 61, 145, 0.9);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+      padding: 1rem;
+      min-width: 280px;
+      max-width: 320px;
+      box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+      z-index: 998;
+      backdrop-filter: blur(10px);
+    }
+
+    .receiver-panel h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      color: var(--tech-cyan);
+    }
+
+    .receiver-id-display {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 0.5rem;
+      border-radius: 5px;
+      margin: 0.5rem 0;
+      font-family: monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      color: var(--mission-gold);
+    }
+
+    .receiver-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 0.5rem 0;
+    }
+
+    .receiver-item {
+      background: rgba(0, 0, 0, 0.3);
+      border-left: 3px solid var(--tech-cyan);
+      padding: 0.5rem;
+      margin: 0.25rem 0;
+      border-radius: 3px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .receiver-item.connected {
+      border-left-color: #00FF41;
+    }
+
+    .receiver-status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00FF41;
+      display: inline-block;
+      margin-right: 0.5rem;
+      animation: pulse 2s infinite;
+    }
+
+    .small-button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      background: rgba(0, 217, 255, 0.2);
+      border: 1px solid var(--tech-cyan);
+      border-radius: 5px;
+      color: var(--star-white);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .small-button:hover {
+      background: rgba(0, 217, 255, 0.4);
+    }
+
+    .triangulation-status {
+      background: rgba(0, 255, 65, 0.1);
+      border: 1px solid #00FF41;
+      border-radius: 5px;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+  </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<header>
+  <h1>
+    🚀 NASA ROCKET SCIENTIST TRAINING SIMULATOR
+    <span class="mission-badge">ACTIVE MISSION</span>
+  </h1>
+</header>
+
+<!-- Certification Status -->
+<div class="cert-status">
+  <div class="cert-level">CADET LEVEL: <span id="certLevel">TRAINEE</span></div>
+  <div class="cert-progress">
+    <div class="cert-progress-bar" id="certProgressBar" style="width: 0%"></div>
+  </div>
+  <div style="font-size: 0.85rem; margin: 0.5rem 0;">
+    Missions Completed: <span id="missionsCompleted">0</span> / <span id="missionsRequired">10</span>
+  </div>
+  <div class="cert-badges">
+    <span class="badge" id="badge-location" title="Location Master">📍</span>
+    <span class="badge" id="badge-wind" title="Weather Specialist">🌪️</span>
+    <span class="badge" id="badge-trajectory" title="Trajectory Expert">📐</span>
+    <span class="badge" id="badge-launch" title="Launch Commander">🚀</span>
+    <span class="badge" id="badge-recovery" title="Recovery Specialist">🎯</span>
+  </div>
+</div>
+
+<!-- Receiver Management Panel -->
+<div class="receiver-panel">
+  <h3>📡 Receiver Stations</h3>
+  <div class="receiver-id-display">
+    <div style="font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.25rem;">Launcher ID:</div>
+    <span id="launcherIdDisplay">--</span>
+  </div>
+  <button class="small-button" onclick="copyLauncherId()" style="width: 100%; margin-bottom: 0.5rem;">
+    📋 Copy Launcher ID
+  </button>
+  <div style="font-size: 0.85rem; margin: 0.5rem 0;">
+    Connected: <span id="receiverCount">0</span>
+  </div>
+  <div class="receiver-list" id="receiverList">
+    <div style="opacity: 0.6; font-size: 0.8rem; padding: 0.5rem; text-align: center;">
+      No receivers connected
+    </div>
+  </div>
+  <div id="triangulationStatus" class="triangulation-status" style="display: none;">
+    📐 Triangulation Active<br>
+    <span id="triangulationAccuracy">--</span>
+  </div>
+</div>
+
+<!-- Main Hub Menu -->
+<div id="hubContainer">
+  <h2 class="hub-title">⭐ MISSION CONTROL HUB ⭐</h2>
+  
+  <div class="menu-carousel">
+    <div class="carousel-nav left" onclick="rotateCarousel(-60)">◀</div>
+    <div class="carousel-nav right" onclick="rotateCarousel(60)">▶</div>
+    
+    <div class="menu-items" id="menuItems" style="transform: rotateY(0deg);">
+      <div class="menu-button-3d" onclick="openMission('trajectory')">
+        <div class="emoji">🎯</div>
+        <div class="title">Trajectory Planning</div>
+        <div class="description">Calculate optimal launch angles</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('launch')">
+        <div class="emoji">🚀</div>
+        <div class="title">Launch Operations</div>
+        <div class="description">Execute rocket launch missions</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('recovery')">
+        <div class="emoji">📡</div>
+        <div class="title">Recovery Ops</div>
+        <div class="description">Track and recover rockets</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('receivers')">
+        <div class="emoji">📱</div>
+        <div class="title">Receiver Network</div>
+        <div class="description">Manage receiver connections</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('flightlog')">
+        <div class="emoji">📊</div>
+        <div class="title">Flight Logs</div>
+        <div class="description">Review mission history</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('certifications')">
+        <div class="emoji">🏆</div>
+        <div class="title">Certifications</div>
+        <div class="description">Track your achievements</div>
+      </div>
+      
+      <div class="menu-button-3d" onclick="openMission('training')">
+        <div class="emoji">📚</div>
+        <div class="title">Training Manual</div>
+        <div class="description">Learn rocket science basics</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mission Control View (Hidden by default) -->
+<div id="missionControl">
+  <div class="mission-header">
+    <button class="back-button" onclick="returnToHub()">◀ RETURN TO HUB</button>
+    <h2 id="missionTitle" style="font-size: 1.5rem; color: var(--mission-gold);"></h2>
+    <div class="step-indicator" id="stepIndicator"></div>
+  </div>
+  
+  <div class="content-grid">
+    <div class="control-panel" id="controlPanel">
+      <!-- Dynamic content will be loaded here -->
+    </div>
+    
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Leaflet JS -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+
+<script>
+  // ============================================================================
+  // GLOBAL STATE MANAGEMENT
+  // ============================================================================
+  
+  const AppState = {
+    map: null,
+    launchMarker: null,
+    targetMarker: null,
+    trajectoryLine: null,
+    maxBubble: null,
+    recoveryMarker: null,
+    launchLatLng: null,
+    targetLatLng: null,
+    windVector: { speed: 0, dirDeg: 0 },
+    optimalSolution: null,
+    currentMission: null,
+    carouselRotation: 0,
+    currentStep: 1,
+    totalSteps: 5,
+    userName: localStorage.getItem('rocketScientist_name') || 'Cadet-' + Math.floor(Math.random() * 10000),
+    // Receiver management
+    peer: null,
+    launcherId: 'launcher-' + Math.random().toString(36).substr(2, 9),
+    receivers: new Map(),
+    countdownActive: false,
+    launchInProgress: false
+  };
+
+  const R_EARTH = 6371000; // meters
+
+  // ============================================================================
+  // RECEIVER MANAGEMENT SYSTEM
+  // ============================================================================
+  
+  const ReceiverManager = {
+    init() {
+      // Initialize PeerJS with official cloud server
+      AppState.peer = new Peer(AppState.launcherId, {
+        host: '0.peerjs.com',
+        secure: true,
+        port: 443
+      });
+
+      AppState.peer.on('open', (id) => {
+        console.log('Launcher ID:', id);
+        AppState.launcherId = id;
+        document.getElementById('launcherIdDisplay').textContent = id;
+      });
+
+      AppState.peer.on('connection', (conn) => {
+        this.handleReceiverConnection(conn);
+      });
+
+      AppState.peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        showToast('Connection error: ' + err.type, 'error');
+      });
+    },
+
+    handleReceiverConnection(conn) {
+      conn.on('open', () => {
+        const receiverId = conn.peer;
+        AppState.receivers.set(receiverId, {
+          connection: conn,
+          id: receiverId,
+          location: null,
+          lastSeen: Date.now(),
+          accuracyData: []
+        });
+        
+        this.updateReceiverDisplay();
+        showToast('Receiver connected: ' + receiverId, 'success');
+        
+        // Send current launch data if available
+        if (AppState.optimalSolution) {
+          this.broadcastToReceivers({
+            type: 'launch_data',
+            ...AppState.optimalSolution
+          });
+        }
+      });
+
+      conn.on('data', (data) => {
+        this.handleReceiverData(conn.peer, data);
+      });
+
+      conn.on('close', () => {
+        AppState.receivers.delete(conn.peer);
+        this.updateReceiverDisplay();
+        showToast('Receiver disconnected', 'warning');
+      });
+    },
+
+    handleReceiverData(receiverId, data) {
+      const receiver = AppState.receivers.get(receiverId);
+      if (!receiver) return;
+
+      receiver.lastSeen = Date.now();
+
+      switch(data.type) {
+        case 'receiver_connected':
+          console.log('Receiver info:', data);
+          break;
+        case 'location_update':
+          receiver.location = data.location;
+          this.updateTriangulation();
+          break;
+        case 'landing_accuracy':
+          receiver.accuracyData.push(data);
+          this.processLandingAccuracy(receiverId, data);
+          break;
+        case 'message':
+          this.handleReceiverMessage(receiverId, data);
+          break;
+      }
+    },
+
+    processLandingAccuracy(receiverId, data) {
+      console.log('Landing accuracy from', receiverId, ':', data.errorMeters.toFixed(1) + 'm');
+      
+      // Calculate improved landing estimate using triangulation
+      if (AppState.receivers.size >= 2) {
+        const accuracyDataPoints = [];
+        AppState.receivers.forEach((receiver) => {
+          if (receiver.accuracyData.length > 0) {
+            accuracyDataPoints.push(receiver.accuracyData[receiver.accuracyData.length - 1]);
+          }
+        });
+        
+        if (accuracyDataPoints.length >= 2) {
+          const improvedLanding = this.triangulateActualLanding(accuracyDataPoints);
+          console.log('Triangulated landing:', improvedLanding);
+          
+          document.getElementById('triangulationStatus').style.display = 'block';
+          document.getElementById('triangulationAccuracy').textContent = 
+            `Accuracy: ±${improvedLanding.uncertainty.toFixed(1)}m`;
+        }
+      }
+    },
+
+    triangulateActualLanding(dataPoints) {
+      // Simple weighted average based on error (lower error = higher weight)
+      let totalWeight = 0;
+      let weightedLat = 0;
+      let weightedLng = 0;
+
+      dataPoints.forEach(point => {
+        const weight = 1 / (point.errorMeters + 1); // Avoid division by zero
+        totalWeight += weight;
+        weightedLat += point.actualLocation.lat * weight;
+        weightedLng += point.actualLocation.lng * weight;
+      });
+
+      const avgLat = weightedLat / totalWeight;
+      const avgLng = weightedLng / totalWeight;
+
+      // Calculate uncertainty as average distance from weighted center
+      let totalDist = 0;
+      dataPoints.forEach(point => {
+        const dist = haversineDistance(
+          avgLat, avgLng,
+          point.actualLocation.lat, point.actualLocation.lng
+        );
+        totalDist += dist;
+      });
+
+      return {
+        lat: avgLat,
+        lng: avgLng,
+        uncertainty: totalDist / dataPoints.length
+      };
+    },
+
+    updateTriangulation() {
+      const receiverLocations = [];
+      AppState.receivers.forEach((receiver) => {
+        if (receiver.location) {
+          receiverLocations.push(receiver.location);
+        }
+      });
+
+      if (receiverLocations.length >= 2) {
+        document.getElementById('triangulationStatus').style.display = 'block';
+        document.getElementById('triangulationAccuracy').textContent = 
+          `${receiverLocations.length} data streams`;
+      }
+    },
+
+    handleReceiverMessage(receiverId, data) {
+      console.log('Message from receiver', receiverId, ':', data.message);
+      showToast('📨 ' + receiverId + ': ' + data.message, 'info');
+    },
+
+    updateReceiverDisplay() {
+      const list = document.getElementById('receiverList');
+      const count = document.getElementById('receiverCount');
+      
+      count.textContent = AppState.receivers.size;
+      
+      if (AppState.receivers.size === 0) {
+        list.innerHTML = '<div style="opacity: 0.6; font-size: 0.8rem; padding: 0.5rem; text-align: center;">No receivers connected</div>';
+        return;
+      }
+
+      let html = '';
+      AppState.receivers.forEach((receiver, id) => {
+        const shortId = id.substring(0, 15) + '...';
+        html += `
+          <div class="receiver-item connected">
+            <span>
+              <span class="receiver-status"></span>
+              ${shortId}
+            </span>
+            <span style="font-size: 0.75rem; opacity: 0.8;">
+              ${receiver.accuracyData.length} logs
+            </span>
+          </div>
+        `;
+      });
+      
+      list.innerHTML = html;
+    },
+
+    broadcastToReceivers(data) {
+      AppState.receivers.forEach((receiver) => {
+        try {
+          receiver.connection.send(data);
+        } catch (err) {
+          console.error('Failed to send to receiver:', err);
+        }
+      });
+    },
+
+    startCountdown(duration = 10) {
+      let count = duration;
+      AppState.countdownActive = true;
+
+      const countdownInterval = setInterval(() => {
+        this.broadcastToReceivers({
+          type: 'countdown',
+          count: count
+        });
+
+        if (count <= 0) {
+          clearInterval(countdownInterval);
+          AppState.countdownActive = false;
+          this.broadcastToReceivers({
+            type: 'countdown',
+            count: 0
+          });
+        }
+        count--;
+      }, 1000);
+    },
+
+    sendLaunchData() {
+      if (!AppState.optimalSolution) return;
+
+      this.broadcastToReceivers({
+        type: 'launch_data',
+        launchLocation: { 
+          lat: AppState.launchLatLng.lat, 
+          lng: AppState.launchLatLng.lng 
+        },
+        azimuth: AppState.optimalSolution.azimuthDeg,
+        elevation: AppState.optimalSolution.elevationDeg,
+        maxAltitude: AppState.optimalSolution.maxAltitude,
+        predictedLanding: { 
+          lat: AppState.optimalSolution.landingLatLng.lat, 
+          lng: AppState.optimalSolution.landingLatLng.lng 
+        },
+        distance: AppState.optimalSolution.distance,
+        timestamp: Date.now()
+      });
+    },
+
+    sendTrajectoryUpdate(position) {
+      this.broadcastToReceivers({
+        type: 'trajectory_update',
+        currentPosition: position,
+        launchLocation: {
+          lat: AppState.launchLatLng.lat,
+          lng: AppState.launchLatLng.lng
+        },
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  // ============================================================================
+  // CERTIFICATION SYSTEM
+  // ============================================================================
+  
+  const CertificationSystem = {
+    levels: [
+      { name: 'TRAINEE', missions: 0, color: '#888' },
+      { name: 'CADET', missions: 5, color: '#00D9FF' },
+      { name: 'SPECIALIST', missions: 15, color: '#FFD60A' },
+      { name: 'COMMANDER', missions: 30, color: '#FF6B35' },
+      { name: 'ACE PILOT', missions: 50, color: '#FC3D21' }
+    ],
+    
+    badges: {
+      location: { id: 'badge-location', title: 'Location Master', condition: 'setLaunch', earned: false },
+      wind: { id: 'badge-wind', title: 'Weather Specialist', condition: 'fetchWind', earned: false },
+      trajectory: { id: 'badge-trajectory', title: 'Trajectory Expert', condition: 'computeTrajectory', earned: false },
+      launch: { id: 'badge-launch', title: 'Launch Commander', condition: 'executeLaunch', earned: false },
+      recovery: { id: 'badge-recovery', title: 'Recovery Specialist', condition: 'recoverRocket', earned: false }
+    },
+    
+    init() {
+      const data = this.loadData();
+      this.updateDisplay(data);
+    },
+    
+    loadData() {
+      const saved = localStorage.getItem('rocketScientist_cert');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+      return {
+        missionsCompleted: 0,
+        badges: {},
+        achievements: []
+      };
+    },
+    
+    saveData(data) {
+      localStorage.setItem('rocketScientist_cert', JSON.stringify(data));
+    },
+    
+    getCurrentLevel(missions) {
+      for (let i = this.levels.length - 1; i >= 0; i--) {
+        if (missions >= this.levels[i].missions) {
+          return this.levels[i];
+        }
+      }
+      return this.levels[0];
+    },
+    
+    updateDisplay(data) {
+      const level = this.getCurrentLevel(data.missionsCompleted);
+      const nextLevel = this.levels[this.levels.findIndex(l => l.name === level.name) + 1];
+      
+      document.getElementById('certLevel').textContent = level.name;
+      document.getElementById('missionsCompleted').textContent = data.missionsCompleted;
+      document.getElementById('missionsRequired').textContent = nextLevel ? nextLevel.missions : level.missions;
+      
+      const progress = nextLevel 
+        ? ((data.missionsCompleted - level.missions) / (nextLevel.missions - level.missions)) * 100 
+        : 100;
+      document.getElementById('certProgressBar').style.width = progress + '%';
+      
+      // Update badges
+      Object.keys(this.badges).forEach(key => {
+        const badge = this.badges[key];
+        const elem = document.getElementById(badge.id);
+        if (data.badges && data.badges[key]) {
+          elem.classList.add('earned');
+          badge.earned = true;
+        }
+      });
+    },
+    
+    earnBadge(badgeKey) {
+      const data = this.loadData();
+      if (!data.badges) data.badges = {};
+      
+      if (!data.badges[badgeKey]) {
+        data.badges[badgeKey] = true;
+        this.saveData(data);
+        this.updateDisplay(data);
+        showToast(`🎖️ Badge Earned: ${this.badges[badgeKey].title}!`, 'success');
+      }
+    },
+    
+    completeMission() {
+      const data = this.loadData();
+      data.missionsCompleted++;
+      this.saveData(data);
+      this.updateDisplay(data);
+      showToast(`✅ Mission Complete! Total: ${data.missionsCompleted}`, 'success');
+    }
+  };
+
+  // ============================================================================
+  // FLIGHT LOG SYSTEM
+  // ============================================================================
+  
+  const FlightLogSystem = {
+    saveFlight(flightData) {
+      const logs = this.getFlights();
+      flightData.flightNumber = logs.length + 1;
+      flightData.timestamp = Date.now();
+      flightData.userName = AppState.userName;
+      logs.push(flightData);
+      localStorage.setItem('rocketScientist_flights', JSON.stringify(logs));
+    },
+    
+    getFlights() {
+      const saved = localStorage.getItem('rocketScientist_flights');
+      return saved ? JSON.parse(saved) : [];
+    },
+    
+    getFlightStats() {
+      const flights = this.getFlights();
+      const successful = flights.filter(f => f.recovered).length;
+      const totalDistance = flights.reduce((sum, f) => sum + (f.distance || 0), 0);
+      const avgAccuracy = flights
+        .filter(f => f.recoveryError !== undefined)
+        .reduce((sum, f, _, arr) => sum + f.recoveryError / arr.length, 0);
+      
+      return {
+        total: flights.length,
+        successful,
+        successRate: flights.length > 0 ? (successful / flights.length * 100).toFixed(1) : 0,
+        totalDistance: totalDistance.toFixed(0),
+        avgAccuracy: avgAccuracy.toFixed(1)
+      };
+    },
+    
+    exportFlights() {
+      const flights = this.getFlights();
+      const dataStr = JSON.stringify(flights, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `flight-logs-${Date.now()}.json`;
+      link.click();
+    }
+  };
+
+  // ============================================================================
+  // UI UTILITIES
+  // ============================================================================
+  
+  function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = 'slideInUp 0.3s ease reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  function rotateCarousel(deg) {
+    AppState.carouselRotation += deg;
+    document.getElementById('menuItems').style.transform = `rotateY(${AppState.carouselRotation}deg)`;
+  }
+
+  function returnToHub() {
+    document.getElementById('missionControl').classList.remove('active');
+    document.getElementById('hubContainer').classList.remove('hidden');
+    AppState.currentMission = null;
+    AppState.currentStep = 1;
+  }
+
+  // ============================================================================
+  // MAP INITIALIZATION & MANAGEMENT
+  // ============================================================================
+  
+  function initMap() {
+    if (AppState.map) return;
+    
+    AppState.map = L.map("map").setView([39.95, -86.26], 13);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(AppState.map);
+
+    AppState.map.on("click", (e) => {
+      if (AppState.map._settingTarget) {
+        setTargetLocation(e.latlng.lat, e.latlng.lng);
+        AppState.map._settingTarget = false;
+        showToast('🎯 Target location set!', 'success');
+      }
+    });
+  }
+
+  function setLaunchLocation(lat, lng) {
+    AppState.launchLatLng = L.latLng(lat, lng);
+    if (!AppState.launchMarker) {
+      AppState.launchMarker = L.marker(AppState.launchLatLng, { draggable: true }).addTo(AppState.map);
+      AppState.launchMarker.bindPopup("🚀 Launch Point").openPopup();
+      AppState.launchMarker.on("dragend", () => {
+        AppState.launchLatLng = AppState.launchMarker.getLatLng();
+        showToast('📍 Launch point updated', 'info');
+      });
+    } else {
+      AppState.launchMarker.setLatLng(AppState.launchLatLng);
+    }
+    AppState.map.setView(AppState.launchLatLng, 15);
+    CertificationSystem.earnBadge('location');
+  }
+
+  function setTargetLocation(lat, lng) {
+    AppState.targetLatLng = L.latLng(lat, lng);
+    if (!AppState.targetMarker) {
+      const targetIcon = L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        shadowSize: [41, 41]
+      });
+      AppState.targetMarker = L.marker(AppState.targetLatLng, { draggable: true, icon: targetIcon }).addTo(AppState.map);
+      AppState.targetMarker.bindPopup("🎯 Target Landing").openPopup();
+      AppState.targetMarker.on("dragend", () => {
+        AppState.targetLatLng = AppState.targetMarker.getLatLng();
+        showToast('🎯 Target updated', 'info');
+      });
+    } else {
+      AppState.targetMarker.setLatLng(AppState.targetLatLng);
+    }
+  }
+
+  function drawTrajectory(launch, landing) {
+    if (AppState.trajectoryLine) {
+      AppState.map.removeLayer(AppState.trajectoryLine);
+    }
+    AppState.trajectoryLine = L.polyline([launch, landing], {
+      color: '#00D9FF',
+      weight: 3,
+      opacity: 0.8,
+      dashArray: '10, 5'
+    }).addTo(AppState.map);
+  }
+
+  // ============================================================================
+  // MISSION CONTENT LOADERS
+  // ============================================================================
+  
+  function openMission(missionType) {
+    AppState.currentMission = missionType;
+    document.getElementById('hubContainer').classList.add('hidden');
+    document.getElementById('missionControl').classList.add('active');
+    
+    initMap();
+    
+    const titles = {
+      trajectory: '🎯 TRAJECTORY PLANNING MISSION',
+      launch: '🚀 LAUNCH OPERATIONS MISSION',
+      recovery: '📡 RECOVERY OPERATIONS MISSION',
+      receivers: '📱 RECEIVER NETWORK MANAGEMENT',
+      flightlog: '📊 FLIGHT LOG ANALYSIS',
+      certifications: '🏆 CERTIFICATION STATUS',
+      training: '📚 TRAINING MANUAL'
+    };
+    
+    document.getElementById('missionTitle').textContent = titles[missionType] || 'MISSION';
+    
+    const loaders = {
+      trajectory: loadTrajectoryMission,
+      launch: loadLaunchMission,
+      recovery: loadRecoveryMission,
+      receivers: loadReceiversMission,
+      flightlog: loadFlightLogMission,
+      certifications: loadCertificationsMission,
+      training: loadTrainingMission
+    };
+    
+    if (loaders[missionType]) {
+      loaders[missionType]();
+    }
+  }
+
+  function updateStepIndicator() {
+    const indicator = document.getElementById('stepIndicator');
+    indicator.innerHTML = '';
+    for (let i = 1; i <= AppState.totalSteps; i++) {
+      const step = document.createElement('div');
+      step.className = 'step';
+      if (i < AppState.currentStep) step.classList.add('completed');
+      if (i === AppState.currentStep) step.classList.add('active');
+      step.textContent = i;
+      indicator.appendChild(step);
+    }
+  }
+
+  function nextStep() {
+    if (AppState.currentStep < AppState.totalSteps) {
+      AppState.currentStep++;
+      updateStepIndicator();
+    }
+  }
+
+  // ============================================================================
+  // TRAJECTORY MISSION
+  // ============================================================================
+  
+  function loadTrajectoryMission() {
+    AppState.totalSteps = 5;
+    AppState.currentStep = 1;
+    updateStepIndicator();
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">📍</span> Step 1: Set Launch Location</h2>
+        <button class="action-button" onclick="useMyLocation()">📍 USE MY LOCATION</button>
+        <button class="action-button" onclick="setManualLaunch()">📌 SET ON MAP</button>
+        <div class="data-display" id="launchDisplay" style="margin-top: 1rem;">
+          <div class="data-row">
+            <span class="data-label">Status:</span>
+            <span class="data-value">Awaiting location...</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🎯</span> Step 2: Set Target Landing</h2>
+        <button class="action-button" onclick="enableTargetSelection()">🎯 TAP MAP FOR TARGET</button>
+        <div class="data-display" id="targetDisplay" style="margin-top: 1rem;">
+          <div class="data-row">
+            <span class="data-label">Status:</span>
+            <span class="data-value">Awaiting target...</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🌪️</span> Step 3: Weather Conditions</h2>
+        <button class="action-button" onclick="fetchWind()">🌪️ FETCH LIVE WIND DATA</button>
+        <div class="data-display" id="windDisplay" style="margin-top: 1rem;">
+          <div class="data-row">
+            <span class="data-label">Wind Speed:</span>
+            <span class="data-value">-- m/s</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Direction:</span>
+            <span class="data-value">-- °</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🚀</span> Step 4: Rocket Configuration</h2>
+        <div class="input-group">
+          <label>Rocket Preset</label>
+          <select id="rocketPreset" onchange="applyRocketPreset()">
+            <option value="custom">Custom Rocket</option>
+            <option value="alpha">Estes Alpha + A8-3</option>
+            <option value="alphaB">Estes Alpha + B6-4</option>
+            <option value="alphaC">Estes Alpha + C6-5</option>
+            <option value="bigBertha">Estes Big Bertha + C6-5</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Liftoff Mass (kg)</label>
+          <input type="number" id="rocketMass" step="0.01" value="0.06" />
+        </div>
+        <div class="input-group">
+          <label>Drag Coefficient</label>
+          <input type="number" id="rocketCd" step="0.05" value="0.75" />
+        </div>
+        <div class="input-group">
+          <label>Reference Area (m²)</label>
+          <input type="number" id="rocketArea" step="0.0001" value="0.0015" />
+        </div>
+        <div class="input-group">
+          <label>Average Thrust (N)</label>
+          <input type="number" id="motorThrust" step="0.1" value="4.0" />
+        </div>
+        <div class="input-group">
+          <label>Burn Time (s)</label>
+          <input type="number" id="motorBurn" step="0.1" value="1.0" />
+        </div>
+        <div class="input-group">
+          <label>Recovery Mode</label>
+          <select id="recoveryMode">
+            <option value="parachute">Parachute</option>
+            <option value="ballistic">Ballistic (No Parachute)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Descent Rate (m/s)</label>
+          <input type="number" id="descentRate" step="0.1" value="4.0" />
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">📐</span> Step 5: Compute Trajectory</h2>
+        <button class="action-button launch" onclick="computeOptimalAngle()">
+          🎯 COMPUTE OPTIMAL ANGLE
+        </button>
+        <div class="data-display" id="trajectoryDisplay" style="margin-top: 1rem; display: none;">
+          <div class="data-row">
+            <span class="data-label">Azimuth:</span>
+            <span class="data-value" id="resultAzimuth">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Elevation:</span>
+            <span class="data-value" id="resultElevation">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Max Altitude:</span>
+            <span class="data-value" id="resultAltitude">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Miss Distance:</span>
+            <span class="data-value" id="resultMiss">--</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================================================
+  // HELPER FUNCTIONS FOR TRAJECTORY
+  // ============================================================================
+  
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      showToast('❌ Geolocation not supported', 'error');
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLaunchLocation(pos.coords.latitude, pos.coords.longitude);
+        document.getElementById('launchDisplay').innerHTML = `
+          <div class="data-row">
+            <span class="data-label">Latitude:</span>
+            <span class="data-value">${pos.coords.latitude.toFixed(6)}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Longitude:</span>
+            <span class="data-value">${pos.coords.longitude.toFixed(6)}</span>
+          </div>
+        `;
+        nextStep();
+        showToast('✅ Launch location set!', 'success');
+      },
+      (err) => {
+        showToast('❌ Failed to get location: ' + err.message, 'error');
+      }
+    );
+  }
+
+  function setManualLaunch() {
+    showToast('📍 Click on the map to set launch location', 'info');
+    AppState.map._settingLaunch = true;
+    AppState.map.once('click', (e) => {
+      setLaunchLocation(e.latlng.lat, e.latlng.lng);
+      document.getElementById('launchDisplay').innerHTML = `
+        <div class="data-row">
+          <span class="data-label">Latitude:</span>
+          <span class="data-value">${e.latlng.lat.toFixed(6)}</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Longitude:</span>
+          <span class="data-value">${e.latlng.lng.toFixed(6)}</span>
+        </div>
+      `;
+      nextStep();
+    });
+  }
+
+  function enableTargetSelection() {
+    showToast('🎯 Click on the map to set target landing', 'info');
+    AppState.map._settingTarget = true;
+    AppState.map.once('click', (e) => {
+      setTargetLocation(e.latlng.lat, e.latlng.lng);
+      document.getElementById('targetDisplay').innerHTML = `
+        <div class="data-row">
+          <span class="data-label">Latitude:</span>
+          <span class="data-value">${e.latlng.lat.toFixed(6)}</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Longitude:</span>
+          <span class="data-value">${e.latlng.lng.toFixed(6)}</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Distance:</span>
+          <span class="data-value">${haversineDistance(
+            AppState.launchLatLng.lat, 
+            AppState.launchLatLng.lng,
+            e.latlng.lat,
+            e.latlng.lng
+          ).toFixed(1)} m</span>
+        </div>
+      `;
+      AppState.map._settingTarget = false;
+      nextStep();
+    });
+  }
+
+  async function fetchWind() {
+    if (!AppState.launchLatLng) {
+      showToast('❌ Set launch location first!', 'error');
+      return;
+    }
+    
+    try {
+      const lat = AppState.launchLatLng.lat;
+      const lng = AppState.launchLatLng.lng;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+      
+      const resp = await fetch(url);
+      const data = await resp.json();
+      
+      if (data.current_weather) {
+        const weather = data.current_weather;
+        AppState.windVector.speed = weather.windspeed / 3.6; // km/h to m/s
+        AppState.windVector.dirDeg = weather.winddirection;
+        
+        document.getElementById('windDisplay').innerHTML = `
+          <div class="data-row">
+            <span class="data-label">Wind Speed:</span>
+            <span class="data-value">${AppState.windVector.speed.toFixed(2)} m/s</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Direction:</span>
+            <span class="data-value">${AppState.windVector.dirDeg}°</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Temperature:</span>
+            <span class="data-value">${weather.temperature}°C</span>
+          </div>
+        `;
+        
+        nextStep();
+        CertificationSystem.earnBadge('wind');
+        showToast('✅ Weather data fetched!', 'success');
+      }
+    } catch (err) {
+      showToast('❌ Failed to fetch wind: ' + err.message, 'error');
+    }
+  }
+
+  function applyRocketPreset() {
+    const preset = document.getElementById('rocketPreset').value;
+    const presets = {
+      alpha: { mass: 0.031, cd: 0.75, area: 0.0015, thrust: 3.0, burn: 0.5 },
+      alphaB: { mass: 0.033, cd: 0.75, area: 0.0015, thrust: 5.0, burn: 0.6 },
+      alphaC: { mass: 0.036, cd: 0.75, area: 0.0015, thrust: 9.0, burn: 1.0 },
+      bigBertha: { mass: 0.065, cd: 0.70, area: 0.0025, thrust: 9.0, burn: 1.0 }
+    };
+    
+    if (presets[preset]) {
+      const p = presets[preset];
+      document.getElementById('rocketMass').value = p.mass;
+      document.getElementById('rocketCd').value = p.cd;
+      document.getElementById('rocketArea').value = p.area;
+      document.getElementById('motorThrust').value = p.thrust;
+      document.getElementById('motorBurn').value = p.burn;
+    }
+  }
+
+  // ============================================================================
+  // TRAJECTORY COMPUTATION
+  // ============================================================================
+  
+  function computeOptimalAngle() {
+    if (!AppState.launchLatLng || !AppState.targetLatLng) {
+      showToast('❌ Set both launch and target locations first!', 'error');
+      return;
+    }
+    
+    const mass = parseFloat(document.getElementById('rocketMass').value);
+    const cd = parseFloat(document.getElementById('rocketCd').value);
+    const area = parseFloat(document.getElementById('rocketArea').value);
+    const thrust = parseFloat(document.getElementById('motorThrust').value);
+    const burnTime = parseFloat(document.getElementById('motorBurn').value);
+    const recoveryMode = document.getElementById('recoveryMode').value;
+    const descentRate = parseFloat(document.getElementById('descentRate').value);
+    
+    const launchLat = AppState.launchLatLng.lat;
+    const launchLng = AppState.launchLatLng.lng;
+    const targetLat = AppState.targetLatLng.lat;
+    const targetLng = AppState.targetLatLng.lng;
+    
+    const targetDistance = haversineDistance(launchLat, launchLng, targetLat, targetLng);
+    const targetBearing = calculateBearing(launchLat, launchLng, targetLat, targetLng);
+    
+    let bestSolution = null;
+    let minMiss = Infinity;
+    
+    // Try different elevation angles
+    for (let elev = 45; elev <= 85; elev += 2) {
+      const elevRad = elev * Math.PI / 180;
+      
+      // Try different azimuth corrections for wind
+      for (let azOffset = -15; azOffset <= 15; azOffset += 5) {
+        const azimuth = (targetBearing + azOffset + 360) % 360;
+        const azRad = azimuth * Math.PI / 180;
+        
+        const result = simulateTrajectory(
+          elevRad, azRad, mass, cd, area, thrust, burnTime,
+          recoveryMode, descentRate, launchLat, launchLng
+        );
+        
+        const landLat = result.landingLat;
+        const landLng = result.landingLng;
+        const missDistance = haversineDistance(landLat, landLng, targetLat, targetLng);
+        
+        if (missDistance < minMiss) {
+          minMiss = missDistance;
+          bestSolution = {
+            azimuthDeg: azimuth,
+            elevationDeg: elev,
+            landingLatLng: L.latLng(landLat, landLng),
+            missMeters: missDistance,
+            maxAltitude: result.maxAlt,
+            distance: targetDistance
+          };
+        }
+      }
+    }
+    
+    if (bestSolution) {
+      AppState.optimalSolution = bestSolution;
+      
+      document.getElementById('trajectoryDisplay').style.display = 'block';
+      document.getElementById('resultAzimuth').textContent = bestSolution.azimuthDeg.toFixed(1) + '°';
+      document.getElementById('resultElevation').textContent = bestSolution.elevationDeg.toFixed(1) + '°';
+      document.getElementById('resultAltitude').textContent = bestSolution.maxAltitude.toFixed(1) + ' m';
+      document.getElementById('resultMiss').textContent = bestSolution.missMeters.toFixed(1) + ' m';
+      
+      drawTrajectory(AppState.launchLatLng, bestSolution.landingLatLng);
+      
+      // Send trajectory data to receivers
+      ReceiverManager.sendLaunchData();
+      
+      nextStep();
+      CertificationSystem.earnBadge('trajectory');
+      showToast('✅ Optimal trajectory computed!', 'success');
+    }
+  }
+
+  function simulateTrajectory(elevRad, azRad, mass, cd, area, thrust, burnTime, 
+                              recoveryMode, descentRate, lat0, lng0) {
+    const g = 9.81;
+    const rho = 1.225; // air density kg/m³
+    const dt = 0.05; // time step
+    
+    let vx = 0, vy = 0, vz = 0;
+    let x = 0, y = 0, z = 0;
+    let t = 0;
+    let maxAlt = 0;
+    
+    // Powered ascent
+    while (t < burnTime) {
+      const v = Math.sqrt(vx*vx + vy*vy + vz*vz);
+      const dragForce = 0.5 * rho * v * v * cd * area;
+      
+      const accelThrust = thrust / mass;
+      const accelDrag = (v > 0) ? -dragForce / mass : 0;
+      
+      const ax = accelThrust * Math.cos(elevRad) * Math.sin(azRad) + (vx / v) * accelDrag;
+      const ay = accelThrust * Math.cos(elevRad) * Math.cos(azRad) + (vy / v) * accelDrag;
+      const az = accelThrust * Math.sin(elevRad) - g + (vz / v) * accelDrag;
+      
+      vx += ax * dt;
+      vy += ay * dt;
+      vz += az * dt;
+      
+      x += vx * dt;
+      y += vy * dt;
+      z += vz * dt;
+      
+      if (z > maxAlt) maxAlt = z;
+      if (z < 0) break;
+      
+      t += dt;
+    }
+    
+    // Coasting to apogee
+    while (vz > 0 && z > 0) {
+      const v = Math.sqrt(vx*vx + vy*vy + vz*vz);
+      const dragForce = 0.5 * rho * v * v * cd * area;
+      const accelDrag = (v > 0) ? -dragForce / mass : 0;
+      
+      const ax = (vx / v) * accelDrag;
+      const ay = (vy / v) * accelDrag;
+      const az = -g + (vz / v) * accelDrag;
+      
+      vx += ax * dt;
+      vy += ay * dt;
+      vz += az * dt;
+      
+      x += vx * dt;
+      y += vy * dt;
+      z += vz * dt;
+      
+      if (z > maxAlt) maxAlt = z;
+      t += dt;
+    }
+    
+    // Descent
+    if (recoveryMode === 'parachute') {
+      vz = -descentRate;
+      while (z > 0) {
+        x += vx * dt;
+        y += vy * dt;
+        z += vz * dt;
+        t += dt;
+      }
+    } else {
+      while (z > 0) {
+        const v = Math.sqrt(vx*vx + vy*vy + vz*vz);
+        const dragForce = 0.5 * rho * v * v * cd * area;
+        const accelDrag = (v > 0) ? -dragForce / mass : 0;
+        
+        const ax = (vx / v) * accelDrag;
+        const ay = (vy / v) * accelDrag;
+        const az = -g + (vz / v) * accelDrag;
+        
+        vx += ax * dt;
+        vy += ay * dt;
+        vz += az * dt;
+        
+        x += vx * dt;
+        y += vy * dt;
+        z += vz * dt;
+        t += dt;
+      }
+    }
+    
+    // Convert x,y to lat/lng
+    const dlat = (y / R_EARTH) * (180 / Math.PI);
+    const dlng = (x / R_EARTH) * (180 / Math.PI) / Math.cos(lat0 * Math.PI / 180);
+    
+    return {
+      landingLat: lat0 + dlat,
+      landingLng: lng0 + dlng,
+      maxAlt: maxAlt
+    };
+  }
+
+  // ============================================================================
+  // LAUNCH MISSION
+  // ============================================================================
+  
+  function loadLaunchMission() {
+    AppState.totalSteps = 3;
+    AppState.currentStep = 1;
+    updateStepIndicator();
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">✅</span> Pre-Launch Checklist</h2>
+        <div style="background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 8px;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+            <input type="checkbox" id="check1"> Trajectory computed
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+            <input type="checkbox" id="check2"> Weather checked
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+            <input type="checkbox" id="check3"> Launch area clear
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+            <input type="checkbox" id="check4"> Safety equipment ready
+          </label>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">📱</span> Phone Alignment</h2>
+        <p style="font-size: 0.9rem; margin: 1rem 0;">
+          Place your phone parallel to the rocket, aligned with the launch direction.
+        </p>
+        <div class="data-display">
+          <div class="data-row">
+            <span class="data-label">Target Azimuth:</span>
+            <span class="data-value">${AppState.optimalSolution ? AppState.optimalSolution.azimuthDeg.toFixed(1) : '--'}°</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Target Elevation:</span>
+            <span class="data-value">${AppState.optimalSolution ? AppState.optimalSolution.elevationDeg.toFixed(1) : '--'}°</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Current Azimuth:</span>
+            <span class="data-value" id="currentAzimuth">--°</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Current Elevation:</span>
+            <span class="data-value" id="currentElevation">--°</span>
+          </div>
+        </div>
+        <button class="action-button" onclick="startOrientationTracking()">
+          📱 START ALIGNMENT TRACKING
+        </button>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🚀</span> Execute Launch</h2>
+        <button class="action-button launch" onclick="executeLaunch()">
+          🚀 LAUNCH ROCKET!
+        </button>
+        <p style="font-size: 0.85rem; margin-top: 1rem; opacity: 0.8;">
+          Click to log your launch and start tracking. Flight data will be saved automatically.
+        </p>
+      </div>
+    `;
+    
+    // Check if trajectory was computed
+    if (!AppState.optimalSolution) {
+      showToast('⚠️ Complete trajectory planning first!', 'error');
+    }
+  }
+
+  function startOrientationTracking() {
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', handleOrientation);
+      showToast('📱 Orientation tracking active', 'success');
+    } else {
+      showToast('❌ Device orientation not supported', 'error');
+    }
+  }
+
+  function handleOrientation(event) {
+    const alpha = event.alpha || 0; // compass
+    const beta = event.beta || 0;   // front-back tilt
+    const gamma = event.gamma || 0; // left-right tilt
+    
+    const azimuth = (360 - alpha) % 360;
+    const elevation = 90 - Math.abs(beta);
+    
+    document.getElementById('currentAzimuth').textContent = azimuth.toFixed(1) + '°';
+    document.getElementById('currentElevation').textContent = elevation.toFixed(1) + '°';
+  }
+
+  function executeLaunch() {
+    if (!AppState.optimalSolution) {
+      showToast('❌ Complete trajectory planning first!', 'error');
+      return;
+    }
+    
+    const flightData = {
+      launchLocation: { lat: AppState.launchLatLng.lat, lng: AppState.launchLatLng.lng },
+      targetLocation: { lat: AppState.targetLatLng.lat, lng: AppState.targetLatLng.lng },
+      azimuth: AppState.optimalSolution.azimuthDeg,
+      elevation: AppState.optimalSolution.elevationDeg,
+      maxAltitude: AppState.optimalSolution.maxAltitude,
+      predictedLanding: { 
+        lat: AppState.optimalSolution.landingLatLng.lat, 
+        lng: AppState.optimalSolution.landingLatLng.lng 
+      },
+      distance: AppState.optimalSolution.distance,
+      recovered: false,
+      recoveryError: null
+    };
+    
+    FlightLogSystem.saveFlight(flightData);
+    localStorage.setItem('currentFlight', JSON.stringify(flightData));
+    
+    CertificationSystem.earnBadge('launch');
+    CertificationSystem.completeMission();
+    
+    // Send launch data to all receivers
+    ReceiverManager.sendLaunchData();
+    
+    // Start countdown for receivers
+    if (AppState.receivers.size > 0) {
+      showToast('🚀 Countdown starting for ' + AppState.receivers.size + ' receiver(s)!', 'success');
+      ReceiverManager.startCountdown(10);
+      
+      setTimeout(() => {
+        showToast('🚀 Launch logged! Recovery mission activated!', 'success');
+        openMission('recovery');
+      }, 11000);
+    } else {
+      showToast('🚀 Launch logged! Recovery mission activated!', 'success');
+      setTimeout(() => {
+        openMission('recovery');
+      }, 2000);
+    }
+  }
+
+  // ============================================================================
+  // RECOVERY MISSION
+  // ============================================================================
+  
+  function loadRecoveryMission() {
+    AppState.totalSteps = 2;
+    AppState.currentStep = 1;
+    updateStepIndicator();
+    
+    const currentFlight = JSON.parse(localStorage.getItem('currentFlight') || 'null');
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">📡</span> Recovery Navigation</h2>
+        ${currentFlight ? `
+          <div class="data-display">
+            <div class="data-row">
+              <span class="data-label">Predicted Landing:</span>
+              <span class="data-value">${currentFlight.predictedLanding.lat.toFixed(5)}, ${currentFlight.predictedLanding.lng.toFixed(5)}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Max Altitude:</span>
+              <span class="data-value">${currentFlight.maxAltitude.toFixed(1)} m</span>
+            </div>
+          </div>
+          <button class="action-button" onclick="navigateToLanding()">
+            🧭 NAVIGATE TO LANDING SITE
+          </button>
+        ` : `
+          <p style="font-size: 0.9rem; opacity: 0.8;">
+            No active launch to recover. Complete a launch mission first.
+          </p>
+        `}
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🎯</span> Mark Recovery</h2>
+        <button class="action-button launch" onclick="markRecovered()">
+          ✅ I FOUND MY ROCKET!
+        </button>
+        <p style="font-size: 0.85rem; margin-top: 1rem; opacity: 0.8;">
+          Click when you've recovered your rocket to log the actual landing location and earn recovery points.
+        </p>
+        <div class="data-display" id="recoveryResult" style="display: none; margin-top: 1rem;">
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">📝</span> Recovery Log</h2>
+        <div class="flight-log" id="recoveryLog" style="max-height: 300px;">
+          <p style="opacity: 0.7;">Recovery events will appear here...</p>
+        </div>
+      </div>
+    `;
+    
+    if (currentFlight && currentFlight.predictedLanding) {
+      const landingMarker = L.marker(
+        [currentFlight.predictedLanding.lat, currentFlight.predictedLanding.lng],
+        {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          })
+        }
+      ).addTo(AppState.map);
+      landingMarker.bindPopup('🎯 Predicted Landing').openPopup();
+      AppState.map.setView([currentFlight.predictedLanding.lat, currentFlight.predictedLanding.lng], 16);
+    }
+  }
+
+  function navigateToLanding() {
+    const currentFlight = JSON.parse(localStorage.getItem('currentFlight') || 'null');
+    if (!currentFlight) return;
+    
+    const landing = currentFlight.predictedLanding;
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${landing.lat},${landing.lng}&travelmode=walking`;
+        window.open(mapsUrl, '_blank');
+        addRecoveryLog('📍 Navigation to predicted landing site started');
+      }, () => {
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${landing.lat},${landing.lng}`;
+        window.open(mapsUrl, '_blank');
+        addRecoveryLog('📍 Map opened for landing location');
+      });
+    }
+  }
+
+  function markRecovered() {
+    const currentFlight = JSON.parse(localStorage.getItem('currentFlight') || 'null');
+    if (!currentFlight) {
+      showToast('❌ No active launch to mark as recovered', 'error');
+      return;
+    }
+    
+    if (!navigator.geolocation) {
+      showToast('❌ Geolocation not available', 'error');
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const actualLat = pos.coords.latitude;
+      const actualLng = pos.coords.longitude;
+      
+      const errorMeters = haversineDistance(
+        currentFlight.predictedLanding.lat,
+        currentFlight.predictedLanding.lng,
+        actualLat,
+        actualLng
+      );
+      
+      currentFlight.recovered = true;
+      currentFlight.actualLanding = { lat: actualLat, lng: actualLng };
+      currentFlight.recoveryError = errorMeters;
+      
+      // Update in flight logs
+      const flights = FlightLogSystem.getFlights();
+      const lastFlight = flights[flights.length - 1];
+      if (lastFlight) {
+        Object.assign(lastFlight, currentFlight);
+        localStorage.setItem('rocketScientist_flights', JSON.stringify(flights));
+      }
+      
+      localStorage.removeItem('currentFlight');
+      
+      document.getElementById('recoveryResult').style.display = 'block';
+      document.getElementById('recoveryResult').innerHTML = `
+        <div class="data-row">
+          <span class="data-label">Actual Location:</span>
+          <span class="data-value">${actualLat.toFixed(5)}, ${actualLng.toFixed(5)}</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Prediction Error:</span>
+          <span class="data-value">${errorMeters.toFixed(1)} m</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Accuracy:</span>
+          <span class="data-value">${errorMeters < 50 ? '🌟 EXCELLENT' : errorMeters < 100 ? '✅ GOOD' : '⚠️ FAIR'}</span>
+        </div>
+      `;
+      
+      // Add marker for actual recovery
+      if (AppState.map) {
+        AppState.recoveryMarker = L.marker([actualLat, actualLng], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          })
+        }).addTo(AppState.map);
+        AppState.recoveryMarker.bindPopup(`✅ Recovered! Error: ${errorMeters.toFixed(1)}m`).openPopup();
+      }
+      
+      CertificationSystem.earnBadge('recovery');
+      CertificationSystem.completeMission();
+      addRecoveryLog(`✅ Rocket recovered! Prediction error: ${errorMeters.toFixed(1)}m`);
+      showToast('🎉 Rocket recovered successfully!', 'success');
+    }, (err) => {
+      showToast('❌ Failed to get location: ' + err.message, 'error');
+    });
+  }
+
+  function addRecoveryLog(message) {
+    const log = document.getElementById('recoveryLog');
+    if (!log) return;
+    
+    const entry = document.createElement('div');
+    entry.className = 'flight-entry';
+    entry.innerHTML = `
+      <div style="font-size: 0.85rem; color: var(--tech-cyan);">
+        ${new Date().toLocaleTimeString()}
+      </div>
+      <div style="font-size: 0.9rem;">
+        ${message}
+      </div>
+    `;
+    log.insertBefore(entry, log.firstChild);
+  }
+
+  // ============================================================================
+  // FLIGHT LOG MISSION
+  // ============================================================================
+  
+  function loadFlightLogMission() {
+    AppState.totalSteps = 1;
+    updateStepIndicator();
+    
+    const flights = FlightLogSystem.getFlights();
+    const stats = FlightLogSystem.getFlightStats();
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">📊</span> Flight Statistics</h2>
+        <div class="data-display">
+          <div class="data-row">
+            <span class="data-label">Total Flights:</span>
+            <span class="data-value">${stats.total}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Successful Recoveries:</span>
+            <span class="data-value">${stats.successful}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Success Rate:</span>
+            <span class="data-value">${stats.successRate}%</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Avg Accuracy:</span>
+            <span class="data-value">${stats.avgAccuracy} m</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Total Distance:</span>
+            <span class="data-value">${stats.totalDistance} m</span>
+          </div>
+        </div>
+        <button class="action-button" onclick="FlightLogSystem.exportFlights()">
+          💾 EXPORT FLIGHT LOGS
+        </button>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">📜</span> Flight History</h2>
+        <div class="flight-log">
+          ${flights.length === 0 ? 
+            '<p style="opacity: 0.7;">No flights logged yet. Complete a launch mission to start your flight log!</p>' :
+            flights.slice().reverse().map((flight, idx) => `
+              <div class="flight-entry">
+                <div class="flight-entry-header">
+                  <span class="flight-number">Flight #${flight.flightNumber}</span>
+                  <span class="flight-status ${flight.recovered ? 'success' : 'pending'}">
+                    ${flight.recovered ? '✅ RECOVERED' : '⏳ PENDING'}
+                  </span>
+                </div>
+                <div style="font-size: 0.85rem; margin: 0.5rem 0;">
+                  <div>📅 ${new Date(flight.timestamp).toLocaleString()}</div>
+                  <div>🧑‍🚀 Pilot: ${flight.userName}</div>
+                  <div>🎯 Max Altitude: ${flight.maxAltitude ? flight.maxAltitude.toFixed(1) : '--'} m</div>
+                  <div>📐 Azimuth: ${flight.azimuth.toFixed(1)}° | Elevation: ${flight.elevation.toFixed(1)}°</div>
+                  ${flight.recoveryError !== null && flight.recoveryError !== undefined ? 
+                    `<div>🎯 Recovery Error: ${flight.recoveryError.toFixed(1)} m</div>` : 
+                    ''}
+                </div>
+              </div>
+            `).join('')
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================================================
+  // CERTIFICATIONS MISSION
+  // ============================================================================
+  
+  function loadCertificationsMission() {
+    AppState.totalSteps = 1;
+    updateStepIndicator();
+    
+    const certData = CertificationSystem.loadData();
+    const currentLevel = CertificationSystem.getCurrentLevel(certData.missionsCompleted);
+    const nextLevel = CertificationSystem.levels[
+      CertificationSystem.levels.findIndex(l => l.name === currentLevel.name) + 1
+    ];
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">🏆</span> Current Certification</h2>
+        <div style="text-align: center; padding: 2rem; background: rgba(0,0,0,0.5); border-radius: 10px;">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🎖️</div>
+          <div style="font-size: 2rem; color: var(--mission-gold); font-weight: bold; margin-bottom: 0.5rem;">
+            ${currentLevel.name}
+          </div>
+          <div style="font-size: 1.2rem; color: var(--tech-cyan);">
+            ${certData.missionsCompleted} Missions Completed
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🎯</span> Progress to Next Level</h2>
+        ${nextLevel ? `
+          <div class="data-display">
+            <div class="data-row">
+              <span class="data-label">Next Level:</span>
+              <span class="data-value">${nextLevel.name}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Missions Required:</span>
+              <span class="data-value">${nextLevel.missions}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Missions Remaining:</span>
+              <span class="data-value">${nextLevel.missions - certData.missionsCompleted}</span>
+            </div>
+          </div>
+        ` : `
+          <div style="text-align: center; padding: 2rem; color: var(--mission-gold);">
+            🌟 MAXIMUM LEVEL ACHIEVED! 🌟
+            <div style="margin-top: 1rem; font-size: 0.9rem;">
+              You have mastered all certification levels!
+            </div>
+          </div>
+        `}
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🏅</span> Badge Collection</h2>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+          ${Object.entries(CertificationSystem.badges).map(([key, badge]) => `
+            <div style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 4px solid ${certData.badges && certData.badges[key] ? 'var(--mission-gold)' : '#555'};">
+              <div style="font-size: 2rem; ${certData.badges && certData.badges[key] ? '' : 'filter: grayscale(100%); opacity: 0.3;'}">
+                ${document.getElementById(badge.id).textContent}
+              </div>
+              <div>
+                <div style="font-weight: bold; color: var(--tech-cyan);">${badge.title}</div>
+                <div style="font-size: 0.85rem; opacity: 0.8;">
+                  ${certData.badges && certData.badges[key] ? '✅ Earned' : '🔒 Locked'}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🎖️</span> All Certification Levels</h2>
+        <div style="display: grid; gap: 0.5rem;">
+          ${CertificationSystem.levels.map(level => {
+            const achieved = certData.missionsCompleted >= level.missions;
+            return `
+              <div style="display: flex; justify-content: space-between; padding: 0.8rem; background: rgba(0,0,0,0.3); border-radius: 5px; border-left: 4px solid ${achieved ? level.color : '#555'};">
+                <span style="font-weight: bold; ${achieved ? `color: ${level.color}` : 'opacity: 0.5;'}">
+                  ${achieved ? '✅' : '🔒'} ${level.name}
+                </span>
+                <span style="opacity: 0.8;">
+                  ${level.missions} missions
+                </span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================================================
+  // TRAINING MISSION
+  // ============================================================================
+  
+  function loadTrainingMission() {
+    AppState.totalSteps = 1;
+    updateStepIndicator();
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">📚</span> Rocket Science Basics</h2>
+        <div style="font-size: 0.95rem; line-height: 1.6;">
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">🚀 Launch Fundamentals</h3>
+          <p>
+            Model rockets follow ballistic trajectories governed by thrust, drag, and gravity. 
+            Successful launches require careful calculation of launch angles and consideration of wind conditions.
+          </p>
+          
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">📐 Trajectory Planning</h3>
+          <p>
+            <strong>Azimuth:</strong> Compass direction (0-360°) of launch<br>
+            <strong>Elevation:</strong> Angle above horizon (45-85° typical)<br>
+            <strong>Optimal angles</strong> balance altitude and distance to target
+          </p>
+          
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">🌪️ Wind Effects</h3>
+          <p>
+            Wind causes drift during ascent and descent. Higher winds require azimuth corrections 
+            to compensate. Parachute descent is especially susceptible to wind drift.
+          </p>
+          
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">⚖️ Key Parameters</h3>
+          <p>
+            <strong>Mass:</strong> Total rocket weight including motor<br>
+            <strong>Drag Coefficient (Cd):</strong> Aerodynamic efficiency (0.7-0.8 typical)<br>
+            <strong>Thrust:</strong> Motor force in Newtons<br>
+            <strong>Burn Time:</strong> Duration of powered flight
+          </p>
+          
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">🎯 Safety Guidelines</h3>
+          <ul style="margin-left: 1.5rem;">
+            <li>Launch in open areas away from buildings and people</li>
+            <li>Check wind speed (< 10 m/s recommended)</li>
+            <li>Use proper ignition systems</li>
+            <li>Have recovery plan before launch</li>
+            <li>Follow local regulations and safety codes</li>
+          </ul>
+          
+          <h3 style="color: var(--mission-gold); margin-top: 1rem;">📡 Recovery Tips</h3>
+          <p>
+            Use predicted landing coordinates as starting point. Look upwind if rocket drifted.
+            Bright colors and streamers help visibility. Mark actual recovery location to 
+            improve future predictions.
+          </p>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <h2><span class="emoji">🎓</span> Certification Path</h2>
+        <div style="background: rgba(0,0,0,0.5); padding: 1rem; border-radius: 8px;">
+          <p><strong style="color: var(--tech-cyan);">TRAINEE (0 missions):</strong> New recruit learning the basics</p>
+          <p><strong style="color: var(--tech-cyan);">CADET (5 missions):</strong> Completed basic training missions</p>
+          <p><strong style="color: var(--tech-cyan);">SPECIALIST (15 missions):</strong> Demonstrated consistent skill</p>
+          <p><strong style="color: var(--tech-cyan);">COMMANDER (30 missions):</strong> Expert-level proficiency</p>
+          <p><strong style="color: var(--tech-cyan);">ACE PILOT (50 missions):</strong> Master rocket scientist</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // ============================================================================
+  // RECEIVERS MISSION
+  // ============================================================================
+  
+  function loadReceiversMission() {
+    AppState.totalSteps = 1;
+    updateStepIndicator();
+    
+    const panel = document.getElementById('controlPanel');
+    panel.innerHTML = `
+      <div class="panel-section">
+        <h2><span class="emoji">📱</span> Receiver Network Management</h2>
+        <div class="data-display">
+          <div class="data-row">
+            <span class="data-label">Your Launcher ID:</span>
+            <span class="data-value" style="font-family: monospace; word-break: break-all;">${AppState.launcherId}</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Connected Receivers:</span>
+            <span class="data-value">${AppState.receivers.size}</span>
+          </div>
+        </div>
+        <button class="action-button" onclick="copyLauncherId()">
+          📋 COPY LAUNCHER ID
+        </button>
+        <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.9;">
+          Share your Launcher ID with receivers so they can connect to your launch. 
+          They should open the receiver page and enter your ID.
+        </p>
+      </div>
+
+      <div class="panel-section">
+        <h2><span class="emoji">📡</span> Receiver Interface</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 1rem;">
+          Open the receiver interface on another device to track this launch:
+        </p>
+        <button class="action-button" onclick="window.open('pocketLaunchReceiver.html', '_blank')">
+          🚀 OPEN RECEIVER PAGE
+        </button>
+        <div style="background: rgba(0, 217, 255, 0.1); border-left: 4px solid var(--tech-cyan); padding: 1rem; margin-top: 1rem; border-radius: 5px;">
+          <strong>💡 How it works:</strong><br>
+          • Receivers can see your launch countdown in real-time<br>
+          • They get navigation to the predicted landing location<br>
+          • They can record video and data during landing<br>
+          • Multiple receivers enable triangulation for better accuracy<br>
+          • Live communication keeps everyone coordinated
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2><span class="emoji">👥</span> Connected Receivers</h2>
+        <div id="receiversList" style="max-height: 300px; overflow-y: auto;">
+          ${renderReceiversList()}
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2><span class="emoji">🧪</span> Test Functions</h2>
+        <button class="action-button" onclick="testCountdown()">
+          ⏱️ TEST COUNTDOWN (10s)
+        </button>
+        <button class="action-button" onclick="testBroadcastMessage()">
+          📤 SEND TEST MESSAGE
+        </button>
+        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+          Test the connection with your receivers before launch
+        </p>
+      </div>
+    `;
+  }
+
+  function renderReceiversList() {
+    if (AppState.receivers.size === 0) {
+      return '<p style="opacity: 0.7; text-align: center; padding: 2rem;">No receivers connected yet. Share your Launcher ID to connect.</p>';
+    }
+
+    let html = '<div class="flight-log">';
+    AppState.receivers.forEach((receiver, id) => {
+      const timeSince = Math.floor((Date.now() - receiver.lastSeen) / 1000);
+      html += `
+        <div class="log-entry">
+          <strong>Receiver:</strong> ${id}<br>
+          <small>Last seen: ${timeSince}s ago</small><br>
+          <small>Data points: ${receiver.accuracyData.length}</small>
+        </div>
+      `;
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function testCountdown() {
+    if (AppState.receivers.size === 0) {
+      showToast('No receivers connected', 'warning');
+      return;
+    }
+    ReceiverManager.startCountdown(10);
+    showToast('Test countdown sent to ' + AppState.receivers.size + ' receiver(s)', 'success');
+  }
+
+  function testBroadcastMessage() {
+    if (AppState.receivers.size === 0) {
+      showToast('No receivers connected', 'warning');
+      return;
+    }
+    ReceiverManager.broadcastToReceivers({
+      type: 'message',
+      message: 'Test message from launcher',
+      sender: 'launcher',
+      timestamp: Date.now()
+    });
+    showToast('Test message sent', 'success');
+  }
+
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  
+  function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = R_EARTH;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function calculateBearing(lat1, lng1, lat2, lng2) {
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+  }
+
+  // ============================================================================
+  // INITIALIZATION
+  // ============================================================================
+  
+  // Touch event handling for carousel swipe gestures
+  function initCarouselTouchEvents() {
+    const menuItems = document.getElementById('menuItems');
+    if (!menuItems) return;
+    
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let isSwiping = false;
+    
+    menuItems.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+      isSwiping = true;
+    }, { passive: true });
+    
+    menuItems.addEventListener('touchmove', (e) => {
+      if (!isSwiping) return;
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+    }, { passive: true });
+    
+    menuItems.addEventListener('touchend', () => {
+      if (!isSwiping) return;
+      isSwiping = false;
+      
+      const swipeDistanceX = touchEndX - touchStartX;
+      const swipeDistanceY = Math.abs(touchEndY - touchStartY);
+      
+      // Only trigger if horizontal swipe is significant and vertical is minimal
+      if (Math.abs(swipeDistanceX) > 50 && swipeDistanceY < 100) {
+        if (swipeDistanceX > 0) {
+          // Swipe right - rotate left
+          rotateCarousel(-60);
+        } else {
+          // Swipe left - rotate right
+          rotateCarousel(60);
+        }
+      }
+    }, { passive: true });
+  }
+  
+  window.addEventListener('load', () => {
+    CertificationSystem.init();
+    initCarouselTouchEvents();
+    ReceiverManager.init();
+    
+    // Auto-open trajectory mission if user just landed on page
+    const urlParams = new URLSearchParams(window.location.search);
+    const mission = urlParams.get('mission');
+    if (mission) {
+      setTimeout(() => openMission(mission), 500);
+    }
+  });
+
+  // ============================================================================
+  // UTILITY FUNCTIONS FOR RECEIVER INTEGRATION
+  // ============================================================================
+
+  function copyLauncherId() {
+    const id = AppState.launcherId;
+    navigator.clipboard.writeText(id).then(() => {
+      showToast('Launcher ID copied!', 'success');
+    }).catch(() => {
+      showToast('Failed to copy ID', 'error');
+    });
+  }
+</script>
+    <script src="/js/universal-utilities.js"></script>
+</body>
+</html>

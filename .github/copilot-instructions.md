@@ -1,183 +1,586 @@
-# Consciousness Revolution - Copilot Instructions
+# GitHub Copilot Instructions for Barbrick Design Repository
 
-This is a hybrid repository combining HTML-based interactive tools, Python automation scripts, and serverless functions. The platform is hosted on Netlify and provides pattern recognition tools for human consciousness across 7 domains.
+This is a comprehensive web projects hub with 300+ interactive applications, games, tools, and AI systems. The repository serves as both a showcase and a functional platform for generating income through government grants, contributor revenue sharing, and licensing.
 
-## Technology Stack
+## Project Overview
 
-- **Frontend**: Pure HTML5, CSS3, JavaScript (ES6+) - No frameworks, all standalone files
-- **Backend**: Python 3.x scripts for automation and data processing
-- **Serverless**: Netlify Functions (Node.js)
-- **Hosting**: Netlify with continuous deployment
-- **Database**: Supabase (PostgreSQL)
-- **Payment**: Stripe integration
-- **Node**: v18.0.0 or higher
+**Repository Type**: GitHub Pages hosted web application hub
+**Primary Languages**: JavaScript, HTML5, CSS3
+**Backend**: Node.js for local development and services
+**Target**: Web browsers (Chrome, Firefox, Safari, Edge)
+**Creator**: Ryan Barbrick (BarbrickDesign@gmail.com)
+**AI Assistant**: Merlin AI
 
-## Project Structure
+## Core Technologies
+
+### Frontend Stack
+- **HTML5**: Modern semantic HTML with web components
+- **JavaScript (ES6+)**: Vanilla JS, no heavy frameworks (performance priority)
+- **CSS3**: Custom styling, mobile-first responsive design
+- **3D Graphics**: Babylon.js and Three.js for 3D visualization
+- **AI/ML**: TensorFlow.js for in-browser machine learning
+
+### Backend Stack
+- **Node.js** (>=16.0.0): Local development server and microservices
+- **Express.js**: REST API endpoints and service orchestration
+- **Discord.js**: Bot integration for community engagement
+
+### Blockchain Integration
+- **Solana**: Primary blockchain for wallet operations and NFTs
+- **Ethereum**: Smart contracts and DeFi operations
+- **Tron**: Alternative blockchain support
+- **Web3.js**: Blockchain interaction libraries
+
+## Repository Structure
 
 ```
-consciousness-revolution/
-├── *.html                          # Standalone HTML tools (49+ tools)
-├── seven-domains/                  # 7 domain-specific sub-sites
-├── ULTIMATE_HUMAN_OS/              # 7x7x7 structured tool system
-├── netlify/functions/              # Serverless API endpoints
-├── staging/                        # Pre-production testing
-├── *.py                            # Python automation scripts
-├── .github/                        # GitHub configuration and workflows
-├── package.json                    # Node dependencies
-└── netlify.toml                    # Netlify configuration
+/
+├── .github/               # GitHub Actions workflows and scripts
+│   ├── workflows/         # CI/CD automation
+│   ├── scripts/           # Automation scripts
+│   └── copilot-instructions.md  # This file
+├── backend/               # Node.js backend services
+├── src/                   # Source code and utilities
+│   ├── agents/            # Autonomous agent systems
+│   ├── utils/             # Shared utility modules
+│   └── ai/                # AI and ML components
+├── js/                    # JavaScript libraries
+├── css/                   # Stylesheets
+├── docs/                  # Documentation
+├── projects/              # Individual project directories
+├── *.html                 # 300+ standalone web applications
+└── *.js                   # Standalone JavaScript files
+
+Key Files:
+- index.html               # Main hub and project gallery
+- README.md                # User-facing documentation
+- package.json             # Node.js dependencies and scripts
+- projects.json            # Complete catalog of all 373 projects
 ```
 
-## Development Guidelines
+## Development Workflow
 
-### Required Before Each Commit
+### Before Making Changes
+1. **Understand the monetization impact**: This repository generates income through:
+   - Government grant applications (primary revenue)
+   - Contributor revenue sharing (10-20% of grants)
+   - Project licensing and demonstrations
+   - AI agent services
+2. **Check existing functionality**: Run `npm test` to verify current state
+3. **Review related documentation**: Check relevant README files before changes
+4. **Identify impact area**: Changes may affect multiple interconnected systems
 
-- **No build step required** for HTML files - they are standalone
-- Run `npm install` only when adding new dependencies
-- Test Python scripts with `python3 <script>.py` before committing
-- Validate HTML files can be opened directly in a browser
+### Building and Testing
 
-### Development Flow
+```bash
+# Install dependencies
+npm install
 
-- **Install dependencies**: `npm install`
-- **Run locally**: `npx netlify dev` (starts dev server on localhost:8888)
-- **Test serverless functions**: Available at `/.netlify/functions/<function-name>`
-- **Deploy**: Automatic via GitHub push to main branch
+# Start local development server
+npm start
+# OR
+npm run dev
 
-### Testing
+# Run backend services
+npm run backend
 
-- **Functionality tests**: `python3 FUNCTIONALITY_TEST_SUITE.py`
-- **Autonomous agents**: `python3 aul_orchestrator.py`
-- **Manual testing**: Open any HTML file in a browser
-- **CI/CD**: GitHub Actions runs health checks and automated tests
+# Build for production
+npm run build
+
+# Run tests
+npm test
+npm run test:api
+npm run test:api-connections
+
+# Verify deployment
+npm run health
+```
+
+### Testing Checklist
+- ✅ Test in Chrome, Firefox, Safari, Edge
+- ✅ Test on mobile devices (responsive design)
+- ✅ Verify all links work (no 404s)
+- ✅ Check console for JavaScript errors
+- ✅ Verify PayPal integration on payment pages
+- ✅ Test blockchain wallet connections (if applicable)
+- ✅ Validate accessibility (screen readers, keyboard navigation)
+- ✅ Check 3D graphics performance (if applicable)
 
 ## Code Standards
 
-### HTML Files
+### JavaScript Guidelines
+1. **Use vanilla JavaScript** - Avoid heavy frameworks unless absolutely necessary
+2. **ES6+ features** - Use modern JavaScript (arrow functions, async/await, destructuring)
+3. **Error handling** - Always use try-catch for async operations and API calls
+4. **Performance first** - Optimize for fast load times (this affects user engagement)
+5. **Browser compatibility** - Test in all major browsers, use polyfills if needed
+6. **Security** - Never commit API keys or secrets (use environment variables)
+7. **Comments** - Document complex logic, especially AI/ML algorithms
 
-1. **Standalone and self-contained** - Each HTML file should work independently
-2. **No external dependencies** - Include all CSS and JavaScript inline or via CDN
-3. **Responsive design** - Mobile-first approach using the established design system
-4. **Accessibility** - Follow WCAG 2.1 AA standards
-5. **Design system** - Use the sacred geometry theme defined in `sacred-theme.css`
-6. **Naming convention**: Use lowercase with hyphens (e.g., `pattern-detector.html`)
+### JavaScript Code Example
+```javascript
+// Good: Modern, clean, well-documented
+async function fetchProjectData(projectId) {
+  try {
+    const response = await fetch(`/api/projects/${projectId}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch project data:', error);
+    return null;
+  }
+}
 
-### Python Scripts
+// Good: Clear event handling
+document.querySelector('#submit-btn')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const result = await processForm();
+  updateUI(result);
+});
+```
 
-1. **Python 3.x compatibility** - Use modern Python features
-2. **Type hints** - Include type annotations for functions
-3. **Docstrings** - Document all modules, classes, and functions
-4. **Error handling** - Use try-except blocks with specific exceptions
-5. **Naming convention**: Use UPPERCASE for main scripts (e.g., `PATTERN_DETECTOR.py`)
-6. **Dependencies**: Add to `requirements.txt` if needed
+### HTML Guidelines
+1. **Semantic HTML** - Use proper tags (header, nav, main, article, section, footer)
+2. **Accessibility** - Include ARIA labels, alt text, proper heading hierarchy
+3. **Mobile-first** - Responsive design is mandatory (viewport meta tag required)
+4. **Standalone pages** - Each HTML file should work independently
+5. **Common structure** - Maintain consistent header/footer across pages
+6. **PayPal integration** - Payment pages must include PayPal SDK properly
 
-### JavaScript
+### HTML Template Structure
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Name - Barbrick Design</title>
+    <meta name="description" content="Clear description for SEO">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="index.html">← Back to Hub</a>
+        </nav>
+    </header>
+    
+    <main>
+        <!-- Your content here -->
+    </main>
+    
+    <footer>
+        <p>© 2024-2025 Barbrick Design | <a href="mailto:BarbrickDesign@gmail.com">Contact</a></p>
+    </footer>
+    
+    <script src="js/your-script.js"></script>
+</body>
+</html>
+```
 
-1. **ES6+ syntax** - Use modern JavaScript features
-2. **No frameworks** - Keep it vanilla for maximum compatibility
-3. **Browser compatibility** - Support modern browsers (Chrome, Firefox, Safari, Edge)
-4. **Inline or CDN** - No separate .js files unless absolutely necessary
-5. **Error handling** - Use try-catch for async operations
-
-## Key Patterns
-
-### The 7 Domains Framework
-
-All tools and content should align with one or more of these domains:
-1. **Command** - Clarity, decisions, daily structure
-2. **Creation** - Building, projects, skills
-3. **Connection** - Relationships, communication, community
-4. **Peace** - Security, boundaries, protection
-5. **Abundance** - Financial growth, business, scaling
-6. **Wisdom** - Learning, critical thinking, research
-7. **Purpose** - Meaning, meditation, integration
-
-### Design System
-
-- Use the established color palette and sacred geometry theme
-- Reference `sacred-theme.css` for consistent styling
-- Follow the component patterns in existing HTML files
-- Maintain the glass-morphism aesthetic
-
-### Pattern Recognition Tools
-
-When creating or modifying pattern detection tools:
-1. Focus on educational value, not just detection
-2. Provide clear explanations of patterns
-3. Include examples and context
-4. Offer actionable insights
-5. Maintain a compassionate, empowering tone
-
-## Architecture Patterns
-
-### Autonomous Agent System
-
-- Uses AUL (AI Universal Language) protocol for agent communication
-- Message bus pattern for inter-agent communication
-- Self-healing and auto-recovery capabilities
-- Real-time monitoring dashboard at `AUL_DASHBOARD.html`
+### CSS Guidelines
+1. **Mobile-first approach** - Base styles for mobile, media queries for larger screens
+2. **CSS variables** - Use CSS custom properties for theming
+3. **Performance** - Minimize CSS, avoid heavy animations on mobile
+4. **Accessibility** - Ensure sufficient color contrast (WCAG AA minimum)
+5. **Consistent spacing** - Use a spacing scale (8px, 16px, 24px, 32px, etc.)
 
 ### File Naming Conventions
+- **HTML files**: lowercase with hyphens (e.g., `contributor-dashboard.html`)
+- **JavaScript files**: lowercase with hyphens (e.g., `paypal-integration.js`)
+- **CSS files**: lowercase with hyphens (e.g., `mobile-responsive.css`)
+- **Config files**: lowercase with hyphens (e.g., `agent-deployment-manifest.json`)
+- **Documentation**: UPPERCASE with underscores (e.g., `AGENT_SYSTEM_README.md`)
 
-- **User-facing tools**: `lowercase-with-hyphens.html`
-- **System scripts**: `UPPERCASE_WITH_UNDERSCORES.py`
-- **Documentation**: `UPPERCASE_WITH_UNDERSCORES.md`
-- **Configuration**: `lowercase.config.js` or `lowercase.toml`
+## Key Systems and Features
 
-### Data Flow
+### 1. Monetization Systems (CRITICAL - Revenue Generating)
 
-1. User interactions → HTML files
-2. HTML files → Netlify Functions (API)
-3. Netlify Functions → Supabase (database)
-4. Python scripts → Background processing/automation
+#### Government Grants System
+- **Location**: `government-grants-portal.html`, `contributor-registration-enhanced.html`
+- **Purpose**: Match users with government grants and generate applications
+- **Revenue Model**: Tiered subscriptions ($50-$1,500) + contributor revenue sharing (10-20%)
+- **API Integration**: SAM.gov, FPDS, grants.gov
+- **Testing**: Always verify PayPal integration after changes
 
-## Important Notes
+#### PayPal Integration
+- **Primary Contact**: BarbrickDesign@gmail.com
+- **Implementation**: `src/utils/paypal-integration.js`
+- **Environment Variables**: `PAYPAL_CLIENT_ID`, `PAYPAL_API`
+- **Testing**: Use PayPal sandbox for development
+- **Pages**: All payment/contribution pages must include PayPal SDK
 
-1. **No login required** for most tools - they work offline
-2. **Privacy-first** - Minimize data collection, process locally when possible
-3. **Joy-focused** - All features should bring joy to self and others (see `JOY_PRINCIPLES.md`)
-4. **Pattern Theory** - Core philosophy: recognizing patterns is the foundation of all growth
-5. **Open source** - MIT license, encourage community contributions
+#### Contributor Revenue Sharing
+- **Location**: `contributor-dashboard-hub.html`, `contribution-rewards-system.js`
+- **Tiers**: Bronze (10%), Silver (12%), Gold (15%), Platinum (20%)
+- **Student Discount**: 50% off all tiers
+- **Implementation**: Track contributions, calculate revenue shares, automate payments
+
+### 2. AI Agent Systems
+
+#### Merlin Hive (Primary AI System)
+- **Location**: `zMerlinHive.html`, `merlin-hive-integration.js`
+- **Features**: Autonomous orchestration, learning, enhancement, documentation
+- **Auto-start**: Enabled by default
+- **Integration**: All agent systems connect to Merlin Hive
+
+#### Agent R (System Architect)
+- **Location**: `agent-r-manifest.json`
+- **Authority**: Supreme (Level 999)
+- **Purpose**: System architecture and oversight
+- **Capabilities**: Full system access, protocol design, agent orchestration
+
+#### Agent Management Dashboard
+- **Location**: `agent-management-dashboard.html`
+- **Features**: File crawling, health monitoring, automated fixes, self-healing
+- **Usage**: Monitor and control all autonomous agents
+
+### 3. Blockchain & Wallet Systems
+- **Universal Wallet System**: `universal-wallet-system.js`
+- **Solana Wallet**: Primary blockchain integration
+- **Ethereum Wallet**: Smart contract operations
+- **Testing**: Always test wallet connections in development mode
+
+### 4. GitHub Actions & Automation
+- **Location**: `.github/workflows/`
+- **Key Workflows**:
+  - `auto-review-pr.yml` - Automated PR reviews
+  - `issue-lifecycle-manager.yml` - Issue automation
+  - `enhanced-security-scan.yml` - Security scanning
+  - `deploy-paypal-integration.yml` - PayPal deployment
+- **Testing**: Validate workflow changes in feature branches first
+
+## KERNEL Prompt Engineering Framework
+
+**CRITICAL**: All AI interactions in this repository should follow the KERNEL framework for optimal results.
+
+### What is KERNEL?
+
+KERNEL is a proven prompt engineering framework that delivers:
+- ✅ **94% first-try success rate** (vs 72% without)
+- ✅ **67% reduction** in time to useful results
+- ✅ **58% reduction** in token usage
+- ✅ **340% accuracy improvement**
+
+### KERNEL Principles
+
+1. **K - Keep it Simple**: One clear goal, not 500 words
+2. **E - Easy to Verify**: Clear, measurable success criteria
+3. **R - Reproducible**: No temporal references, use specific versions
+4. **N - Narrow Scope**: One task per prompt
+5. **E - Explicit Constraints**: Tell AI what NOT to do
+6. **L - Logical Structure**: Formatted sections (TASK, INPUT, CONSTRAINTS, OUTPUT, VERIFY)
+
+### Using KERNEL in Code
+
+```javascript
+// Load KERNEL utilities
+const KernelPromptBuilder = require('./src/utils/kernel-prompt-builder.js');
+const builder = new KernelPromptBuilder();
+
+// Build KERNEL-compliant prompt
+builder
+    .setTask('Generate Python function to validate email addresses')
+    .addInput('Email string as input')
+    .addConstraint('Python 3.10+')
+    .addConstraint('No external libraries (regex only)')
+    .addConstraint('Function under 20 lines')
+    .addOutput('Function named validate_email(email)')
+    .addOutput('Returns True/False with type hints')
+    .addVerification('Test with valid email: returns True')
+    .addVerification('Test with invalid: returns False');
+
+const prompt = builder.build();
+
+// Use with OpenAI orchestrator
+const response = await window.openAIOrchestrator.executeKernelPrompt(builder, {
+    model: 'gpt-4o',
+    validate: true,  // Validates prompt quality before execution
+    enforceQuality: false  // Set to true to reject low-quality prompts
+});
+```
+
+### KERNEL Quick Patterns
+
+For common tasks, use quick patterns:
+
+```javascript
+// Code generation
+const response = await window.openAIOrchestrator.quickKernel('code', 
+    'Generate email validator function', {
+    language: 'Python',
+    version: '3.10+',
+    allowLibs: 'regex'
+});
+
+// Documentation
+const response = await window.openAIOrchestrator.quickKernel('docs',
+    'Document authentication API endpoint', {
+    maxWords: 500
+});
+
+// Data analysis
+const response = await window.openAIOrchestrator.quickKernel('analysis',
+    'Analyze monthly sales trends', {
+    // Pattern auto-fills common constraints
+});
+```
+
+### KERNEL Template for Manual Prompts
+
+When writing prompts manually (comments, descriptions, etc.):
+
+```
+TASK: [One sentence describing the goal]
+
+INPUT:
+- [What you're providing]
+- [Data, files, context]
+
+CONSTRAINTS:
+- [Technical requirements]
+- [What to avoid]
+- [Limitations]
+
+OUTPUT:
+- [Specific deliverables]
+- [Format and structure]
+
+VERIFY:
+- [How to test success]
+- [Expected behavior]
+```
+
+### KERNEL for Agent Systems
+
+All autonomous agents should use KERNEL:
+
+```javascript
+// In agent code
+class MyAgent {
+    async generatePrompt(task) {
+        const builder = new KernelPromptBuilder();
+        builder
+            .setTask(task)
+            .addConstraint('Use repository context')
+            .addConstraint('Follow coding standards')
+            .addVerification('Validate against test suite');
+        
+        return builder.build();
+    }
+}
+```
+
+### KERNEL Playground
+
+Test and optimize prompts interactively:
+- **URL**: [kernel-playground.html](../kernel-playground.html)
+- **Features**: Real-time validation, scoring, templates
+- **Use**: Build, test, and refine prompts before using in code
+
+### KERNEL Resources
+
+- **Full Documentation**: [KERNEL_FRAMEWORK.md](../KERNEL_FRAMEWORK.md)
+- **Prompt Builder**: [src/utils/kernel-prompt-builder.js](../src/utils/kernel-prompt-builder.js)
+- **Validator**: [src/utils/kernel-validator.js](../src/utils/kernel-validator.js)
+- **Interactive Playground**: [kernel-playground.html](../kernel-playground.html)
+
+### When to Use KERNEL
+
+✅ **ALWAYS use KERNEL for**:
+- AI/LLM API calls
+- Agent system prompts
+- Code generation requests
+- Documentation generation
+- Data analysis tasks
+- Copilot interactions (via comments)
+
+❌ **Don't need KERNEL for**:
+- Simple user-facing text
+- Error messages
+- UI labels
+- Non-AI interactions
+
+### KERNEL Quality Standards
+
+Target KERNEL score: **80+/100**
+- 90-100: Excellent (deploy confidently)
+- 80-89: Good (minor improvements)
+- 70-79: Acceptable (needs refinement)
+- <70: Poor (rewrite recommended)
+
+## Important Guidelines
+
+### Security Requirements
+1. **Never commit secrets** - Use environment variables and GitHub Secrets
+2. **Validate all inputs** - Sanitize user input to prevent XSS/injection
+3. **HTTPS only** - All external API calls must use HTTPS
+4. **Wallet security** - Never expose private keys or seed phrases
+5. **PayPal security** - Use server-side validation for payments
+6. **API keys** - Rotate keys regularly, use `.env.example` for templates
+
+### Performance Requirements
+1. **Page load time** - Target <3 seconds on 3G connection
+2. **Mobile optimization** - Prioritize mobile performance
+3. **Lazy loading** - Load images and heavy resources on demand
+4. **Code splitting** - Split large JavaScript files when possible
+5. **Caching** - Use service workers for offline functionality
+
+### Accessibility Requirements
+1. **WCAG AA compliance** - Minimum accessibility standard
+2. **Keyboard navigation** - All interactive elements must be keyboard accessible
+3. **Screen reader support** - Proper ARIA labels and semantic HTML
+4. **Color contrast** - Text must be readable for color-blind users
+5. **Focus indicators** - Clear visual focus states for all interactive elements
+
+## Testing Requirements
+
+### Before Submitting PR
+1. ✅ Run `npm test` - All tests must pass
+2. ✅ Run `npm run build` - Build must succeed without errors
+3. ✅ Test in multiple browsers - Chrome, Firefox, Safari, Edge
+4. ✅ Test on mobile device - Or use browser dev tools mobile emulation
+5. ✅ Check console errors - No JavaScript errors in console
+6. ✅ Validate links - No broken links or 404s
+7. ✅ Test payment flows - If touching payment/contribution pages
+8. ✅ Verify documentation - Update relevant README files
+
+### For Payment/Monetization Changes
+1. ✅ Test with PayPal sandbox environment
+2. ✅ Verify email notifications work
+3. ✅ Test all payment tiers (Bronze, Silver, Gold, Platinum)
+4. ✅ Verify student discount calculation
+5. ✅ Test revenue sharing calculations
+6. ✅ Confirm transaction logging works
+
+### For Agent System Changes
+1. ✅ Test agent activation/deactivation
+2. ✅ Verify logging and monitoring
+3. ✅ Test self-healing capabilities
+4. ✅ Confirm cross-system communication
+5. ✅ Validate agent authority levels
 
 ## Common Tasks
 
-### Adding a New HTML Tool
+### Adding a New Project
+1. Create new HTML file in root directory
+2. Follow HTML template structure
+3. Add entry to `projects.json`
+4. Update `index.html` if needed
+5. Create corresponding documentation in `docs/`
+6. Test thoroughly across browsers
+7. Submit PR with screenshots
 
-1. Create standalone HTML file with inline CSS/JS
-2. Use the sacred-theme design system
-3. Align with one of the 7 domains
-4. Test in multiple browsers
-5. Add to appropriate navigation/index
+### Updating Payment Integration
+1. Test in PayPal sandbox first
+2. Verify environment variables are set
+3. Update relevant HTML pages
+4. Test all payment flows
+5. Verify email notifications
+6. Update documentation
+7. Deploy to production carefully
 
-### Adding Python Automation
+### Adding/Modifying AI Agents
+1. Follow Agent R manifest structure
+2. Update `agent-deployment-manifest.json`
+3. Add logging and monitoring
+4. Test agent activation
+5. Verify self-healing capabilities
+6. Update agent documentation
+7. Test integration with Merlin Hive
 
-1. Create script with UPPERCASE naming
-2. Add type hints and docstrings
-3. Include error handling
-4. Update `requirements.txt` if needed
-5. Test with `python3 script.py`
+### Fixing Bugs
+1. Reproduce the issue first
+2. Check existing tests
+3. Write test to catch the bug
+4. Fix the issue with minimal changes
+5. Verify fix doesn't break other functionality
+6. Update documentation if needed
+7. Submit PR with clear description
 
-### Adding Netlify Function
+## Documentation Standards
 
-1. Create in `netlify/functions/`
-2. Use Node.js module.exports syntax
-3. Handle CORS appropriately
-4. Test with `netlify dev`
-5. Deploy and test in production
+### README Files
+- Clear purpose and overview
+- Quick start guide
+- Installation/setup instructions
+- Usage examples
+- API documentation (if applicable)
+- Troubleshooting section
+- Contact information
 
-## Resources
+### Code Comments
+- Explain "why" not "what" (code should be self-documenting)
+- Document complex algorithms
+- Include examples for public APIs
+- Add TODO comments with GitHub issue links
+- Document workarounds with explanation
 
-- **Main site**: https://conciousnessrevolution.io
-- **Discord**: https://discord.gg/xHRXyKkzyg
-- **Bug tracker**: https://github.com/overkor-tek/consciousness-bugs
-- **Documentation**: See individual README files for specific subsystems
+### Commit Messages
+- Use present tense ("Add feature" not "Added feature")
+- Be specific and descriptive
+- Reference issue numbers when applicable
+- Keep first line under 72 characters
+- Add detailed description if needed
 
-## Deployment
+## Deployment Process
 
-- **Automatic**: Push to main branch triggers Netlify build
-- **Manual**: `npm run deploy`
-- **Staging**: Push to staging branch
-- **Restore points**: Created automatically after successful deployments
+### GitHub Pages Deployment
+1. Changes pushed to `main` branch auto-deploy
+2. Test in feature branch first
+3. Merge via PR after review
+4. Monitor deployment status
+5. Verify live site after deployment
 
-## Contact
+### Backend Services Deployment
+1. Test locally with `npm run backend`
+2. Deploy via deployment scripts
+3. Monitor health with `npm run health`
+4. Check logs for errors
+5. Verify API endpoints work
 
-For questions or clarifications, join the Discord or check existing documentation in the repository.
+## Contact and Support
+
+- **Creator**: Ryan Barbrick
+- **Email**: BarbrickDesign@gmail.com
+- **PayPal**: BarbrickDesign@gmail.com (for payments and licensing)
+- **Response Time**: Usually within 24 hours
+- **GitHub Issues**: Use for bug reports and feature requests
+- **GitHub Discussions**: Use for questions and ideas
+
+## Revenue Impact Awareness
+
+**CRITICAL**: This repository generates real income. When making changes:
+
+1. **Government grants**: Main revenue source (~$50M+ potential)
+   - Changes to grant portal affect user acquisition
+   - Application system must remain functional
+   - AI matching algorithms are revenue-critical
+
+2. **Contributor system**: Secondary revenue (~10-20% of grants)
+   - Payment flows must work perfectly
+   - Revenue sharing calculations must be accurate
+   - Student discounts must apply correctly
+
+3. **Project licensing**: Tertiary revenue
+   - Keep value tracking accurate
+   - Maintain project quality
+   - Ensure demonstrations work
+
+**Before deploying changes that affect monetization systems, always:**
+- Test thoroughly in sandbox/development
+- Get approval from repository owner (BarbrickDesign@gmail.com)
+- Monitor closely after deployment
+- Have rollback plan ready
+
+## Questions?
+
+If you're unsure about anything:
+1. Check relevant documentation in `docs/` or README files
+2. Look at similar existing code for patterns
+3. Search for related issues in GitHub
+4. Contact BarbrickDesign@gmail.com with specific questions
+
+Remember: This repository serves real users and generates real income. Prioritize reliability, security, and user experience in all changes.

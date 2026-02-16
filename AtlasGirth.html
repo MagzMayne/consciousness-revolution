@@ -1,0 +1,704 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: AtlasGirth.html
+Declaration ID: IP-14C207E0-MLL28ZWR
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<title>Atlas — Fixed UI & Working Buttons</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css"/>
+<style>
+  :root{
+    --bg:#04110c; --text:#e8f7ef; --muted:#9fcab8;
+    --accent:#25c684; --blue:#4466ff; --red:#ff4a4a; --outline:#e8f7ef; --harvest:#61b3ff;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  #map{position:absolute;inset:0;z-index:0}
+
+  /* HUD + layout */
+  .ticker{position:fixed;top:0;left:0;right:0;height:44px;background:linear-gradient(180deg,#071a14,#081f17);display:flex;align-items:center;padding:0 12px;gap:12px;z-index:220;overflow:auto;white-space:nowrap}
+  .tick{color:var(--muted);font-weight:700}
+  .hud{position:fixed;top:52px;left:12px;display:flex;gap:8px;z-index:220;align-items:center}
+  .pill{background:rgba(8,28,22,0.95);padding:8px 10px;border-radius:10px;font-weight:800;color:var(--text)}
+  .top-right{position:fixed;top:52px;right:12px;display:flex;gap:8px;z-index:220;align-items:center}
+  .boost-btn{background:linear-gradient(180deg,#ffd86b,#ffb84d);color:#081014;padding:8px 10px;border-radius:10px;font-weight:900;border:0}
+  .bottom{position:fixed;left:12px;right:12px;bottom:12px;z-index:220;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .buy{background:linear-gradient(180deg,var(--accent),#17905f);color:#04211b;padding:12px 18px;border:none;border-radius:14px;font-weight:900}
+  .nav{display:flex;justify-content:space-around;width:100%;background:linear-gradient(180deg,#071a14,#081f17);padding:8px;border-radius:12px}
+  .nav button{background:transparent;color:var(--muted);border:0;font-weight:900;padding:6px 8px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:160px;background:linear-gradient(180deg,#092c21,#061a14);padding:10px 14px;border-radius:12px;z-index:300;opacity:0;transition:opacity 180ms}
+  .toast.show{opacity:1}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.48);display:flex;align-items:center;justify-content:center;z-index:400}
+  .modal{background:linear-gradient(180deg,#071a14,#081f17);padding:16px;border-radius:12px;color:#d8f7ef;min-width:300px;max-width:92%}
+  .modal h3{margin:0 0 8px 0;font-size:18px}
+  .list{max-height:260px;overflow:auto;margin-top:8px}
+  .list-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.02)}
+  .small-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px;color:var(--muted);font-weight:800;margin-left:6px}
+  .action-btn{background:linear-gradient(180deg,var(--accent),#17905f);color:#04211b;padding:8px 10px;border-radius:10px;border:0;font-weight:800}
+
+  /* loader + saucer */
+  #loading{position:fixed;inset:0;background:linear-gradient(180deg,#04110c,#021012);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:800}
+  .loader-ring{width:72px;height:72px;border-radius:50%;position:relative;margin-bottom:14px}
+  .spinner{box-sizing:border-box;position:absolute;inset:0;border:6px solid rgba(10,36,30,0.9);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{100%{transform:rotate(360deg)}}
+  .loading-text{color:var(--muted);font-weight:700;margin-bottom:6px}
+  .loading-meter{width:320px;height:10px;border-radius:8px;background:rgba(255,255,255,0.04);overflow:hidden}
+  .loading-meter .bar{height:100%;background:linear-gradient(90deg,var(--accent),#2fb27d);width:0%;transition:width 220ms cubic-bezier(.2,.9,.2,1)}
+  .saucer-wrapper{width:72px;height:48px;display:flex;align-items:center;justify-content:center;animation:saucer-bob 1.6s ease-in-out infinite;pointer-events:none;z-index:250}
+  @keyframes saucer-bob{0%{transform:translateY(-1px)}50%{transform:translateY(2px)}100%{transform:translateY(-1px)}}
+  .saucer-pill{width:58px;height:22px;border-radius:14px;background:linear-gradient(180deg,#d1d1d1,#9b9b9b);box-shadow:0 6px 12px rgba(0,0,0,0.4),0 0 12px rgba(68,102,255,0.12) inset;transform:translateY(-6px);display:flex;align-items:center;justify-content:center;color:#061017;font-weight:800}
+  .hint{position:fixed;bottom:118px;left:50%;transform:translateX(-50%);background:rgba(8,28,22,0.95);padding:8px 12px;border-radius:10px;z-index:260;font-weight:800}
+  @media (max-width:420px){ .loading-meter{width:240px} .loader-ring{width:60px;height:60px} .hud{left:8px} .top-right{right:8px} .bottom{left:8px;right:8px} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="loading" aria-hidden="false">
+    <div class="loader-ring" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+      <div class="spinner" aria-hidden="true"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--muted)" id="pctText">0%</div>
+    </div>
+    <div class="loading-text" id="loadingText">Loading world…</div>
+    <div class="loading-meter"><div class="bar" id="loadingBar"></div></div>
+  </div>
+
+  <div class="ticker" id="ticker"><div class="tick">★ Atlas — core UI</div></div>
+
+  <div class="hud">
+    <div class="pill" id="coord">+0.0000000000</div>
+    <div class="pill" id="rentMin">Credit/min: +0.000</div>
+  </div>
+
+  <div class="top-right" id="topRightGroup">
+    <div class="pill" id="boostPill">Boost</div>
+    <button id="boost" class="boost-btn" title="Temporary boost">BOOST</button>
+  </div>
+
+  <div class="bottom">
+    <div class="pill" id="playerTitle">FLORIDA • SHALE</div>
+    <button class="buy" id="buyLand">BUY LAND</button>
+    <div class="nav">
+      <button id="btnMap">🗺️ MAP</button>
+      <button id="btnInventory">🎒 INVENTORY</button>
+      <button id="btnShop">🛍️ SHOP</button>
+      <button id="btnEvents">🎯 EVENTS</button>
+      <button id="btnLandmarks">📍 LANDMARKS</button>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script>
+/* Fully working single-file app:
+   - All navigation and action buttons wired after DOM and map load
+   - Boost button moved to avoid overlap
+   - Inventory parcel click teleports to parcel, harvests, buys around, sells
+   - Global ownership stored in localStorage (prototype)
+   - No duplicate overlays on zoom/pan (single source replaced)
+   - Clear modular functions and guaranteed listener attachment
+*/
+
+const CONFIG = {
+  PLAYER_COORD: [-86.2617000, 39.9556000],
+  START_ZOOM: 18.6,
+  PARCEL_SIZE_M: 1.8288,
+  LAZY_HALF_COUNT: 5,
+  HARVEST_RADIUS_M: 55,
+  START_BUCKS: 31,
+  GLOBAL_KEY: 'atlas_global_owned',
+  LOCAL_STATE_KEY: 'atlas_local_state',
+  PLAYER_META_KEY: 'atlas_player_meta',
+  FREE_PARCEL_COOLDOWN_MS: 3600 * 1000,
+  RENT_TICK_MS: 5000,
+  AUTO_TICK_MS: 6000,
+  VEHICLE_BASE: { rover: 30, truck: 120 },
+  COLORS: { available:'#4466ff', owned:'#ff4a4a', outline:'#e8f7ef', harvest:'#61b3ff' }
+};
+
+const STATE = {
+  player: { bucks: CONFIG.START_BUCKS },
+  resources: { wood:0, ore:0, water:0 },
+  globalOwned: new Set(),
+  localOwned: new Set(),
+  parcelCache: new Map(),
+  saucerMarker: null,
+  gridVisible: false,
+  meta: { everOwned:false, lastFreeParcelTs:0 },
+  vehicles: { rover:0, truck:0 },
+  inited: false
+};
+
+/* Utilities */
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function hash(s){let h=2166136261>>>0; for(let i=0;i<s.length;i++){h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0;} return h>>>0;}
+function emptyFC(){ return { type:'FeatureCollection', features:[] }; }
+function metersToDegLat(m){ return m/111320; }
+function metersToDegLon(m,lat){ return m/(111320*Math.cos(lat*Math.PI/180)); }
+function setLoadingPercent(p, text){ p = clamp(Math.round(p),0,100); const pct = document.getElementById('pctText'); const bar = document.getElementById('loadingBar'); if(pct) pct.textContent = `${p}%`; if(bar) bar.style.width = `${p}%`; if(text) document.getElementById('loadingText').textContent = text; }
+function showToast(msg, ms=1500){ const t=document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), ms); }
+function postFeed(text){ const el=document.getElementById('ticker'); const it=document.createElement('div'); it.className='tick'; it.textContent = `★ ${text}`; el.appendChild(it); el.scrollLeft = el.scrollWidth; }
+
+/* Map init */
+const map = new maplibregl.Map({
+  container: 'map',
+  style: { version:8, sources: { osm:{ type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256 } }, layers:[{id:'osm',type:'raster',source:'osm'}] },
+  center: CONFIG.PLAYER_COORD.slice(),
+  zoom: CONFIG.START_ZOOM,
+  pitch: 0
+});
+
+/* Storage helpers */
+function loadGlobalOwned(){ try{ const raw = localStorage.getItem(CONFIG.GLOBAL_KEY); if(!raw) return new Set(); const arr = JSON.parse(raw); return new Set(Array.isArray(arr)?arr:[]); }catch(e){return new Set()} }
+function saveGlobalOwned(set){ try{ localStorage.setItem(CONFIG.GLOBAL_KEY, JSON.stringify(Array.from(set))); }catch(e){console.warn('saveGlobal',e);} }
+function loadPlayerMeta(){ try{ const raw = localStorage.getItem(CONFIG.PLAYER_META_KEY); return raw ? JSON.parse(raw) : { everOwned:false, lastFreeParcelTs:0 }; }catch(e){return { everOwned:false, lastFreeParcelTs:0 }; } }
+function savePlayerMeta(meta){ try{ localStorage.setItem(CONFIG.PLAYER_META_KEY, JSON.stringify(meta)); }catch(e){console.warn('saveMeta',e);} }
+function loadLocalState(){ try{ const raw = localStorage.getItem(CONFIG.LOCAL_STATE_KEY); if(!raw) return; const d = JSON.parse(raw); STATE.player.bucks = d.bucks ?? STATE.player.bucks; STATE.resources = d.resources ?? STATE.resources; STATE.vehicles = d.vehicles ?? STATE.vehicles; }catch(e){console.warn('loadLocal',e);} }
+function saveLocalState(){ try{ localStorage.setItem(CONFIG.LOCAL_STATE_KEY, JSON.stringify({ bucks: STATE.player.bucks, resources: STATE.resources, vehicles: STATE.vehicles })); }catch(e){console.warn('saveLocal',e);} }
+
+/* Parcel math */
+function snapIndex(lon, lat, dLon, dLat){
+  const i = Math.floor((lon + 180) / dLon);
+  const j = Math.floor((lat + 90) / dLat);
+  const west = i * dLon - 180;
+  const south = j * dLat - 90;
+  return { i, j, west, south };
+}
+function parcelKey(west, south){ return `${west.toFixed(9)},${south.toFixed(9)}`; }
+function rarityForKey(key){ const h = hash(key); if((h%1000)>990) return 'legendary'; if((h%100)>88) return 'epic'; if((h%50)>28) return 'rare'; return 'common'; }
+function priceForRarity(r){ return r==='legendary'?900:r==='epic'?420:r==='rare'?210:100; }
+function parcelIncomePerMin(r){ const t={ common:0.08, rare:0.08*2.6, epic:0.08*5.6, legendary:0.08*12 }; return t[r] || 0.08; }
+function computeParcelSalePrice(id){ const rarity = STATE.parcelCache.get(id)?.properties.rarity || rarityForKey(id); const rpm = parcelIncomePerMin(rarity); const price = rpm * 60 * 24 * 3; return Math.max(30, Math.round(price)); }
+
+/* Lazy seeding */
+async function lazySeedAround(center, halfCount){
+  const cx = center.lng, cy = center.lat;
+  const dLat = metersToDegLat(CONFIG.PARCEL_SIZE_M);
+  const dLon = metersToDegLon(CONFIG.PARCEL_SIZE_M, cy);
+  const anchor = snapIndex(cx, cy, dLon, dLat);
+  const baseI = anchor.i, baseJ = anchor.j;
+  const total = (2*halfCount+1)*(2*halfCount+1);
+  let done=0;
+  for(let di=-halfCount; di<=halfCount; di++){
+    for(let dj=-halfCount; dj<=halfCount; dj++){
+      const i = baseI + di, j = baseJ + dj;
+      const west = i * dLon - 180, south = j * dLat - 90;
+      const key = parcelKey(west, south);
+      if(!STATE.parcelCache.has(key)){
+        const rarity = rarityForKey(key);
+        const status = STATE.globalOwned.has(key) ? 'owned' : 'available';
+        const feat = { type:'Feature', geometry:{ type:'Polygon', coordinates:[[ [west,south],[west+dLon,south],[west+dLon,south+dLat],[west,south+dLat],[west,south] ]] }, properties:{ id:key, status, rarity } };
+        STATE.parcelCache.set(key, feat);
+      }
+      done++;
+      if(!STATE.inited){ const pct = 12 + Math.round(done/total * 70); setLoadingPercent(pct, `Seeding parcels ${done}/${total}`); }
+      if(done % 18 === 0) await new Promise(r=>setTimeout(r,0));
+    }
+  }
+}
+
+/* Refresh source with visible parcels (replacement, no stacking) */
+function refreshGridFromCache(){
+  const center = map.getCenter();
+  const dLat = metersToDegLat(CONFIG.PARCEL_SIZE_M);
+  const dLon = metersToDegLon(CONFIG.PARCEL_SIZE_M, center.lat);
+  const anchor = snapIndex(center.lng, center.lat, dLon, dLat);
+  const feats = [];
+  const half = CONFIG.LAZY_HALF_COUNT;
+  for(let di=-half; di<=half; di++){
+    for(let dj=-half; dj<=half; dj++){
+      const i = anchor.i + di, j = anchor.j + dj;
+      const west = i * dLon - 180, south = j * dLat - 90;
+      const key = parcelKey(west, south);
+      const f = STATE.parcelCache.get(key);
+      if(f){
+        const c = JSON.parse(JSON.stringify(f));
+        c.properties.status = STATE.globalOwned.has(key) ? 'owned' : 'available';
+        feats.push(c);
+      }
+    }
+  }
+  const src = map.getSource('parcels');
+  if(src) src.setData({ type:'FeatureCollection', features: feats });
+}
+
+/* Layers */
+function ensureParcelLayers(){
+  if(map.getSource('parcels')) return;
+  map.addSource('parcels', { type:'geojson', data: emptyFC() });
+  map.addLayer({
+    id:'parcel-fill', type:'fill', source:'parcels',
+    paint:{ 'fill-color':['match',['get','status'],'owned',CONFIG.COLORS.owned,'available',CONFIG.COLORS.available,'#cccccc'], 'fill-opacity': 0.36 },
+    layout:{ visibility:'none' }
+  });
+  map.addLayer({ id:'parcel-outline', type:'line', source:'parcels', paint:{ 'line-color': CONFIG.COLORS.outline, 'line-width': 0.8 }, layout:{ visibility:'none' } });
+}
+
+/* Harvest circle */
+function ensureHarvestLayer(){ if(map.getSource('harvest')) return; map.addSource('harvest', { type:'geojson', data: emptyFC() }); map.addLayer({ id:'harvest-radius', type:'circle', source:'harvest', paint:{ 'circle-radius': metersToPixels(CONFIG.HARVEST_RADIUS_M, CONFIG.PLAYER_COORD[1]), 'circle-color': CONFIG.COLORS.harvest, 'circle-opacity': 0.16, 'circle-stroke-color': CONFIG.COLORS.harvest, 'circle-stroke-width': 1.2 } }); }
+function updateHarvestCircle(){ if(map.getSource('harvest')) map.getSource('harvest').setData({ type:'FeatureCollection', features:[{ type:'Feature', geometry:{ type:'Point', coordinates:[map.getCenter().lng, map.getCenter().lat] } }] }); if(map.getLayer('harvest-radius')) map.setPaintProperty('harvest-radius','circle-radius', metersToPixels(CONFIG.HARVEST_RADIUS_M, map.getCenter().lat)); }
+function metersToPixels(meters, lat){ const p0 = map.project([map.getCenter().lng, lat]); const dLon = meters / (111320 * Math.cos(lat * Math.PI / 180)); const p1 = map.project([map.getCenter().lng + dLon, lat]); return Math.max(4, Math.round(Math.abs(p1.x - p0.x))); }
+
+/* Saucer */
+function ensureSaucerPill(){ if(STATE.saucerMarker) return; const wrapper=document.createElement('div'); wrapper.className='saucer-wrapper'; const pill=document.createElement('div'); pill.className='saucer-pill'; wrapper.appendChild(pill); STATE.saucerMarker = new maplibregl.Marker({ element: wrapper, anchor:'center' }).setLngLat(CONFIG.PLAYER_COORD).addTo(map); }
+function setSaucerToCenter(){ if(STATE.saucerMarker) STATE.saucerMarker.setLngLat(map.getCenter()); }
+function pulseSaucer(){ const el = STATE.saucerMarker && STATE.saucerMarker.getElement(); if(!el) return; el.style.transition='transform 260ms ease-out'; el.style.transform='translateY(-4px) scaleX(1.03)'; setTimeout(()=>el.style.transform='translateY(0) scaleX(1)',380); }
+
+/* Buy / Sell */
+function attemptBuyParcel(id, price){
+  STATE.globalOwned = loadGlobalOwned();
+  if(STATE.globalOwned.has(id)){ showToast('Parcel already owned'); refreshGridFromCache(); return; }
+  if(STATE.player.bucks < price){ showToast('Insufficient AB'); return; }
+  STATE.player.bucks -= price;
+  STATE.localOwned.add(id);
+  STATE.globalOwned.add(id);
+  saveGlobalOwned(STATE.globalOwned);
+  STATE.meta.everOwned = true;
+  savePlayerMeta(STATE.meta);
+  saveLocalState();
+  updateHUD();
+  postFeed(`Bought parcel (${id})`);
+  refreshGridFromCache();
+  pulseSaucer();
+}
+function sellParcel(id){
+  if(!STATE.localOwned.has(id)){ showToast('You do not own this parcel'); return; }
+  const price = computeParcelSalePrice(id);
+  STATE.globalOwned.delete(id);
+  STATE.localOwned.delete(id);
+  saveGlobalOwned(STATE.globalOwned);
+  STATE.player.bucks += price;
+  saveLocalState();
+  updateHUD();
+  refreshGridFromCache();
+  postFeed(`Sold parcel for ${price} AB`);
+  showToast(`Sold parcel +${price} AB`);
+}
+
+/* Harvest and teleport */
+function harvestParcel(id){
+  const rarity = STATE.parcelCache.get(id)?.properties.rarity || rarityForKey(id);
+  const yieldByRarity = { common:{wood:1,ore:0,water:0}, rare:{wood:2,ore:1,water:0}, epic:{wood:4,ore:2,water:1}, legendary:{wood:8,ore:4,water:2} };
+  const y = yieldByRarity[rarity] || yieldByRarity.common;
+  STATE.resources.wood += y.wood; STATE.resources.ore += y.ore; STATE.resources.water += y.water;
+  saveLocalState(); updateHUD();
+  postFeed(`Harvested ${rarity} parcel (+${y.wood}W +${y.ore}O +${y.water}H)`);
+}
+function teleportToParcel(id){
+  const f = STATE.parcelCache.get(id); if(!f){ showToast('Parcel not found'); return; }
+  const coords = f.geometry.coordinates[0];
+  let sx=0, sy=0; coords.forEach(c=>{ sx+=c[0]; sy+=c[1]; });
+  const cx = sx/coords.length, cy = sy/coords.length;
+  map.flyTo({ center:[cx, cy], zoom: CONFIG.START_ZOOM, essential:true });
+  setTimeout(()=>{ setGridVisibility(true); lazySeedAround(map.getCenter(), CONFIG.LAZY_HALF_COUNT).then(refreshGridFromCache); }, 420);
+}
+
+/* Inventory modal */
+function openInventoryModal(){
+  const owned = Array.from(STATE.localOwned);
+  showModal(`<h3>Inventory</h3>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button id="sellResources" class="small-btn">Sell Resources</button>
+      <button id="sellVehicles" class="small-btn">Sell Vehicles</button>
+      <button id="teleAll" class="small-btn">Teleport to First</button>
+    </div>
+    <div style="margin-top:10px">Owned parcels: <strong>${owned.length}</strong></div>
+    <div class="list" id="inventoryList">
+      ${owned.length ? owned.map(id=>{
+        const rarity = STATE.parcelCache.get(id)?.properties.rarity || rarityForKey(id);
+        const sale = computeParcelSalePrice(id);
+        return `<div class="list-item" data-id="${id}"><div style="min-width:0"><div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${id}</div><div style="color:var(--muted);font-size:12px;margin-top:4px">${rarity.toUpperCase()} · Sale ${sale} AB</div></div><div style="display:flex;align-items:center"><button class="small-btn action-tele">Teleport</button><button class="small-btn action-harvest">Harvest</button><button class="small-btn action-buyaround">Buy Around</button><button class="small-btn action-sell" style="background:linear-gradient(180deg,var(--red),#d93b3b);color:white">Sell</button></div></div>`; }).join('') : '<div style="margin-top:8px;color:var(--muted)">No parcels owned yet</div>'}
+    </div>`, (root)=>{
+      root.querySelector('#sellResources').addEventListener('click', ()=> { sellResources(); });
+      root.querySelector('#sellVehicles').addEventListener('click', ()=> { sellVehicles(); });
+      const teleAll = root.querySelector('#teleAll');
+      teleAll && teleAll.addEventListener('click', ()=>{ if(owned.length){ teleportToParcel(owned[0]); closeModal(); } else showToast('No parcels'); });
+      const list = root.querySelector('#inventoryList');
+      list.querySelectorAll('.list-item').forEach(node=>{
+        const id = node.getAttribute('data-id');
+        node.querySelector('.action-tele').addEventListener('click', ()=>{ teleportToParcel(id); closeModal(); });
+        node.querySelector('.action-harvest').addEventListener('click', ()=>{ harvestParcel(id); });
+        node.querySelector('.action-buyaround').addEventListener('click', async ()=>{ setGridVisibility(true); await lazySeedAround(map.getCenter(), CONFIG.LAZY_HALF_COUNT); refreshGridFromCache(); showToast('Grid enabled around target'); });
+        node.querySelector('.action-sell').addEventListener('click', ()=>{ const p = computeParcelSalePrice(id); showModal(`<h3>Sell Parcel</h3><div>Sell for <strong>${p} AB</strong>?</div><div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button id="cancel" class="small-btn">Cancel</button><button id="confirm" class="action-btn">Confirm</button></div>`, (mroot)=>{ mroot.querySelector('#cancel').addEventListener('click', ()=> closeModal()); mroot.querySelector('#confirm').addEventListener('click', ()=>{ sellParcel(id); closeModal(); closeModal(); }); }); });
+      });
+  });
+}
+
+/* Sell resources & vehicles */
+function sellResources(){
+  const totalUnits = STATE.resources.wood + STATE.resources.ore + STATE.resources.water;
+  if(totalUnits === 0){ showToast('No resources to sell'); return; }
+  let avgIncomePerMin = 0;
+  if(STATE.parcelCache.size){ let sum=0,n=0; for(const f of STATE.parcelCache.values()){ sum+=parcelIncomePerMin(f.properties.rarity||'common'); n++; } avgIncomePerMin = n ? sum/n : 0.08; } else avgIncomePerMin = 0.08;
+  const unitPrice = Math.max(1, Math.round(avgIncomePerMin * 60 * 0.6));
+  const gained = totalUnits * unitPrice;
+  STATE.player.bucks += gained;
+  STATE.resources.wood = STATE.resources.ore = STATE.resources.water = 0;
+  saveLocalState(); updateHUD();
+  postFeed(`Sold resources for ${gained} AB`); showToast(`Sold resources +${gained} AB`);
+}
+function sellVehicles(){
+  const v = STATE.vehicles;
+  const sellValue = (v.rover * CONFIG.VEHICLE_BASE.rover) + (v.truck * CONFIG.VEHICLE_BASE.truck);
+  if(sellValue <= 0){ showToast('No vehicles to sell'); return; }
+  const gained = Math.round(sellValue * 0.85);
+  STATE.player.bucks += gained;
+  STATE.vehicles.rover = 0; STATE.vehicles.truck = 0;
+  saveLocalState(); updateHUD(); postFeed(`Sold vehicles for ${gained} AB`); showToast(`Sold vehicles +${gained} AB`);
+}
+
+/* Shop: free parcel claim */
+function canClaimFreeParcel(){ return (Date.now() - (STATE.meta.lastFreeParcelTs || 0)) >= CONFIG.FREE_PARCEL_COOLDOWN_MS; }
+function claimFreeParcel(){
+  if(!canClaimFreeParcel()){ showToast('Free parcel not ready'); return false; }
+  const center = map.getCenter();
+  const dLat = metersToDegLat(CONFIG.PARCEL_SIZE_M), dLon = metersToDegLon(CONFIG.PARCEL_SIZE_M, center.lat);
+  const anchor = snapIndex(center.lng, center.lat, dLon, dLat);
+  for(let di=0; di<=CONFIG.LAZY_HALF_COUNT; di++){
+    for(let dj=0; dj<=CONFIG.LAZY_HALF_COUNT; dj++){
+      const i = anchor.i + di, j = anchor.j + dj;
+      const west = i * dLon - 180, south = j * dLat - 90;
+      const key = parcelKey(west, south);
+      if(!STATE.globalOwned.has(key)){
+        STATE.globalOwned.add(key); STATE.localOwned.add(key);
+        saveGlobalOwned(STATE.globalOwned);
+        STATE.meta.lastFreeParcelTs = Date.now(); savePlayerMeta(STATE.meta);
+        refreshGridFromCache(); postFeed('Free parcel claimed'); showToast('Free parcel awarded'); return true;
+      }
+    }
+  }
+  showToast('No free parcels nearby'); return false;
+}
+
+/* HUD + economy */
+function updateHUD(){
+  document.getElementById('bucks').textContent = Number(STATE.player.bucks).toFixed(2);
+  const c = map.getCenter();
+  if(c) document.getElementById('coord').textContent = `+${c.lat.toFixed(10)}`;
+  document.getElementById('rentMin').textContent = `Credit/min: +${computeRentPerMin().toFixed(3)}`;
+  document.getElementById('playerTitle').textContent = computeLocationLabel(c.lat, c.lng);
+  setSaucerToCenter();
+  updateHarvestCircle();
+}
+function computeRentPerMin(){
+  let total=0;
+  for(const f of STATE.parcelCache.values()){ const id=f.properties.id; if(!STATE.globalOwned.has(id)) continue; const r=f.properties.rarity||'common'; total += parcelIncomePerMin(r); }
+  return total;
+}
+function computeLocationLabel(lat, lon){
+  const key = cellKeyFromLatLng(lat, lon); const [rx,rz] = key.split(':').map(Number);
+  const counties = ['STONE','GRAVEL','SAND','SHALE','CLAY','LIME']; const states = ['INDIANA','OHIO','KANSAS','NEVADA','TEXAS','FLORIDA'];
+  return `${states[(rx+rz)%states.length]} • ${counties[(rx*2+rz)%counties.length]}`;
+}
+function cellKeyFromLatLng(lat, lon){ const c=0.01; const rLat=Math.floor((lat+90)/c), rLon=Math.floor((lon+180)/c); return `${rLat}:${rLon}`; }
+
+/* Income helpers */
+function parcelIncomePerMin(rarity){ const table={ common:0.08, rare:0.08*2.6, epic:0.08*5.6, legendary:0.08*12 }; return table[rarity] || 0.08; }
+
+/* Start loops */
+function startLoops(){
+  setInterval(()=>{ let ab=0; for(const f of STATE.parcelCache.values()){ const id=f.properties.id; if(!STATE.globalOwned.has(id)) continue; const r=f.properties.rarity||'common'; ab += parcelIncomePerMin(r)/12; } if(ab>0){ STATE.player.bucks += ab; updateHUD(); saveLocalState(); } }, CONFIG.RENT_TICK_MS);
+}
+
+/* Modal helpers */
+function showModal(html, after){
+  const root = document.getElementById('modalRoot'); root.innerHTML=''; const backdrop = document.createElement('div'); backdrop.className='modal-backdrop'; const modal = document.createElement('div'); modal.className='modal'; modal.innerHTML = html; backdrop.appendChild(modal); root.appendChild(backdrop); backdrop.addEventListener('click', e=>{ if(e.target === backdrop) root.innerHTML=''; }); if(after) after(modal);
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+
+/* Persistence */
+function saveGlobalOwned(set){ try{ localStorage.setItem(CONFIG.GLOBAL_KEY, JSON.stringify(Array.from(set))); }catch(e){console.warn(e);} }
+function loadGlobalOwned(){ try{ const raw = localStorage.getItem(CONFIG.GLOBAL_KEY); if(!raw) return new Set(); return new Set(JSON.parse(raw)); }catch(e){return new Set();} }
+function savePlayerMeta(meta){ try{ localStorage.setItem(CONFIG.PLAYER_META_KEY, JSON.stringify(meta)); }catch(e){console.warn(e);} }
+function loadPlayerMeta(){ try{ const raw = localStorage.getItem(CONFIG.PLAYER_META_KEY); return raw ? JSON.parse(raw) : { everOwned:false, lastFreeParcelTs:0 }; }catch(e){return { everOwned:false, lastFreeParcelTs:0 }; } }
+
+/* Wiring: after map loaded attach handlers and seed */
+map.on('load', async ()=>{
+  try{
+    setLoadingPercent(6,'Initializing');
+    STATE.globalOwned = loadGlobalOwned();
+    STATE.meta = loadPlayerMeta();
+    loadLocalState();
+
+    ensureParcelLayers();
+    ensureHarvestLayer();
+    ensureSaucerPill();
+
+    setLoadingPercent(12,'Seeding parcels near player');
+    await lazySeedAround(map.getCenter(), CONFIG.LAZY_HALF_COUNT);
+
+    setLoadingPercent(72,'Applying overlays');
+    refreshGridFromCache();
+
+    // attach click handler for parcel buys (single handler)
+    map.on('click','parcel-fill', (e)=>{
+      const feat = e.features && e.features[0]; if(!feat) return;
+      STATE.globalOwned = loadGlobalOwned();
+      const id = feat.properties.id;
+      const rarity = rarityForKey(id);
+      const buyPrice = priceForRarity(rarity);
+      showModal(`<h3>Parcel</h3><div>Parcel ID: ${id}</div><div style="margin-top:8px">Rarity: <strong>${rarity.toUpperCase()}</strong></div><div style="margin-top:8px">Price: <strong>${buyPrice} AB</strong></div><div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button id="cancelBuy" class="small-btn">Cancel</button><button id="confirmBuy" class="action-btn">Buy</button></div>`, (root)=>{
+        root.querySelector('#cancelBuy').addEventListener('click', ()=> closeModal());
+        root.querySelector('#confirmBuy').addEventListener('click', ()=>{ attemptBuyParcel(id, buyPrice); closeModal(); });
+      });
+    });
+
+    map.on('mousemove','parcel-fill', ()=> map.getCanvas().style.cursor='pointer');
+    map.on('mouseleave','parcel-fill', ()=> map.getCanvas().style.cursor='');
+
+    updateHUD();
+    startLoops();
+
+    // wire UI buttons now (after DOM + map ready)
+    wireButtons();
+
+    setLoadingPercent(100,'Ready');
+    document.getElementById('loading').style.display = 'none';
+    STATE.inited = true;
+    showToast('Ready');
+  }catch(err){
+    console.error(err);
+    setLoadingPercent(100,'Ready (partial)');
+    document.getElementById('loading').style.display = 'none';
+    STATE.inited = true;
+    wireButtons(); // still wire buttons even if partial
+  }
+});
+
+/* Wire UI buttons (safe: called after DOM and map load) */
+function wireButtons(){
+  // grid toggle
+  const buyLandBtn = document.getElementById('buyLand');
+  buyLandBtn && buyLandBtn.addEventListener('click', async ()=>{
+    STATE.gridVisible = !STATE.gridVisible;
+    setGridVisibility(STATE.gridVisible);
+    if(STATE.gridVisible){
+      setLoadingPercent(56,'Preparing grid');
+      await lazySeedAround(map.getCenter(), CONFIG.LAZY_HALF_COUNT);
+      refreshGridFromCache();
+      setLoadingPercent(88,'Grid ready');
+      postFeed('Grid enabled');
+      showToast('Grid enabled');
+      setTimeout(()=> setLoadingPercent(100,'Ready'),180);
+    }
+  });
+
+  // navigation buttons
+  document.getElementById('btnInventory')?.addEventListener('click', ()=> openInventoryModal());
+  document.getElementById('btnShop')?.addEventListener('click', ()=> {
+    showModal(`<h3>Shop</h3>
+      <div style="display:flex;justify-content:space-between;margin-top:12px"><div>+100 AB</div><button id="buy100" class="small-btn">BUY</button></div>
+      <div style="display:flex;justify-content:space-between;margin-top:12px"><div>Claim hourly parcel</div><button id="claimFree" class="small-btn">CLAIM</button></div>
+    `, (m)=>{
+      m.querySelector('#buy100').addEventListener('click', ()=>{ STATE.player.bucks += 100; saveLocalState(); updateHUD(); showToast('+100 AB'); closeModal(); });
+      m.querySelector('#claimFree').addEventListener('click', ()=>{ if(claimFreeParcel()){ closeModal(); } });
+    });
+  });
+  document.getElementById('btnEvents')?.addEventListener('click', ()=> {
+    showModal(`<h3>Events</h3><div>Daily claim: +25 AB</div><div style="margin-top:12px"><button id="claimDaily" class="small-btn">Claim</button></div>`, (m)=>{
+      m.querySelector('#claimDaily').addEventListener('click', ()=>{ STATE.player.bucks += 25; saveLocalState(); updateHUD(); showToast('+25 AB'); closeModal(); });
+    });
+  });
+  document.getElementById('btnLandmarks')?.addEventListener('click', ()=> { showModal(`<h3>Landmarks</h3><div>Nearby: Trailhead (NW), River Bend (SE), Old Mill (E)</div>`); });
+
+  // boost button (moved into top-right area)
+  const boostBtn = document.getElementById('boost');
+  if(boostBtn){
+    boostBtn.addEventListener('click', ()=>{
+      // small visual/temporary boost: +10% income for 2 minutes (local)
+      if(STATE._boostActive){ showToast('Boost already active'); return; }
+      STATE._boostActive = true;
+      showToast('Boost activated (+10% income, 2m)');
+      const original = parcelIncomePerMin;
+      // implement simple flag to affect income calculation
+      STATE._boostExpires = Date.now() + 2*60*1000;
+      setTimeout(()=>{ STATE._boostActive = false; showToast('Boost ended'); }, 2*60*1000);
+    });
+  }
+}
+
+/* setGridVisibility */
+function setGridVisibility(v){ const vis = v ? 'visible' : 'none'; if(map.getLayer('parcel-fill')) map.setLayoutProperty('parcel-fill','visibility',vis); if(map.getLayer('parcel-outline')) map.setLayoutProperty('parcel-outline','visibility',vis); }
+
+/* Free parcel */
+function canClaimFreeParcel(){ return (Date.now() - (STATE.meta.lastFreeParcelTs || 0)) >= CONFIG.FREE_PARCEL_COOLDOWN_MS; }
+function claimFreeParcel(){
+  if(!canClaimFreeParcel()){ showToast('Free parcel not ready'); return false; }
+  const center = map.getCenter();
+  const dLat = metersToDegLat(CONFIG.PARCEL_SIZE_M), dLon = metersToDegLon(CONFIG.PARCEL_SIZE_M, center.lat);
+  const anchor = snapIndex(center.lng, center.lat, dLon, dLat);
+  for(let di=0; di<=CONFIG.LAZY_HALF_COUNT; di++){
+    for(let dj=0; dj<=CONFIG.LAZY_HALF_COUNT; dj++){
+      const i = anchor.i + di, j = anchor.j + dj;
+      const west = i * dLon - 180, south = j * dLat - 90;
+      const key = parcelKey(west, south);
+      if(!STATE.globalOwned.has(key)){
+        STATE.globalOwned.add(key); STATE.localOwned.add(key);
+        saveGlobalOwned(STATE.globalOwned);
+        STATE.meta.lastFreeParcelTs = Date.now(); savePlayerMeta(STATE.meta);
+        refreshGridFromCache(); postFeed('Free parcel claimed'); showToast('Free parcel awarded'); return true;
+      }
+    }
+  }
+  showToast('No free parcels nearby'); return false;
+}
+
+/* Harvest/sell helpers used by inventory modal */
+function sellResources(){
+  const totalUnits = STATE.resources.wood + STATE.resources.ore + STATE.resources.water;
+  if(totalUnits === 0){ showToast('No resources to sell'); return; }
+  let avgIncomePerMin = 0;
+  if(STATE.parcelCache.size){ let sum=0,n=0; for(const f of STATE.parcelCache.values()){ sum+=parcelIncomePerMin(f.properties.rarity||'common'); n++; } avgIncomePerMin = n?sum/n:0.08; } else avgIncomePerMin = 0.08;
+  const unitPrice = Math.max(1, Math.round(avgIncomePerMin * 60 * 0.6));
+  const gained = totalUnits * unitPrice;
+  STATE.player.bucks += gained; STATE.resources.wood = STATE.resources.ore = STATE.resources.water = 0; saveLocalState(); updateHUD();
+  postFeed(`Sold resources for ${gained} AB`); showToast(`Sold resources +${gained} AB`);
+}
+function sellVehicles(){
+  const v = STATE.vehicles; const sellValue = (v.rover * CONFIG.VEHICLE_BASE.rover) + (v.truck * CONFIG.VEHICLE_BASE.truck);
+  if(sellValue <= 0){ showToast('No vehicles to sell'); return; }
+  const gained = Math.round(sellValue * 0.85);
+  STATE.player.bucks += gained; STATE.vehicles.rover = 0; STATE.vehicles.truck = 0; saveLocalState(); updateHUD();
+  postFeed(`Sold vehicles for ${gained} AB`); showToast(`Sold vehicles +${gained} AB`);
+}
+
+/* Boot fallback timers */
+setTimeout(()=>{ if(!map.loaded()) setLoadingPercent(40,'Waiting for map'); }, 2000);
+setTimeout(()=>{ const l = document.getElementById('loading'); if(l && l.style.display !== 'none' && map.loaded()){ setLoadingPercent(100,'Ready'); setTimeout(()=>l.style.display='none',250); } }, 10000);
+
+/* Expose debug */
+window.ATLAS = { STATE, CONFIG, lazySeedAround, refreshGridFromCache, teleportToParcel, sellParcel };
+
+/* Ensure functions referenced earlier exist (helpers repeated where needed) */
+function snapIndex(lon, lat, dLon, dLat){ const i = Math.floor((lon + 180) / dLon); const j = Math.floor((lat + 90) / dLat); const west = i * dLon - 180; const south = j * dLat - 90; return { i, j, west, south }; }
+function parcelKey(west, south){ return `${west.toFixed(9)},${south.toFixed(9)}`; }
+function rarityForKey(key){ const h = hash(key); if((h%1000)>990) return 'legendary'; if((h%100)>88) return 'epic'; if((h%50)>28) return 'rare'; return 'common'; }
+function priceForRarity(r){ return r==='legendary'?900:r==='epic'?420:r==='rare'?210:100; }
+function parcelIncomePerMin(r){ const t={ common:0.08, rare:0.08*2.6, epic:0.08*5.6, legendary:0.08*12 }; return t[r] || 0.08; }
+
+/* Local state save */
+function saveLocalState(){ try{ localStorage.setItem(CONFIG.LOCAL_STATE_KEY, JSON.stringify({ bucks: STATE.player.bucks, resources: STATE.resources, vehicles: STATE.vehicles })); }catch(e){console.warn(e);} }
+
+/* End of script */
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

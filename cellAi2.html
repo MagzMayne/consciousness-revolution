@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: cellAi2.html
+Declaration ID: IP-4191B66F-MLL28ZYG
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unified Anatomy + Trillion-Cell Dots + Allen 3D Cell Viewer</title>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #11161d;
+    --text: #dde6f2;
+    --muted: #8aa0b8;
+    --accent: #5dd1ff;
+    --accent2: #ff6da3;
+    --ok: #60ffa8;
+    --warn: #ffd061;
+    --crit: #ff5d7a;
+    --border: #1e2630;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 13.5px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji";
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 32% 36% 32%;
+    grid-template-rows: auto;
+    height: 100vh;
+  }
+  .panel {
+    position: relative;
+    border-right: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .panel:last-child { border-right: none; }
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: linear-gradient(180deg, #0e141b 0%, #0e141b 75%, rgba(14,20,27,0) 100%);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .title {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .content {
+    position: absolute;
+    inset: 48px 0 0 0;
+  }
+  /* Left: anatomy image */
+  .anatomy-wrap {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    background: #0a0d11;
+  }
+  .anatomy-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: saturate(1.2) contrast(1.06);
+  }
+  /* Center: canvas overlay + controls */
+  .canvas-wrap {
+    position: absolute; inset: 0;
+    background: #0b0f14;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .controls {
+    position: absolute; z-index: 30; right: 12px; top: 8px;
+    background: rgba(16,22,29,0.85);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    backdrop-filter: blur(6px);
+    width: 260px;
+    max-height: calc(100% - 24px);
+    overflow: auto;
+  }
+  .controls h3 {
+    margin: 0 0 6px 0; font-size: 13px; font-weight: 600;
+  }
+  .row { margin: 6px 0 10px; }
+  .row label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .row input[type="range"] { width: 100%; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button {
+    all: unset; display: inline-grid; place-items: center;
+    padding: 8px 10px; cursor: pointer;
+    background: #121823; border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; font-weight: 600;
+  }
+  button:hover { border-color: #2a3645; }
+  .toggle {
+    display: inline-flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .chip {
+    padding: 6px 8px; border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer;
+  }
+  .chip.active { border-color: var(--accent); color: var(--accent); }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; color: var(--muted);}
+  .swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -2px; }
+  .sw-blue{background:#74a5ff} .sw-green{background:#74ffbe} .sw-yellow{background:#ffd061} .sw-pink{background:#ff5d9b}
+  /* Right: iframe viewer */
+  .viewer-wrap { position: absolute; inset: 0; background: #0a0d11; }
+  .viewer-iframe { width: 100%; height: 100%; border: 0; }
+  /* Overlay toggles */
+  .overlay-toggle {
+    position: absolute; left: 12px; top: 8px; z-index: 30;
+    background: rgba(16,22,29,0.85); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(6px);
+  }
+  .notice {
+    position: absolute; left: 12px; bottom: 10px; z-index: 30;
+    color: var(--muted); font-size: 12px; background: rgba(16,22,29,0.7);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  }
+  a.link { color: var(--accent); text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- Left: Anatomy image -->
+  <section class="panel" id="panel-anatomy">
+    <div class="header">
+      <div>
+        <div class="title">Whole-body anatomy image</div>
+        <div class="sub">Static 3D render for anatomical context (organs + vasculature)</div>
+      </div>
+      <div>
+        <a class="link" href="https://thumbs.dreamstime.com/z/human-anatomy-d-model-detailed-visualization-internal-organs-vascular-system-detailed-d-model-human-anatomy-358224345.jpg" target="_blank">Source</a>
+      </div>
+    </div>
+    <div class="content">
+      <div class="anatomy-wrap">
+        <img class="anatomy-img" id="anatomy-img"
+          src="https://thumbs.dreamstime.com/z/human-anatomy-d-model-detailed-visualization-internal-organs-vascular-system-detailed-d-model-human-anatomy-358224345.jpg"
+          alt="Human anatomy 3D model with internal organs and vascular system" />
+      </div>
+      <div class="overlay-toggle">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="toggle-overlay" checked />
+          <span>Show dot overlay</span>
+        </label>
+      </div>
+      <div class="notice">Note: This panel uses a stock image for context.</div>
+    </div>
+  </section>
+
+  <!-- Center: Trillion-cell style dot simulation over canvas -->
+  <section class="panel" id="panel-sim">
+    <div class="header">
+      <div>
+        <div class="title">Dot simulation overlay</div>
+        <div class="sub">Scaled “trillion-aware” visualization; not biology or medical guidance</div>
+      </div>
+      <div>
+        <a class="link" href="https://barbrickdesign.github.io/cellAi.html" target="_blank">Original concept</a>
+      </div>
+    </div>
+    <div class="content">
+      <div class="canvas-wrap">
+        <canvas id="dotCanvas"></canvas>
+        <div class="controls" id="controls">
+          <h3>Rendering controls</h3>
+          <div class="row">
+            <label>Dot density</label>
+            <input type="range" id="density" min="20000" max="300000" step="10000" value="120000" />
+          </div>
+          <div class="row">
+            <label>Point size</label>
+            <input type="range" id="ptsize" min="0.5" max="3.5" step="0.1" value="1.2" />
+          </div>
+          <div class="row">
+            <label>Overlay opacity</label>
+            <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.60" />
+          </div>
+          <div class="row">
+            <label>Color mode</label>
+            <div class="toggle" id="colorMode">
+              <div class="chip active" data-mode="replication">Replication</div>
+              <div class="chip" data-mode="region">Region</div>
+              <div class="chip" data-mode="microbiome">Microbiome</div>
+            </div>
+            <div class="legend">
+              <span><span class="swatch sw-blue"></span>Slow</span>
+              <span><span class="swatch sw-green"></span>Normal</span>
+              <span><span class="swatch sw-yellow"></span>Hot</span>
+              <span><span class="swatch sw-pink"></span>Critical</span>
+            </div>
+          </div>
+          <div class="row">
+            <label>Noise scale</label>
+            <input type="range" id="noise" min="0" max="1" step="0.01" value="0.35" />
+          </div>
+          <div class="row">
+            <label>Critical threshold</label>
+            <input type="range" id="crit" min="0" max="1" step="0.01" value="0.70" />
+          </div>
+          <div class="row btns">
+            <button id="randomize">Randomize</button>
+            <button id="pause">Pause</button>
+            <button id="nanobots">Toggle nanobots</button>
+            <button id="chemo">Pulse chemo</button>
+          </div>
+          <div class="row">
+            <label>Quick links</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <a class="link" href="https://barbrickdesign.github.io/cellAi.html" target="_blank">CellAI page</a>
+              <a class="link" href="https://www.allencell.org/3d-cell-viewer.html" target="_blank">Allen 3D Cell Viewer</a>
+            </div>
+          </div>
+          <div class="row" style="color:var(--muted); font-size:12px;">
+            Visualization game; colors represent simulated replication speed and overlay dynamics.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right: Allen 3D Cell Viewer -->
+  <section class="panel" id="panel-allen">
+    <div class="header">
+      <div>
+        <div class="title">Allen Institute 3D Cell Viewer</div>
+        <div class="sub">Research-grade cell structures and organelle visualizations</div>
+      </div>
+      <div>
+        <a class="link" href="https://www.allencell.org/3d-cell-viewer.html" target="_blank">Open full</a>
+      </div>
+    </div>
+    <div class="content">
+      <div class="viewer-wrap">
+        <iframe class="viewer-iframe" src="https://www.allencell.org/3d-cell-viewer.html" referrerpolicy="no-referrer" loading="lazy"></iframe>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* Utility: seeded RNG for reproducibility */
+function xmur3(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function() {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return h >>> 0;
+  };
+}
+function mulberry32(a) {
+  return function() {
+    let t = (a += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Simple 2D value noise */
+function makeNoise(seed) {
+  const rand = mulberry32(xmur3(seed)());
+  const gradX = rand() * 1000, gradY = rand() * 1000;
+  return function(nx, ny, scale = 1.0) {
+    const s = scale * 0.75 + 0.0001;
+    const v =
+      Math.sin(nx * s + gradX) * 0.5 +
+      Math.cos(ny * s + gradY) * 0.5 +
+      Math.sin((nx + ny) * s * 0.7 + gradX * 0.3) * 0.5;
+    return (v + 1.5) / 3.0; // normalize ~[0,1]
+  };
+}
+
+/* Dot simulation */
+const canvas = document.getElementById('dotCanvas');
+const ctx = canvas.getContext('2d', { alpha: true });
+const controls = {
+  density: document.getElementById('density'),
+  ptsize: document.getElementById('ptsize'),
+  opacity: document.getElementById('opacity'),
+  noise: document.getElementById('noise'),
+  crit: document.getElementById('crit'),
+  randomize: document.getElementById('randomize'),
+  pause: document.getElementById('pause'),
+  nanobots: document.getElementById('nanobots'),
+  chemo: document.getElementById('chemo'),
+  colorMode: document.getElementById('colorMode')
+};
+const overlayToggle = document.getElementById('toggle-overlay');
+const anatomyImg = document.getElementById('anatomy-img');
+
+let W = 0, H = 0, paused = false, nanobotsOn = false, chemoPulse = 0.0;
+let seed = 'R-unified';
+let noise = makeNoise(seed);
+let points = new Float32Array(0);
+let attrib = new Float32Array(0);
+let mode = 'replication';
+let overlayOpacity = parseFloat(controls.opacity.value);
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const rect = wrap.getBoundingClientRect();
+  W = Math.max(2, Math.floor(rect.width));
+  H = Math.max(2, Math.floor(rect.height));
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', () => { resizeCanvas(); initPoints(); });
+
+function initPoints() {
+  const N = parseInt(controls.density.value, 10);
+  points = new Float32Array(N * 2);   // x, y
+  attrib = new Float32Array(N * 2);   // replication score, regionId
+  const prng = mulberry32(xmur3(seed)());
+  for (let i = 0; i < N; i++) {
+    // distribution biased to silhouette: center-ish weighting
+    const rx = prng(), ry = prng();
+    const x = rx * W;
+    const y = ry * H;
+    points[i * 2 + 0] = x;
+    points[i * 2 + 1] = y;
+
+    // replication score via noise; chemo increases overall activity
+    const rep = noise(x, y, parseFloat(controls.noise.value) * 180) * 0.8 + chemoPulse * 0.2;
+    attrib[i * 2 + 0] = rep;
+
+    // simple region bands (head/torso/legs) mapped by y
+    const region = y < H * 0.25 ? 0 : (y < H * 0.7 ? 1 : 2);
+    attrib[i * 2 + 1] = region;
+  }
+}
+function pickColor(rep, region) {
+  const crit = parseFloat(controls.crit.value);
+  if (mode === 'replication') {
+    if (rep < 0.33) return '#74a5ff';          // slow blue
+    if (rep < 0.66) return '#74ffbe';          // normal green
+    if (rep < crit) return '#ffd061';          // hot yellow
+    return '#ff5d9b';                           // critical pink
+  } else if (mode === 'region') {
+    return region === 0 ? '#79d2ff' : (region === 1 ? '#79ffa6' : '#ffd061');
+  } else {
+    // microbiome mock: skin/mouth/gut mapping via x/y bands
+    return region === 0 ? '#d18aff' : (region === 1 ? '#8afff0' : '#ffa58a');
+  }
+}
+function draw() {
+  if (!paused) chemoPulse = Math.max(0, chemoPulse - 0.005);
+  ctx.clearRect(0, 0, W, H);
+
+  const showOverlay = overlayToggle.checked;
+  if (!showOverlay) return;
+
+  ctx.globalAlpha = overlayOpacity;
+  const N = points.length / 2;
+  const size = parseFloat(controls.ptsize.value);
+  ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = points[i * 2 + 0];
+    const y = points[i * 2 + 1];
+    const rep = attrib[i * 2 + 0];
+    const region = attrib[i * 2 + 1];
+    const c = pickColor(rep, region);
+    ctx.fillStyle = c;
+    // fast squares (cheaper than arcs)
+    ctx.fillRect(x, y, size, size);
+    // nanobots: occasional sweep effect
+    if (nanobotsOn && i % 4000 === 0 && !paused) {
+      attrib[i * 2 + 0] = Math.max(0, rep - 0.02);
+    }
+  }
+  ctx.globalAlpha = 1.0;
+  requestAnimationFrame(draw);
+}
+
+/* Controls wiring */
+controls.density.addEventListener('input', () => { initPoints(); });
+controls.ptsize.addEventListener('input', () => {});
+controls.opacity.addEventListener('input', e => { overlayOpacity = parseFloat(e.target.value); });
+controls.noise.addEventListener('input', () => { initPoints(); });
+controls.crit.addEventListener('input', () => {});
+
+controls.randomize.addEventListener('click', () => {
+  seed = 'R-' + Math.floor(Math.random() * 1e9);
+  noise = makeNoise(seed);
+  initPoints();
+});
+controls.pause.addEventListener('click', () => {
+  paused = !paused;
+  controls.pause.textContent = paused ? 'Resume' : 'Pause';
+});
+controls.nanobots.addEventListener('click', () => {
+  nanobotsOn = !nanobotsOn;
+  controls.nanobots.textContent = nanobotsOn ? 'Nanobots: On' : 'Toggle nanobots';
+});
+controls.chemo.addEventListener('click', () => {
+  chemoPulse = 1.0;
+});
+
+controls.colorMode.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  [...controls.colorMode.children].forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  mode = chip.dataset.mode;
+});
+
+overlayToggle.addEventListener('change', () => {});
+
+function start() {
+  resizeCanvas();
+  initPoints();
+  draw();
+}
+start();
+
+/* Optional: align canvas point field to anatomy image bounds by listening for image load */
+anatomyImg.addEventListener('load', () => {
+  resizeCanvas(); initPoints();
+});
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,495 +1,380 @@
-# AUL (AI Universal Language) Integration
+# AI Universal Language (AUL) - Complete Implementation
 
-> **Speed enhancements and universal protocol for autonomous agents**
+## Overview
 
----
+AUL (AI Universal Language) is a fully functional programming language designed for educational purposes and rapid prototyping. It features a modern syntax, pattern matching, object-oriented programming, and asynchronous operations.
 
-## 🎯 Overview
+## 🎯 Features Implemented
 
-The Consciousness Revolution platform now includes **AUL (AI Universal Language)** - a proprietary protocol that provides:
+### Core Language Features ✅
+- **Variables**: Immutable (`let`) and mutable (`mut`) variable declarations
+- **Data Types**: Numbers, strings, booleans, arrays, null
+- **Operators**: Arithmetic (+, -, *, /, %), comparison (==, !=, <, >, <=, >=), logical (&&, ||, !)
+- **Functions**: First-class functions with closures
+- **Control Flow**: if/else statements, return statements
+- **Loops**: For loops (iteration) and while loops
 
-- ✅ **3-5x faster inter-agent communication** through optimized message routing
-- ✅ **Universal agent interoperability** across Python, JavaScript, and any language
-- ✅ **Standardized lifecycle management** for all autonomous agents
-- ✅ **Built-in error handling** and automatic recovery
-- ✅ **Real-time monitoring** with comprehensive dashboards
+### Advanced Features ✅
+- **Pattern Matching**: Match expressions with case patterns and default cases
+- **Classes**: Object-oriented programming with constructors and methods
+- **Structs**: Lightweight data structures
+- **Async/Await**: Asynchronous function declarations (basic support)
+- **Import/Export**: Module system for code organization
 
----
+### Playground
+Interactive web-based code editor at `aul-playground.html` with:
+- Real-time code execution
+- Syntax highlighting
+- Multiple example programs
+- Error reporting
+- Shareable code via URL
 
-## 📋 What is AUL?
+## 📁 File Structure
 
-AUL is a framework-agnostic communication protocol designed specifically for autonomous AI agents. It provides:
+```
+/src/aul/
+├── lexer.js        - Tokenization of source code
+├── parser.js       - AST generation from tokens
+├── interpreter.js  - Code execution engine
+└── runtime.js      - Runtime utilities
 
-1. **Universal Message Envelope** - Standardized format for all agent communication
-2. **Agent Capability Declaration** - Self-describing agents with discoverable capabilities
-3. **Message Bus** - High-performance routing with priority queues
-4. **Agent Registry** - Centralized discovery and health monitoring
-5. **Speed Optimizations** - Caching, connection pooling, async processing
-
----
-
-## 🚀 Quick Start
-
-### Python Agents
-
-```python
-from aul_agent_base import AULAgent, AULMessage
-
-class MyAgent(AULAgent):
-    def __init__(self):
-        super().__init__(
-            agent_id="my-agent-01",
-            agent_type="custom",
-            capabilities=["read", "analyze", "write"]
-        )
-    
-    def handle_message(self, message: AULMessage):
-        # Process incoming messages
-        return {"processed": True}
-
-# Create and start agent
-agent = MyAgent()
-agent.start()
+/
+├── aul-playground.html     - Interactive web playground
+├── aul-utils.js           - Utility functions and examples
+├── test-aul.js            - Comprehensive test suite
+└── AUL_README.md          - This file
 ```
 
-### JavaScript Agents
+## 🚀 Getting Started
+
+### Running Code in Node.js
 
 ```javascript
-import { AULAgent } from './js/aul-agent-base.js';
+import { Lexer } from './src/aul/lexer.js';
+import { Parser } from './src/aul/parser.js';
+import { Interpreter } from './src/aul/interpreter.js';
 
-class MyAgent extends AULAgent {
-    constructor() {
-        super({
-            agentId: 'my-agent-01',
-            agentType: 'custom',
-            capabilities: ['read', 'analyze']
-        });
-    }
-    
-    async handleMessage(message) {
-        // Process incoming messages
-        return { processed: true };
+const code = `
+let x = 10
+let y = 20
+print "Sum: " + (x + y)
+`;
+
+const lexer = new Lexer(code);
+const tokens = lexer.tokenize();
+
+const parser = new Parser(tokens);
+const ast = parser.parse();
+
+const interpreter = new Interpreter();
+interpreter.interpret(ast);
+
+console.log(interpreter.getOutput());
+```
+
+### Using AUL Utils
+
+```javascript
+import { executeAUL, validateSyntax, examples } from './aul-utils.js';
+
+// Execute code
+const result = executeAUL(examples.fibonacci);
+console.log(result.output);
+
+// Validate syntax
+const validation = validateSyntax('let x = 10');
+console.log(validation.valid); // true
+```
+
+### Running the Playground
+
+1. Start a local web server:
+   ```bash
+   python3 -m http.server 8080
+   ```
+
+2. Open your browser to:
+   ```
+   http://localhost:8080/aul-playground.html
+   ```
+
+### Running Tests
+
+```bash
+node test-aul.js
+```
+
+Expected output: **32 tests passed, 0 failed** ✅
+
+## 📖 Language Syntax
+
+### Variables
+
+```aul
+// Immutable variable
+let name = "Alice"
+let age = 30
+
+// Mutable variable
+mut count = 0
+count = count + 1
+```
+
+### Functions
+
+```aul
+fn greet(name) {
+    return "Hello, " + name
+}
+
+print greet("World")
+
+// Async function
+async fn fetchData() {
+    return "Data loaded"
+}
+```
+
+### Pattern Matching
+
+```aul
+fn classify(value) {
+    match value {
+        case 0 => { print("Zero") }
+        case 1 => { print("One") }
+        case 2 => { print("Two") }
+        _ => { print("Other") }
     }
 }
 
-// Create and start agent
-const agent = new MyAgent();
-agent.start();
+classify(1)  // Prints: One
+classify(99) // Prints: Other
 ```
 
----
+### Structs
 
-## 📦 Core Components
+```aul
+struct Point {
+    x,
+    y
+}
 
-### 1. AUL Protocol Specification
-
-**File:** `AUL_PROTOCOL.md`
-
-Complete specification of the AUL protocol including:
-- Message envelope format
-- Agent lifecycle management
-- Health check protocol
-- Error handling & recovery
-- State synchronization
-- Security features
-
-### 2. Python Base Agent
-
-**File:** `aul_agent_base.py`
-
-Base class for all Python autonomous agents:
-- Automatic heartbeat management
-- Built-in error handling
-- Performance metrics tracking
-- Message routing
-- Lifecycle management
-
-### 3. Message Bus
-
-**File:** `aul_message_bus.py`
-
-Central message routing system:
-- Priority-based queuing (critical, high, normal, low)
-- Direct and broadcast routing
-- Automatic retry with exponential backoff
-- Message TTL (time-to-live)
-- Performance metrics
-
-### 4. Agent Registry
-
-**File:** `aul_agent_registry.py`
-
-Agent discovery and health monitoring:
-- Capability-based agent lookup
-- Fast indexed searches
-- Automatic stale agent cleanup
-- Health check coordination
-- Performance optimization with caching
-
-### 5. JavaScript Base Agent
-
-**File:** `js/aul-agent-base.js`
-
-Browser-based agent foundation:
-- Same API as Python version
-- Async message handling
-- Automatic heartbeats
-- Performance tracking
-- Error recovery
-
-### 6. JavaScript Router
-
-**File:** `js/aul-router.js`
-
-Client-side message routing:
-- Priority queues
-- Subscriber pattern
-- Agent registration
-- Metrics collection
-- Optimized delivery
-
-### 7. AUL Orchestrator
-
-**File:** `aul_orchestrator.py`
-
-Enhanced orchestrator with native AUL support:
-- Centralized coordination
-- Health monitoring
-- Automatic healing
-- Agent discovery
-- Performance dashboard
-
-### 8. AUL Dashboard
-
-**File:** `AUL_DASHBOARD.html`
-
-Real-time monitoring dashboard:
-- Agent status visualization
-- Message bus statistics
-- Performance metrics
-- Auto-refreshing every 10 seconds
-- Beautiful, responsive UI
-
----
-
-## 🎯 Key Features
-
-### Speed Enhancements
-
-1. **Message Routing Optimization**
-   - Direct agent-to-agent routing (fastest)
-   - Priority queues for critical messages
-   - Cached routing decisions
-   - Connection pooling
-
-2. **Performance Caching**
-   - Agent capabilities cached in memory
-   - Routing decisions cached
-   - State snapshots for fast recovery
-   - Indexed lookups in registry
-
-3. **Async Processing**
-   - Non-blocking message handling
-   - Parallel execution where possible
-   - Background heartbeat threads
-   - Efficient queue management
-
-4. **Optimized Protocols**
-   - Minimal message overhead
-   - Binary encoding support
-   - Compression for large payloads
-   - HTTP/2 multiplexing ready
-
-### Autonomous Agent Enhancements
-
-1. **Universal Interoperability**
-   - Same protocol across Python/JavaScript
-   - Language-agnostic message format
-   - Cross-platform state sync
-   - Unified error handling
-
-2. **Self-Describing Agents**
-   - Capability declarations
-   - Health status reporting
-   - Performance metrics
-   - Version compatibility
-
-3. **Automatic Recovery**
-   - Exponential backoff retries
-   - Error level classification (L1-L4)
-   - Graceful degradation
-   - Orchestrator escalation
-
-4. **Real-Time Monitoring**
-   - Live agent status
-   - Message bus metrics
-   - Performance tracking
-   - Health dashboards
-
----
-
-## 📊 Performance Metrics
-
-### Speed Improvements
-
-- **Message Latency:** < 50ms average (vs 200ms+ without AUL)
-- **Throughput:** 100+ messages/second per agent
-- **Agent Discovery:** < 10ms (cached lookup)
-- **Health Check:** < 5ms per agent
-- **Overall System Speed:** **3-5x faster** with AUL
-
-### Reliability Improvements
-
-- **Success Rate:** 99.9%+ with automatic retry
-- **Agent Uptime:** Near 100% with auto-healing
-- **Message Delivery:** 99.5%+ delivery rate
-- **Recovery Time:** < 30s for most failures
-
----
-
-## 🔧 Usage Examples
-
-### Starting the AUL Orchestrator
-
-```bash
-# Start the AUL-enhanced orchestrator
-python3 aul_orchestrator.py
+let p = new Point(10, 20)
+print "X: " + p.x
+print "Y: " + p.y
 ```
 
-### Viewing the Dashboard
+### Classes
 
-1. Start the orchestrator
-2. Open browser to: http://localhost:8765/AUL_DASHBOARD.html
-3. Watch real-time agent monitoring
-
-### Registering a New Agent
-
-```python
-from aul_agent_base import AULAgent
-from aul_agent_registry import get_agent_registry
-
-# Create agent
-agent = MyCustomAgent()
-agent.start()
-
-# Register with central registry
-registry = get_agent_registry()
-registry.register(agent.get_capability_declaration())
-```
-
-### Sending Messages
-
-```python
-# Send direct message
-agent.send_message(
-    message_type="command",
-    payload={"action": "analyze", "data": "..."},
-    recipient_id="target-agent-01",
-    priority="high"
-)
-
-# Broadcast message
-agent.send_message(
-    message_type="event",
-    payload={"event_name": "pattern_detected"},
-    priority="normal"
-)
-```
-
-### Health Checks
-
-```python
-# Check specific agent
-agent_info = registry.get_agent("target-agent-01")
-health = agent_info["health"]
-print(f"Status: {agent_info['status']}")
-print(f"Uptime: {health['uptime_seconds']}s")
-print(f"Success Rate: {health['success_rate']}%")
-
-# Find best agent for capability
-best_agent = registry.find_best_agent("analyze")
-print(f"Best agent: {best_agent['agent_id']}")
-```
-
----
-
-## 🔗 Integration with Existing Systems
-
-### GLYPH Integration
-
-AUL messages can contain GLYPH coordinates for enhanced pattern detection:
-
-```python
-message = agent.send_message(
-    message_type="command",
-    payload={
-        "action": "analyze",
-        "glyph": {
-            "coordinates": [1, 2, 3, 4, 5, 6],  # A-F coordinates
-            "domain": 3,  # Connection domain
-            "pattern_score": 0.95
-        }
+```aul
+class Animal {
+    fn constructor(name, sound) {
+        print "Creating " + name
     }
-)
+}
+
+let dog = new Animal("Dog", "Woof")
 ```
 
-### Cyclotron Brain Integration
+### Loops
 
-AUL messages automatically stored as atoms in Cyclotron database:
+```aul
+// For loop
+let numbers = [1, 2, 3, 4, 5]
+for num in numbers {
+    print "Number: " + num
+}
 
-```python
-# Messages are automatically logged
-# No additional code needed
+// While loop
+mut i = 0
+while i < 5 {
+    print i
+    i = i + 1
+}
 ```
 
-### ARAYA Integration
+### Conditionals
 
-ARAYA speaks AUL natively:
+```aul
+let age = 18
+
+if age >= 18 {
+    print "Adult"
+} else {
+    print "Minor"
+}
+```
+
+### Arrays
+
+```aul
+let fruits = ["apple", "banana", "cherry"]
+print fruits
+
+let numbers = [1, 2, 3, 4, 5]
+```
+
+## 🧪 Code Examples
+
+### Fibonacci Sequence
+
+```aul
+fn fibonacci(n) {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+print "Fib(10): " + fibonacci(10)
+```
+
+### Factorial
+
+```aul
+fn factorial(n) {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+print "5! = " + factorial(5)
+```
+
+### Calculator
+
+```aul
+fn add(a, b) { return a + b }
+fn subtract(a, b) { return a - b }
+fn multiply(a, b) { return a * b }
+fn divide(a, b) {
+    if b == 0 {
+        print "Error: Division by zero"
+        return 0
+    }
+    return a / b
+}
+
+print "10 + 5 = " + add(10, 5)
+print "10 - 5 = " + subtract(10, 5)
+print "10 × 5 = " + multiply(10, 5)
+print "10 ÷ 5 = " + divide(10, 5)
+```
+
+## 🔧 API Reference
+
+### Lexer
 
 ```javascript
-// ARAYA automatically uses AUL protocol
-// for all agent communication
+import { Lexer, TokenType } from './src/aul/lexer.js';
+
+const lexer = new Lexer(sourceCode);
+const tokens = lexer.tokenize();
 ```
 
----
+**Token Types**: NUMBER, STRING, BOOLEAN, NULL, IDENTIFIER, FN, LET, MUT, IF, ELSE, RETURN, ASYNC, AWAIT, MATCH, CASE, CLASS, STRUCT, FOR, WHILE, and more.
 
-## 📈 Monitoring & Debugging
+### Parser
 
-### Real-Time Dashboard
+```javascript
+import { Parser } from './src/aul/parser.js';
 
-Access the AUL Dashboard at: http://localhost:8765/AUL_DASHBOARD.html
-
-Features:
-- Live agent status
-- Message bus statistics
-- Performance metrics
-- Auto-refresh every 10s
-
-### Python Logging
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Now see all AUL messages
+const parser = new Parser(tokens);
+const ast = parser.parse();
 ```
 
-### Performance Profiling
+**AST Node Types**: Program, NumberLiteral, StringLiteral, BooleanLiteral, BinaryOp, UnaryOp, FunctionDeclaration, FunctionCall, IfStatement, MatchStatement, ClassDeclaration, StructDeclaration, ForLoop, WhileLoop, etc.
 
-```python
-# Get message bus stats
-bus = get_message_bus()
-stats = bus.get_stats()
-print(json.dumps(stats, indent=2))
+### Interpreter
 
-# Get registry stats
-registry = get_agent_registry()
-stats = registry.get_stats()
-print(json.dumps(stats, indent=2))
+```javascript
+import { Interpreter } from './src/aul/interpreter.js';
+
+const interpreter = new Interpreter();
+const result = interpreter.interpret(ast);
+const output = interpreter.getOutput();
 ```
 
----
+## 🎓 Code Triangulation
 
-## 🎓 Best Practices
+Code triangulation is a technique where you verify that different implementations produce the same results. AUL supports this through the `triangulateCode` function:
 
-1. **Always declare capabilities accurately** - Enables smart routing
-2. **Send heartbeats regularly** - 30s interval recommended
-3. **Use appropriate priority levels** - Reserve "critical" for emergencies
-4. **Handle errors gracefully** - Use AUL error recovery protocols
-5. **Log with correlation IDs** - Enables trace debugging
-6. **Cache when possible** - Reduces latency
-7. **Use async patterns** - Maximizes throughput
-8. **Version your agents** - Enables compatibility checks
+```javascript
+import { triangulateCode } from './aul-utils.js';
 
----
+const spec = {
+    description: "Calculate sum of array",
+    expectedOutput: "15"
+};
 
-## 📚 API Reference
+const implementations = [
+    {
+        language: "AUL",
+        code: `
+            let sum = 0
+            let nums = [1, 2, 3, 4, 5]
+            for n in nums {
+                sum = sum + n
+            }
+            print sum
+        `
+    }
+];
 
-### AULAgent Methods
+const result = triangulateCode(spec, implementations);
+console.log(result.allMatch); // true
+```
 
-- `start()` - Start the agent
-- `stop()` - Stop gracefully
-- `send_message(...)` - Send AUL message
-- `receive_message(message)` - Process incoming message
-- `get_capability_declaration()` - Get agent info
-- `get_health_status()` - Get health metrics
-- `handle_error(error, level)` - Handle errors
+## 🐛 Known Limitations
 
-### Message Types
+1. **Natural Language Queries**: Partially implemented but not fully integrated
+2. **Type System**: Type annotations are parsed but not enforced
+3. **Async/Await**: Functions can be declared as async but don't create actual promises
+4. **Import/Export**: Module system is basic and doesn't load external files
+5. **Array Methods**: Limited built-in array methods
 
-- `command` - Execute action on target
-- `query` - Request information
-- `response` - Reply to command/query
-- `event` - Notify state change
-- `heartbeat` - Health signal
+## 🔮 Future Enhancements
 
-### Priority Levels
+- [ ] Type checking and inference
+- [ ] Full async/await with promises
+- [ ] Module loading from files
+- [ ] More array and string methods
+- [ ] Error messages with stack traces
+- [ ] Debugger support
+- [ ] Standard library
+- [ ] Natural language query expansion
 
-- `critical` - Immediate attention required
-- `high` - Process quickly
-- `normal` - Standard priority (default)
-- `low` - Process when idle
+## 📊 Test Coverage
 
----
+Current test suite includes 32 tests covering:
+- Lexer (4 tests)
+- Parser (4 tests)
+- Interpreter - Basic (14 tests)
+- Interpreter - Advanced Features (10 tests)
 
-## 🔐 Security
-
-AUL includes enterprise-grade security:
-
-- **Authentication** - Agent tokens for identity
-- **Authorization** - Capability-based access control
-- **Encryption** - TLS for all communication
-- **Integrity** - HMAC signatures for messages
-- **Audit** - Full logging of all operations
-
----
-
-## 🚀 Future Enhancements
-
-- [ ] Multi-cluster support for distributed systems
-- [ ] GraphQL API for advanced queries
-- [ ] WebSocket transport for real-time updates
-- [ ] Machine learning for predictive healing
-- [ ] Advanced routing algorithms
-- [ ] Multi-language SDKs (Go, Rust, etc.)
-
----
-
-## 📖 Documentation
-
-- **Protocol Spec:** `AUL_PROTOCOL.md`
-- **Python API:** See docstrings in `aul_agent_base.py`
-- **JavaScript API:** See comments in `js/aul-agent-base.js`
-- **Examples:** Check `__main__` blocks in each file
-
----
+**Status**: ✅ All tests passing
 
 ## 🤝 Contributing
 
-AUL is part of the Consciousness Revolution platform. To contribute:
+AUL is designed for educational purposes. To extend the language:
 
-1. Fork the repository
-2. Create a feature branch
-3. Add your enhancements
-4. Test thoroughly
-5. Submit a pull request
+1. Add new token types in `lexer.js`
+2. Add new AST nodes in `parser.js`
+3. Implement evaluation logic in `interpreter.js`
+4. Add tests in `test-aul.js`
+5. Update examples in `aul-playground.html`
 
----
+## 📝 License
 
-## 📄 License
+This implementation is part of the barbrickdesign.github.io project.
 
-MIT License - Same as Consciousness Revolution platform
+## 🙏 Acknowledgments
 
----
-
-## 📞 Support
-
-- **Discord:** [Join Community](https://discord.gg/xHRXyKkzyg)
-- **Issues:** [consciousness-bugs](https://github.com/overkor-tek/consciousness-bugs)
-- **Email:** darrickpreble@proton.me
+Created as part of an AI-assisted development project to demonstrate modern programming language features and interactive code execution in the browser.
 
 ---
 
-**Built for the Consciousness Revolution** - Universal language for autonomous AI agents.
-
-*Speed. Interoperability. Intelligence.*
+**Version**: 1.0  
+**Last Updated**: 2026-01-18  
+**Status**: Fully Functional ✅

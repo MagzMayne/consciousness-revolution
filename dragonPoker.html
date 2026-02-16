@@ -1,0 +1,763 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: dragonPoker.html
+Declaration ID: IP-536F290D-MLL28ZYX
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TRON POKER — Dealer Orb, Centered Cascading Log, Fixed Deal</title>
+<meta name="theme-color" content="#07101a"/>
+<style>
+:root{
+  --bg:#07101a; --panel:#0e1622; --accent:#00e5ff; --accent2:#7cffd4;
+  --text:#e6f7ff; --muted:#8fa9b8; --best:#8a2be2; --glow:0 0 30px rgba(0,229,255,0.12);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(900px at 50% 10%,#071426 0%,var(--bg) 70%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;color:var(--text)}
+.app{max-width:1200px;margin:12px auto;padding:12px}
+.header{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.logo{font-weight:900;color:var(--accent);letter-spacing:1px;text-shadow:var(--glow)}
+.container{display:grid;grid-template-columns:1fr 360px;gap:12px}
+@media(max-width:980px){.container{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,rgba(10,16,24,0.96),rgba(6,10,14,0.96));border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px}
+.three-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(124,255,212,0.04)}
+#threeCanvas{width:100%;height:520px;display:block;background:radial-gradient(900px at 50% 40%, rgba(0,229,255,0.03), rgba(0,0,0,0) 70%)}
+.inline-orb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:32;
+  background:radial-gradient(circle at 40% 30%, rgba(124,255,212,0.12), rgba(0,229,255,0.06) 30%, rgba(0,0,0,0.02) 65%);
+  box-shadow: 0 0 40px rgba(0,229,255,0.12), inset 0 0 30px rgba(124,255,212,0.06);}
+.inline-log{width:220px;height:220px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  pointer-events:auto;background:linear-gradient(180deg, rgba(3,10,16,0.6), rgba(2,6,10,0.35));border:1px solid rgba(124,255,212,0.08);
+  box-shadow:0 6px 24px rgba(0,0,0,0.6);backdrop-filter: blur(6px)}
+.inline-log .stack{width:86%;height:86%;border-radius:50%;overflow:auto;padding:10px;font-family:ui-monospace;font-size:12px;color:#bff;line-height:1.2}
+.inline-log .stack::-webkit-scrollbar{width:8px;height:8px}
+.inline-log .stack::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#00e5ff,#7cffd4);border-radius:8px;opacity:0.7}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.input{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px;border-radius:8px;color:var(--text)}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#04222a;cursor:pointer}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px 10px;border-radius:8px;color:var(--accent);cursor:pointer}
+.btn-best{background:linear-gradient(90deg,var(--best),#b07cff);border:none;padding:9px 12px;border-radius:8px;font-weight:800;color:#fff;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+@media(max-width:640px){.seatsGrid{grid-template-columns:repeat(2,1fr)}}
+.seat{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;border:1px solid rgba(0,229,255,0.04);text-align:center}
+.seat .name{font-weight:800}
+.seat.win{border-color:rgba(84,255,189,0.95);box-shadow:0 0 14px rgba(84,255,189,0.06)}
+.seat.lose{border-color:rgba(255,77,109,0.95);box-shadow:0 0 14px rgba(255,77,109,0.04)}
+.logArea{font-family:ui-monospace;color:#9df;max-height:360px;overflow:auto;background:transparent;border:none;padding:8px;margin:0;white-space:pre-wrap}
+.small{font-size:13px;color:var(--muted)}
+.kbd{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.06);padding:6px 8px;border-radius:8px;font-family:ui-monospace}
+.bestHint{font-size:13px;color:var(--best);font-weight:700;margin-left:6px}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:60}
+.modal .box{background:#07121a;padding:16px;border-radius:10px;border:1px solid rgba(0,229,255,0.06);min-width:260px;text-align:center}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">TRON POKER</div>
+    <div class="row">
+      <div class="small">Trust Pool</div>
+      <div class="kbd" id="globalPool">$0</div>
+      <div style="width:12px"></div>
+      <div class="small">Table</div>
+      <div class="kbd" id="tableTitle">—</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div>
+      <div class="panel three-wrap" style="padding:0;overflow:visible">
+        <canvas id="threeCanvas"></canvas>
+
+        <!-- Dealer orb centered; log sits inside the orb as a circular cascading stack (newest on top) -->
+        <div class="inline-orb" aria-hidden="true">
+          <div class="inline-log" id="inlineLogWrap" style="pointer-events:auto">
+            <div class="stack" id="inlineLog"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <div class="small">Controls</div>
+            <div class="small">Pick table → Start. Dealer orb at center emits cards; log is centered and cascading inside the orb.</div>
+          </div>
+          <div class="row">
+            <div class="small">Status</div>
+            <div class="kbd" id="statusPill">Idle</div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:8px">
+          <select id="tableSelect" class="input">
+            <option value="6">6-seat (fast)</option>
+            <option value="9">9-seat (full)</option>
+          </select>
+          <select id="variant" class="input" style="width:160px">
+            <option>Texas Hold'em</option>
+          </select>
+          <button id="startGame" class="btn">Start game</button>
+          <button id="joinMatch" class="btn-outline">Join</button>
+
+          <label class="small" style="margin-left:8px">Auto</label>
+          <select id="autoAction" class="input" style="width:160px">
+            <option value="off">Off</option>
+            <option value="autocheck">Auto-check/fold</option>
+            <option value="autobet">Auto-bet (strong)</option>
+          </select>
+          <input id="autoThreshold" class="input" type="number" value="380" style="width:90px" title="Higher = stricter"/>
+        </div>
+
+        <div class="controls" style="margin-top:12px;align-items:center">
+          <button id="checkBtn" class="btn-outline">Check</button>
+          <button id="callBtn" class="btn-outline">Call</button>
+          <input id="betSize" class="input" type="number" placeholder="10" style="width:88px" />
+          <button id="betBtn" class="btn">Bet</button>
+          <button id="foldBtn" class="btn-outline">Fold</button>
+          <button id="showdownBtn" class="btn-outline">Showdown</button>
+          <div style="margin-left:auto" class="row">
+            <div class="small">Timer</div>
+            <div class="kbd" id="handTimer">--</div>
+            <div class="bestHint" id="bestHint">Best: —</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="row space" style="justify-content:space-between;align-items:center">
+          <div><div class="small">Seats & balances</div></div>
+          <div><div class="small">Pot</div><div id="pot" class="kbd">$0</div></div>
+        </div>
+        <div class="seatsGrid" id="seatsGrid" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="small">Ticket / payout validation</div>
+        <div class="row" style="margin-top:8px"><input id="paypalEmail" class="input" placeholder="paypal@example.com" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px"><input id="venmoHandle" class="input" placeholder="@venmo" style="flex:1"/></div>
+        <div class="row" style="margin-top:8px">
+          <button id="genTicket" class="btn-outline">Generate</button>
+          <button id="saveTicket" class="btn-outline">Save</button>
+          <button id="markPaid" class="btn-outline">Mark paid</button>
+        </div>
+        <pre id="ticketView" class="kbd" style="margin-top:10px;white-space:pre-wrap">—</pre>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <div class="small">Full log</div>
+        <pre id="log" class="logArea"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="turnModal"><div class="box"><div style="font-weight:800">Your turn</div><div class="small" style="margin-top:8px">Choose an action or let auto-action handle it</div><div style="margin-top:12px"><button id="turnOk" class="btn-outline">OK</button></div></div></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+/*
+  Fixed poker client:
+  - Dealer orb centered; inline cascading log appears inside orb (newest on top)
+  - Cards shoot out from the orb (spawn origin at orb center)
+  - Resolved earlier issue where cards weren't visible on desktop (canvas sizing / renderer)
+  - Start game reliably starts and deals; inline log update; orb does not overlap cards (cards spawn outward)
+  - Timer cannot go negative; auto-action triggers on expiry
+  - Best-action button highlights with purple style (btn-best)
+*/
+
+(() => {
+  // state
+  const state = {
+    inGame: false,
+    tableId: null,
+    seats: [],
+    deck: [],
+    community: [],
+    myHole: [],
+    pot: 0,
+    globalPool: 0,
+    ticket: null,
+    three: { renderer:null, scene:null, camera:null, cardMeshes:[], chipMeshes:[] },
+    handClock: null,
+    handLeft: 0
+  };
+
+  // DOM helpers
+  const $ = id => document.getElementById(id);
+  const nowStamp = ()=> new Date().toLocaleTimeString();
+
+  // inline orb log: newest messages should appear at top and be centered
+  function appendLog(msg){
+    const line = `[${nowStamp()}] ${msg}`;
+    // full log bottom-up
+    $('log').textContent += line + '\n';
+    // inline orb cascading: newest on top
+    const inline = $('inlineLog');
+    inline.textContent = line + '\n' + inline.textContent;
+    // trim inline to reasonable length to avoid overflow
+    const lines = inline.textContent.split('\n').slice(0, 28).join('\n');
+    inline.textContent = lines;
+    // scroll full log to bottom
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+
+  // deck helpers
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  const canonicalDeck = ()=> suits.flatMap(s => ranks.map(r => `${r}${s}`));
+  function shuffleCrypto(arr){
+    for (let i = arr.length - 1; i > 0; i--){
+      const rnd = crypto.getRandomValues(new Uint32Array(1))[0] / 0xffffffff;
+      const j = Math.floor(rnd * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // three.js init (fixed canvas sizing)
+  function initThree(){
+    const canvas = $('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+    function resizeRenderer(){
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) renderer.setSize(w, h, false);
+      if (state.three.camera) {
+        state.three.camera.aspect = w / h;
+        state.three.camera.updateProjectionMatrix();
+      }
+    }
+    resizeRenderer();
+
+    window.addEventListener('resize', ()=> {
+      resizeRenderer();
+    });
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07101a);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 6, 9);
+    camera.lookAt(0,0,0);
+
+    const ambient = new THREE.AmbientLight(0x88ffff, 0.6); scene.add(ambient);
+    const spot = new THREE.SpotLight(0x00e5ff, 1, 50, Math.PI/4, 0.5); spot.position.set(8, 10, 8); scene.add(spot);
+
+    const tableGeo = new THREE.CylinderGeometry(6,6,0.42,64);
+    const tableMat = new THREE.MeshStandardMaterial({ color:0x102233, emissive:0x002233, roughness:0.6, metalness:0.1 });
+    const table = new THREE.Mesh(tableGeo, tableMat);
+    table.position.y = -0.22;
+    scene.add(table);
+
+    const ring = new THREE.Mesh(new THREE.RingGeometry(6.2, 6.5, 64), new THREE.MeshBasicMaterial({ color:0x00e5ff, side:THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI/2; ring.position.y = 0.01; scene.add(ring);
+
+    state.three.renderer = renderer;
+    state.three.scene = scene;
+    state.three.camera = camera;
+
+    (function renderLoop(){
+      table.rotation.y += 0.0009;
+      resizeRenderer();
+      renderer.render(scene, camera);
+      requestAnimationFrame(renderLoop);
+    })();
+  }
+
+  // clear helpers
+  function clearCardMeshes(){
+    state.three.cardMeshes.forEach(m => state.three.scene.remove(m));
+    state.three.cardMeshes.length = 0;
+  }
+  function clearChipMeshes(){
+    state.three.chipMeshes.forEach(m => state.three.scene.remove(m));
+    state.three.chipMeshes.length = 0;
+  }
+
+  // spawn card from orb center outward
+  function spawnCardFromOrb(text, x, z, tilt=0, delayIndex=0){
+    const geo = new THREE.PlaneGeometry(0.64, 0.95);
+    const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 384;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#07111a'; ctx.fillRect(0,0,256,384);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,364);
+    ctx.fillStyle = (text.includes('♥')||text.includes('♦')) ? '#ff6b6b' : '#ffffff';
+    ctx.font = 'bold 60px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 192);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, emissive: 0x001122, emissiveIntensity: 0.25 });
+    const mesh = new THREE.Mesh(geo, mat);
+    // orb center in scene coordinates: near table center at z=0 (we place origin behind plane and animate outward)
+    mesh.position.set(0, 0.6, 0); // slightly above table surface (so not under orb)
+    mesh.rotation.x = -Math.PI/2;
+    mesh.rotation.z = tilt;
+    mesh.scale.set(0.01, 0.01, 0.01);
+    state.three.scene.add(mesh);
+    state.three.cardMeshes.push(mesh);
+
+    // animate from orb center to target (x,z) smoothly
+    const start = { x: mesh.position.x, z: mesh.position.z, s: 0.01 };
+    const target = { x, z, s: 1.0 };
+    const t0 = performance.now() + delayIndex * 110;
+    function anim(now){
+      const t = Math.min(1, (now - t0) / 420);
+      mesh.position.x = start.x + (target.x - start.x) * easeOutCubic(t);
+      mesh.position.z = start.z + (target.z - start.z) * easeOutCubic(t);
+      const s = start.s + (target.s - start.s) * easeOutCubic(t);
+      mesh.scale.set(s, s, s);
+      if (t < 1) requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+  }
+  function easeOutCubic(t){ return (--t)*t*t+1; }
+
+  // layout cards (community centered, player holes front). Cards animate out from orb.
+  function layoutCardsAnimated(){
+    clearCardMeshes();
+    const community = state.community || [];
+    const spacing = 1.28;
+    const startX = -((community.length - 1) * spacing) / 2;
+    community.forEach((c,i) => {
+      spawnCardFromOrb(c, startX + i*spacing, 0, 0, i);
+    });
+    const hole = state.myHole || [];
+    const holeSpacing = 1.1;
+    const startHX = -((hole.length - 1) * holeSpacing) / 2;
+    hole.forEach((c,i) => {
+      // player holes appear farther forward on z
+      spawnCardFromOrb(c, startHX + i*holeSpacing, 3.2, (i===0?-0.28:0.28), community.length + i);
+    });
+  }
+
+  // chips
+  function addChipsVisual(amount){
+    const map = {25:0x54ffbd, 10:0x00a2ff, 5:0xff4d6d};
+    let remaining = amount;
+    let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28, 0.28, 0.08, 24);
+      const mat = new THREE.MeshStandardMaterial({ color: map[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.three.scene.add(chip);
+      state.three.chipMeshes.push(chip);
+      y += 0.12; remaining -= denom;
+    }
+  }
+  function clearPotVisual(){ clearChipMeshes(); }
+
+  // seats render
+  function renderSeats(){
+    const grid = $('seatsGrid');
+    grid.innerHTML = '';
+    state.seats.forEach(s => {
+      const div = document.createElement('div'); div.className = 'seat';
+      if (s.win) div.classList.add('win'); if (s.lose) div.classList.add('lose');
+      const paid = s.paid ? '✓' : '•';
+      div.innerHTML = `<div class="name">${s.userLabel}</div><div class="small">Chips: <strong>${s.stack}</strong></div><div class="small">Paid: ${paid} ${s.ticketUsed? '(used)':''}</div>`;
+      grid.appendChild(div);
+    });
+  }
+
+  // scoring
+  function parseRank(card){ const r = card.slice(0, -1); return ({'A':14,'K':13,'Q':12,'J':11}[r] || parseInt(r,10)); }
+  function scoreSimplified(cards){
+    const vals = cards.map(parseRank).sort((a,b)=>b-a);
+    const counts = {}; vals.forEach(v => counts[v] = (counts[v]||0) + 1);
+    const quads = Object.values(counts).some(x=>x===4);
+    const trips = Object.values(counts).some(x=>x===3);
+    const pairs = Object.values(counts).filter(x=>x===2).length;
+    const high = vals[0] || 0;
+    let base = 0;
+    if (quads) base = 700;
+    else if (trips && pairs>=1) base = 600;
+    else if (trips) base = 500;
+    else if (pairs>=2) base = 400;
+    else if (pairs===1) base = 300;
+    else base = 100;
+    return base + high;
+  }
+
+  // setup seats & deal
+  function setupSeats(count){
+    state.tableId = 'T-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    state.seats = [];
+    state.seats.push({ n:1, userLabel:'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    for (let i=2;i<=count;i++){
+      state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    }
+    $('tableTitle').textContent = `${state.tableId} • ${count}-seat`;
+    renderSeats();
+  }
+
+  function dealHand(){
+    state.deck = canonicalDeck();
+    shuffleCrypto(state.deck);
+    state.community = state.deck.slice(0,5);
+    state.myHole = state.deck.slice(5,7);
+    state.pot = 0; $('pot').textContent = `$0`;
+    clearPotVisual();
+    layoutCardsAnimated(); // animated from orb
+    state.seats.forEach(s => { s.folded=false; s.win=false; s.lose=false; });
+    renderSeats();
+    appendLog('Dealt new hand.');
+    startHandClock();
+    evaluateRecommendation();
+    setTimeout(()=> showTurnModal(), 450);
+  }
+
+  // start match
+  function startMatch(){
+    if (state.inGame) { appendLog('Already in game'); return; }
+    const seats = parseInt($('tableSelect').value || '6', 10);
+    setupSeats(seats);
+    state.inGame = true;
+    $('startGame').textContent = 'In game'; $('startGame').disabled = true; $('joinMatch').disabled = true;
+    $('statusPill').textContent = 'Game running';
+    state.seats.forEach(s => { if (!s.isHuman) { s.paid = true; s.ticketUsed = true; }});
+    dealHand();
+  }
+
+  // timer (never negative)
+  function startHandClock(){
+    stopHandClock();
+    state.handLeft = 25;
+    updateTimerUI();
+    state.handClock = setInterval(() => {
+      state.handLeft = Math.max(0, state.handLeft - 1);
+      updateTimerUI();
+      if (state.handLeft <= 0){
+        stopHandClock();
+        appendLog('Timer expired — auto-action executing.');
+        executeAutoOnTimeout();
+      }
+    }, 1000);
+  }
+  function stopHandClock(){ if (state.handClock){ clearInterval(state.handClock); state.handClock = null; } }
+  function updateTimerUI(){ $('handTimer').textContent = `${state.handLeft}s`; }
+
+  // recommendation & UI highlight
+  function computeRecommendation(){
+    const hole = state.myHole || [];
+    const board = state.community || [];
+    const score = scoreSimplified(hole.concat(board));
+    const threshold = parseInt($('autoThreshold').value || '380',10);
+    let action = 'check';
+    if (score >= threshold) action = 'bet';
+    else if (score >= 300) action = 'call';
+    else action = 'fold';
+    return { action, score };
+  }
+  function evaluateRecommendation(){
+    const rec = computeRecommendation();
+    $('bestHint').textContent = `Best: ${rec.action.toUpperCase()} (score ${rec.score})`;
+    // reset styles
+    ['checkBtn','callBtn','betBtn','foldBtn'].forEach(id => {
+      const el = $(id);
+      el.classList.remove('btn-best');
+      if (id === 'betBtn'){ el.classList.remove('btn-outline'); el.classList.add('btn'); } else { el.classList.remove('btn'); el.classList.add('btn-outline'); }
+    });
+    const map = { check:'checkBtn', call:'callBtn', bet:'betBtn', fold:'foldBtn' };
+    const bestId = map[rec.action];
+    if (bestId){
+      const b = $(bestId);
+      b.classList.add('btn-best');
+      b.classList.remove('btn'); b.classList.remove('btn-outline');
+    }
+  }
+
+  // auto action on timeout
+  function executeAutoOnTimeout(){
+    const mode = $('autoAction').value;
+    const rec = computeRecommendation();
+    if (mode === 'autocheck'){
+      if (rec.action === 'fold'){ playerFold(); appendLog('Auto-fold executed.'); }
+      else { playerCheck(); appendLog('Auto-check executed.'); }
+    } else if (mode === 'autobet'){
+      if (rec.score >= parseInt($('autoThreshold').value || '380',10)){
+        const amt = Math.min(Math.max(10, parseInt($('betSize').value || '10',10)), state.seats[0].stack);
+        playerBet(amt); appendLog('Auto-bet executed on timeout.');
+      } else { playerCheck(); appendLog('Auto-check fallback executed.'); }
+    } else {
+      if (!state.seats[0].folded){ playerCheck(); appendLog('Auto-check (default) executed.'); }
+    }
+    evaluateRecommendation();
+  }
+
+  // player actions
+  function playerBet(amount){
+    const seat = state.seats[0];
+    if (seat.stack < amount){ appendLog('Insufficient chips'); return; }
+    seat.stack -= amount;
+    state.pot += amount;
+    $('pot').textContent = `$${state.pot}`;
+    addChipsVisual(amount);
+    renderSeats();
+    appendLog(`You bet $${amount}`);
+    botsAct();
+  }
+  function playerCall(){ appendLog('You called'); botsAct(); }
+  function playerCheck(){ appendLog('You checked'); botsAct(); }
+  function playerFold(){ state.seats[0].folded = true; appendLog('You folded'); botsAct(); }
+
+  // UI wiring
+  $('betBtn').addEventListener('click', ()=> { stopHandClock(); const amt = Math.max(1, parseInt($('betSize').value||'10',10)); playerBet(amt); });
+  $('callBtn').addEventListener('click', ()=> { stopHandClock(); playerCall(); });
+  $('checkBtn').addEventListener('click', ()=> { stopHandClock(); playerCheck(); });
+  $('foldBtn').addEventListener('click', ()=> { stopHandClock(); playerFold(); });
+
+  // bots action
+  function botsAct(){
+    for (let i=1;i<state.seats.length;i++){
+      const s = state.seats[i];
+      if (s.folded) continue;
+      const r = Math.random();
+      if (r < 0.18){ s.folded = true; appendLog(`${s.userLabel} folded.`); }
+      else if (r < 0.6){
+        const amt = Math.min(5 + Math.floor(Math.random()*25), s.stack);
+        if (amt > 0){ s.stack -= amt; state.pot += amt; addChipsVisual(amt); appendLog(`${s.userLabel} bet $${amt}.`); } else appendLog(`${s.userLabel} checked.`);
+      } else appendLog(`${s.userLabel} checked.`);
+    }
+    $('pot').textContent = `$${state.pot}`;
+    renderSeats();
+  }
+
+  // showdown & payout
+  function determineWinner(){
+    if (!state.inGame){ appendLog('No active match'); return; }
+    const contenders = state.seats.filter(s => !s.folded);
+    if (contenders.length === 0){ appendLog('No contenders'); return; }
+    const player = state.seats[0];
+    const opponentsAreBots = state.seats.slice(1).every(s => !s.isHuman);
+    if (player.paid && opponentsAreBots){
+      player.stack += state.pot;
+      appendLog(`You (paid) automatically win pot $${state.pot}`);
+      if (state.ticket) state.ticket.used = true;
+      state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+      highlightWin(player.n); return;
+    }
+    let best = null;
+    const scored = [];
+    contenders.forEach(s => {
+      let hole;
+      if (s.isHuman) hole = state.myHole.slice();
+      else { const base = 10 + s.n*3; hole = state.deck.slice(base, base+2); }
+      const all = hole.concat(state.community);
+      const sc = scoreSimplified(all);
+      scored.push({ seat:s, score: sc });
+      if (!best || sc > best.score) best = { seat:s, score: sc };
+    });
+    const winners = scored.filter(x => x.score === best.score).map(x => x.seat);
+    const share = Math.floor(state.pot / winners.length);
+    winners.forEach(w => { w.stack += share; appendLog(`${w.userLabel} wins $${share}`); });
+    state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+    state.seats.forEach(s => s.win = s.lose = false);
+    winners.forEach(w => state.seats[w.n-1].win = true);
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+  $('showdownBtn').addEventListener('click', determineWinner);
+
+  function highlightWin(n){
+    state.seats.forEach(s => s.win = s.lose = false);
+    state.seats[n-1].win = true;
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  // ticket / donation
+  $('genTicket').addEventListener('click', ()=>{
+    const pp = $('paypalEmail').value.trim(), v = $('venmoHandle').value.trim();
+    if (!pp && !v){ alert('Add PayPal or Venmo'); return; }
+    state.ticket = { id: 'TKT-' + Math.random().toString(36).slice(2,9).toUpperCase(), paypal: pp||null, venmo: v||null, created: new Date().toISOString(), used:false };
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket ${state.ticket.id} generated.`);
+  });
+
+  $('saveTicket').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket'); return; }
+    const blob = new Blob([JSON.stringify(state.ticket, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${state.ticket.id}.json`; a.click(); URL.revokeObjectURL(a.href);
+    appendLog('Ticket saved locally.');
+  });
+
+  $('markPaid').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket'); return; }
+    if (state.ticket.used){ alert('Ticket already used'); return; }
+    const amt = Math.max(0, parseInt($('donateAmt')?.value||'0',10) || 0);
+    if (amt > 0){ state.globalPool += amt; $('globalPool').textContent = `$${state.globalPool}`; appendLog(`Donation recorded $${amt}`); }
+    state.ticket.used = true; state.seats[0].paid = true; state.seats[0].ticketUsed = true; renderSeats();
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket ${state.ticket.id} marked paid — protection active vs bots.`);
+  });
+
+  // start/join wiring
+  $('startGame').addEventListener('click', startMatch);
+  $('joinMatch').addEventListener('click', ()=> { if (!state.inGame) startMatch(); else appendLog('Joined existing match'); });
+
+  function startMatch(){
+    if (state.inGame){ appendLog('Already in game'); return; }
+    const seats = parseInt($('tableSelect').value || '6', 10);
+    setupSeats(seats);
+    state.inGame = true;
+    $('startGame').textContent = 'In game'; $('startGame').disabled = true; $('joinMatch').disabled = true;
+    $('statusPill').textContent = 'Game running';
+    state.seats.forEach(s => { if (!s.isHuman){ s.paid = true; s.ticketUsed = true; }});
+    dealHand();
+  }
+
+  function setupSeats(count){
+    state.tableId = 'T-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    state.seats = [];
+    state.seats.push({ n:1, userLabel:'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    for (let i=2;i<=count;i++){
+      state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    }
+    renderSeats();
+    $('tableTitle').textContent = `${state.tableId} • ${count}-seat`;
+  }
+
+  // turn modal
+  function showTurnModal(){ $('turnModal').style.display = 'flex'; }
+  $('turnOk').addEventListener('click', ()=> $('turnModal').style.display = 'none');
+
+  // init
+  function init(){
+    initThree();
+    setupSeats(6);
+    $('globalPool').textContent = `$${state.globalPool}`;
+    appendLog('Ready. Select a table and press Start game.');
+    // update recommendation periodically while in game
+    setInterval(()=> { if (state.inGame) evaluateRecommendation(); }, 1500);
+  }
+
+  init();
+
+  // expose evaluateRecommendation (debug)
+  window.evaluateRecommendation = function(){ evaluateRecommendation(); };
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: bubbleWeb.html
+Declaration ID: IP-315DC94F-MLL28ZYC
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Internet Bubble Map – MVP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 
+    INTERNET BUBBLE MAP – MINIMAL INTERACTIVE SHELL
+    ------------------------------------------------
+    This is a self-contained MVP:
+    - Simulates an "internet graph" with fake domains
+    - Node = domain bubble
+    - Size = "importance" (simulated PageRank-ish value)
+    - Color = cluster/community
+    - Links = inter-site hyperlinks
+    - Pan/zoom with mouse or touch
+    - Side panel with details when you click a bubble
+
+    To scale this to the real web:
+    - Replace the FAKE_DATA section with data from your backend API
+    - Keep the same structure: nodes[], links[]
+    - Precompute x,y if you want, or let the force simulation run server-side
+  -->
+
+  <!-- D3.js for force simulation and interaction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+          integrity="sha512-pJ5LliJbn3+puAMhZpFkszH6bqhNXl3qHgJXni+hY9zRZxyVEYni87aY9IuMiimFedpWijrmFaSujFc3/SjvXg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    :root {
+      --bg-main: #050814;
+      --bg-panel: #080c1c;
+      --bg-panel-alt: #0c1024;
+      --accent: #4fd1c5;
+      --accent-soft: rgba(79, 209, 197, 0.25);
+      --accent-strong: rgba(79, 209, 197, 0.6);
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --danger: #f97373;
+      --border-subtle: rgba(148, 163, 184, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #0b1120 0, #020617 40%, #000 100%);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-shell {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .sidebar {
+      width: 320px;
+      max-width: 100%;
+      background: linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 14px;
+      gap: 12px;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .sidebar-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sidebar-title-main {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(79, 209, 197, 0.12);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .sidebar-pill {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .sidebar-section {
+      border-radius: 10px;
+      background: radial-gradient(circle at top left, #020617 0, #020617 45%, #020617 100%);
+      border: 1px solid var(--border-subtle);
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    .section-badge {
+      font-size: 10px;
+      color: var(--accent);
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(79, 209, 197, 0.08);
+      border: 1px solid rgba(79, 209, 197, 0.25);
+    }
+
+    .section-body {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      gap: 4px;
+    }
+
+    .metric-label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 10px;
+    }
+
+    .metric-value {
+      font-weight: 500;
+      color: var(--text-main);
+      font-size: 11px;
+    }
+
+    .metric-bar-track {
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .metric-bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent-soft), var(--accent));
+    }
+
+    .mode-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .mode-chip {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 5px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      background: rgba(15, 23, 42, 0.8);
+      transition: all 140ms ease-out;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+
+    .mode-chip:active {
+      transform: scale(0.97);
+      opacity: 0.85;
+    }
+
+    .mode-chip.active {
+      border-color: rgba(79, 209, 197, 0.8);
+      background: radial-gradient(circle at top, rgba(79, 209, 197, 0.18), rgba(15, 23, 42, 0.9));
+      color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(79, 209, 197, 0.35),
+                  0 0 12px rgba(79, 209, 197, 0.25);
+    }
+
+    .node-details-header {
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .node-domain {
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .node-cluster-badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text-muted);
+      background: rgba(15, 23, 42, 0.9);
+      white-space: nowrap;
+    }
+
+    .node-metrics {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(51, 65, 85, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .node-metric-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .node-metric-row span:last-child {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .node-links-list {
+      margin-top: 5px;
+      max-height: 90px;
+      overflow-y: auto;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(30, 64, 175, 0.7);
+      padding: 6px;
+      font-size: 11px;
+    }
+
+    .node-links-title {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .node-link-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .node-link-domain {
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .node-link-weight {
+      color: var(--accent);
+    }
+
+    .node-links-empty {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-style: italic;
+    }
+
+    .footer-text {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .footer-highlight {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .viewer {
+      flex: 1 1 auto;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      background: radial-gradient(circle at top, #0b1120 0, #020617 45%, #000 100%);
+    }
+
+    .viewer-overlay-top {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .viewer-pill {
+      pointer-events: auto;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: var(--text-muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(10px);
+    }
+
+    .viewer-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, var(--accent), var(--accent-soft));
+      box-shadow: 0 0 8px rgba(79, 209, 197, 0.7);
+    }
+
+    .viewer-pill-zoom {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .viewer-pill-zoom span {
+      padding: 0 4px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .viewer-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
+
+    .viewer-svg:active {
+      cursor: grabbing;
+    }
+
+    .link {
+      stroke: rgba(148, 163, 184, 0.25);
+      stroke-width: 0.5px;
+      pointer-events: none;
+    }
+
+    .node {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .node-circle {
+      stroke-width: 1px;
+      stroke: rgba(15, 23, 42, 0.9);
+    }
+
+    .node-circle.main-selected {
+      stroke: var(--accent);
+      stroke-width: 1.5px;
+      filter: drop-shadow(0 0 8px rgba(79, 209, 197, 0.8));
+    }
+
+    .node-circle.dimmed {
+      opacity: 0.2;
+    }
+
+    .node-label {
+      font-size: 9px;
+      fill: rgba(226, 232, 240, 0.9);
+      text-anchor: middle;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: rgba(15, 23, 42, 0.9);
+      stroke-width: 2px;
+    }
+
+    .node-label.dimmed {
+      opacity: 0.15;
+    }
+
+    .scale-legend {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 7px 9px;
+      font-size: 10px;
+      color: var(--text-muted);
+      backdrop-filter: blur(8px);
+      max-width: 200px;
+    }
+
+    .scale-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .scale-label {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 9px;
+    }
+
+    .scale-bubbles {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+
+    .scale-bubble {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at top, rgba(148, 163, 184, 0.2), transparent 60%);
+    }
+
+    .scale-bubble[data-size="small"] {
+      width: 8px;
+      height: 8px;
+    }
+
+    .scale-bubble[data-size="medium"] {
+      width: 13px;
+      height: 13px;
+    }
+
+    .scale-bubble[data-size="large"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    .scale-caption {
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.9);
+      font-size: 10px;
+      padding: 2px 6px;
+      color: var(--text-muted);
+    }
+
+    .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      margin-right: 4px;
+      display: inline-block;
+    }
+
+    .chip-dot-primary {
+      background: radial-gradient(circle at center, #38bdf8, #0ea5e9);
+    }
+
+    .chip-dot-secondary {
+      background: radial-gradient(circle at center, #a855f7, #7c3aed);
+    }
+
+    .chip-dot-tertiary {
+      background: radial-gradient(circle at center, #f97316, #ea580c);
+    }
+
+    @media (max-width: 800px) {
+      .app-shell {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        max-height: 260px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .viewer {
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+
+      .scale-legend {
+        right: 6px;
+        bottom: 6px;
+        padding: 6px 7px;
+      }
+
+      .mode-chip {
+        font-size: 9px;
+        padding: 6px 5px;
+        letter-spacing: 0.08em;
+      }
+
+      .viewer-pill {
+        font-size: 9px;
+        padding: 3px 7px;
+      }
+
+      .viewer-pill-zoom {
+        font-size: 9px;
+        padding: 2px 6px;
+      }
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Left side: control + node info panel -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <div class="sidebar-title-main">
+          Internet Bubble Map
+          <span class="title-badge">MVP Graph Shell</span>
+        </div>
+        <div class="sidebar-subtitle">
+          Zoomable force‑layout of a synthetic “mini‑web”. 
+          Each bubble is a domain, sized by importance and colored by cluster.
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header">
+        <span class="section-title">Metric mode</span>
+        <span class="section-badge" id="metric-mode-label">PageRank-ish</span>
+      </div>
+      <div class="section-body">
+        <div class="metric-row">
+          <span class="metric-label">Node size</span>
+          <span class="metric-value" id="metric-size-label">Importance score</span>
+        </div>
+        <div class="metric-bar-track">
+          <div class="metric-bar-fill" id="metric-bar-fill" style="width: 76%;"></div>
+        </div>
+        <div class="mode-row">
+          <button class="mode-chip active" data-mode="importance">
+            Importance
+          </button>
+          <button class="mode-chip" data-mode="in_degree">
+            In‑links
+          </button>
+          <button class="mode-chip" data-mode="out_degree">
+            Out‑links
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header">
+        <span class="section-title">Selected node</span>
+        <span class="section-badge" id="selected-node-status">None</span>
+      </div>
+      <div class="section-body">
+        <div class="node-details-header">
+          <div class="node-domain" id="node-domain-display">
+            Click a bubble to inspect a domain.
+          </div>
+        </div>
+        <div class="node-metrics" id="node-metrics" style="display:none;">
+          <div class="node-metric-row">
+            <span>Cluster</span>
+            <span id="node-cluster-display">—</span>
+          </div>
+          <div class="node-metric-row">
+            <span>Importance</span>
+            <span id="node-importance-display">—</span>
+          </div>
+          <div class="node-metric-row">
+            <span>In‑degree</span>
+            <span id="node-in-display">—</span>
+          </div>
+          <div class="node-metric-row">
+            <span>Out‑degree</span>
+            <span id="node-out-display">—</span>
+          </div>
+        </div>
+        <div class="node-links-list" id="node-links-list" style="display:none;">
+          <div class="node-links-title">Strongest outbound links</div>
+          <div id="node-links-content"></div>
+        </div>
+        <div class="footer-text">
+          <span class="footer-highlight">This is a shell.</span> 
+          Swap the synthetic dataset for a backend API that streams cluster‑level web graph slices 
+          and this becomes a real‑world internet map viewer.
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-header">
+        <span class="section-title">Scale hints</span>
+      </div>
+      <div class="section-body">
+        <div class="chip-row">
+          <div class="chip">
+            <span class="chip-dot chip-dot-primary"></span>
+            Core hubs
+          </div>
+          <div class="chip">
+            <span class="chip-dot chip-dot-secondary"></span>
+            Mid clusters
+          </div>
+          <div class="chip">
+            <span class="chip-dot chip-dot-tertiary"></span>
+            Smaller satellites
+          </div>
+        </div>
+        <div class="footer-text" style="margin-top:6px;">
+          Zoom out to think in clusters.  
+          Zoom in to inspect individual domains and their local neighborhood.
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right side: the map -->
+  <main class="viewer">
+    <div class="viewer-overlay-top">
+      <div class="viewer-pill">
+        <span class="viewer-pill-dot"></span>
+        INTERNET GRAPH SNAPSHOT &nbsp;•&nbsp; SYNTHETIC MINI‑WEB
+      </div>
+      <div class="viewer-pill-zoom" id="zoom-pill">
+        ZOOM
+        <span id="zoom-level-label">1.00×</span>
+      </div>
+    </div>
+
+    <svg class="viewer-svg" id="graph-svg"></svg>
+
+    <div class="scale-legend">
+      <div class="scale-row">
+        <span class="scale-label">Node size</span>
+      </div>
+      <div class="scale-bubbles">
+        <div class="scale-bubble" data-size="small"></div>
+        <div class="scale-bubble" data-size="medium"></div>
+        <div class="scale-bubble" data-size="large"></div>
+      </div>
+      <div class="scale-caption">
+        Bubbles scale with the active metric (importance / in‑degree / out‑degree).
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+  // ------------------------------------------------------------
+  // CONSTANTS
+  // ------------------------------------------------------------
+  const DEFAULT_SVG_WIDTH = 800;
+  const DEFAULT_SVG_HEIGHT = 600;
+  const RESIZE_DEBOUNCE_MS = 150;
+  const ORIENTATION_CHANGE_DELAY_MS = 200;
+
+  // ------------------------------------------------------------
+  // FAKE "INTERNET" DATA – SMALL SYNTHETIC GRAPH FOR DEMO
+  // ------------------------------------------------------------
+  const FAKE_NODES = [
+    // cluster 0 – "search / platforms"
+    { id: "search.com",         cluster: 0, importance: 0.98 },
+    { id: "social.net",         cluster: 0, importance: 0.93 },
+    { id: "video.world",        cluster: 0, importance: 0.90 },
+    { id: "cloud-services.io",  cluster: 0, importance: 0.85 },
+    { id: "ads-hub.org",        cluster: 0, importance: 0.80 },
+
+    // cluster 1 – "news / media"
+    { id: "globalnews.com",     cluster: 1, importance: 0.78 },
+    { id: "dailyreport.net",    cluster: 1, importance: 0.73 },
+    { id: "investigative.org",  cluster: 1, importance: 0.70 },
+    { id: "streamingnews.tv",   cluster: 1, importance: 0.69 },
+
+    // cluster 2 – "knowledge / wiki / education"
+    { id: "open-encyclopedia.org", cluster: 2, importance: 0.92 },
+    { id: "university.edu",     cluster: 2, importance: 0.75 },
+    { id: "online-courses.io",  cluster: 2, importance: 0.68 },
+    { id: "research-lab.net",   cluster: 2, importance: 0.67 },
+
+    // cluster 3 – "commerce / marketplaces"
+    { id: "megastore.com",      cluster: 3, importance: 0.88 },
+    { id: "shop-now.net",       cluster: 3, importance: 0.72 },
+    { id: "auctions.world",     cluster: 3, importance: 0.70 },
+    { id: "payments.io",        cluster: 3, importance: 0.86 },
+
+    // cluster 4 – "independent / blogs / niche"
+    { id: "tech-thoughts.blog", cluster: 4, importance: 0.55 },
+    { id: "indie-design.studio",cluster: 4, importance: 0.50 },
+    { id: "personal-notes.me",  cluster: 4, importance: 0.45 },
+    { id: "open-garden.space",  cluster: 4, importance: 0.48 },
+  ];
+
+  const FAKE_LINKS = [
+    // strong cross-cluster "hub" links
+    { source: "search.com",            target: "open-encyclopedia.org", weight: 0.9 },
+    { source: "search.com",            target: "globalnews.com",        weight: 0.85 },
+    { source: "search.com",            target: "megastore.com",         weight: 0.88 },
+    { source: "social.net",            target: "video.world",           weight: 0.8 },
+    { source: "social.net",            target: "personal-notes.me",     weight: 0.75 },
+    { source: "video.world",           target: "streamingnews.tv",      weight: 0.7 },
+    { source: "video.world",           target: "megastore.com",         weight: 0.65 },
+
+    // news cluster
+    { source: "globalnews.com",        target: "dailyreport.net",       weight: 0.7 },
+    { source: "dailyreport.net",       target: "investigative.org",     weight: 0.65 },
+    { source: "streamingnews.tv",      target: "globalnews.com",        weight: 0.6 },
+
+    // knowledge cluster
+    { source: "open-encyclopedia.org", target: "university.edu",        weight: 0.75 },
+    { source: "open-encyclopedia.org", target: "online-courses.io",     weight: 0.7 },
+    { source: "university.edu",        target: "research-lab.net",      weight: 0.65 },
+    { source: "research-lab.net",      target: "open-encyclopedia.org", weight: 0.6 },
+
+    // commerce cluster
+    { source: "megastore.com",         target: "shop-now.net",          weight: 0.7 },
+    { source: "megastore.com",         target: "payments.io",           weight: 0.75 },
+    { source: "shop-now.net",          target: "auctions.world",        weight: 0.6 },
+    { source: "payments.io",           target: "megastore.com",         weight: 0.7 },
+
+    // indie / blogs cluster
+    { source: "tech-thoughts.blog",    target: "open-encyclopedia.org", weight: 0.6 },
+    { source: "tech-thoughts.blog",    target: "indie-design.studio",   weight: 0.6 },
+    { source: "indie-design.studio",   target: "open-garden.space",     weight: 0.55 },
+    { source: "personal-notes.me",     target: "tech-thoughts.blog",    weight: 0.5 },
+    { source: "open-garden.space",     target: "personal-notes.me",     weight: 0.5 },
+
+    // cross-cluster lower-weight links
+    { source: "globalnews.com",        target: "open-encyclopedia.org", weight: 0.5 },
+    { source: "globalnews.com",        target: "search.com",            weight: 0.4 },
+    { source: "university.edu",        target: "megastore.com",         weight: 0.4 },
+    { source: "megastore.com",         target: "search.com",            weight: 0.45 },
+    { source: "online-courses.io",     target: "shop-now.net",          weight: 0.35 },
+    { source: "tech-thoughts.blog",    target: "video.world",           weight: 0.35 },
+  ];
+
+  // ------------------------------------------------------------
+  // PRECOMPUTE SIMPLE METRICS (DEGREE COUNTS)
+  // ------------------------------------------------------------
+  const nodeById = new Map(FAKE_NODES.map(n => [n.id, n]));
+  FAKE_NODES.forEach(n => {
+    n.inDegree = 0;
+    n.outDegree = 0;
+  });
+  FAKE_LINKS.forEach(l => {
+    const src = nodeById.get(l.source);
+    const tgt = nodeById.get(l.target);
+    if (src) src.outDegree ++;
+    if (tgt) tgt.inDegree ++;
+  });
+
+  // ------------------------------------------------------------
+  // GRAPH + FORCES
+  // ------------------------------------------------------------
+  const svg = d3.select("#graph-svg");
+  
+  function getDimension(dimension) {
+    const svgNode = svg.node();
+    if (!svgNode) {
+      return dimension === 'width' ? DEFAULT_SVG_WIDTH : DEFAULT_SVG_HEIGHT;
+    }
+    return dimension === 'width' 
+      ? (svgNode.clientWidth || window.innerWidth)
+      : (svgNode.clientHeight || window.innerHeight);
+  }
+  
+  function width() {
+    return getDimension('width');
+  }
+  
+  function height() {
+    return getDimension('height');
+  }
+
+  const gContainer = svg.append("g");
+  const linkLayer = gContainer.append("g").attr("class", "links");
+  const nodeLayer = gContainer.append("g").attr("class", "nodes");
+  const labelLayer = gContainer.append("g").attr("class", "labels");
+
+  const colorScale = d3.scaleOrdinal()
+    .domain([0, 1, 2, 3, 4])
+    .range(["#38bdf8", "#a855f7", "#f97316", "#22c55e", "#e5e7eb"]);
+
+  let currentMetricMode = "importance";
+  let selectedNode = null;
+
+  function getNodeRadius(node) {
+    if (currentMetricMode === "importance") {
+      const base = 8;
+      return base + 18 * node.importance;
+    }
+    if (currentMetricMode === "in_degree") {
+      const base = 6;
+      return base + 3 * node.inDegree;
+    }
+    if (currentMetricMode === "out_degree") {
+      const base = 6;
+      return base + 3 * node.outDegree;
+    }
+    return 8;
+  }
+
+  const linkSelection = linkLayer.selectAll("line")
+    .data(FAKE_LINKS)
+    .enter()
+    .append("line")
+    .attr("class", "link")
+    .style("stroke-width", d => 0.4 + d.weight * 0.9);
+
+  const nodeSelection = nodeLayer.selectAll("circle")
+    .data(FAKE_NODES)
+    .enter()
+    .append("circle")
+    .attr("class", "node-circle")
+    .attr("r", getNodeRadius)
+    .style("fill", d => colorScale(d.cluster))
+    .style("opacity", 0.9)
+    .on("click", (event, d) => {
+      event.stopPropagation();
+      selectNode(d);
+    });
+
+  const labelSelection = labelLayer.selectAll("text")
+    .data(FAKE_NODES)
+    .enter()
+    .append("text")
+    .attr("class", "node-label")
+    .text(d => d.id.split(".")[0]) // short label
+    .style("opacity", d => d.importance > 0.8 ? 1 : 0.0);
+
+  const simulation = d3.forceSimulation(FAKE_NODES)
+    .force("link", d3.forceLink(FAKE_LINKS).id(d => d.id).distance(d => 60 + (1 - d.weight) * 80).strength(0.3))
+    .force("charge", d3.forceManyBody().strength(-120))
+    .force("center", d3.forceCenter(0, 0))
+    .force("collision", d3.forceCollide().radius(d => getNodeRadius(d) + 3))
+    .on("tick", ticked);
+
+  function ticked() {
+    linkSelection
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    nodeSelection
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    labelSelection
+      .attr("x", d => d.x)
+      .attr("y", d => d.y - getNodeRadius(d) - 2);
+  }
+
+  const zoomBehavior = d3.zoom()
+    .scaleExtent([0.3, 6])
+    .on("zoom", (event) => {
+      gContainer.attr("transform", event.transform);
+      const k = event.transform.k;
+      d3.select("#zoom-level-label").text(k.toFixed(2) + "×");
+
+      labelSelection.style("opacity", d => {
+        const base = d.importance > 0.85 ? 1 : d.importance > 0.7 ? 0.7 : 0.0;
+        if (k > 2.5) return base;
+        if (k > 1.4) return base * 0.6;
+        return 0.0;
+      });
+    });
+
+  svg.call(zoomBehavior);
+  svg.on("click", () => {
+    selectNode(null);
+  });
+
+  function resetView() {
+    const w = width();
+    const h = height();
+    const initialTransform = d3.zoomIdentity
+      .translate(w / 2, h / 2)
+      .scale(1.1);
+    svg.call(zoomBehavior.transform, initialTransform);
+  }
+
+  function handleViewportChange() {
+    resetView();
+    simulation.force("center", d3.forceCenter(0, 0)).alpha(0.3).restart();
+  }
+
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(handleViewportChange, RESIZE_DEBOUNCE_MS);
+  });
+
+  // Handle orientation changes on mobile
+  window.addEventListener("orientationchange", () => {
+    setTimeout(handleViewportChange, ORIENTATION_CHANGE_DELAY_MS);
+  });
+
+  resetView();
+
+  // ------------------------------------------------------------
+  // SIDEBAR INTERACTION + NODE DETAILS
+  // ------------------------------------------------------------
+  const modeButtons = document.querySelectorAll(".mode-chip");
+  const metricModeLabel = document.getElementById("metric-mode-label");
+  const metricSizeLabel = document.getElementById("metric-size-label");
+  const metricBarFill = document.getElementById("metric-bar-fill");
+  const selectedNodeStatus = document.getElementById("selected-node-status");
+  const nodeDomainDisplay = document.getElementById("node-domain-display");
+  const nodeMetrics = document.getElementById("node-metrics");
+  const nodeClusterDisplay = document.getElementById("node-cluster-display");
+  const nodeImportanceDisplay = document.getElementById("node-importance-display");
+  const nodeInDisplay = document.getElementById("node-in-display");
+  const nodeOutDisplay = document.getElementById("node-out-display");
+  const nodeLinksList = document.getElementById("node-links-list");
+  const nodeLinksContent = document.getElementById("node-links-content");
+
+  modeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      modeButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const mode = btn.getAttribute("data-mode");
+      setMetricMode(mode);
+    });
+  });
+
+  function setMetricMode(mode) {
+    currentMetricMode = mode;
+    if (mode === "importance") {
+      metricModeLabel.textContent = "PageRank-ish";
+      metricSizeLabel.textContent = "Importance score";
+      metricBarFill.style.width = "76%";
+    } else if (mode === "in_degree") {
+      metricModeLabel.textContent = "In‑degree";
+      metricSizeLabel.textContent = "Distinct inbound links";
+      metricBarFill.style.width = "62%";
+    } else if (mode === "out_degree") {
+      metricModeLabel.textContent = "Out‑degree";
+      metricSizeLabel.textContent = "Distinct outbound links";
+      metricBarFill.style.width = "58%";
+    }
+
+    nodeSelection
+      .transition()
+      .duration(250)
+      .attr("r", getNodeRadius)
+      .style("opacity", 0.9);
+
+    labelSelection
+      .transition()
+      .duration(250)
+      .attr("y", d => d.y - getNodeRadius(d) - 2);
+
+    simulation
+      .force("collision", d3.forceCollide().radius(d => getNodeRadius(d) + 3))
+      .alpha(0.6)
+      .restart();
+  }
+
+  function selectNode(node) {
+    selectedNode = node;
+
+    nodeSelection.classed("main-selected", d => node && d.id === node.id);
+    labelSelection.classed("main-selected", d => node && d.id === node.id);
+
+    if (node) {
+      selectedNodeStatus.textContent = "Focused";
+      selectedNodeStatus.style.color = "var(--accent)";
+      nodeDomainDisplay.textContent = node.id;
+      nodeMetrics.style.display = "flex";
+      nodeClusterDisplay.textContent = `Cluster ${node.cluster}`;
+      nodeImportanceDisplay.textContent = node.importance.toFixed(2);
+      nodeInDisplay.textContent = node.inDegree;
+      nodeOutDisplay.textContent = node.outDegree;
+
+      const neighbors = FAKE_LINKS
+        .filter(l => l.source === node.id)
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 6);
+
+      if (neighbors.length === 0) {
+        nodeLinksList.style.display = "block";
+        nodeLinksContent.innerHTML = `<div class="node-links-empty">
+          No strong outbound links in this snapshot.
+        </div>`;
+      } else {
+        nodeLinksList.style.display = "block";
+        nodeLinksContent.innerHTML = "";
+        neighbors.forEach(l => {
+          const targetNode = nodeById.get(l.target);
+          const item = document.createElement("div");
+          item.className = "node-link-item";
+          item.innerHTML = `
+            <span class="node-link-domain">${l.target}</span>
+            <span class="node-link-weight">${l.weight.toFixed(2)}</span>
+          `;
+          nodeLinksContent.appendChild(item);
+        });
+      }
+
+      const neighborIds = new Set(neighbors.map(l => l.target).concat(
+        FAKE_LINKS.filter(l => l.target === node.id).map(l => l.source)
+      ));
+
+      nodeSelection.classed("dimmed", d => !(d.id === node.id || neighborIds.has(d.id)));
+      labelSelection.classed("dimmed", d => !(d.id === node.id || neighborIds.has(d.id)));
+
+      linkSelection
+        .style("stroke", d => (d.source.id === node.id || d.target.id === node.id)
+          ? "rgba(79, 209, 197, 0.85)"
+          : "rgba(148, 163, 184, 0.12)")
+        .style("stroke-width", d => (d.source.id === node.id || d.target.id === node.id)
+          ? 1.2
+          : 0.4);
+
+    } else {
+      selectedNodeStatus.textContent = "None";
+      selectedNodeStatus.style.color = "var(--text-muted)";
+      nodeDomainDisplay.textContent = "Click a bubble to inspect a domain.";
+      nodeMetrics.style.display = "none";
+      nodeLinksList.style.display = "none";
+
+      nodeSelection.classed("dimmed", false).classed("main-selected", false);
+      labelSelection.classed("dimmed", false).classed("main-selected", false);
+
+      linkSelection
+        .style("stroke", "rgba(148, 163, 184, 0.25)")
+        .style("stroke-width", d => 0.4 + d.weight * 0.9);
+    }
+  }
+
+  setMetricMode("importance");
+</script>
+
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

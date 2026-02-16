@@ -1,0 +1,392 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: BudgetBoss.html
+Declaration ID: IP-193D5859-MLL28ZWT
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="utf-8">
+  <title>Budget Boss – Gamified Envelope Challenge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A monthly envelope that turns budgeting into a fun game. Trackers, challenge cards, rewards, and a leaderboard.">
+  <link rel="canonical" href="https://yourdomain.com/budget-boss">
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#0f172a; background:#f7fafc; }
+    header { background:#0b1020; color:#fff; padding:32px 16px; }
+    .wrap { max-width:960px; margin:0 auto; padding:20px; }
+    h1,h2,h3 { margin:0 0 12px; }
+    .hero { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .hero { grid-template-columns: 1.2fr 0.8fr; } }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; }
+    .cta { display:inline-block; background:#22c55e; color:#fff; padding:12px 16px; border-radius:10px; text-decoration:none; font-weight:700; }
+    .cta:hover { background:#16a34a; }
+    .muted { color:#475569; }
+    .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+    ul.check { list-style:none; padding:0; }
+    ul.check li { margin:6px 0; }
+    ul.check li::before { content:"✔ "; color:#16a34a; margin-right:6px; }
+    footer { font-size:14px; color:#475569; padding:24px; }
+    .form-row { display:flex; gap:8px; margin:8px 0; }
+    input, select { padding:12px; border:1px solid #cbd5e1; border-radius:8px; flex:1; }
+    button { padding:12px 16px; border-radius:8px; border:0; font-weight:700; background:#0ea5e9; color:#fff; cursor:pointer; }
+    button:hover { background:#0284c7; }
+    .notice { background:#fff7ed; border:1px solid #fde68a; border-radius:8px; padding:12px; }
+    .leader { background:#111827; color:#fff; border-radius:12px; padding:16px; }
+    .leader table { width:100%; border-collapse:collapse; }
+    .leader th, .leader td { padding:8px; border-bottom:1px solid #1f2937; text-align:left; font-size:14px; }
+    .printable { white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:16px; }
+    .small { font-size:12px; }
+  </style>
+  <script>
+    // Lightweight state (replace backend endpoints for production)
+    const state = {
+      users: {}, // id -> {name,email,goal,plan,ref,points}
+      leaderboard: [], // [{name, points}]
+    };
+
+    function randId() { return 'BB-' + Math.random().toString(36).slice(2, 8).toUpperCase(); }
+
+    function track(event, data) {
+      console.log('[track]', event, data);
+      // Replace with backend analytics: fetch('/track', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event, data})});
+    }
+
+    function createUser(payload) {
+      const id = randId();
+      const user = { id, ...payload, points: 0 };
+      state.users[id] = user;
+      state.leaderboard.push({ name: user.name || 'Anonymous', points: 0, id });
+      track('user_created', { id, plan: user.plan, goal: user.goal, ref: user.ref || null });
+      return user;
+    }
+
+    function genInstructions(user) {
+      const today = new Date();
+      const month = today.toLocaleString('en-US', { month: 'long' });
+      const due = new Date(today.getTime() + 1000*60*60*24*30).toLocaleDateString('en-US');
+      const link = location.origin + location.pathname + '#/verify/' + user.id;
+      const qr = 'Scan: ' + link;
+
+      const planCopy = {
+        starter: 'Starter Plan: 4-week habit builder. Save small, daily amounts and track cash envelopes.',
+        pro: 'Pro Plan: 4-week challenge with weekly sinking funds and one no-spend weekend.',
+        elite: 'Elite Plan: 8-week mastery with category caps, debt snowball, and savings accelerator.'
+      }[user.plan] || 'Starter Plan';
+
+      const lines = [
+        'Budget Boss – Personal Instructions',
+        '----------------------------------',
+        'Participant: ' + user.name,
+        'Email: ' + user.email,
+        'Member ID: ' + user.id,
+        '',
+        'Your Monthly Goal: $' + user.goal,
+        planCopy,
+        '',
+        'Envelope Kit Contents:',
+        '- Category card set (Groceries, Transport, Fun, Emergency)',
+        '- Weekly tracker sheets (Week 1–4)',
+        '- Challenge cards (No-spend, Swap, Stretch)',
+        '- Reward sticker sheet',
+        '',
+        'How to play (this month):',
+        '1) Allocate: Split your cash envelopes to match your target categories.',
+        '2) Track: Mark spending on the weekly sheets; apply stickers when you hit milestones.',
+        '3) Challenge: Complete at least 2 challenge cards before ' + due + '.',
+        '4) Verify: Upload a photo of your completed tracker via the QR/link for points.',
+        '',
+        'Points & rewards:',
+        '- +50 points: Hit your total monthly goal: $' + user.goal,
+        '- +25 points: Complete 2 challenge cards',
+        '- +10 points: No-spend weekend',
+        '- +5 points: Share your tip (anonymous) via portal',
+        '',
+        'Referral:',
+        'Share your invite: ' + (user.ref ? user.ref : 'Create after checkout'),
+        'Each active referral (first month completed) unlocks a bonus insert in your next envelope.',
+        '',
+        'Verification QR/Link:',
+        qr,
+        '',
+        'Disclosure: This is a budgeting game. No user-to-user money transfers occur.',
+        'Visit the portal for lessons, verification, and leaderboard.'
+      ];
+      return lines.join('\n');
+    }
+
+    function renderPrintable(user) {
+      const box = document.getElementById('printable');
+      box.textContent = genInstructions(user);
+      document.getElementById('printable-wrap').style.display = 'block';
+      track('instructions_generated', { id: user.id });
+    }
+
+    function updateLeaderboard() {
+      const tbody = document.getElementById('lb-body');
+      tbody.innerHTML = '';
+      // Sort by points desc
+      const sorted = state.leaderboard.slice().sort((a,b)=>b.points - a.points).slice(0,10);
+      sorted.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>#${idx+1}</td><td>${row.name}</td><td>${row.points}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateLeaderboard();
+
+      // Order form handler
+      const form = document.getElementById('order-form');
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const payload = {
+          name: fd.get('name'),
+          email: fd.get('email'),
+          goal: parseFloat(fd.get('goal')),
+          plan: fd.get('plan'),
+          ref: fd.get('ref') || ''
+        };
+        const user = createUser(payload);
+        // Simulate checkout complete
+        track('checkout', { id: user.id, amount: payload.plan === 'elite' ? 39 : payload.plan === 'pro' ? 29 : 19 });
+        // Generate referral link
+        user.ref = location.origin + location.pathname + '?ref=' + user.id;
+        state.users[user.id] = user;
+        document.getElementById('ref-link').textContent = user.ref;
+        document.getElementById('ref-wrap').style.display = 'block';
+        renderPrintable(user);
+        alert('Welcome to Budget Boss! Your Member ID: ' + user.id);
+      });
+
+      // Claim points (demo only)
+      document.getElementById('claim-points').addEventListener('click', () => {
+        const id = prompt('Enter your Member ID to claim points:');
+        if (!id || !state.users[id]) return alert('Not found');
+        const user = state.users[id];
+        const pts = 25;
+        user.points += pts;
+        const lbRow = state.leaderboard.find(r=>r.id===id);
+        if (lbRow) lbRow.points = user.points;
+        updateLeaderboard();
+        track('points_claimed', { id, pts });
+        alert('Claimed ' + pts + ' points!');
+      });
+    });
+  </script>
+    <!-- Automated SQL Handling -->
+    <script src="js/sql-handler.js"></script>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Budget Boss</h1>
+      <p class="muted">A monthly envelope challenge that turns saving into a game.</p>
+    </div>
+  </header>
+
+  <main class="wrap hero">
+    <section class="card">
+      <h2>Become the boss of your budget</h2>
+      <p>Each month, get a themed envelope with trackers, challenge cards, and rewards. Scan the QR to join the leaderboard, earn points, and unlock bonus inserts with referrals—no money sent between users, ever.</p>
+      <ul class="check">
+        <li><strong>Trackers:</strong> Weekly sheets keep you honest and motivated.</li>
+        <li><strong>Challenges:</strong> Fun, ethical tasks (no-spend weekend, category swap).</li>
+        <li><strong>Rewards:</strong> Points, badges, and bonus inserts with referrals.</li>
+        <li><strong>Automation:</strong> Personalized instructions generated at checkout.</li>
+      </ul>
+      <a class="cta" href="#join">Join now</a>
+    </section>
+
+    <aside class="card leader">
+      <h3>Leaderboard</h3>
+      <table>
+        <thead><tr><th>Rank</th><th>Name</th><th>Points</th></tr></thead>
+        <tbody id="lb-body">
+          <!-- populated by JS -->
+        </tbody>
+      </table>
+      <div class="small muted" style="margin-top:8px;">Verify progress via your envelope QR to earn points.</div>
+      <div style="margin-top:12px;"><button id="claim-points">Claim demo points</button></div>
+    </aside>
+  </main>
+
+  <section id="join" class="wrap grid">
+    <div class="card">
+      <h2>Subscribe and personalize</h2>
+      <form id="order-form">
+        <div class="form-row">
+          <input type="text" name="name" placeholder="Full name" required>
+          <input type="email" name="email" placeholder="you@example.com" required>
+        </div>
+        <div class="form-row">
+          <select name="plan" required>
+            <option value="starter">Starter – $19/mo</option>
+            <option value="pro">Pro – $29/mo</option>
+            <option value="elite">Elite – $39/mo</option>
+          </select>
+          <input type="number" name="goal" min="50" step="10" placeholder="Monthly savings goal (e.g., 200)" required>
+        </div>
+        <div class="form-row">
+          <input type="text" name="ref" placeholder="Referral code (optional)">
+        </div>
+        <button type="submit">Start my challenge</button>
+      </form>
+      <p class="small muted">We’ll generate your personalized instructions immediately and ship your first envelope within 3–5 business days.</p>
+      <div id="ref-wrap" class="notice" style="display:none; margin-top:12px;">
+        <strong>Your invite link:</strong> <span id="ref-link"></span><br>
+        Share it. Each active referral unlocks a bonus insert in your next envelope.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>What’s inside the envelope?</h2>
+      <ul class="check">
+        <li><strong>Category cards:</strong> Groceries, Transport, Fun, Emergency.</li>
+        <li><strong>Weekly trackers:</strong> Weeks 1–4 with progress bars.</li>
+        <li><strong>Challenge cards:</strong> No-spend weekend, Swap & Stretch.</li>
+        <li><strong>Rewards:</strong> Sticker sheet and monthly badge.</li>
+        <li><strong>QR to portal:</strong> Verify, earn points, join the leaderboard.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="wrap card" id="printable-wrap" style="display:none;">
+    <h2>Your printable instructions</h2>
+    <p class="muted">Print and place inside your envelope. This is your personalized playbook for the month.</p>
+    <div id="printable" class="printable"></div>
+  </section>
+
+  <section class="wrap card">
+    <h2>How rewards work</h2>
+    <ul class="check">
+      <li><strong>Points:</strong> Earn for verified goals and challenges.</li>
+      <li><strong>Badges:</strong> Monthly achievements (Bronze/Silver/Gold).</li>
+      <li><strong>Referrals:</strong> Invite friends. When they complete their first month, you get a bonus insert—no cash transfers.</li>
+    </ul>
+    <p class="small muted">This program is a game for financial habits. It does not facilitate user-to-user money transfers.</p>
+  </section>
+
+  <footer class="wrap">
+    <p>© 2025 Budget Boss. Ethical, fun, and effective. <a href="/privacy">Privacy</a> • <a href="/disclosure">Disclosure</a></p>
+  </footer>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

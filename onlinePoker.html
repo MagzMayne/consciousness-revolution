@@ -1,0 +1,763 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: onlinePoker.html
+Declaration ID: IP-44397F33-MLL2901E
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>TRON POKER — Live Table (Auto-actions & Inline Log)</title>
+<meta name="theme-color" content="#07101a"/>
+<style>
+:root{
+  --bg:#07101a; --panel:#0e1622; --accent:#00e5ff; --accent2:#7cffd4;
+  --text:#e6f7ff; --muted:#89a1b0; --success:#54ffbd; --danger:#ff4d6d;
+  --best:#8a2be2; /* purple for recommended action */
+}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:radial-gradient(900px at 50% 10%,#071426 0%,var(--bg) 70%);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text)}
+.app{max-width:1150px;margin:18px auto;padding:14px}
+.header{display:flex;justify-content:space-between;align-items:center}
+.logo{font-weight:900;color:var(--accent);letter-spacing:1px;text-shadow:0 0 22px rgba(0,229,255,0.12)}
+.panel{background:linear-gradient(180deg,rgba(12,18,28,0.95),rgba(6,10,14,0.95));border:1px solid rgba(0,229,255,0.06);border-radius:12px;padding:12px;margin-top:12px}
+.row{display:flex;gap:10px;align-items:center}
+.row.space{justify-content:space-between}
+.label{color:var(--muted);font-size:13px}
+.value{font-weight:700}
+.kbd{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.06);padding:6px 8px;border-radius:8px;font-family:ui-monospace}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;padding:10px 14px;border-radius:10px;font-weight:800;color:#04222a;cursor:pointer;box-shadow:0 6px 22px rgba(0,229,255,0.06)}
+.btn-outline{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px 12px;border-radius:8px;color:var(--accent);cursor:pointer}
+.btn-best{background:linear-gradient(90deg,var(--best),#b07cff);border:none;padding:10px 14px;border-radius:10px;font-weight:800;color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(138,43,226,0.18)}
+.three-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(124,255,212,0.05)}
+#threeCanvas{width:100%;height:420px;display:block;background:radial-gradient(900px at 50% 40%, rgba(0,229,255,0.02), rgba(0,0,0,0) 70%)}
+.cardsHud{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap}
+.cardHud{background:linear-gradient(180deg, rgba(0,0,0,0.48), rgba(0,0,0,0.28));padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);font-weight:800}
+.seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.seat{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;border:1px solid rgba(0,229,255,0.04);text-align:center;transition:box-shadow .18s,border-color .18s}
+.seat .name{font-weight:800}
+.seat.win{border-color:rgba(84,255,189,0.9);box-shadow:0 0 18px rgba(84,255,189,0.08)}
+.seat.lose{border-color:rgba(255,77,109,0.9);box-shadow:0 0 18px rgba(255,77,109,0.06)}
+.inlineLog{background:rgba(2,8,14,0.6);border:1px solid rgba(0,229,255,0.04);padding:8px;border-radius:10px;color:#9df;font-family:ui-monospace;max-height:140px;overflow:auto}
+.small{font-size:13px;color:var(--muted)}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:60}
+.modal .box{background:#07121a;padding:16px;border-radius:10px;border:1px solid rgba(0,229,255,0.06);min-width:260px;text-align:center}
+.input{background:transparent;border:1px solid rgba(0,229,255,0.06);padding:8px;border-radius:8px;color:var(--text)}
+.footer{color:var(--muted);font-size:13px;text-align:center;margin-top:12px}
+.bestHint{font-size:12px;color:var(--best);font-weight:700;margin-left:8px}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo">TRON POKER</div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="small">Trust Pool: <span id="globalPool" class="kbd">$0</span></div>
+      <div class="small">Table: <span id="tableTitle" class="kbd">—</span></div>
+    </div>
+  </div>
+
+  <div class="panel three-wrap">
+    <canvas id="threeCanvas"></canvas>
+    <div class="cardsHud" id="cardsHud"></div>
+    <!-- inline live log placed over the table for immediate updates -->
+    <div style="position:absolute;right:12px;top:12px;width:360px" >
+      <div class="inlineLog" id="inlineLog"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row space">
+      <div>
+        <div class="label">Controls</div>
+        <div class="small">Select a table and Start. Auto-action preferences and live log inline.</div>
+      </div>
+      <div class="row" style="gap:10px">
+        <div class="label">Status</div>
+        <div id="statusPill" class="kbd">Idle</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px" class="row">
+      <select id="variant" class="input"><option>Texas Hold'em</option></select>
+      <select id="tableSelect" class="input"><option value="6">6-seat (fast)</option><option value="9">9-seat (full)</option></select>
+
+      <button id="startGame" class="btn">Start game</button>
+      <button id="joinMatch" class="btn-outline">Join</button>
+
+      <label style="margin-left:8px" class="small">Auto-action</label>
+      <select id="autoAction" class="input" style="width:160px">
+        <option value="off">Off</option>
+        <option value="autocheck">Auto-check/fold</option>
+        <option value="autobet">Auto-bet for strong hands</option>
+      </select>
+
+      <label class="small">Auto-threshold</label>
+      <input id="autoThreshold" type="number" class="input" style="width:80px" value="380" title="Higher = stricter"/>
+    </div>
+
+    <div style="margin-top:12px" class="row" id="actionRow">
+      <button id="checkBtn" class="btn-outline">Check</button>
+      <button id="callBtn" class="btn-outline">Call</button>
+      <input id="betSize" class="input" type="number" placeholder="10" style="width:90px" />
+      <button id="betBtn" class="btn" >Bet</button>
+      <button id="foldBtn" class="btn-outline">Fold</button>
+      <button id="showdownBtn" class="btn-outline">Showdown</button>
+      <div style="margin-left:12px"><span class="label">Timer</span> <span id="handTimer" class="kbd">--</span></div>
+      <div class="bestHint" id="bestHint">Best action: —</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row space">
+      <div><div class="label">Seats & balances</div></div>
+      <div><div class="label">Pot</div><div id="pot" class="value">$0</div></div>
+    </div>
+    <div class="seatsGrid" id="seatsGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="label">Ticket / payout validation</div>
+    <div class="row" style="margin-top:8px">
+      <input id="paypalEmail" class="input" placeholder="paypal@example.com" style="width:260px" />
+      <input id="venmoHandle" class="input" placeholder="@venmo" style="width:140px" />
+      <button id="genTicket" class="btn-outline">Generate</button>
+      <button id="saveTicket" class="btn-outline">Save</button>
+      <button id="markPaid" class="btn-outline">Mark paid</button>
+    </div>
+    <div style="margin-top:8px" class="small">If you mark paid while playing bots, you are protected — you will not lose funds; donations go to trust pool for future payouts.</div>
+    <pre id="ticketView" class="kbd" style="margin-top:8px">—</pre>
+  </div>
+
+  <div class="panel">
+    <div class="label">Full Log (historical)</div>
+    <pre id="log" class="logArea"></pre>
+  </div>
+
+  <div class="footer">Inline live log + auto-actions make play visible and fast. Purple button highlights recommended action for player's current hand.</div>
+</div>
+
+<div class="modal" id="turnModal"><div class="box"><div class="value">Your turn</div><div class="small" style="margin-top:8px">Choose Check, Call, Bet, or Fold</div><div style="margin-top:12px"><button id="turnOk" class="btn-outline">OK</button></div></div></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+/* Updated TRON POKER single-file:
+   - Inline (table overlay) live log (id=inlineLog)
+   - Player timer cannot go negative; stops at zero and triggers auto-action if selected
+   - Auto-action modes: off, autocheck (auto-check/fold), autobet (auto-bet for strong hands)
+   - Best action detection: compute simple hand score and highlight best action by coloring the matching button purple (btn-best)
+   - Only player's hole cards are drawn in 3D; community shown centered
+   - Showdown and chip distribution preserved
+*/
+
+(function(){
+  // --- state
+  const state = {
+    inGame: false,
+    tableId: null,
+    seats: [], // {n,userLabel,isHuman,stack,folded,paid,ticketUsed,win,lose}
+    deck: [],
+    community: [],
+    myHole: [],
+    pot: 0,
+    globalPool: 0,
+    ticket: null,
+    three: { renderer:null, scene:null, camera:null, cardMeshes:[], chipMeshes:[] },
+    handClock: null,
+    handLeft: 0,
+    autoActionMode: 'off', // off | autocheck | autobet
+    autoThreshold: 380 // numeric threshold for our simplified scoring
+  };
+
+  // DOM helpers
+  const $ = id => document.getElementById(id);
+  const nowStamp = ()=> new Date().toLocaleTimeString();
+  const appendLog = msg => {
+    const line = `[${nowStamp()}] ${msg}\n`;
+    const full = $('log');
+    const inline = $('inlineLog');
+    full.textContent += line;
+    inline.textContent = line + inline.textContent; // newest on top
+    full.scrollTop = full.scrollHeight;
+  };
+
+  // small hand scoring used across auto-behavior
+  function parseRank(c){ const r=c.slice(0,-1); return ({'A':14,'K':13,'Q':12,'J':11}[r] || parseInt(r,10)); }
+  function scoreSimplified(cards){
+    // deterministic simplified score: counts + high card
+    const vals = cards.map(parseRank).sort((a,b)=>b-a);
+    const counts = {}; vals.forEach(v=>counts[v]=(counts[v]||0)+1);
+    const quads = Object.values(counts).some(x=>x===4);
+    const trips = Object.values(counts).some(x=>x===3);
+    const pairs = Object.values(counts).filter(x=>x===2).length;
+    const high = vals[0] || 0;
+    let base = 0;
+    if (quads) base = 700;
+    else if (trips && pairs>=1) base = 600;
+    else if (trips) base = 500;
+    else if (pairs>=2) base = 400;
+    else if (pairs===1) base = 300;
+    else base = 100;
+    return base + high;
+  }
+
+  // --- deck helpers
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  const canonicalDeck = ()=> suits.flatMap(s=>ranks.map(r=>`${r}${s}`));
+  function cryptoShuffle(arr){
+    for (let i=arr.length-1;i>0;i--){
+      const rnd = crypto.getRandomValues(new Uint32Array(1))[0] / 0xffffffff;
+      const j = Math.floor(rnd*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  // --- three.js visuals
+  function initThree(){
+    const canvas = $('threeCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.6));
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x07101a);
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+    camera.position.set(0,6,9); camera.lookAt(0,0,0);
+    const amb = new THREE.AmbientLight(0x88ffff,0.6); scene.add(amb);
+    const spot = new THREE.SpotLight(0x00e5ff,1,50,Math.PI/4,0.5); spot.position.set(8,10,8); scene.add(spot);
+    const tableGeo = new THREE.CylinderGeometry(6,6,0.4,64);
+    const tableMat = new THREE.MeshStandardMaterial({ color:0x0f2233, emissive:0x002233, roughness:0.6, metalness:0.1 });
+    const table = new THREE.Mesh(tableGeo, tableMat); table.position.y=-0.22; scene.add(table);
+    const ringGeo = new THREE.RingGeometry(6.2,6.5,64);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color:0x00e5ff, side:THREE.DoubleSide })); ring.rotation.x=-Math.PI/2; ring.position.y=0.01; scene.add(ring);
+
+    state.three.renderer = renderer; state.three.scene = scene; state.three.camera = camera;
+    (function loop(){ table.rotation.y += 0.0009; renderer.render(scene,camera); requestAnimationFrame(loop); })();
+  }
+
+  function clearCardMeshes(){
+    state.three.cardMeshes.forEach(m=>state.three.scene.remove(m));
+    state.three.cardMeshes.length = 0;
+  }
+  function clearChipMeshes(){
+    state.three.chipMeshes.forEach(m=>state.three.scene.remove(m));
+    state.three.chipMeshes.length = 0;
+  }
+
+  function spawnCardPlane(text,x,z,tilt=0,delay=0){
+    const geo = new THREE.PlaneGeometry(0.64,0.95);
+    const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=384;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#07111a'; ctx.fillRect(0,0,256,384);
+    ctx.strokeStyle = '#00e5ff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,364);
+    ctx.fillStyle = (text.includes('♥')||text.includes('♦')) ? '#ff6b6b' : '#ffffff';
+    ctx.font = 'bold 60px system-ui, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(text,128,192);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map:tex, side:THREE.DoubleSide, emissive:0x001122, emissiveIntensity:0.25 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0,-1,-6); mesh.rotation.x = -Math.PI/2; mesh.rotation.z = tilt; mesh.scale.set(0.01,0.01,0.01);
+    state.three.scene.add(mesh);
+    state.three.cardMeshes.push(mesh);
+    const start = { x:0, z:-6, s:0.01 };
+    const target = { x, z, s:1 };
+    const t0 = performance.now() + delay*100;
+    function anim(now){
+      const t = Math.min(1, (now - t0)/450);
+      mesh.position.x = start.x + (target.x - start.x)*t;
+      mesh.position.z = start.z + (target.z - start.z)*t;
+      const s = start.s + (target.s - start.s)*t;
+      mesh.scale.set(s,s,s);
+      if (t < 1) requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+  }
+
+  function layout3DCards(){
+    clearCardMeshes();
+    // community centered
+    const community = state.community || [];
+    const spacing = 1.28;
+    const startX = -((community.length - 1) * spacing) / 2;
+    community.forEach((c,i)=> spawnCardPlane(c, startX + i*spacing, 0, 0, i));
+    // player's hole only
+    const hole = state.myHole || [];
+    const holeSpacing = 1.1;
+    const startHX = -((hole.length - 1) * holeSpacing) / 2;
+    hole.forEach((c,i)=> spawnCardPlane(c, startHX + i*holeSpacing, 3.2, (i===0?-0.28:0.28), i));
+  }
+
+  function addChipsToPot(amount){
+    const colorMap = {25:0x54ffbd,10:0x00a2ff,5:0xff4d6d};
+    let remaining = amount;
+    let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28,0.28,0.08,24);
+      const mat = new THREE.MeshStandardMaterial({ color: colorMap[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.three.scene.add(chip);
+      state.three.chipMeshes.push(chip);
+      y += 0.12;
+      remaining -= denom;
+    }
+  }
+  function clearPotVisual(){ clearChipMeshes(); }
+
+  // --- UI & seats
+  function renderSeats(){
+    const grid = $('seatsGrid'); grid.innerHTML = '';
+    state.seats.forEach(s=>{
+      const d = document.createElement('div'); d.className='seat';
+      if (s.win) d.classList.add('win'); if (s.lose) d.classList.add('lose');
+      const paid = s.paid ? '✓' : '•';
+      d.innerHTML = `<div class="name">${s.userLabel}</div><div class="small">Chips: <strong>${s.stack}</strong></div><div class="small">Paid: ${paid} ${s.ticketUsed? '(used)':''}</div>`;
+      grid.appendChild(d);
+    });
+  }
+
+  // --- game state & logic
+  function resetSeats(count){
+    state.tableId = 'T-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    state.seats = [];
+    state.seats.push({ n:1, userLabel:'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    for (let i=2;i<=count;i++){
+      state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    }
+    renderSeats();
+    $('tableTitle').textContent = `${state.tableId} • ${count}-seat`;
+  }
+
+  function dealHand(){
+    state.deck = canonicalDeck();
+    cryptoShuffle(state.deck);
+    state.community = state.deck.slice(0,5);
+    state.myHole = state.deck.slice(5,7);
+    state.pot = 0;
+    $('pot').textContent = `$0`;
+    clearPotVisual();
+    layout3DCards();
+    state.seats.forEach(s => { s.folded=false; s.win=false; s.lose=false; });
+    renderSeats();
+    appendLog('Dealt new hand.');
+    // setup clock (non-negative)
+    startHandClock();
+    // evaluate best action and highlight
+    evaluateAndRecommend();
+    setTimeout(()=> showTurnModal(), 450);
+  }
+
+  // --- timer and non-negative enforcement + auto-action trigger
+  function startHandClock(){
+    stopHandClock();
+    const secs = 25;
+    state.handLeft = secs;
+    updateTimerUI();
+    state.handClock = setInterval(()=>{
+      state.handLeft = Math.max(0, state.handLeft - 1);
+      updateTimerUI();
+      if (state.handLeft <= 0){
+        appendLog('Timer expired — executing auto behavior.');
+        stopHandClock();
+        triggerAutoOnTimeout();
+      }
+    }, 1000);
+  }
+  function stopHandClock(){ if (state.handClock){ clearInterval(state.handClock); state.handClock = null; } }
+  function updateTimerUI(){ $('handTimer').textContent = `${state.handLeft}s`; }
+
+  function triggerAutoOnTimeout(){
+    const mode = $('autoAction').value;
+    const best = computeHandRecommendation();
+    // auto-check/fold: if best is fold, then fold; else check
+    if (mode === 'autocheck'){
+      if (best.action === 'fold'){ playerFold(); appendLog('Auto-fold executed.'); }
+      else { playerCheck(); appendLog('Auto-check executed.'); }
+    } else if (mode === 'autobet'){
+      if (best.score >= state.autoThreshold){ // threshold from UI
+        const amt = Math.min( Math.max(10, parseInt($('betSize').value||'10',10)), mySeat().stack );
+        playerBet(amt);
+        appendLog('Auto-bet executed on timeout (strong hand).');
+      } else {
+        // fallback behaviour – check if possible else fold
+        if (!mySeat().folded) { playerCheck(); appendLog('Auto-check fallback executed.'); }
+      }
+    } else {
+      // off: default to check if possible, otherwise fold
+      if (!mySeat().folded) { playerCheck(); appendLog('Auto-check (default) executed.'); }
+    }
+    evaluateAndRecommend();
+  }
+
+  // --- compute recommendation (best action) and highlight
+  function computeHandRecommendation(){
+    const board = state.community || [];
+    const hole = state.myHole || [];
+    const all = hole.concat(board);
+    const score = scoreSimplified(all);
+    // heuristics:
+    // - if score >= autoThreshold: bet
+    // - if score between 300-379: call/check
+    // - if score < 300: fold/check (prefer fold if betting required)
+    const threshold = parseInt($('autoThreshold').value||state.autoThreshold, 10);
+    let action = 'check';
+    if (score >= threshold) action = 'bet';
+    else if (score >= 300) action = 'call';
+    else action = 'fold';
+    return { action, score };
+  }
+
+  function evaluateAndRecommend(){
+    const rec = computeHandRecommendation();
+    const hint = rec.action.charAt(0).toUpperCase() + rec.action.slice(1) + ` (score ${rec.score})`;
+    $('bestHint').textContent = `Best action: ${hint}`;
+    // color the buttons accordingly: clear classes, then set .btn-best on recommended
+    ['checkBtn','callBtn','betBtn','foldBtn'].forEach(id => {
+      const b = $(id);
+      b.classList.remove('btn-best');
+      // restore original styles if removed
+      if (id === 'betBtn') { b.classList.remove('btn-outline'); b.classList.add('btn'); }
+      else { b.classList.remove('btn'); b.classList.add('btn-outline'); }
+    });
+    // apply purple best button
+    const map = { check:'checkBtn', call:'callBtn', bet:'betBtn', fold:'foldBtn' };
+    const bestId = map[rec.action];
+    if (bestId){
+      const btn = $(bestId);
+      btn.classList.add('btn-best');
+      // ensure other styles removed
+      btn.classList.remove('btn'); btn.classList.remove('btn-outline');
+    }
+  }
+
+  // --- actions to wire to UI
+  function mySeat(){ return state.seats[0]; }
+
+  function playerBet(amount){
+    const seat = mySeat();
+    if (seat.stack < amount) { appendLog('Insufficient chips to bet.'); return; }
+    seat.stack -= amount;
+    state.pot += amount;
+    $('pot').textContent = `$${state.pot}`;
+    addChipsToPot(amount);
+    renderSeats();
+    appendLog(`You bet $${amount}.`);
+    // after player action, bots respond
+    botsRespond();
+    evaluateAndRecommend();
+  }
+  function playerCall(){ appendLog('You called.'); botsRespond(); evaluateAndRecommend(); }
+  function playerCheck(){ appendLog('You checked.'); botsRespond(); evaluateAndRecommend(); }
+  function playerFold(){ mySeat().folded = true; appendLog('You folded.'); botsRespond(); evaluateAndRecommend(); }
+
+  // wire UI buttons
+  $('betBtn').addEventListener('click', ()=> {
+    stopHandClock();
+    const amt = Math.max(1, parseInt($('betSize').value||'10',10));
+    playerBet(amt);
+  });
+  $('callBtn').addEventListener('click', ()=> { stopHandClock(); playerCall(); });
+  $('checkBtn').addEventListener('click', ()=> { stopHandClock(); playerCheck(); });
+  $('foldBtn').addEventListener('click', ()=> { stopHandClock(); playerFold(); });
+
+  // --- bots behavior (simple) ---
+  function botsRespond(){
+    for (let i=1;i<state.seats.length;i++){
+      const s = state.seats[i];
+      if (s.folded) continue;
+      const r = Math.random();
+      if (r < 0.18){ s.folded = true; appendLog(`${s.userLabel} folded.`); }
+      else if (r < 0.6){
+        const amt = Math.min(5 + Math.floor(Math.random()*25), s.stack);
+        if (amt > 0){
+          s.stack -= amt; state.pot += amt; addChipsToPot(amt); appendLog(`${s.userLabel} bet $${amt}.`);
+        } else appendLog(`${s.userLabel} checked.`);
+      } else appendLog(`${s.userLabel} checked.`);
+    }
+    $('pot').textContent = `$${state.pot}`;
+    renderSeats();
+  }
+
+  // --- showdown and winner logic
+  function scoreForSeat(seat){
+    let hole;
+    if (seat.isHuman) hole = state.myHole.slice();
+    else {
+      // deterministic slice for bots (keeps hidden)
+      const base = 10 + seat.n*3;
+      hole = state.deck.slice(base, base+2);
+    }
+    const all = hole.concat(state.community || []);
+    return scoreSimplified(all);
+  }
+
+  function determineWinnerAndPayout(){
+    if (!state.inGame) { appendLog('No active match'); return; }
+    const contenders = state.seats.filter(s=>!s.folded);
+    if (contenders.length === 0){ appendLog('No contenders at showdown'); return; }
+    const player = mySeat();
+    const opponentsAllBots = state.seats.slice(1).every(s=>!s.isHuman);
+    if (player.paid && opponentsAllBots){
+      player.stack += state.pot;
+      appendLog(`You (paid) automatically win pot $${state.pot} vs bots.`);
+      if (state.ticket) state.ticket.used = true;
+      state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+      highlightWin(player.n);
+      return;
+    }
+    // normal evaluate
+    let best = null;
+    const scored = contenders.map(s => ({ seat:s, score: scoreForSeat(s) }));
+    scored.forEach(s => { if (!best || s.score > best.score) best = s; });
+    const winners = scored.filter(s => s.score === best.score).map(x=>x.seat);
+    const share = Math.floor(state.pot / winners.length);
+    winners.forEach(w => { w.stack += share; appendLog(`${w.userLabel} wins $${share}`); });
+    state.pot = 0; $('pot').textContent = `$0`; clearPotVisual(); renderSeats();
+    state.seats.forEach(s=> s.win = s.lose = false);
+    winners.forEach(w => state.seats[w.n-1].win = true);
+    state.seats.forEach(s => { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+  $('showdownBtn').addEventListener('click', determineWinnerAndPayout);
+
+  function highlightWin(n){
+    state.seats.forEach(s=> s.win = s.lose = false);
+    state.seats[n-1].win = true;
+    state.seats.forEach(s=> { if (!s.win) s.lose = true; });
+    renderSeats();
+  }
+
+  // --- ticket & donation flows
+  $('genTicket').addEventListener('click', ()=>{
+    const pp = $('paypalEmail').value.trim();
+    const v = $('venmoHandle').value.trim();
+    if (!pp && !v){ alert('Provide PayPal or Venmo to generate ticket'); return; }
+    const id = 'TKT-' + Math.random().toString(36).slice(2,9).toUpperCase();
+    state.ticket = { id, paypal:pp||null, venmo:v||null, created: new Date().toISOString(), used:false };
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket created ${id}`);
+  });
+
+  $('saveTicket').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('Generate ticket first'); return; }
+    const blob = new Blob([JSON.stringify(state.ticket, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${state.ticket.id}.json`; a.click(); URL.revokeObjectURL(a.href);
+    appendLog('Ticket saved locally');
+  });
+
+  $('markPaid').addEventListener('click', ()=>{
+    if (!state.ticket){ alert('No ticket'); return; }
+    if (state.ticket.used){ alert('Ticket already used'); return; }
+    const amt = Math.max(0, parseInt($('donateAmt').value||'0',10));
+    if (amt > 0){ state.globalPool += amt; $('globalPool').textContent = `$${state.globalPool}`; appendLog(`Donation recorded $${amt}`); }
+    state.ticket.used = true;
+    mySeat().paid = true; mySeat().ticketUsed = true; renderSeats();
+    $('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    appendLog(`Ticket ${state.ticket.id} marked paid — protection active vs bots.`);
+  });
+
+  // donate quick button
+  $('donateBtn').addEventListener('click', ()=> {
+    const amt = Math.max(0, parseInt($('donateAmt').value||'0',10));
+    if (!amt){ alert('Enter donation amount'); return; }
+    state.globalPool += amt; $('globalPool').textContent = `$${state.globalPool}`; appendLog(`Donation $${amt} recorded`);
+  });
+
+  // --- start/join/setup
+  $('startGame').addEventListener('click', ()=>{
+    if (state.inGame) { appendLog('Already in game'); return; }
+    const seats = parseInt($('tableSelect').value,10);
+    resetSeats(seats);
+    state.inGame = true;
+    $('startGame').textContent = 'In game'; $('startGame').disabled = true; $('joinMatch').disabled = true;
+    $('statusPill').textContent = 'Game running';
+    // bots auto paid
+    state.seats.forEach(s => { if (!s.isHuman) { s.paid = true; s.ticketUsed = true; }});
+    dealHand();
+  });
+
+  $('joinMatch').addEventListener('click', ()=> {
+    if (!state.inGame) $('startGame').click();
+    else appendLog('Joined existing match (local demo).');
+  });
+
+  // autoAction selection / threshold UI
+  $('autoAction').addEventListener('change', (e)=> state.autoActionMode = e.target.value);
+  $('autoThreshold').addEventListener('change', ()=> state.autoThreshold = parseInt($('autoThreshold').value||state.autoThreshold,10));
+
+  // --- utility functions
+  function addChipsToPot(amount){ addChipsVisual(amount); state.pot = (state.pot||0) + amount; $('pot').textContent = `$${state.pot}`; }
+  // small wrapper around 3D chip visual (keeps function small)
+  function addChipsVisual(amount){
+    const colorMap = {25:0x54ffbd,10:0x00a2ff,5:0xff4d6d};
+    let remaining = amount; let y = state.three.chipMeshes.length * 0.12;
+    while (remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const geo = new THREE.CylinderGeometry(0.28,0.28,0.08,24);
+      const mat = new THREE.MeshStandardMaterial({ color: colorMap[denom] });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + y, 0);
+      state.three.scene.add(chip);
+      state.three.chipMeshes.push(chip);
+      y += 0.12; remaining -= denom;
+    }
+  }
+
+  function clearPotVisual(){ clearChipMeshes(); state.three.chipMeshes = []; }
+
+  // --- initialize visuals and defaults
+  function init(){
+    initThree();
+    resetSeats(6);
+    $('globalPool').textContent = `$${state.globalPool}`;
+    appendLog('Ready. Choose table and press Start game.');
+    // keyboard shortcuts
+    window.addEventListener('keydown', (e)=> {
+      if (e.key === 's') $('startGame').click();
+      if (e.key === 'd') $('donateBtn').click();
+    });
+    // set UI initial values
+    $('autoAction').value = 'off';
+    $('autoThreshold').value = state.autoThreshold;
+  }
+
+  // --- helpers reused
+  function resetSeats(count){
+    state.tableId = 'T-' + Math.random().toString(36).slice(2,8).toUpperCase();
+    state.seats = [];
+    state.seats.push({ n:1, userLabel:'You', isHuman:true, stack:1000, folded:false, paid:false, ticketUsed:false, win:false, lose:false });
+    for (let i=2;i<=count;i++){
+      state.seats.push({ n:i, userLabel:`Player ${i}`, isHuman:false, stack:1000, folded:false, paid:true, ticketUsed:true, win:false, lose:false });
+    }
+    renderSeats();
+    $('tableTitle').textContent = `${state.tableId} • ${count}-seat`;
+  }
+
+  // show player's turn modal
+  function showTurnModal(){ $('turnModal').style.display = 'flex'; }
+  $('turnOk').addEventListener('click', ()=> { $('turnModal').style.display = 'none'; });
+
+  // --- initial dataset and start
+  init();
+
+  // Expose evaluateAndRecommend for manual refresh if needed
+  window.evaluateAndRecommend = evaluateAndRecommend;
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

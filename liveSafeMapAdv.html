@@ -1,0 +1,659 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: liveSafeMapAdv.html
+Declaration ID: IP-65C65D29-MLL2900P
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Live Safety Map — Detector, Snippets, Sync</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{
+    --bg:#031321; --card:#071821; --muted:#9fb0be; --accent:#06b6d4; --danger:#ef4444;
+    --safe-fill: rgba(34,197,94,0.12); --shot-fill: rgba(239,68,68,0.12);
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+  .topbar{display:flex;gap:12px;align-items:center;padding:12px}
+  h1{font-size:18px;margin:0}
+  .container{max-width:1100px;margin:10px auto;padding:12px;display:grid;grid-template-columns:1fr;gap:12px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+  button.warn{background:var(--danger);color:#fff}
+  label{font-size:13px;color:var(--muted)}
+  input[type="range"]{vertical-align:middle}
+  input[type="number"], input[type="text"], select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#02121b;color:#e6f7f9}
+  #map{height:56vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  #log{max-height:240px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+  canvas{width:100%;height:110px;border-radius:8px;background:#02121b;display:block}
+  .muted{color:var(--muted);font-size:13px}
+  .popupBtn{background:#0b1220;border:1px solid rgba(255,255,255,0.04);color:#cfeffc;padding:6px 8px;border-radius:8px}
+  @media(min-width:960px){ .container{grid-template-columns: 520px 1fr} .leftCol{display:flex;flex-direction:column;gap:12px} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for location tracking features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <div>
+      <h1>Live Safety Map</h1>
+      <div class="muted">Realtime detection, audio snippets, classification, and sync (private/public)</div>
+    </div>
+  </div>
+
+  <main class="container">
+    <div class="leftCol">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Capture & Controls</div>
+          <div class="muted">Privacy radius obfuscates exact location</div>
+        </div>
+
+        <div class="controls" style="margin-top:10px">
+          <button id="btnEnable">Enable Microphone</button>
+          <button id="btnStart" disabled>Start Logging</button>
+          <button id="btnStop" class="warn" disabled>Stop Logging</button>
+          <button id="btnExport" disabled>Export CSV</button>
+          <label>Sensitivity</label>
+          <input id="sens" type="range" min="0.2" max="4" step="0.1" value="1">
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+          <label>Privacy radius (m)</label>
+          <input id="privacyRadius" type="number" value="150" min="50" max="2000" style="width:120px">
+          <label>SPL cal (dB@1m)</label>
+          <input id="splCal" type="number" value="140" style="width:120px">
+        </div>
+
+        <div style="margin-top:12px">
+          <canvas id="viz"></canvas>
+          <div id="status" class="muted" style="margin-top:8px">Status: idle</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Classifier & Reference Data</div>
+          <div class="muted">Heuristics + optional k-NN from reference audio</div>
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <input id="refFiles" type="file" accept="audio/*" multiple>
+          <select id="labelSelect">
+            <option value="gunshot">gunshot</option>
+            <option value="firework">firework</option>
+            <option value="door-slam">door-slam</option>
+            <option value="dumpster">dumpster</option>
+            <option value="construction">construction</option>
+            <option value="other">other</option>
+          </select>
+          <button id="btnAddRef">Add</button>
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button id="btnTrain">Train k-NN</button>
+          <label>k</label>
+          <input id="knnK" type="number" min="1" max="25" value="5" style="width:72px">
+          <div style="margin-left:auto" id="datasetSummary" class="muted"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Sync</div>
+          <div class="muted">Public: anonymized feed. Private: encrypted payloads (server & key management required)</div>
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <input id="serverUrl" type="text" placeholder="https://api.yourdomain.com" style="flex:1">
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="btnPublicSync">Sync Public</button>
+          <button id="btnPrivateSync">Sync Private</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:12px;padding:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Live Map</div>
+          <div class="muted">Map auto-centers while logging; click red marker to play and view classification</div>
+        </div>
+        <div id="map" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Event Log</div>
+          <div class="muted">Tap a row to center map on event</div>
+        </div>
+        <div id="log" style="margin-top:8px" aria-live="polite"></div>
+      </div>
+    </div>
+  </main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Full working single-file app
+   - Save as .html and open on mobile browser with microphone & geolocation support
+   - Server endpoints required for sync: /uploadPublic and /uploadPrivate (server must implement key management for private sync)
+*/
+
+/* ---------- DOM ---------- */
+const btnEnable = document.getElementById('btnEnable');
+const btnStart  = document.getElementById('btnStart');
+const btnStop   = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const sensEl    = document.getElementById('sens');
+const privacyRadiusEl = document.getElementById('privacyRadius');
+const splCalEl  = document.getElementById('splCal');
+const viz       = document.getElementById('viz');
+const statusEl  = document.getElementById('status');
+const refFiles  = document.getElementById('refFiles');
+const labelSelect= document.getElementById('labelSelect');
+const btnAddRef  = document.getElementById('btnAddRef');
+const btnTrain   = document.getElementById('btnTrain');
+const knnK       = document.getElementById('knnK');
+const datasetSummary = document.getElementById('datasetSummary');
+const serverUrlInput = document.getElementById('serverUrl');
+const btnPublicSync = document.getElementById('btnPublicSync');
+const btnPrivateSync = document.getElementById('btnPrivateSync');
+const logEl = document.getElementById('log');
+
+/* ---------- Map ---------- */
+const map = L.map('map', { zoomControl:true }).setView([20,0],3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const shotLayer = L.layerGroup().addTo(map);
+let userMarker = null, safeCircle = null, watchId = null, currentPos = null;
+
+/* ---------- Audio & Recording ---------- */
+let audioCtx = null, micStream = null, sourceNode = null, scriptNode = null, mediaRecorder = null;
+let circularBuffer = null, circularWriteIdx = 0, circularLength = 0, sampleRate = 48000;
+let mediaChunks = [], running = false, lastEventAt = 0;
+const preEventSec = 1.2, postEventSec = 1.4, refractoryMs = 700;
+let events = []; // events in memory
+
+/* ---------- Simple dataset/classifier ---------- */
+let dataset = []; // {label, features}
+let classifier = null; // {k, data}
+
+/* ---------- Canvas setup ---------- */
+const canvasCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvasCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+/* ---------- Utilities ---------- */
+function setStatus(s){ statusEl.textContent = 'Status: ' + s; }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function rms(arr){ let s=0; for(let i=0;i<arr.length;i++) s+=arr[i]*arr[i]; return Math.sqrt(s/arr.length); }
+function zeroCrossFreq(buf, sr){ let crossings=0; for(let i=1;i<buf.length;i++) if(buf[i-1]<=0 && buf[i]>0) crossings++; const seconds = buf.length/sr; return (crossings/seconds)/2 || 0; }
+function estimateEchoLag(buf, sr){ const minLag = Math.floor(0.0005*sr), maxLag = Math.min(Math.floor(0.02*sr), Math.floor(buf.length/2)); let best={lag:0,val:0}; for(let lag=minLag; lag<=maxLag; lag++){ let s=0; for(let i=0;i<buf.length-lag;i++) s+=buf[i]*buf[i+lag]; if(s>best.val){best.val=s;best.lag=lag;} } return best.lag? (best.lag/sr*1000) : 0; }
+
+/* ---------- Map helpers ---------- */
+function ensureUserMarker(lat, lon){
+  if(!userMarker) userMarker = L.circleMarker([lat, lon], { radius:6, color:'#16a34a', fillColor:'#16a34a', fillOpacity:1 }).addTo(map);
+  else userMarker.setLatLng([lat, lon]);
+}
+function ensureSafeCircle(lat, lon, radius){
+  const r = Math.max(80, radius);
+  if(!safeCircle) safeCircle = L.circle([lat, lon], { radius: r, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12 }).addTo(map);
+  else { safeCircle.setLatLng([lat, lon]); safeCircle.setRadius(r); }
+}
+function startLocationWatch(){
+  if(!navigator.geolocation) return setStatus('Geolocation not available');
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    currentPos = {lat:pos.coords.latitude, lon:pos.coords.longitude, accuracy:pos.coords.accuracy};
+    ensureUserMarker(currentPos.lat, currentPos.lon);
+    ensureSafeCircle(currentPos.lat, currentPos.lon, parseFloat(privacyRadiusEl.value || 150));
+    if(running) map.setView([currentPos.lat, currentPos.lon], 13, {animate:false});
+  }, err=>console.warn('geo error',err), { enableHighAccuracy:false, maximumAge:3000, timeout:5000});
+}
+function stopLocationWatch(){ if(watchId) navigator.geolocation.clearWatch(watchId); watchId = null; }
+
+/* ---------- Waveform drawing ---------- */
+function drawWaveform(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#02121b'; canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.strokeStyle = '#06b6d4'; canvasCtx.beginPath();
+  const step = Math.max(1, Math.floor(buf.length / w));
+  for(let i=0;i<w;i++){
+    const v = buf[i*step] || 0;
+    const y = (1 - (v + 1)/2) * h;
+    if(i===0) canvasCtx.moveTo(i, y); else canvasCtx.lineTo(i, y);
+  }
+  canvasCtx.stroke();
+}
+
+/* ---------- Audio setup ---------- */
+async function enableMic(){
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+    btnStart.disabled = false;
+    setStatus('Microphone enabled. Allow location when prompted.');
+  }catch(e){
+    console.error(e);
+    setStatus('Microphone permission denied or unavailable');
+  }
+}
+btnEnable.addEventListener('click', enableMic);
+
+function setupAudioNodes(){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sampleRate = audioCtx.sampleRate || 48000;
+  circularLength = Math.ceil(preEventSec * sampleRate);
+  circularBuffer = new Float32Array(circularLength);
+  circularWriteIdx = 0;
+  sourceNode = audioCtx.createMediaStreamSource(micStream);
+  scriptNode = audioCtx.createScriptProcessor(2048,1,1);
+  scriptNode.onaudioprocess = (ev) => {
+    if(!running) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    // write circular
+    for(let i=0;i<input.length;i++){ circularBuffer[circularWriteIdx] = input[i]; circularWriteIdx = (circularWriteIdx + 1) % circularLength; }
+    drawWaveform(input);
+    const amp = rms(input);
+    const threshold = 0.12 * parseFloat(sensEl.value || 1);
+    const now = performance.now();
+    if(amp > threshold && (now - lastEventAt) > refractoryMs){
+      lastEventAt = now;
+      handleDetection(amp, input);
+    }
+  };
+  sourceNode.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  mediaRecorder = new MediaRecorder(micStream);
+  mediaRecorder.ondataavailable = ev => { if(ev.data && ev.data.size>0) mediaChunks.push(ev.data); };
+  mediaChunks = [];
+  mediaRecorder.start();
+}
+
+async function startLogging(){
+  if(!micStream) { setStatus('Enable microphone first'); return; }
+  setupAudioNodes();
+  running = true;
+  startLocationWatch();
+  btnStart.disabled = true; btnStop.disabled = false; btnEnable.disabled = true; btnExport.disabled = false;
+  setStatus('Logging active');
+}
+btnStart.addEventListener('click', startLogging);
+
+function stopLogging(){
+  running = false;
+  try{ if(scriptNode) scriptNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioCtx) audioCtx.close(); }catch(e){}
+  if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+  stopLocationWatch();
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  setStatus('Stopped');
+}
+btnStop.addEventListener('click', stopLogging);
+
+/* ---------- Detection handling: assemble snippet, compute features, classify ---------- */
+async function handleDetection(amp, recentBuf){
+  setStatus('Impulse detected — capturing snippet');
+  // copy pre buffer
+  const pre = new Float32Array(circularLength);
+  let p = circularWriteIdx;
+  for(let i=0;i<circularLength;i++){ pre[i] = circularBuffer[p]; p = (p+1) % circularLength; }
+  // wait for post-event
+  await new Promise(res => setTimeout(res, Math.round(postEventSec*1000)));
+  if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.requestData();
+  const preWav = float32ToWavBlob(pre, sampleRate);
+  const postBlob = new Blob(mediaChunks, { type: mediaChunks.length ? mediaChunks[0].type : 'audio/webm' });
+  mediaChunks = [];
+  // features & heuristics
+  const dominantHz = zeroCrossFreq(pre, sampleRate);
+  const echoLagMs = estimateEchoLag(pre, sampleRate);
+  const heuristicProbs = heuristicClassifier(dominantHz, amp, echoLagMs);
+  const trainedProbs = predictTrained({dominantHz, amp, echoLagMs});
+  const probs = combineProbabilities(heuristicProbs, trainedProbs);
+  // distance estimate (heuristic)
+  const measuredDbfs = 20*Math.log10(rms(pre)+1e-12);
+  const calibOffset = 120;
+  const measuredSPL = measuredDbfs + calibOffset;
+  const sourceDbAt1m = parseFloat(splCalEl.value || 140);
+  let distanceM = Math.pow(10, (sourceDbAt1m - measuredSPL)/20);
+  if(!isFinite(distanceM) || distanceM < 0) distanceM = null;
+  // privacy-obfuscated lat/lon
+  const privacyRadius = Math.max(50, Math.min(parseFloat(privacyRadiusEl.value||150), 2000));
+  let lat, lon;
+  if(currentPos){
+    const angle = Math.random()*Math.PI*2;
+    const r = (Math.random()*0.6 + 0.2) * privacyRadius;
+    const dLat = (r * Math.cos(angle)) / 111320;
+    const dLon = (r * Math.sin(angle)) / (111320 * Math.cos(currentPos.lat * Math.PI/180));
+    lat = currentPos.lat + dLat; lon = currentPos.lon + dLon;
+  } else {
+    const c = map.getCenter(); lat = c.lat; lon = c.lng;
+  }
+  const id = uid();
+  const timestamp = new Date().toISOString();
+  const event = { id, timestamp, lat, lon, amplitude: amp, dominantHz, echoLagMs, distanceM, privacyRadius, probs, preWav, postBlob };
+  events.unshift(event);
+  addEventToMap(event);
+  addEventToLog(event);
+  setStatus('Captured event: ' + timestamp);
+}
+
+/* ---------- Heuristic classifier ---------- */
+function heuristicClassifier(dominantHz, amp, echoLagMs){
+  const classes = ['gunshot','firework','door-slam','dumpster','construction','other'];
+  const scores = {gunshot:0, firework:0, 'door-slam':0, dumpster:0, construction:0, other:0};
+  if(amp > 0.20) scores.gunshot += 2;
+  if(amp > 0.12) scores.firework += 1;
+  if(dominantHz < 800){ scores.gunshot += 1; scores.dumpster += 0.8; }
+  if(dominantHz >= 800 && dominantHz < 3000){ scores.firework += 1.4; scores['door-slam'] += 0.6; }
+  if(dominantHz >= 3000){ scores.firework += 1.6; scores.other += 0.8; }
+  if(echoLagMs > 1.5){ scores.dumpster += 1.2; scores['door-slam'] += 1.0; }
+  else if(echoLagMs > 0.3 && echoLagMs <= 1.5){ scores.gunshot += 1.2; scores.firework += 0.8; }
+  scores.other += 0.5;
+  const sum = Object.values(scores).reduce((a,b)=>a+b,0) || 1;
+  const probs = {};
+  for(const k in scores) probs[k] = Math.round((scores[k]/sum)*1000)/1000;
+  return probs;
+}
+
+/* ---------- Training utilities ---------- */
+btnAddRef.addEventListener('click', async ()=>{
+  const files = refFiles.files;
+  if(!files || files.length===0) return alert('Select reference audio files first');
+  const label = labelSelect.value;
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  for(const f of files){
+    try{
+      const ab = await f.arrayBuffer();
+      const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+      const mix = decoded.numberOfChannels>1 ? mixdown(decoded) : decoded.getChannelData(0);
+      const feats = { dominantHz: zeroCrossFreq(mix, decoded.sampleRate), energy: rms(mix), echoLagMs: estimateEchoLag(mix, decoded.sampleRate) };
+      dataset.push({label, features:feats});
+    }catch(e){ console.error('ref processing error', e); }
+  }
+  updateDatasetSummary();
+  setStatus('Added reference audio');
+});
+function updateDatasetSummary(){ const cnt = {}; for(const d of dataset) cnt[d.label] = (cnt[d.label]||0)+1; datasetSummary.textContent = 'Dataset: ' + Object.entries(cnt).map(([k,v])=>`${k}:${v}`).join(', '); }
+btnTrain.addEventListener('click', ()=>{ if(dataset.length===0) return alert('No reference data'); classifier = { k: Math.max(1, parseInt(knnK.value || 5,10)), data: dataset }; setStatus('k-NN trained (k=' + classifier.k + ')'); });
+
+function predictTrained(feat){
+  if(!classifier || !classifier.data) return null;
+  const distarr = classifier.data.map(d => ({ label: d.label, dist: euclidean([d.features.dominantHz, d.features.energy, d.features.echoLagMs], [feat.dominantHz, feat.energy||feat.amp||0, feat.echoLagMs]) }));
+  distarr.sort((a,b)=>a.dist-b.dist);
+  const k = Math.min(classifier.k, distarr.length);
+  const votes = {};
+  for(let i=0;i<k;i++) votes[distarr[i].label] = (votes[distarr[i].label]||0)+1;
+  const total = Object.values(votes).reduce((a,b)=>a+b,0) || 1;
+  const probs = {};
+  for(const l in votes) probs[l] = Math.round((votes[l]/total)*1000)/1000;
+  return probs;
+}
+function combineProbabilities(heur, trained){
+  const classes = ['gunshot','firework','door-slam','dumpster','construction','other'];
+  const out = {};
+  for(const c of classes){
+    const h = heur && heur[c] ? heur[c] : 0;
+    const t = trained && trained[c] ? trained[c] : 0;
+    out[c] = Math.round(((0.6*h) + (0.4*t)) * 1000)/1000;
+  }
+  const sum = Object.values(out).reduce((a,b)=>a+b,0) || 1;
+  for(const k in out) out[k] = Math.round((out[k]/sum)*1000)/1000;
+  return out;
+}
+function euclidean(a,b){ let s=0; const L=Math.max(a.length,b.length); for(let i=0;i<L;i++){ const x=a[i]||0, y=b[i]||0; s+=(x-y)*(x-y); } return Math.sqrt(s); }
+
+/* ---------- Event UI: map/ log / playback ---------- */
+function addEventToMap(e){
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1 }).addTo(shotLayer);
+  const bubble = L.circle([e.lat, e.lon], { radius: e.privacyRadius, color:'#ef4444', fillColor:'rgba(239,68,68,0.12)', weight:2, fillOpacity:0.12 }).addTo(shotLayer);
+  const popup = document.createElement('div');
+  popup.innerHTML = `<div style="font-weight:700">Detected</div><div class="muted">${e.timestamp}</div>`;
+  const playBtn = document.createElement('button'); playBtn.className='popupBtn'; playBtn.textContent='Play snippet';
+  const probsDiv = document.createElement('div'); probsDiv.className='muted'; probsDiv.style.marginTop='6px'; probsDiv.textContent = formatProb(e.probs);
+  popup.appendChild(playBtn); popup.appendChild(probsDiv);
+  playBtn.addEventListener('click', async ()=>{
+    playBtn.disabled = true; playBtn.textContent = 'Playing...';
+    try{
+      const preUrl = URL.createObjectURL(e.preWav);
+      const a1 = new Audio(preUrl); await a1.play();
+      a1.onended = async ()=>{ URL.revokeObjectURL(preUrl); if(e.postBlob && e.postBlob.size>0){ const postUrl = URL.createObjectURL(e.postBlob); const a2 = new Audio(postUrl); await a2.play(); a2.onended = ()=>{ URL.revokeObjectURL(postUrl); playBtn.disabled=false; playBtn.textContent='Play snippet'; }; } else { playBtn.disabled=false; playBtn.textContent='Play snippet'; } };
+    }catch(err){ console.error(err); playBtn.disabled=false; playBtn.textContent='Play snippet'; alert('Playback error'); }
+  });
+  marker.bindPopup(popup);
+  marker.on('click', ()=> marker.openPopup());
+  setTimeout(()=>{ try{ shotLayer.removeLayer(marker); shotLayer.removeLayer(bubble); }catch(e){} }, 10*60*1000);
+}
+function addEventToLog(e){
+  const div = document.createElement('div'); div.style.padding='8px'; div.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+  div.innerHTML = `<div style="font-weight:700">${e.timestamp}</div><div class="muted">Top: ${topLabel(e.probs)} • Dist: ${e.distanceM? e.distanceM.toFixed(1)+' m':'unknown'}</div>`;
+  div.addEventListener('click', ()=> map.setView([e.lat, e.lon], 15, {animate:true}));
+  logEl.prepend(div);
+}
+function formatProb(p){ if(!p) return ''; return Object.entries(p).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>`${x[0]} ${(x[1]*100).toFixed(0)}%`).join(' • '); }
+function topLabel(p){ if(!p) return 'unknown'; return Object.entries(p).sort((a,b)=>b[1]-a[1])[0][0]; }
+
+/* ---------- WAV helper ---------- */
+function float32ToWavBlob(float32Array, sampleRate){
+  const len = float32Array.length;
+  const buffer = new ArrayBuffer(44 + len * 2);
+  const view = new DataView(buffer);
+  function writeString(view, offset, string){ for(let i=0;i<string.length;i++) view.setUint8(offset+i, string.charCodeAt(i)); }
+  writeString(view,0,'RIFF'); view.setUint32(4,36 + len*2,true); writeString(view,8,'WAVE');
+  writeString(view,12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  writeString(view,36,'data'); view.setUint32(40,len*2,true);
+  let offset = 44;
+  for(let i=0;i<len;i++){ let s = Math.max(-1, Math.min(1, float32Array[i])); view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true); offset += 2; }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+/* ---------- CSV export (optional audio base64) ---------- */
+btnExport.addEventListener('click', async ()=>{
+  if(events.length===0) return alert('No events to export');
+  const includeAudio = confirm('Include audio as base64 in CSV? This may create very large files. OK to include audio?');
+  const hdr = ['id,timestamp,lat,lon,dominantHz,amplitude,distanceM,privacyRadius,topLabel'];
+  if(includeAudio){ hdr.push('preWavBase64'); hdr.push('postBlobBase64'); }
+  const rows = [];
+  for(const e of events){
+    let preB64 = '', postB64 = '';
+    if(includeAudio){ preB64 = await blobToBase64(e.preWav); postB64 = e.postBlob && e.postBlob.size ? await blobToBase64(e.postBlob) : ''; }
+    rows.push([e.id, e.timestamp, e.lat.toFixed(6), e.lon.toFixed(6), Math.round(e.dominantHz), e.amplitude.toFixed(5), e.distanceM? e.distanceM.toFixed(2):'', e.privacyRadius, topLabel(e.probs), preB64, postB64].join(','));
+  }
+  const csv = [hdr.join(',')].concat(rows).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+function blobToBase64(blob){ return new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result.split(',')[1]); fr.readAsDataURL(blob); }); }
+
+/* ---------- Sync: Public & Private ---------- */
+btnPublicSync.addEventListener('click', async ()=>{
+  const url = (serverUrlInput.value || '').replace(/\/+$/,'');
+  if(!url) return alert('Set server URL');
+  if(events.length===0) return alert('No events to sync');
+  try{
+    for(const e of events){
+      const payload = { id:e.id, timestamp:e.timestamp, lat:e.lat, lon:e.lon, privacyRadius:e.privacyRadius, topLabel: topLabel(e.probs), probs: e.probs };
+      await fetch(url + '/uploadPublic', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    alert('Public sync completed');
+  }catch(err){ console.error(err); alert('Public sync failed: ' + err.message); }
+});
+
+async function ensureDeviceKey(){
+  const name = 'aesKey:' + localDeviceId();
+  const saved = localStorage.getItem(name);
+  if(saved){
+    try{ const raw = base64ToArrayBuffer(saved); return await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt','decrypt']); }catch(e){ console.warn('reimport failed',e); }
+  }
+  const key = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
+  const raw = await crypto.subtle.exportKey('raw', key);
+  localStorage.setItem(name, arrayBufferToBase64(raw));
+  return key;
+}
+function localDeviceId(){ let id = localStorage.getItem('deviceId'); if(!id){ id = 'dev-'+uid(); localStorage.setItem('deviceId', id); } return id; }
+function arrayBufferToBase64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function base64ToArrayBuffer(b64){ const bin = atob(b64); const arr = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return arr.buffer; }
+
+async function encryptWithKey(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc);
+  return { ciphertext: arrayBufferToBase64(ct), iv: arrayBufferToBase64(iv.buffer) };
+}
+
+btnPrivateSync.addEventListener('click', async ()=>{
+  const url = (serverUrlInput.value || '').replace(/\/+$/,'');
+  if(!url) return alert('Set server URL');
+  if(events.length===0) return alert('No events to sync');
+  try{
+    const key = await ensureDeviceKey();
+    for(const e of events){
+      const payload = { id:e.id, timestamp:e.timestamp, privacyRadius:e.privacyRadius, probs:e.probs, metadata:{ lat:e.lat, lon:e.lon, topLabel: topLabel(e.probs) } };
+      const enc = await encryptWithKey(key, payload);
+      const body = { deviceId: localDeviceId(), ciphertext: enc.ciphertext, iv: enc.iv, alg:'AES-GCM' };
+      await fetch(url + '/uploadPrivate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    }
+    alert('Private sync queued (server must implement key unwrapping and auth)');
+  }catch(err){ console.error(err); alert('Private sync failed: ' + err.message); }
+});
+
+/* ---------- Small helpers ---------- */
+function formatProbReadable(p){ if(!p) return ''; return Object.entries(p).sort((a,b)=>b[1]-a[1]).map(x=>`${x[0]} ${(x[1]*100).toFixed(0)}%`).join(' • '); }
+
+/* ---------- Mixdown helper ---------- */
+function mixdown(decoded){ const L = decoded.length; const ch = decoded.numberOfChannels; const out = new Float32Array(L); for(let c=0;c<ch;c++){ const d = decoded.getChannelData(c); for(let i=0;i<L;i++) out[i] += d[i] / ch; } return out; }
+
+/* ---------- Initialize ---------- */
+(function init(){
+  const sv = localStorage.getItem('serverUrl'); if(sv) serverUrlInput.value = sv;
+  serverUrlInput.addEventListener('change', ()=> localStorage.setItem('serverUrl', serverUrlInput.value));
+  if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p=> map.setView([p.coords.latitude, p.coords.longitude], 13), ()=>{}, { enableHighAccuracy:false, maximumAge:60000, timeout:3000 });
+  setStatus('Ready');
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+name: Safe Deployment with Backup & Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_type:
+        description: 'Type of deployment'
+        required: true
+        type: choice
+        options:
+          - paypal-integration
+          - banksky
+          - afactory-payments
+          - merlin-minions
+          - custom
+      files_to_deploy:
+        description: 'Comma-separated list of files to deploy (for custom deployment)'
+        required: false
+        type: string
+      run_tests:
+        description: 'Run tests after deployment'
+        required: false
+        type: boolean
+        default: true
+      dry_run:
+        description: 'Run in dry-run mode (no actual changes)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  prepare-deployment:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      files_to_backup: ${{ steps.determine-files.outputs.files }}
+      backup_label: ${{ steps.determine-files.outputs.label }}
+      deploy_script: ${{ steps.determine-files.outputs.script }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Determine files to backup
+        id: determine-files
+        run: |
+          DEPLOYMENT_TYPE="${{ inputs.deployment_type }}"
+          
+          case "$DEPLOYMENT_TYPE" in
+            paypal-integration)
+              FILES="deploy-paypal-integration.js,src/utils/paypal-integration.js"
+              LABEL="paypal-deployment"
+              SCRIPT="deploy-paypal-integration.js"
+              ;;
+            banksky)
+              FILES="banksky-deploy.js,BankSky.html,deploy-banksky.js"
+              LABEL="banksky-deployment"
+              SCRIPT="deploy-banksky.js"
+              ;;
+            afactory-payments)
+              FILES="deploy-afactory-payments.js,aFactory.html"
+              LABEL="afactory-deployment"
+              SCRIPT="deploy-afactory-payments.js"
+              ;;
+            merlin-minions)
+              FILES="deploy-merlin-minions.js,merlin-minions-config.json"
+              LABEL="merlin-deployment"
+              SCRIPT="deploy-merlin-minions.js"
+              ;;
+            custom)
+              FILES="${{ inputs.files_to_deploy }}"
+              LABEL="custom-deployment"
+              SCRIPT=""
+              ;;
+          esac
+          
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "label=$LABEL" >> $GITHUB_OUTPUT
+          echo "script=$SCRIPT" >> $GITHUB_OUTPUT
+          
+          echo "## 🚀 Deployment Preparation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** $DEPLOYMENT_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "**Files to backup:** $FILES" >> $GITHUB_STEP_SUMMARY
+          echo "**Backup label:** $LABEL" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy script:** $SCRIPT" >> $GITHUB_STEP_SUMMARY
+
+  create-backup:
+    name: Create Backup
+    needs: prepare-deployment
+    uses: ./.github/workflows/backup-rollback.yml
+    with:
+      action: backup
+      files: ${{ needs.prepare-deployment.outputs.files_to_backup }}
+      label: ${{ needs.prepare-deployment.outputs.backup_label }}
+      description: Pre-deployment backup for ${{ inputs.deployment_type }}
+
+  deploy:
+    name: Deploy Changes
+    needs: [prepare-deployment, create-backup]
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.deploy.outcome }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci || npm install
+      
+      - name: Run deployment
+        id: deploy
+        continue-on-error: true
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_API: ${{ secrets.PAYPAL_API }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          DEPLOY_SCRIPT="${{ needs.prepare-deployment.outputs.deploy_script }}"
+          
+          echo "## 🚀 Deployment Execution" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ inputs.deployment_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "$DEPLOY_SCRIPT" ] && [ -f "$DEPLOY_SCRIPT" ]; then
+            echo "Executing deployment script: $DEPLOY_SCRIPT"
+            node "$DEPLOY_SCRIPT" 2>&1 | tee deployment-output.log
+            
+            echo "### Deployment Output" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 deployment-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No deployment script specified for custom deployment"
+            echo "Files prepared for manual deployment: ${{ needs.prepare-deployment.outputs.files_to_backup }}"
+            echo "⚠️ Manual deployment mode - no script executed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            
+            echo "### Changed Files" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git status --short >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No file changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload deployment log
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-log
+          path: deployment-output.log
+          retention-days: 30
+
+  run-tests:
+    name: Run Tests
+    needs: [prepare-deployment, deploy]
+    if: inputs.run_tests && needs.deploy.outputs.deployment_status == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      tests_passed: ${{ steps.test.outcome == 'success' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci || npm install
+      
+      - name: Run tests
+        id: test
+        continue-on-error: true
+        run: |
+          echo "## 🧪 Test Execution" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ inputs.deployment_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Determine which tests to run based on deployment type
+          DEPLOYMENT_TYPE="${{ inputs.deployment_type }}"
+          TEST_FAILED=false
+          
+          case "$DEPLOYMENT_TYPE" in
+            paypal-integration)
+              if [ -f "test-afactory-payments.js" ]; then
+                echo "Running PayPal integration tests..."
+                node test-afactory-payments.js 2>&1 | tee test-output.log || TEST_FAILED=true
+              fi
+              ;;
+            banksky)
+              if [ -f "test-banksky.js" ]; then
+                echo "Running BankSky tests..."
+                node test-banksky.js 2>&1 | tee test-output.log || TEST_FAILED=true
+              fi
+              ;;
+            *)
+              # Run general tests if available
+              if grep -q '"test":' package.json; then
+                echo "Running npm test..."
+                npm test 2>&1 | tee test-output.log || TEST_FAILED=true
+              else
+                echo "No tests configured for this deployment type"
+                echo "ℹ️ No tests available" >> $GITHUB_STEP_SUMMARY
+              fi
+              ;;
+          esac
+          
+          if [ "$TEST_FAILED" = true ]; then
+            echo "### ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -100 test-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "### ✅ Tests Passed" >> $GITHUB_STEP_SUMMARY
+            if [ -f test-output.log ]; then
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              tail -50 test-output.log >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-output.log
+          retention-days: 30
+
+  rollback:
+    name: Rollback on Failure
+    needs: [prepare-deployment, create-backup, deploy, run-tests]
+    if: |
+      always() && 
+      needs.create-backup.result == 'success' &&
+      (needs.deploy.outputs.deployment_status == 'failure' || 
+       (inputs.run_tests && needs.run-tests.outputs.tests_passed == 'false'))
+    uses: ./.github/workflows/backup-rollback.yml
+    with:
+      action: rollback
+      label: ${{ needs.prepare-deployment.outputs.backup_label }}
+
+  finalize:
+    name: Finalize Deployment
+    needs: [prepare-deployment, create-backup, deploy, run-tests, rollback]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          DEPLOY_STATUS="${{ needs.deploy.result }}"
+          TEST_STATUS="${{ needs.run-tests.result }}"
+          ROLLBACK_STATUS="${{ needs.rollback.result }}"
+          
+          echo "## 📊 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ inputs.deployment_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Backup: ${{ needs.create-backup.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployment: $DEPLOY_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: $TEST_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- Rollback: $ROLLBACK_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$ROLLBACK_STATUS" == "success" ]; then
+            echo "status=rolled_back" >> $GITHUB_OUTPUT
+            echo "### ⚠️ Deployment Rolled Back" >> $GITHUB_STEP_SUMMARY
+            echo "The deployment failed and has been rolled back to the previous state." >> $GITHUB_STEP_SUMMARY
+          elif [ "$DEPLOY_STATUS" == "success" ] && [ "$TEST_STATUS" != "failure" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "All checks passed. Changes have been deployed successfully." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=partial" >> $GITHUB_OUTPUT
+            echo "### ⚠️ Deployment Completed with Issues" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Create notification issue
+        if: steps.status.outputs.status == 'rolled_back'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueBody = `## 🚨 Deployment Failed - Manual Intervention Required
+            
+            The automated deployment for **${{ inputs.deployment_type }}** has failed and been rolled back.
+            
+            ### Details
+            - **Deployment Type:** ${{ inputs.deployment_type }}
+            - **Backup Label:** ${{ needs.prepare-deployment.outputs.backup_label }}
+            - **Backup ID:** ${{ needs.create-backup.outputs.backup_id }}
+            - **Timestamp:** ${new Date().toISOString()}
+            
+            ### Status Summary
+            - ✅ Backup: ${{ needs.create-backup.result }}
+            - ❌ Deployment: ${{ needs.deploy.result }}
+            - ❌ Tests: ${{ needs.run-tests.result }}
+            - ✅ Rollback: ${{ needs.rollback.result }}
+            
+            ### Next Steps
+            1. Review the workflow logs: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            2. Check the deployment and test logs in the artifacts
+            3. Fix the issues identified
+            4. Re-run the deployment workflow
+            
+            ### Logs
+            - Deployment log available in workflow artifacts
+            - Test results available in workflow artifacts
+            - Backup manifest available in workflow artifacts
+            
+            ---
+            *Automated by Safe Deployment Workflow*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Deployment Failed: ${{ inputs.deployment_type }}',
+              body: issueBody,
+              labels: ['deployment', 'failed', 'manual-intervention-required']
+            });

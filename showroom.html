@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: showroom.html
+Declaration ID: IP-1FFD4281-MLL29020
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Showroom - Featured Cards | BARBRICKDESIGN</title>
+    
+    <!-- Three.js for 3D rendering -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    
+    <!-- Wallet Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+    <script src="js/universal-wallet-system.js"></script>
+    <script src="src/core/auth-integration.js"></script>
+    <script src="src/utils/shared-wallet-system.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #050810;
+            --bg-secondary: #0f172a;
+            --bg-card: #111827;
+            --accent-cyan: #38bdf8;
+            --accent-purple: #a855f7;
+            --accent-gold: #fbbf24;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --border: #1f2937;
+            --success: #4ade80;
+            --danger: #f87171;
+            --glow-cyan: rgba(56, 189, 248, 0.3);
+            --glow-purple: rgba(168, 85, 247, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top left, #0f172a 0%, #050810 50%, #020617 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cosmic-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 30%, var(--glow-cyan) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, var(--glow-purple) 0%, transparent 50%),
+                linear-gradient(90deg, transparent 49%, rgba(56, 189, 248, 0.05) 50%, transparent 51%),
+                linear-gradient(0deg, transparent 49%, rgba(168, 85, 247, 0.05) 50%, transparent 51%);
+            background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+            animation: cosmic-shift 30s ease-in-out infinite;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        @keyframes cosmic-shift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-20px, -20px); }
+        }
+
+        header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .wallet-address {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+        }
+
+        .balance {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        main {
+            flex: 1;
+            padding: 40px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .page-title {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-title h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-title p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            border-color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 80px;
+        }
+
+        .card-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card-item:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px var(--glow-cyan);
+            border-color: var(--accent-cyan);
+        }
+
+        .card-3d-preview {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            position: relative;
+        }
+
+        .card-details {
+            padding: 20px;
+        }
+
+        .card-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .card-rarity {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .card-rarity.common { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+        .card-rarity.rare { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .card-rarity.epic { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .card-rarity.legendary { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+
+        .card-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .card-price {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: rgba(56, 189, 248, 0.05);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .price-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .price-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+        }
+
+        .card-seller {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .seller-address {
+            font-family: monospace;
+            color: var(--accent-cyan);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px var(--glow-cyan);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        footer {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            padding: 0;
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .footer-nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 16px 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-item:hover {
+            color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .nav-item.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .nav-icon {
+            font-size: 1.5rem;
+        }
+
+        .nav-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 768px) {
+            .page-title h2 {
+                font-size: 2rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <div class="cosmic-grid"></div>
+
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>✨ Showroom</h1>
+            </div>
+            <div class="user-info" id="userInfo">
+                <span class="wallet-address" id="walletAddress">Connect Wallet</span>
+                <span class="balance" id="balance">—</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-title">
+            <h2>Featured Top Pulls</h2>
+            <p>Discover and trade the rarest cards in the marketplace</p>
+        </div>
+
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All Cards</button>
+            <button class="filter-btn" data-filter="legendary">Legendary</button>
+            <button class="filter-btn" data-filter="epic">Epic</button>
+            <button class="filter-btn" data-filter="rare">Rare</button>
+            <button class="filter-btn" data-filter="for-sale">For Sale</button>
+        </div>
+
+        <div class="cards-grid" id="cardsGrid">
+            <!-- Cards will be dynamically loaded -->
+        </div>
+    </main>
+
+    <footer>
+        <nav class="footer-nav">
+            <a href="packs.html" class="nav-item">
+                <span class="nav-icon">📦</span>
+                <span class="nav-label">Packs</span>
+            </a>
+            <a href="showroom.html" class="nav-item active">
+                <span class="nav-icon">✨</span>
+                <span class="nav-label">Showroom</span>
+            </a>
+            <a href="collection.html" class="nav-item">
+                <span class="nav-icon">🗂️</span>
+                <span class="nav-label">Collection</span>
+            </a>
+            <a href="account.html" class="nav-item">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Account</span>
+            </a>
+        </nav>
+    </footer>
+
+    <script>
+        // Sample featured cards data
+        const FEATURED_CARDS = [
+            {
+                id: 'card_001',
+                name: 'Golden Dragon',
+                rarity: 'legendary',
+                power: 95,
+                edition: '1st Edition',
+                price: 15.5,
+                seller: '0x742d...3f8a',
+                forSale: true,
+                image: null
+            },
+            {
+                id: 'card_002',
+                name: 'Crystal Phoenix',
+                rarity: 'legendary',
+                power: 92,
+                edition: 'Limited',
+                price: 12.0,
+                seller: '0x8d3c...9a2b',
+                forSale: true,
+                image: null
+            },
+            {
+                id: 'card_003',
+                name: 'Shadow Assassin',
+                rarity: 'epic',
+                power: 85,
+                edition: '2nd Edition',
+                price: 5.5,
+                seller: '0x1f5e...7c4d',
+                forSale: true,
+                image: null
+            },
+            {
+                id: 'card_004',
+                name: 'Mystic Sage',
+                rarity: 'epic',
+                power: 88,
+                edition: '1st Edition',
+                price: 6.2,
+                seller: '0x9b2a...5e6f',
+                forSale: true,
+                image: null
+            },
+            {
+                id: 'card_005',
+                name: 'Thunder Knight',
+                rarity: 'rare',
+                power: 78,
+                edition: 'Standard',
+                price: 2.3,
+                seller: '0x4c7d...8a1b',
+                forSale: true,
+                image: null
+            },
+            {
+                id: 'card_006',
+                name: 'Fire Elemental',
+                rarity: 'rare',
+                power: 75,
+                edition: 'Standard',
+                price: 1.9,
+                seller: '0x6e8f...2d3c',
+                forSale: true,
+                image: null
+            }
+        ];
+
+        let currentFilter = 'all';
+        let currentWallet = null;
+        let currentBalance = 10.0;
+
+        // Initialize
+        function init() {
+            initWallet();
+            renderCards();
+            setupFilters();
+            updateWalletUI();
+        }
+
+        function initWallet() {
+            if (window.SharedWalletSystem) {
+                const wallet = new SharedWalletSystem();
+                if (wallet.connected) {
+                    currentWallet = wallet.address;
+                }
+            }
+            if (!currentWallet) {
+                currentWallet = 'demo_' + Math.random().toString(36).substring(2, 11);
+            }
+        }
+
+        function updateWalletUI() {
+            const walletEl = document.getElementById('walletAddress');
+            const balanceEl = document.getElementById('balance');
+
+            if (currentWallet) {
+                walletEl.textContent = currentWallet.substring(0, 6) + '...' + currentWallet.substring(currentWallet.length - 4);
+                balanceEl.textContent = `${currentBalance.toFixed(2)} SOL`;
+            }
+        }
+
+        function setupFilters() {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    renderCards();
+                });
+            });
+        }
+
+        function renderCards() {
+            const grid = document.getElementById('cardsGrid');
+            
+            // Filter cards
+            let filteredCards = FEATURED_CARDS;
+            if (currentFilter !== 'all') {
+                if (currentFilter === 'for-sale') {
+                    filteredCards = FEATURED_CARDS.filter(c => c.forSale);
+                } else {
+                    filteredCards = FEATURED_CARDS.filter(c => c.rarity === currentFilter);
+                }
+            }
+
+            if (filteredCards.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>No cards found</h3>
+                        <p>Try adjusting your filters</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = '';
+            filteredCards.forEach(card => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card-item';
+                cardEl.innerHTML = `
+                    <div class="card-3d-preview" id="preview-${card.id}"></div>
+                    <div class="card-details">
+                        <h3 class="card-name">${card.name}</h3>
+                        <span class="card-rarity ${card.rarity}">${card.rarity}</span>
+                        <div class="card-stats">
+                            <div class="stat">
+                                <div class="stat-label">Power</div>
+                                <div class="stat-value">${card.power}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Edition</div>
+                                <div class="stat-value" style="font-size: 0.9rem;">${card.edition}</div>
+                            </div>
+                        </div>
+                        ${card.forSale ? `
+                            <div class="card-price">
+                                <span class="price-label">Listed Price</span>
+                                <span class="price-value">${card.price} SOL</span>
+                            </div>
+                            <div class="card-seller">
+                                <span>Seller:</span>
+                                <span class="seller-address">${card.seller}</span>
+                            </div>
+                            <button class="btn btn-primary" onclick="buyCard('${card.id}')">
+                                Buy Now
+                            </button>
+                        ` : `
+                            <div class="card-price">
+                                <span class="price-label">Market Value</span>
+                                <span class="price-value">${card.price} SOL</span>
+                            </div>
+                            <button class="btn btn-secondary" disabled>
+                                Not For Sale
+                            </button>
+                        `}
+                    </div>
+                `;
+                grid.appendChild(cardEl);
+
+                // Initialize 3D preview
+                init3DCardPreview(`preview-${card.id}`, card.rarity);
+            });
+        }
+
+        function init3DCardPreview(containerId, rarity) {
+            const container = document.getElementById(containerId);
+            if (!container || !window.THREE) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Card geometry
+            const geometry = new THREE.BoxGeometry(2.5, 3.5, 0.1);
+            
+            const colors = {
+                common: 0x9ca3af,
+                rare: 0x3b82f6,
+                epic: 0xa855f7,
+                legendary: 0xfbbf24
+            };
+
+            const material = new THREE.MeshPhongMaterial({
+                color: colors[rarity] || 0x38bdf8,
+                emissive: colors[rarity] || 0x38bdf8,
+                emissiveIntensity: 0.3,
+                shininess: 100,
+                flatShading: false
+            });
+
+            const card = new THREE.Mesh(geometry, material);
+            scene.add(card);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(colors[rarity] || 0x38bdf8, 1.5, 100);
+            pointLight.position.set(2, 3, 5);
+            scene.add(pointLight);
+
+            camera.position.z = 6;
+
+            // Animation
+            let rotation = 0;
+            function animate() {
+                requestAnimationFrame(animate);
+                rotation += 0.01;
+                card.rotation.y = Math.sin(rotation) * 0.3;
+                card.rotation.x = Math.cos(rotation * 0.5) * 0.1;
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        function buyCard(cardId) {
+            const card = FEATURED_CARDS.find(c => c.id === cardId);
+            if (!card) return;
+
+            if (currentBalance < card.price) {
+                alert('Insufficient balance to purchase this card!');
+                return;
+            }
+
+            if (confirm(`Purchase ${card.name} for ${card.price} SOL?`)) {
+                currentBalance -= card.price;
+                updateWalletUI();
+                
+                // Remove from sale
+                card.forSale = false;
+                
+                // Save to local collection
+                const collection = JSON.parse(localStorage.getItem('card_collection') || '[]');
+                collection.push({
+                    ...card,
+                    purchasePrice: card.price,
+                    purchaseDate: new Date().toISOString(),
+                    owner: currentWallet
+                });
+                localStorage.setItem('card_collection', JSON.stringify(collection));
+
+                alert(`Successfully purchased ${card.name}! Check your collection.`);
+                renderCards();
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

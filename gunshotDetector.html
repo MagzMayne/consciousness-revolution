@@ -1,0 +1,560 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: gunshotDetector.html
+Declaration ID: IP-2FF1A6B9-MLL29000
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Gunshot Detector & Logger</title>
+<meta name="description" content="Mobile-ready web app to record microphone audio, detect impulsive events, estimate dominant frequency, log events with geolocation, visualize and export logs." />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#06b6d4;--danger:#ef4444}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;color:#e6eef8;background:linear-gradient(180deg,var(--bg),#071226)}
+  header{padding:14px;display:flex;align-items:center;gap:12px}
+  h1{font-size:18px;margin:0}
+  .container{max-width:980px;margin:12px auto;padding:12px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-bottom:12px;backdrop-filter:blur(6px)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  button{background:var(--accent);color:#012029;border:0;padding:10px 12px;border-radius:10px;font-weight:600}
+  button.warn{background:var(--danger);color:white}
+  .small{font-size:13px;padding:8px 10px}
+  #status{font-size:13px;color:var(--muted);margin-top:6px}
+  canvas{width:100%;height:120px;border-radius:8px;background:#071226;display:block}
+  #log{max-height:210px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+  .log-row{padding:6px;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;justify-content:space-between;gap:8px}
+  .badge{font-weight:700;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.02);color:var(--muted)}
+  #map{height:260px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  footer{font-size:13px;color:var(--muted);text-align:center;padding:8px}
+  @media (min-width:900px){canvas{height:160px}}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for surveillance features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<header>
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#062235"/><path d="M7 12h10M12 7v10" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Gunshot Detector & Logger</h1>
+    <div id="status">Idle</div>
+  </div>
+</header>
+
+<main class="container">
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div>
+        <div style="font-weight:700">Microphone Controls</div>
+        <div style="font-size:13px;color:var(--muted)">Turn microphone on, tune sensitivity, start logging</div>
+      </div>
+      <div class="controls">
+        <button id="btnEnable" class="small">Enable Microphone</button>
+        <button id="btnStart" class="small" disabled>Start Logging</button>
+        <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label style="color:var(--muted);font-size:13px">Sensitivity</label>
+      <input id="sensitivity" type="range" min="0.1" max="5" step="0.1" value="1" style="width:160px">
+      <label style="color:var(--muted);font-size:13px">FFT Size</label>
+      <select id="fftSize" style="padding:6px;border-radius:8px;background:#02121b;color:#cfeffc;border:1px solid rgba(255,255,255,0.02)">
+        <option value="2048">2048</option>
+        <option value="4096" selected>4096</option>
+        <option value="8192">8192</option>
+      </select>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+    </div>
+
+    <div style="margin-top:12px">
+      <canvas id="waveform"></canvas>
+    </div>
+  </section>
+
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Live Event Log</div>
+      <div style="font-size:13px;color:var(--muted)">Detected impulsive sounds will appear below and on the map</div>
+    </div>
+
+    <div id="log" style="margin-top:8px" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Map</div>
+      <div style="font-size:13px;color:var(--muted)">Tap markers to inspect events</div>
+    </div>
+    <div id="map" style="margin-top:8px"></div>
+  </section>
+</main>
+
+<footer class="card" style="max-width:980px;margin:12px auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="font-weight:700">Device: Mobile-ready recorder with geolocation, export and visualizer</div>
+    <div style="font-size:13px;color:var(--muted)">Logs stored locally in memory until exported</div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Single-file mobile-ready application
+   - client-side only
+   - records audio via getUserMedia
+   - uses WebAudio Analyser + OfflineAudioContext for FFT analysis
+   - detects impulsive events by short-term peak energy and spectral content
+   - estimates dominant frequency and maps to broad caliber-like categories
+   - logs timestamp + location + amplitude + dominantFreq + classification
+   - displays events in a list and on a Leaflet map
+   - allows CSV export
+*/
+
+/* Globals */
+let audioContext = null;
+let mediaStream = null;
+let sourceNode = null;
+let analyser = null;
+let scriptNode = null;
+let running = false;
+let fftSizeCurrent = 4096;
+let sensitivity = 1.0;
+let detectionState = { lastEventAt: 0, refractoryMs: 800 };
+let events = [];
+let map = null;
+let markersLayer = null;
+
+/* DOM */
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const canvas = document.getElementById('waveform');
+const sensitivityInput = document.getElementById('sensitivity');
+const fftSelect = document.getElementById('fftSize');
+
+/* Canvas setup */
+const canvasCtx = canvas.getContext('2d');
+function resizeCanvas(){ canvas.width = canvas.clientWidth * devicePixelRatio; canvas.height = canvas.clientHeight * devicePixelRatio; canvasCtx.scale(devicePixelRatio, devicePixelRatio); }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* Map init */
+function initMap(){
+  map = L.map('map', { zoomControl:true, attributionControl:false }).setView([39.95,-86.26], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+/* Utility: timestamp string */
+function ts(){ return new Date().toISOString(); }
+
+/* Utility: simple CSV exporter */
+function exportCSV(){
+  if(events.length===0) return;
+  const hdr = ['timestamp,lat,lon,amplitude,dominantFreqHz,class,notes'];
+  const rows = events.map(e => {
+    const lat = e.lat ?? '';
+    const lon = e.lon ?? '';
+    const notes = (e.notes || '').replace(/"/g,'""');
+    return `${e.timestamp},${lat},${lon},${e.amplitude.toFixed(5)},${e.dominantFreq.toFixed(1)},${e.class},"${notes}"`;
+  });
+  const csv = hdr.concat(rows).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'gunshot_log.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* Simple classification heuristics mapping dominant frequency and amplitude to coarse categories */
+function classifyEvent(dominantFreq, amplitude){
+  // All statements are heuristic and approximate
+  if(amplitude < 0.08 * sensitivity) return 'Low-energy impulse';
+  if(dominantFreq < 500) return 'Large-caliber/low-frequency impulse';
+  if(dominantFreq < 1500) return 'Rifle-like impulse';
+  if(dominantFreq < 4000) return 'Handgun-like impulse';
+  return 'High-frequency impulse or fragment';
+}
+
+/* Add event to UI and map */
+function addEvent(record){
+  events.push(record);
+  btnExport.disabled = false;
+
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.innerHTML = `<div>
+      <div style="font-weight:700">${record.timestamp}</div>
+      <div style="font-size:13px;color:var(--muted)">${record.class} — ${record.dominantFreq.toFixed(0)} Hz — ${record.amplitude.toFixed(3)} RMS</div>
+    </div>
+    <div style="text-align:right">
+      <div class="badge">${record.lat ? 'Geo OK' : 'No Geo'}</div>
+      <div style="font-size:12px;margin-top:6px"><button data-idx="${events.length-1}" style="padding:6px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:#cfeffc">Inspect</button></div>
+    </div>`;
+
+  logEl.prepend(row);
+
+  const inspectBtn = row.querySelector('button');
+  inspectBtn.addEventListener('click', ()=>{
+    const e = events[parseInt(inspectBtn.dataset.idx,10)];
+    alert(`Event\n\nTimestamp: ${e.timestamp}\nClass: ${e.class}\nDominant freq: ${e.dominantFreq.toFixed(1)} Hz\nAmplitude: ${e.amplitude.toFixed(3)}\nLat: ${e.lat ?? 'unknown'}\nLon: ${e.lon ?? 'unknown'}\nNotes: ${e.notes || ''}`);
+  });
+
+  if(record.lat && record.lon){
+    const marker = L.circleMarker([record.lat, record.lon], { radius:10, color:'#06b6d4', fillColor:'#06b6d4', fillOpacity:0.6 });
+    marker.addTo(markersLayer);
+    marker.bindPopup(`<b>${record.class}</b><br>${record.timestamp}<br>${record.dominantFreq.toFixed(0)} Hz`);
+    if(events.length===1) map.setView([record.lat,record.lon], 15);
+  }
+}
+
+/* Audio analysis and detection */
+
+/* Compute dominant frequency from frequency bin array */
+function computeDominantFreq(freqData, sampleRate){
+  let maxIdx = 0;
+  let maxVal = -Infinity;
+  for(let i=1;i<freqData.length;i++){
+    if(freqData[i] > maxVal){ maxVal = freqData[i]; maxIdx = i; }
+  }
+  const binHz = sampleRate / (2 * freqData.length);
+  return maxIdx * binHz;
+}
+
+/* RMS calculation for a Float32Array */
+function rmsFromFloat32(buffer){
+  let sum = 0;
+  for(let i=0;i<buffer.length;i++){ const v = buffer[i]; sum += v*v; }
+  return Math.sqrt(sum / buffer.length);
+}
+
+/* Create offline FFT using OfflineAudioContext for higher-resolution spectral estimate */
+async function computeSpectrumFloat32(float32Buffer, sampleRate, fftSize){
+  const offlineCtx = new OfflineAudioContext(1, fftSize, sampleRate);
+  const buf = offlineCtx.createBuffer(1, float32Buffer.length, sampleRate);
+  buf.copyToChannel(float32Buffer, 0, 0);
+  const src = offlineCtx.createBufferSource();
+  src.buffer = buf;
+  const analyserNode = offlineCtx.createAnalyser();
+  analyserNode.fftSize = fftSize;
+  src.connect(analyserNode);
+  analyserNode.connect(offlineCtx.destination);
+  src.start();
+  const rendered = await offlineCtx.startRendering();
+  const arr = new Float32Array(analyserNode.frequencyBinCount);
+  analyserNode.getFloatFrequencyData(arr);
+  // convert from dB to linear-ish magnitude
+  const linear = new Float32Array(arr.length);
+  for(let i=0;i<arr.length;i++){ linear[i] = Math.pow(10, arr[i] / 20); }
+  return linear;
+}
+
+/* Primary realtime processor using ScriptProcessorNode fallback for broad browser support */
+function startAudioProcessing(stream){
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  mediaStream = stream;
+  sourceNode = audioContext.createMediaStreamSource(stream);
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = fftSizeCurrent;
+  analyser.smoothingTimeConstant = 0.05;
+  sourceNode.connect(analyser);
+
+  // ScriptProcessorNode for capturing small blocks for RMS and short-time FFT
+  const bufferSize = 2048;
+  const spn = audioContext.createScriptProcessor(bufferSize, 1, 1);
+  spn.onaudioprocess = async (ev) => {
+    if(!running) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    // compute short-time RMS
+    const amplitude = rmsFromFloat32(input);
+    // draw waveform
+    drawWaveform(input);
+    // detect impulse by amplitude threshold and sharp envelope
+    const now = performance.now();
+    const threshold = 0.12 * sensitivity; // base threshold multiplied by sensitivity slider
+    const envelopeSharp = amplitude > threshold;
+    if(envelopeSharp && (now - detectionState.lastEventAt) > detectionState.refractoryMs){
+      detectionState.lastEventAt = now;
+      // compute higher-resolution spectrum asynchronously
+      const sampleRate = audioContext.sampleRate;
+      const fftForEst = Math.min(fftSizeCurrent, 8192);
+      computeSpectrumFloat32(input, sampleRate, fftForEst)
+        .then(freqLinear => {
+          const dominant = computeDominantFreq(freqLinear, sampleRate);
+          // fetch geolocation if available
+          navigator.geolocation.getCurrentPosition(pos => {
+            const rec = {
+              timestamp: new Date().toISOString(),
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              amplitude: amplitude,
+              dominantFreq: dominant,
+              class: classifyEvent(dominant, amplitude),
+              notes: ''
+            };
+            addEvent(rec);
+          }, err => {
+            const rec = {
+              timestamp: new Date().toISOString(),
+              lat: null,
+              lon: null,
+              amplitude: amplitude,
+              dominantFreq: dominant,
+              class: classifyEvent(dominant, amplitude),
+              notes: 'No geolocation'
+            };
+            addEvent(rec);
+          }, { enableHighAccuracy: false, maximumAge:5000, timeout:3000 });
+        })
+        .catch(err => {
+          const rec = {
+            timestamp: new Date().toISOString(),
+            lat: null,
+            lon: null,
+            amplitude: amplitude,
+            dominantFreq: 0,
+            class: 'Detected impulse (spectrum failure)',
+            notes: err.toString()
+          };
+          addEvent(rec);
+        });
+    }
+  };
+  sourceNode.connect(spn);
+  spn.connect(audioContext.destination);
+  scriptNode = spn;
+}
+
+/* Draw a simple waveform on canvas */
+function drawWaveform(float32Array){
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#071226';
+  canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.lineWidth = 1.2;
+  canvasCtx.strokeStyle = '#06b6d4';
+  canvasCtx.beginPath();
+  const step = Math.ceil(float32Array.length / w);
+  for(let i=0;i<w;i++){
+    const idx = i * step;
+    const v = float32Array[idx] || 0;
+    const y = (1 - (v + 1) / 2) * h;
+    if(i===0) canvasCtx.moveTo(i,y); else canvasCtx.lineTo(i,y);
+  }
+  canvasCtx.stroke();
+}
+
+/* Stop and clean up audio */
+function stopAudio(){
+  try{
+    if(scriptNode) scriptNode.disconnect();
+    if(analyser) analyser.disconnect();
+    if(sourceNode) sourceNode.disconnect();
+    if(mediaStream){
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    if(audioContext) audioContext.close();
+  }catch(e){}
+  audioContext = null;
+  sourceNode = null;
+  analyser = null;
+  scriptNode = null;
+}
+
+/* Button handlers */
+btnEnable.addEventListener('click', async ()=>{
+  statusEl.textContent = 'Requesting microphone...';
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:true, noiseSuppression:true}});
+    statusEl.textContent = 'Microphone enabled';
+    btnStart.disabled = false;
+    btnEnable.disabled = true;
+    mediaStream = s;
+  }catch(e){
+    statusEl.textContent = 'Microphone permission denied or unavailable';
+    console.error(e);
+  }
+});
+
+btnStart.addEventListener('click', async ()=>{
+  if(!mediaStream){
+    try{
+      const s = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:true, noiseSuppression:true}});
+      mediaStream = s;
+    }catch(e){
+      statusEl.textContent = 'Microphone permission denied or unavailable';
+      return;
+    }
+  }
+  // configure sensitivity and fft
+  sensitivity = parseFloat(sensitivityInput.value);
+  fftSizeCurrent = parseInt(fftSelect.value,10);
+  startAudioProcessing(mediaStream);
+  running = true;
+  statusEl.textContent = 'Logging: active';
+  btnStart.disabled = true;
+  btnStop.disabled = false;
+  btnEnable.disabled = true;
+});
+
+btnStop.addEventListener('click', ()=>{
+  running = false;
+  stopAudio();
+  statusEl.textContent = 'Logging stopped';
+  btnStart.disabled = false;
+  btnStop.disabled = true;
+  btnEnable.disabled = false;
+});
+
+/* Export */
+btnExport.addEventListener('click', exportCSV);
+
+/* Controls update */
+sensitivityInput.addEventListener('input', ()=>{ sensitivity = parseFloat(sensitivityInput.value); });
+fftSelect.addEventListener('change', ()=>{ fftSizeCurrent = parseInt(fftSelect.value,10); if(analyser) analyser.fftSize = fftSizeCurrent; });
+
+/* Initialize map and UI state */
+initMap();
+statusEl.textContent = 'Ready';
+btnExport.disabled = true;
+
+/* Helpful performance tweak: reduce audio output to avoid feedback on some mobiles */
+if (navigator.userAgent && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+  // mute audio output by default when scriptProcessor connects to destination
+  // our ScriptProcessor connects to destination only to keep the node alive; the input is not routed to play.
+}
+
+/* Focus accessibility */
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && running){ /* allow running in background but be aware some browsers throttle audio */ }});
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

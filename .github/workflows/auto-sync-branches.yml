@@ -1,0 +1,711 @@
+name: Auto-Sync Branches with Main
+
+on:
+  schedule:
+    # Run every 4 hours to keep branches synchronized (increased from daily due to high PR volume)
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      branch_pattern:
+        description: 'Branch pattern to sync (e.g., feature/*, copilot/*)'
+        required: false
+        default: 'copilot/*'
+        type: string
+      dry_run:
+        description: 'Dry run mode (only detect, do not sync)'
+        required: false
+        default: false
+        type: boolean
+      base_branch:
+        description: 'Base branch to sync with'
+        required: false
+        default: 'main'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-sync-branches:
+    name: Auto-Sync Branches with Main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Find branches to sync
+        id: find-branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const baseBranch = '${{ inputs.base_branch }}' || 'main';
+            const branchPattern = '${{ inputs.branch_pattern }}' || 'copilot/*';
+
+            console.log(`🔍 Finding branches to sync with ${baseBranch}...`);
+            console.log(`   Pattern: ${branchPattern}`);
+
+            // Get all branches
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            console.log(`Found ${branches.length} total branches`);
+
+            // Parse pattern (simple implementation)
+            const patterns = branchPattern.split(',').map(p => p.trim());
+
+            // Filter branches based on pattern
+            const eligibleBranches = [];
+
+            for (const branch of branches) {
+              // Skip the base branch itself
+              if (branch.name === baseBranch) {
+                continue;
+              }
+
+              // Skip protected branches
+              if (branch.protected) {
+                console.log(`  Skipping protected branch: ${branch.name}`);
+                continue;
+              }
+
+              // Check if branch matches any pattern
+              let matches = false;
+              for (const pattern of patterns) {
+                if (pattern === '*') {
+                  matches = true;
+                  break;
+                }
+
+                const regexPattern = pattern
+                  .replace(/\*/g, '.*')
+                  .replace(/\?/g, '.');
+                const regex = new RegExp(`^${regexPattern}$`);
+
+                if (regex.test(branch.name)) {
+                  matches = true;
+                  break;
+                }
+              }
+
+              if (matches) {
+                eligibleBranches.push(branch.name);
+              }
+            }
+
+            console.log(`\n✅ Found ${eligibleBranches.length} eligible branches:`);
+            eligibleBranches.forEach(name => console.log(`  - ${name}`));
+
+            core.setOutput('branches', JSON.stringify(eligibleBranches));
+            core.setOutput('branch_count', eligibleBranches.length);
+            core.setOutput('base_branch', baseBranch);
+
+            return eligibleBranches;
+
+      - name: Check branch status
+        id: check-branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchNames = JSON.parse('${{ steps.find-branches.outputs.branches }}');
+            const baseBranch = '${{ steps.find-branches.outputs.base_branch }}';
+
+            console.log(`\n🔍 Checking status of ${branchNames.length} branches...\n`);
+
+            const branchesToSync = [];
+            const upToDateBranches = [];
+            const conflictedBranches = [];
+
+            for (const branchName of branchNames) {
+              console.log(`\n===== Checking: ${branchName} =====`);
+
+              try {
+                // Compare branch with base
+                const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  basehead: `${baseBranch}...${branchName}`
+                });
+
+                const behindBy = comparison.behind_by || 0;
+                const aheadBy = comparison.ahead_by || 0;
+
+                console.log(`  Behind by: ${behindBy} commits`);
+                console.log(`  Ahead by: ${aheadBy} commits`);
+
+                if (behindBy === 0) {
+                  console.log(`  ✅ Branch is up to date`);
+                  upToDateBranches.push(branchName);
+                  continue;
+                }
+
+                // Check if branch has an open PR
+                const { data: prs } = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  head: `${context.repo.owner}:${branchName}`
+                });
+
+                const hasPR = prs.length > 0;
+                const pr = hasPR ? prs[0] : null;
+
+                console.log(`  Has open PR: ${hasPR ? 'Yes (#' + pr.number + ')' : 'No'}`);
+
+                // Add to sync list
+                branchesToSync.push({
+                  name: branchName,
+                  behind_by: behindBy,
+                  ahead_by: aheadBy,
+                  has_pr: hasPR,
+                  pr_number: hasPR ? pr.number : null,
+                  pr_mergeable: hasPR ? pr.mergeable : null
+                });
+
+              } catch (error) {
+                console.error(`  ❌ Error checking branch: ${error.message}`);
+                conflictedBranches.push({
+                  name: branchName,
+                  error: error.message
+                });
+              }
+            }
+
+            console.log(`\n\n📊 Summary:`);
+            console.log(`  Branches to sync: ${branchesToSync.length}`);
+            console.log(`  Already up to date: ${upToDateBranches.length}`);
+            console.log(`  Errors: ${conflictedBranches.length}`);
+
+            core.setOutput('branches_to_sync', JSON.stringify(branchesToSync));
+            core.setOutput('sync_count', branchesToSync.length);
+            core.setOutput('up_to_date_count', upToDateBranches.length);
+
+            return branchesToSync;
+
+      - name: Sync branches
+        id: sync-branches
+        if: steps.check-branches.outputs.sync_count > 0
+        run: |
+          BASE_BRANCH="${{ steps.find-branches.outputs.base_branch }}"
+          DRY_RUN="${{ inputs.dry_run }}"
+
+          echo "## 🔄 Syncing Branches" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Base Branch:** $BASE_BRANCH" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** $DRY_RUN" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Fetch latest from base branch
+          echo "Fetching latest from $BASE_BRANCH..."
+          git fetch origin $BASE_BRANCH
+
+          SYNCED_COUNT=0
+          FAILED_COUNT=0
+          CONFLICT_COUNT=0
+
+          # Read branches from JSON output
+          BRANCHES_JSON='${{ steps.check-branches.outputs.branches_to_sync }}'
+
+          # Save results
+          mkdir -p sync-results
+          echo "branch_name,status,message" > sync-results/sync-report.csv
+
+          # Process each branch
+          echo "$BRANCHES_JSON" | jq -r '.[] | @base64' | while IFS= read -r encoded_branch; do
+            BRANCH_DATA=$(echo "$encoded_branch" | base64 -d)
+            BRANCH_NAME=$(echo "$BRANCH_DATA" | jq -r '.name')
+            BEHIND_BY=$(echo "$BRANCH_DATA" | jq -r '.behind_by')
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Syncing: \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Behind by: $BEHIND_BY commits" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "- **[DRY RUN]** Would sync this branch" >> $GITHUB_STEP_SUMMARY
+              echo "$BRANCH_NAME,dry_run,Would sync branch" >> sync-results/sync-report.csv
+              continue
+            fi
+
+            # Checkout the branch
+            echo "Checking out $BRANCH_NAME..."
+            if ! git checkout "$BRANCH_NAME" 2>&1; then
+              echo "- ❌ Failed to checkout branch" >> $GITHUB_STEP_SUMMARY
+              echo "$BRANCH_NAME,failed,Failed to checkout" >> sync-results/sync-report.csv
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              continue
+            fi
+
+            # Attempt merge
+            echo "Merging origin/$BASE_BRANCH into $BRANCH_NAME..."
+            if git merge origin/$BASE_BRANCH --no-edit 2>&1 | tee merge-output.txt; then
+              echo "- ✅ Merge successful" >> $GITHUB_STEP_SUMMARY
+
+              # Push changes
+              echo "Pushing changes..."
+              if git push origin "$BRANCH_NAME" 2>&1; then
+                echo "- ✅ Push successful" >> $GITHUB_STEP_SUMMARY
+                echo "$BRANCH_NAME,success,Synced successfully" >> sync-results/sync-report.csv
+                SYNCED_COUNT=$((SYNCED_COUNT + 1))
+              else
+                echo "- ❌ Push failed" >> $GITHUB_STEP_SUMMARY
+                echo "$BRANCH_NAME,failed,Push failed" >> sync-results/sync-report.csv
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+              fi
+            else
+              echo "- ❌ Merge conflicts detected" >> $GITHUB_STEP_SUMMARY
+              echo "$BRANCH_NAME,conflict,Has merge conflicts" >> sync-results/sync-report.csv
+              CONFLICT_COUNT=$((CONFLICT_COUNT + 1))
+
+              # Abort merge
+              git merge --abort 2>/dev/null || true
+            fi
+
+            # Return to main branch
+            git checkout $BASE_BRANCH 2>/dev/null || true
+          done
+
+          # Save counts
+          echo "synced_count=$SYNCED_COUNT" >> $GITHUB_OUTPUT
+          echo "failed_count=$FAILED_COUNT" >> $GITHUB_OUTPUT
+          echo "conflict_count=$CONFLICT_COUNT" >> $GITHUB_OUTPUT
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Successfully synced: $SYNCED_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed: $FAILED_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- Conflicts: $CONFLICT_COUNT" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on synced PRs
+        if: steps.sync-branches.outputs.synced_count > 0 && inputs.dry_run != true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchesToSync = JSON.parse('${{ steps.check-branches.outputs.branches_to_sync }}');
+            const syncedCount = '${{ steps.sync-branches.outputs.synced_count }}';
+            const baseBranch = '${{ steps.find-branches.outputs.base_branch }}';
+
+            console.log(`\n💬 Notifying PRs of successful sync...\n`);
+
+            // Read sync results
+            const fs = require('fs');
+            let syncedBranches = [];
+
+            if (fs.existsSync('sync-results/sync-report.csv')) {
+              const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+              const lines = csv.split('\n').slice(1); // Skip header
+
+              syncedBranches = lines
+                .filter(line => line.includes(',success,'))
+                .map(line => line.split(',')[0]);
+            }
+
+            console.log(`Synced branches: ${syncedBranches.length}`);
+
+            for (const branchData of branchesToSync) {
+              if (!branchData.has_pr || !branchData.pr_number) {
+                continue;
+              }
+
+              if (!syncedBranches.includes(branchData.name)) {
+                continue;
+              }
+
+              console.log(`Commenting on PR #${branchData.pr_number} for branch ${branchData.name}`);
+
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: branchData.pr_number,
+                  body: `## 🔄 Branch Auto-Synced with ${baseBranch}
+
+                  This branch has been automatically synced with the base branch to prevent merge conflicts.
+
+                  ### Changes
+                  - **Merged:** ${branchData.behind_by} commits from \`${baseBranch}\`
+                  - **Status:** ✅ Sync successful
+                  - **Action:** Automatic merge and push completed
+
+                  ### What This Means
+                  Your branch now includes all the latest changes from \`${baseBranch}\`, reducing the likelihood of merge conflicts when your PR is merged.
+
+                  ### Next Steps
+                  1. Pull the latest changes to your local branch: \`git pull origin ${branchData.name}\`
+                  2. Review the merged changes (if any conflicts were auto-resolved)
+                  3. Ensure all tests still pass
+                  4. Continue with your work or request review
+
+                  ---
+                  *🤖 Automated by Auto-Sync Branches Workflow*
+                  *Workflow Run: [View Logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`
+                });
+
+                console.log(`  ✅ Comment added to PR #${branchData.pr_number}`);
+              } catch (error) {
+                console.error(`  ❌ Failed to comment on PR #${branchData.pr_number}: ${error.message}`);
+              }
+            }
+
+      - name: Notify on conflicted branches
+        if: steps.sync-branches.outputs.conflict_count > 0 && inputs.dry_run != true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchesToSync = JSON.parse('${{ steps.check-branches.outputs.branches_to_sync }}');
+            const baseBranch = '${{ steps.find-branches.outputs.base_branch }}';
+
+            console.log(`\n⚠️ Notifying PRs of sync conflicts...\n`);
+
+            // Read sync results
+            const fs = require('fs');
+            let conflictedBranches = [];
+
+            if (fs.existsSync('sync-results/sync-report.csv')) {
+              const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+              const lines = csv.split('\n').slice(1); // Skip header
+
+              conflictedBranches = lines
+                .filter(line => line.includes(',conflict,'))
+                .map(line => line.split(',')[0]);
+            }
+
+            console.log(`Conflicted branches: ${conflictedBranches.length}`);
+
+            for (const branchData of branchesToSync) {
+              if (!branchData.has_pr || !branchData.pr_number) {
+                continue;
+              }
+
+              if (!conflictedBranches.includes(branchData.name)) {
+                continue;
+              }
+
+              console.log(`Commenting on PR #${branchData.pr_number} for branch ${branchData.name}`);
+
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: branchData.pr_number,
+                  body: `## ⚠️ Auto-Sync Failed: Merge Conflicts Detected
+
+                  The automatic sync with \`${baseBranch}\` could not be completed due to merge conflicts.
+
+                  ### Status
+                  - **Branch Behind By:** ${branchData.behind_by} commits
+                  - **Issue:** Merge conflicts prevent automatic sync
+                  - **Action Required:** Manual conflict resolution needed
+
+                  ### Resolution Steps
+
+                  1. **Fetch and merge the base branch:**
+                     \`\`\`bash
+                     git fetch origin ${baseBranch}
+                     git merge origin/${baseBranch}
+                     \`\`\`
+
+                  2. **Resolve conflicts** in your editor:
+                     - Open each conflicted file
+                     - Look for conflict markers (\`<<<<<<<\`, \`=======\`, \`>>>>>>>\`)
+                     - Edit to keep the desired changes
+                     - Remove conflict markers
+
+                  3. **Complete the merge:**
+                     \`\`\`bash
+                     git add .
+                     git commit -m "Resolve merge conflicts with ${baseBranch}"
+                     git push origin ${branchData.name}
+                     \`\`\`
+
+                  ### Automatic Resolution
+                  The auto-conflict-resolver workflow may attempt to resolve simple conflicts automatically. Check for additional workflow runs or comments.
+
+                  ### Resources
+                  - [GitHub: Resolving Merge Conflicts](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/addressing-merge-conflicts)
+                  - [Repository Conflict Resolution Guide](.github/workflows/CONFLICT_RESOLUTION_GUIDE.md)
+
+                  ---
+                  *🤖 Automated by Auto-Sync Branches Workflow*
+                  *Workflow Run: [View Logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})*`
+                });
+
+                console.log(`  ✅ Comment added to PR #${branchData.pr_number}`);
+
+                // Add conflict label
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: branchData.pr_number,
+                  labels: ['has-conflicts', 'auto-sync-failed']
+                });
+
+              } catch (error) {
+                console.error(`  ❌ Failed to comment on PR #${branchData.pr_number}: ${error.message}`);
+              }
+            }
+
+      - name: Trigger conflict resolution for problematic branches
+        if: steps.sync-branches.outputs.conflict_count > 0 && inputs.dry_run != true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchesToSync = JSON.parse('${{ steps.check-branches.outputs.branches_to_sync }}');
+
+            // Read sync results
+            const fs = require('fs');
+            let conflictedBranches = [];
+
+            if (fs.existsSync('sync-results/sync-report.csv')) {
+              const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+              const lines = csv.split('\n').slice(1); // Skip header
+
+              conflictedBranches = lines
+                .filter(line => line.includes(',conflict,'))
+                .map(line => line.split(',')[0]);
+            }
+
+            console.log(`\n🔧 Triggering auto-resolver for ${conflictedBranches.length} conflicted branches...\n`);
+
+            for (const branchData of branchesToSync) {
+              if (!branchData.has_pr || !branchData.pr_number) {
+                continue;
+              }
+
+              if (!conflictedBranches.includes(branchData.name)) {
+                continue;
+              }
+
+              console.log(`Triggering auto-resolver for PR #${branchData.pr_number}`);
+
+              try {
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'auto-conflict-resolver.yml',
+                  ref: context.ref || context.payload.repository.default_branch,
+                  inputs: {
+                    pr_number: branchData.pr_number.toString(),
+                    strategy: 'auto'
+                  }
+                });
+
+                console.log(`  ✅ Auto-resolver triggered for PR #${branchData.pr_number}`);
+              } catch (error) {
+                console.warn(`  ⚠️ Could not trigger auto-resolver: ${error.message}`);
+              }
+            }
+
+      - name: Create summary report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchCount = '${{ steps.find-branches.outputs.branch_count }}';
+            const syncCount = '${{ steps.check-branches.outputs.sync_count }}';
+            const upToDateCount = '${{ steps.check-branches.outputs.up_to_date_count }}';
+            const syncedCount = '${{ steps.sync-branches.outputs.synced_count }}' || '0';
+            const failedCount = '${{ steps.sync-branches.outputs.failed_count }}' || '0';
+            const conflictCount = '${{ steps.sync-branches.outputs.conflict_count }}' || '0';
+            const isDryRun = '${{ inputs.dry_run }}' === 'true';
+            const baseBranch = '${{ steps.find-branches.outputs.base_branch }}';
+
+            const issueTitle = `🔄 Auto-Sync Report - ${new Date().toISOString().split('T')[0]}`;
+
+            let issueBody = `## Auto-Sync Branches Report
+
+            **Date:** ${new Date().toISOString().split('T')[0]}
+            **Time:** ${new Date().toISOString().split('T')[1].split('.')[0]} UTC
+            **Base Branch:** \`${baseBranch}\`
+            **Mode:** ${isDryRun ? '🔍 Dry Run (Detection Only)' : '🔄 Sync Mode'}
+
+            ### 📊 Statistics
+
+            - **Total Branches Checked:** ${branchCount}
+            - **Already Up to Date:** ${upToDateCount}
+            - **Needed Sync:** ${syncCount}
+            `;
+
+            if (!isDryRun) {
+              issueBody += `- **Successfully Synced:** ${syncedCount}
+            - **Failed:** ${failedCount}
+            - **Conflicts Detected:** ${conflictCount}
+            `;
+            }
+
+            if (syncCount > 0 && !isDryRun) {
+              issueBody += `\n### ✅ Successfully Synced Branches\n\n`;
+
+              const fs = require('fs');
+              if (fs.existsSync('sync-results/sync-report.csv')) {
+                const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+                const lines = csv.split('\n').slice(1);
+
+                const synced = lines.filter(line => line.includes(',success,'));
+                if (synced.length > 0) {
+                  synced.forEach(line => {
+                    const [branch] = line.split(',');
+                    issueBody += `- ✅ \`${branch}\`\n`;
+                  });
+                } else {
+                  issueBody += `_No branches were successfully synced_\n`;
+                }
+              }
+
+              if (conflictCount > 0) {
+                issueBody += `\n### ⚠️ Branches with Conflicts\n\n`;
+
+                if (fs.existsSync('sync-results/sync-report.csv')) {
+                  const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+                  const lines = csv.split('\n').slice(1);
+
+                  const conflicts = lines.filter(line => line.includes(',conflict,'));
+                  conflicts.forEach(line => {
+                    const [branch] = line.split(',');
+                    issueBody += `- ⚠️ \`${branch}\` - Manual resolution required\n`;
+                  });
+                }
+
+                issueBody += `\nThe auto-conflict-resolver workflow has been triggered for these branches.\n`;
+              }
+
+              if (failedCount > 0) {
+                issueBody += `\n### ❌ Failed Syncs\n\n`;
+
+                if (fs.existsSync('sync-results/sync-report.csv')) {
+                  const csv = fs.readFileSync('sync-results/sync-report.csv', 'utf8');
+                  const lines = csv.split('\n').slice(1);
+
+                  const failed = lines.filter(line => line.includes(',failed,'));
+                  failed.forEach(line => {
+                    const [branch, , message] = line.split(',');
+                    issueBody += `- ❌ \`${branch}\` - ${message}\n`;
+                  });
+                }
+              }
+            }
+
+            issueBody += `\n### 📝 Summary\n\n`;
+
+            if (isDryRun) {
+              issueBody += `This was a **dry run**. No branches were actually synced.\n\n`;
+              issueBody += `To perform actual syncing, run the workflow without dry run mode.\n`;
+            } else {
+              if (syncedCount > 0) {
+                issueBody += `✅ **${syncedCount} branch(es)** were successfully synced with \`${baseBranch}\`, preventing potential merge conflicts.\n\n`;
+              }
+
+              if (conflictCount > 0) {
+                issueBody += `⚠️ **${conflictCount} branch(es)** have merge conflicts and require manual resolution.\n\n`;
+              }
+
+              if (failedCount > 0) {
+                issueBody += `❌ **${failedCount} branch(es)** failed to sync due to errors.\n\n`;
+              }
+
+              if (upToDateCount > 0) {
+                issueBody += `ℹ️ **${upToDateCount} branch(es)** were already up to date.\n`;
+              }
+            }
+
+            issueBody += `\n### 🔍 Workflow Details\n\n`;
+            issueBody += `- **Workflow Run:** [View Logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+            issueBody += `- **Branch Pattern:** ${context.eventName === 'workflow_dispatch' ? '${{ inputs.branch_pattern }}' : 'copilot/*'}\n`;
+            issueBody += `- **Schedule:** Daily at 1 AM UTC (can also be triggered manually)\n\n`;
+
+            issueBody += `---\n`;
+            issueBody += `*🤖 Automated by Auto-Sync Branches Workflow*\n`;
+            issueBody += `*This report tracks proactive branch synchronization to prevent merge conflicts.*`;
+
+            // Close previous auto-sync report issues
+            try {
+              const { data: existingIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'auto-sync-report,automated'
+              });
+
+              for (const issue of existingIssues) {
+                if (issue.title.includes('Auto-Sync Report')) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed'
+                  });
+                  console.log(`Closed previous report issue #${issue.number}`);
+                }
+              }
+            } catch (error) {
+              console.log('Note: Could not close previous issues:', error.message);
+            }
+
+            // Create new issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['auto-sync-report', 'automated', syncedCount > 0 ? 'success' : 'info']
+            });
+
+            console.log('✅ Summary issue created');
+
+      - name: Upload sync report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-sync-report-${{ github.run_number }}
+          path: |
+            sync-results/sync-report.csv
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Workflow summary
+        if: always()
+        run: |
+          echo "## 🔄 Auto-Sync Branches Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "**Base Branch:** ${{ steps.find-branches.outputs.base_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Branches:** ${{ steps.find-branches.outputs.branch_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Already Up to Date:** ${{ steps.check-branches.outputs.up_to_date_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Needed Sync:** ${{ steps.check-branches.outputs.sync_count }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-branches.outputs.sync_count }}" -gt 0 ] && [ "${{ inputs.dry_run }}" != "true" ]; then
+            echo "- **Successfully Synced:** ${{ steps.sync-branches.outputs.synced_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed:** ${{ steps.sync-branches.outputs.failed_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Conflicts:** ${{ steps.sync-branches.outputs.conflict_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            if [ "${{ steps.sync-branches.outputs.synced_count }}" -gt 0 ]; then
+              echo "✅ Branches synced successfully to prevent merge conflicts!" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            if [ "${{ steps.sync-branches.outputs.conflict_count }}" -gt 0 ]; then
+              echo "⚠️ Some branches have conflicts requiring manual resolution." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "🔍 Dry run completed - no branches were actually synced." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ All eligible branches are up to date!" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: faceMap.html
+Declaration ID: IP-7EA5227A-MLL28ZZK
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Facial Ray Mapping Visualization</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #020617;
+      color: #e5e7eb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #ui {
+      position: fixed;
+      top: 0.5rem;
+      left: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      z-index: 10;
+    }
+    #ui label {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    #ui input[type="range"] {
+      width: 160px;
+    }
+    #rayCountLabel {
+      font-weight: 600;
+    }
+    #stats {
+      margin-top: 0.25rem;
+      font-size: 0.7rem;
+      color: #9ca3af;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for facial recognition features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="ui">
+    <label>
+      Rays:
+      <span id="rayCountLabel">150</span>
+      <input id="rayCount" type="range" min="20" max="500" value="150" />
+    </label>
+    <div id="stats">
+      Rays cast from phone → intersection dots on face.
+      Drag to orbit the phone around your face.
+    </div>
+  </div>
+
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"
+          integrity="sha512-c5dcwRn3U/vvGxCPLJ/8lRk/2f8+G2I9Zr0oOYwblIVjPa5GZiF6whZ3JJqY5eY+3wC+lkFBnaHefN3fTksAg=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <script>
+    // --- Basic Three.js setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x020617);
+
+    const camera = new THREE.PerspectiveCamera(
+      50,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      100
+    );
+    camera.position.set(0, 0, 4);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lights ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0x60a5fa, 1.0);
+    keyLight.position.set(2, 2, 3);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x22c55e, 0.5);
+    rimLight.position.set(-2, 1, -2);
+    scene.add(rimLight);
+
+    // --- Face geometry (sphere) ---
+    const faceRadius = 0.7;
+    const faceGeo = new THREE.SphereGeometry(faceRadius, 64, 64);
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0x1d4ed8,
+      metalness: 0.1,
+      roughness: 0.4,
+      wireframe: false,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const faceMesh = new THREE.Mesh(faceGeo, faceMat);
+    faceMesh.position.set(0, 0, 0);
+    scene.add(faceMesh);
+
+    // --- Phone geometry ---
+    const phoneWidth = 0.7;
+    const phoneHeight = 1.4;
+    const phoneDepth = 0.08;
+    const phoneGeo = new THREE.BoxGeometry(phoneWidth, phoneHeight, phoneDepth);
+    const phoneMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      metalness: 0.8,
+      roughness: 0.3,
+    });
+    const phoneMesh = new THREE.Mesh(phoneGeo, phoneMat);
+    phoneMesh.position.set(0, -0.1, 1.5);
+    scene.add(phoneMesh);
+
+    // Phone screen (front)
+    const screenGeo = new THREE.PlaneGeometry(phoneWidth * 0.94, phoneHeight * 0.9);
+    const screenMat = new THREE.MeshBasicMaterial({
+      color: 0x020617,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+    screenMesh.position.set(0, 0.02, phoneDepth / 2 + 0.001);
+    phoneMesh.add(screenMesh);
+
+    // Simple "hand" blocks holding the phone
+    const handGeo = new THREE.BoxGeometry(0.9, 0.3, 0.3);
+    const handMat = new THREE.MeshStandardMaterial({
+      color: 0xf97316,
+      metalness: 0.2,
+      roughness: 0.8,
+    });
+    const leftHand = new THREE.Mesh(handGeo, handMat);
+    leftHand.position.set(-0.45, -0.9, 1.4);
+    const rightHand = new THREE.Mesh(handGeo, handMat);
+    rightHand.position.set(0.45, -0.9, 1.4);
+    scene.add(leftHand, rightHand);
+
+    // --- Ray visualizations ---
+    const rayGroup = new THREE.Group();
+    const hitDotsGroup = new THREE.Group();
+    scene.add(rayGroup);
+    scene.add(hitDotsGroup);
+
+    let rayCount = 150;
+    const rayCountInput = document.getElementById("rayCount");
+    const rayCountLabel = document.getElementById("rayCountLabel");
+
+    // Generate random ray origins on the phone's "sensor strip"
+    function generateRayOrigins(count) {
+      const origins = [];
+      for (let i = 0; i < count; i++) {
+        const x = (Math.random() - 0.5) * phoneWidth * 0.8;
+        const y = phoneHeight * 0.3 + (Math.random() - 0.5) * phoneHeight * 0.15;
+        const localPos = new THREE.Vector3(x, phoneHeight / 2 - 0.1 - y, phoneDepth / 2 + 0.002);
+        const worldPos = localPos.clone().applyMatrix4(phoneMesh.matrixWorld);
+        origins.push(worldPos);
+      }
+      return origins;
+    }
+
+    function rebuildRays() {
+      // Clear old children
+      while (rayGroup.children.length > 0) rayGroup.remove(rayGroup.children[0]);
+      while (hitDotsGroup.children.length > 0) hitDotsGroup.remove(hitDotsGroup.children[0]);
+
+      const rayOrigins = generateRayOrigins(rayCount);
+      const faceCenter = faceMesh.position.clone();
+
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x22c55e,
+        transparent: true,
+        opacity: 0.8,
+      });
+
+      const dotGeo = new THREE.SphereGeometry(0.012, 6, 6);
+      const dotMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+
+      // For each origin, cast a ray toward the face center and compute intersection with sphere
+      rayOrigins.forEach(origin => {
+        const dir = faceCenter.clone().sub(origin).normalize();
+        const ray = new THREE.Ray(origin, dir);
+
+        // Solve ray-sphere intersection analytically
+        const oc = origin.clone().sub(faceCenter);
+        const a = dir.dot(dir);
+        const b = 2.0 * oc.dot(dir);
+        const c = oc.dot(oc) - faceRadius * faceRadius;
+        const discriminant = b * b - 4 * a * c;
+
+        if (discriminant < 0) {
+          // No intersection, just draw a short line
+          const end = origin.clone().add(dir.clone().multiplyScalar(2.0));
+          const geom = new THREE.BufferGeometry().setFromPoints([origin, end]);
+          rayGroup.add(new THREE.Line(geom, lineMat));
+        } else {
+          const t = (-b - Math.sqrt(discriminant)) / (2.0 * a);
+          const hitPoint = origin.clone().add(dir.clone().multiplyScalar(t));
+
+          const geom = new THREE.BufferGeometry().setFromPoints([origin, hitPoint]);
+          rayGroup.add(new THREE.Line(geom, lineMat));
+
+          const dot = new THREE.Mesh(dotGeo, dotMat);
+          dot.position.copy(hitPoint);
+          hitDotsGroup.add(dot);
+        }
+      });
+    }
+
+    rebuildRays();
+
+    // --- Simple touch/mouse orbit of the phone around the face ---
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let theta = 0;
+    let phi = 0.15; // slight pitch
+
+    function updatePhoneTransform() {
+      const radius = 1.6;
+      const x = radius * Math.sin(theta) * Math.cos(phi);
+      const y = radius * Math.sin(phi);
+      const z = radius * Math.cos(theta) * Math.cos(phi);
+
+      phoneMesh.position.set(x, y, z);
+      leftHand.position.set(x - 0.45, y - 0.8, z - 0.1);
+      rightHand.position.set(x + 0.45, y - 0.8, z - 0.1);
+
+      phoneMesh.lookAt(faceMesh.position);
+      leftHand.lookAt(faceMesh.position);
+      rightHand.lookAt(faceMesh.position);
+
+      rebuildRays();
+    }
+
+    function onPointerDown(x, y) {
+      isDragging = true;
+      lastX = x;
+      lastY = y;
+    }
+
+    function onPointerMove(x, y) {
+      if (!isDragging) return;
+      const dx = x - lastX;
+      const dy = y - lastY;
+      lastX = x;
+      lastY = y;
+
+      theta -= dx * 0.01;
+      phi -= dy * 0.005;
+      const limit = Math.PI / 3;
+      phi = Math.max(-limit, Math.min(limit, phi));
+
+      updatePhoneTransform();
+    }
+
+    function onPointerUp() {
+      isDragging = false;
+    }
+
+    // Mouse
+    window.addEventListener("mousedown", e => onPointerDown(e.clientX, e.clientY));
+    window.addEventListener("mousemove", e => onPointerMove(e.clientX, e.clientY));
+    window.addEventListener("mouseup", onPointerUp);
+
+    // Touch
+    window.addEventListener("touchstart", e => {
+      const t = e.touches[0];
+      onPointerDown(t.clientX, t.clientY);
+    }, { passive: true });
+
+    window.addEventListener("touchmove", e => {
+      const t = e.touches[0];
+      onPointerMove(t.clientX, t.clientY);
+    }, { passive: true });
+
+    window.addEventListener("touchend", onPointerUp);
+    window.addEventListener("touchcancel", onPointerUp);
+
+    // --- Ray count UI ---
+    rayCountInput.addEventListener("input", () => {
+      rayCount = parseInt(rayCountInput.value, 10);
+      rayCountLabel.textContent = rayCount;
+      rebuildRays();
+    });
+
+    // --- Resize handling ---
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Animation loop ---
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

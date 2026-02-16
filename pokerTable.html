@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: pokerTable.html
+Declaration ID: IP-61488AA4-MLL2901M
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Tourmaline Poker — 500 Seats (UTC Clock Sync)</title>
+  <style>
+    :root {
+      --table-size: clamp(560px, 90vw, 960px);
+      --seat-w: clamp(72px, 9vw, 120px);
+      --seat-h: clamp(104px, 12vw, 160px);
+      --badge: clamp(20px, 3vw, 32px);
+      --avatar-h: clamp(48px, 8vw, 72px);
+      --font-sm: clamp(11px, 2.4vw, 13px);
+      --font-md: clamp(12px, 3vw, 16px);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #0b0f14; color: #e8f0f6; font-family: system-ui, -apple-system, Segoe UI, Roboto; }
+    #root { min-height: 100vh; display: grid; grid-template-rows: auto auto 1fr auto; gap: 12px; justify-items: center; padding: 12px; }
+
+    .title { font: 700 var(--font-md)/1.2 system-ui; text-align: center; opacity: 0.95; }
+
+    .hud {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;
+      background: #0e141b; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px;
+    }
+    .hud .item { font: 600 var(--font-sm)/1.2 system-ui; color: #b6c3cf; }
+    .hud .value { color: #ffd166; margin-left: 6px; }
+
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    .controls input[type="range"] { appearance: none; width: min(60vw, 280px); }
+    .controls .label { font: 600 var(--font-sm)/1.2 system-ui; color: #b6c3cf; }
+
+    .legend {
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+      font: 600 var(--font-sm)/1.4 system-ui; color: #a9b7c6;
+    }
+    .legend .tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #0e141b; border: 1px solid rgba(255,255,255,0.06); border-radius: 999px; padding: 6px 10px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot.waiting { background: #b0b7c3; }
+    .dot.active  { background: #6ee7a2; }
+    .dot.folded  { background: #f0c36d; }
+    .dot.busted  { background: #ff8b8b; }
+
+    .scene { width: 100%; display: grid; place-items: center; padding-bottom: 16px; }
+
+    /* Safe transform: avoid 3D tilt; use scale only */
+    .table {
+      position: relative; width: var(--table-size); height: var(--table-size);
+      transform: scale(var(--zoom, 1));
+      transition: transform 200ms ease;
+    }
+    .felt {
+      position: absolute; inset: 40px; border-radius: 50%;
+      background: radial-gradient(closest-side, #0a3b2d 0%, #082f24 60%, #061f17 100%);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35) inset, 0 16px 48px rgba(0,0,0,0.25);
+    }
+    .rim {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(closest-side, #3a2c1f 0%, #2c2118 70%, #1f1913 100%);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35) inset;
+    }
+
+    .seat-dot {
+      position: absolute; left: 50%; top: 50%;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #4b5b68; box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .seat-dot.active { background: #6ee7a2; }
+
+    .seat {
+      position: absolute; left: 50%; top: 50%;
+      width: var(--seat-w); height: var(--seat-h);
+      margin: calc(-1 * var(--seat-h) / 2) 0 0 calc(-1 * var(--seat-w) / 2);
+      background: linear-gradient(180deg, #10161c 0%, #0c1116 100%);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.5), 0 2px 6px rgba(255,255,255,0.04) inset;
+      display: grid; grid-template-rows: auto 1fr auto;
+      padding: 8px; font: 500 var(--font-sm)/1.2 system-ui; color: #cfe6d6;
+    }
+    .seat .badge {
+      position: absolute; top: -10px; left: -10px; width: var(--badge); height: var(--badge);
+      border-radius: 50%; display: grid; place-items: center;
+      font: 700 calc(var(--font-sm) - 1px)/1 system-ui; color: #111;
+      background: radial-gradient(circle, #ffd166 0%, #f4a261 60%, #e76f51 100%);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+    }
+    .seat .countdown {
+      position: absolute; right: -10px; top: -10px; width: var(--badge); height: var(--badge);
+      border-radius: 50%; display: grid; place-items: center;
+      font: 700 calc(var(--font-sm) - 1px)/1 system-ui; color: #111;
+      background: radial-gradient(circle, #6ee7a2 0%, #29c185 70%);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+    }
+    .avatar { width: 100%; height: var(--avatar-h); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.35) inset; margin-top: 6px; }
+    .meta { display: grid; gap: 3px; margin-top: 6px; }
+    .meta .name { color: #e9f1f4; }
+    .meta .chips { color: #9ed2be; }
+    .meta .coins { color: #ffd166; }
+    .meta .status { color: #6ee7a2; }
+
+    .center {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      display: grid; gap: 8px; justify-items: center;
+    }
+    .center-cards {
+      display: flex; gap: 8px; padding: 6px 10px;
+      background: rgba(20, 27, 34, 0.6); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; backdrop-filter: blur(4px);
+    }
+    .card { width: 48px; height: 72px; background: #fff; border-radius: 6px; font-size: 28px; display: grid; place-items: center; color: #111; }
+    .round-label { font: 600 var(--font-sm)/1.2 system-ui; color: #b6c3cf; }
+    .round, .pot, .clock { font: 700 var(--font-md)/1.2 system-ui; color: #ffd166; text-shadow: 0 1px 2px rgba(0,0,0,0.35); }
+
+    .log { width: min(92vw, 960px); max-height: 180px; overflow: auto; background: #0e141b; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; font: 600 var(--font-sm)/1.4 system-ui; color: #b6c3cf; }
+    .log-entry { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+    .log-entry:last-child { border-bottom: none; }
+    .log-badge {
+      display: inline-grid; place-items: center; min-width: 24px; height: 24px; border-radius: 999px;
+      background: #141b22; color: #ffd166; font: 700 11px/1 system-ui;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Fixed UTC epoch (Nov 24, 2025 22:00 EST == Nov 25, 2025 03:00 UTC)
+    const EPOCH_ISO = '2025-11-25T03:00:00Z';
+    const HAND_DURATION = 80;       // seconds per hand
+    const SEGMENT_DURATION = 20;    // seconds per round segment
+    const PLAYER_COUNT = 500;
+
+    const RANKS = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+    const SUITS = ['♠','♥','♦','♣'];
+
+    // Deterministic PRNG (Mulberry32)
+    function mulberry32(seed) {
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function shuffleDeck(seed) {
+      const prng = mulberry32(seed);
+      const deck = [];
+      for (const s of SUITS) for (const r of RANKS) deck.push(r + s);
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(prng() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      return deck;
+    }
+
+    function dealHand(seed) {
+      const deck = shuffleDeck(seed);
+      const hole1 = [deck[0], deck[1]];
+      const hole2 = [deck[2], deck[3]]; // optional: for winner calc variety
+      const flop = [deck[4], deck[5], deck[6]];
+      const turn = deck[7];
+      const river = deck[8];
+      return { hole1, hole2, flop, turn, river };
+    }
+
+    function getClockState(nowMs) {
+      const epochMs = new Date(EPOCH_ISO).getTime();
+      const elapsed = Math.max(0, Math.floor((nowMs - epochMs) / 1000));
+      const handNumber = Math.floor(elapsed / HAND_DURATION);
+      const handOffset = elapsed % HAND_DURATION;
+      const segmentIndex = Math.floor(handOffset / SEGMENT_DURATION);
+      const segmentNames = ['Pre-flop', 'Flop', 'Turn', 'River'];
+      const segment = segmentNames[segmentIndex] || 'Pre-flop';
+      const segmentElapsed = handOffset % SEGMENT_DURATION;
+      const segmentRemaining = SEGMENT_DURATION - segmentElapsed;
+      return { handNumber, handOffset, segment, segmentIndex, segmentElapsed, segmentRemaining };
+    }
+
+    function winnerIndex(handNumber) {
+      const prng = mulberry32(handNumber ^ 0x9E3779B9);
+      return Math.floor(prng() * PLAYER_COUNT);
+    }
+
+    function potForHand(segmentIndex) {
+      // Deterministic: 1 chip per seat per completed segment (up to current one)
+      return PLAYER_COUNT * (segmentIndex + 1);
+    }
+
+    // Geometry helpers (safe translate; no 3D tilt)
+    function polarTranslate(angleRad, radiusPx) {
+      const x = Math.cos(angleRad) * radiusPx;
+      const y = Math.sin(angleRad) * radiusPx;
+      return `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    }
+
+    function App() {
+      const [zoom, setZoom] = useState(1);
+      const [now, setNow] = useState(Date.now());
+
+      useEffect(() => {
+        const i = setInterval(() => setNow(Date.now()), 250);
+        return () => clearInterval(i);
+      }, []);
+
+      const clock = useMemo(() => getClockState(now), [now]);
+      const deal = useMemo(() => dealHand(clock.handNumber), [clock.handNumber]);
+
+      const community = useMemo(() => {
+        if (clock.segment === 'Pre-flop') return [];
+        if (clock.segment === 'Flop') return deal.flop;
+        if (clock.segment === 'Turn') return [...deal.flop, deal.turn];
+        return [...deal.flop, deal.turn, deal.river];
+      }, [clock.segment, deal]);
+
+      const pot = useMemo(() => potForHand(clock.segmentIndex), [clock.segmentIndex]);
+      const winnerSeat = useMemo(() => winnerIndex(clock.handNumber), [clock.handNumber]);
+
+      // Stable geometry
+      const radiusPx = useMemo(() => Math.max(140, (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--table-size')) || 720) / 2 - 80), [zoom, now]);
+      const seats = useMemo(() => {
+        return Array.from({ length: PLAYER_COUNT }, (_, idx) => ({
+          angle: (idx / PLAYER_COUNT) * 2 * Math.PI,
+          radiusPx
+        }));
+      }, [radiusPx]);
+
+      // Active seat timing
+      const perSeatWindow = SEGMENT_DURATION / PLAYER_COUNT;
+      const activeIdx = useMemo(() => Math.floor(clock.segmentElapsed / perSeatWindow) % PLAYER_COUNT, [clock.segmentElapsed]);
+      const seatCountdown = useMemo(() => {
+        const elapsedInSeat = clock.segmentElapsed % perSeatWindow;
+        return Math.max(0, Math.ceil(perSeatWindow - elapsedInSeat));
+      }, [clock.segmentElapsed]);
+
+      // Log reconstruction (last 10 hands)
+      const roundLog = useMemo(() => {
+        const logs = [];
+        for (let h = Math.max(0, clock.handNumber - 9); h <= clock.handNumber; h++) {
+          const d = dealHand(h);
+          const board = [...d.flop, d.turn, d.river];
+          const wIdx = winnerIndex(h);
+          const chipsWon = potForHand(3); // full hand completes all segments
+          logs.unshift({
+            round: h,
+            winner: `Player ${wIdx + 1}`,
+            chipsWon,
+            hole: d.hole1,
+            board
+          });
+        }
+        return logs;
+      }, [clock.handNumber]);
+
+      return (
+        <div style={{ width: '100%' }}>
+          <div className="title">Tourmaline Poker — 500 Seats (UTC Clock Sync)</div>
+
+          <div className="hud">
+            <div className="item">Epoch (local):<span className="value">{new Date(EPOCH_ISO).toLocaleString()}</span></div>
+            <div className="item">Epoch (UTC):<span className="value">{new Date(EPOCH_ISO).toUTCString()}</span></div>
+            <div className="item">Hand #:<span className="value">{clock.handNumber}</span></div>
+            <div className="item">Round:<span className="value">{clock.segment}</span></div>
+            <div className="item">Countdown:<span className="value">{clock.segmentRemaining}s</span></div>
+            <div className="item">Pot:<span className="value">{pot}</span></div>
+            <div className="item">Winner (showdown):<span className="value">Player {winnerSeat + 1}</span></div>
+          </div>
+
+          <div className="controls">
+            <span className="label">Zoom</span>
+            <input type="range" min="0.8" max="2.2" step="0.01" value={zoom} onChange={e => setZoom(parseFloat(e.target.value))} />
+          </div>
+
+          <div className="legend">
+            <div className="tag"><span className="dot waiting"></span>Waiting</div>
+            <div className="tag"><span className="dot active"></span>Active</div>
+            <div className="tag"><span className="dot folded"></span>Folded</div>
+          </div>
+
+          <div className="scene">
+            <div className="table" id="table" style={{ '--zoom': zoom }}>
+              <div className="felt"></div>
+              <div className="rim"></div>
+
+              {/* Seat dots */}
+              {seats.map((seat, idx) => (
+                idx === activeIdx ? null : (
+                  <div
+                    key={idx}
+                    className="seat-dot"
+                    style={{ transform: polarTranslate(seat.angle, seat.radiusPx) }}
+                    title={`Seat ${idx + 1}`}
+                  />
+                )
+              ))}
+
+              {/* Active seat card */}
+              <div
+                className="seat"
+                style={{ transform: polarTranslate(seats[activeIdx].angle, seats[activeIdx].radiusPx) }}
+                aria-label={`Seat ${activeIdx + 1}`}
+              >
+                <div className="badge">{activeIdx + 1}</div>
+                <div className="countdown">{seatCountdown}s</div>
+                <div className="avatar" style={{ background: `hsl(${(activeIdx * 17) % 360}, 60%, 55%)` }} />
+                <div className="meta">
+                  <span className="name">Player {activeIdx + 1}</span>
+                  <span className="status">active</span>
+                  <span className="chips">{1000 + (activeIdx % 4000)} chips</span>
+                  <span className="coins">UTC-synced</span>
+                </div>
+              </div>
+
+              {/* Center: community cards & round clock */}
+              <div className="center">
+                <div className="round-label">Round</div>
+                <div className="round">{clock.segment}</div>
+                <div className="clock">Clock: {clock.segmentRemaining}s</div>
+                <div className="center-cards">
+                  {community.map((card, i) => <div key={i} className="card">{card}</div>)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="log" aria-label="Round log">
+            {roundLog.map((entry, i) => (
+              <div key={i} className="log-entry">
+                <span className="log-badge">{entry.round}</span>
+                <span>Winner:</span>
+                <strong style={{ color: '#e8f0f6' }}>{entry.winner}</strong>
+                <span>won</span>
+                <strong style={{ color: '#ffd166' }}>{entry.chipsWon}</strong>
+                <span>chips</span>
+                <span>• Hole:</span>
+                <strong style={{ color: '#9ed2be' }}>{entry.hole.join(' ')}</strong>
+                <span>• Board:</span>
+                <strong style={{ color: '#9ed2be' }}>{entry.board.join(' ')}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
