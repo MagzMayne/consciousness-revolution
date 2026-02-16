@@ -167,9 +167,11 @@ Click "Fix Issues" to auto-fix what I can!
 
 **How to use**:
 1. Click R3-D3 → Select "AI Vision Mode"
-2. Wait for screenshot capture (automatic)
-3. Wait for AI analysis (3-5 seconds)
-4. Review comprehensive analysis results
+2. If prompted, approve loading the html2canvas plugin
+3. If no API key configured, enter your Gemini API key (optional save)
+4. Wait for screenshot capture (automatic)
+5. Wait for AI analysis (3-5 seconds)
+6. Review comprehensive analysis results
 
 **What you'll see**:
 - **Page Summary**: AI's understanding of the page purpose and content
@@ -203,12 +205,33 @@ clear information hierarchy and accessible controls.
 - Screenshot-based visual analysis
 - Privacy-first: no screenshots stored
 - Works on any page type
-- Fallback mode if screenshot library unavailable
+- Auto-loads html2canvas plugin if needed
+- Supports user-provided API keys
 
 **Requirements**:
-- GEMINI_API_KEY must be configured in environment
-- html2canvas library (loaded automatically)
+- Google Gemini API key (environment variable OR user-provided)
+- html2canvas library (auto-loaded if needed)
 - Modern browser with canvas support
+- Internet connection
+
+**Getting an API Key** (if needed):
+1. Visit: https://ai.google.dev/
+2. Sign in with Google account
+3. Create a free API key
+4. Enter when prompted by R3-D3
+5. Optionally save for future use
+
+**API Key Management**:
+```javascript
+// Clear stored API key (to enter a new one)
+window.RobotAI.clearStoredApiKey();
+
+// View error log (for troubleshooting)
+console.log(window.RobotAI.getAIVisionErrorLog());
+
+// Clear error log
+window.RobotAI.clearAIVisionErrorLog();
+```
 
 ### ⚙️ Settings
 
@@ -359,10 +382,14 @@ Help R3-D3 provide better tours:
 - Check developer console
 
 **AI Vision Mode not working?**
-- Verify GEMINI_API_KEY is configured in environment
-- Check browser console for error messages
-- Ensure page has loaded completely
-- Try refreshing and running again
+- If prompted, approve loading html2canvas plugin
+- Enter your Gemini API key when prompted (get free at ai.google.dev)
+- Check browser console for specific error messages
+- View error log: `window.RobotAI.getAIVisionErrorLog()`
+- Clear stored API key to re-enter: `window.RobotAI.clearStoredApiKey()`
+- Ensure page has loaded completely before activating
+- Check internet connection for API calls
+- Try the test page: `/test-ai-vision-api-key.html`
 
 ---
 
