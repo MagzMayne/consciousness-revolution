@@ -1263,7 +1263,7 @@ export async function handler(event, context) {
             },
             body: JSON.stringify({
                 error: 'Service configuration incomplete',
-                response: `I'm currently unavailable due to missing configuration. Please contact the administrator.\n\n**Technical details:**\nMissing environment variables: ${missingVars.join(', ')}\n\nSee ARAYA_DEPLOYMENT_GUIDE.md for setup instructions.`,
+                response: `I'm currently unavailable due to missing configuration. Please contact the administrator.\n\n**Technical details:**\nMissing environment variables: ${missingVars.join(', ')}\n\n[See Setup Guide](https://github.com/overkor-tek/consciousness-revolution/blob/master/ARAYA_DEPLOYMENT_GUIDE.md) for instructions.`,
                 missingConfig: missingVars,
                 configGuide: 'https://github.com/overkor-tek/consciousness-revolution/blob/master/ARAYA_DEPLOYMENT_GUIDE.md'
             })
