@@ -1786,17 +1786,20 @@
                 window.innerHeight - CONFIG.BOUNDARY_PADDING - CONFIG.SAFE_BOUNDARY_HEIGHT
             );
             
-            // Set walking animation and move (fly mode)
+            // Set walking animation and move with fly mode enabled
             if (window.RobotAssistant) {
                 window.RobotAssistant.setAnimationState('walking');
-                window.RobotAssistant.moveTo(targetX, targetY);
+                // Use fly mode (third parameter = true) for fast movement during tours
+                window.RobotAssistant.moveTo(targetX, targetY, true);
                 
-                // Calculate walk duration based on distance
+                // Calculate walk duration based on distance and fly speed
                 const state = window.RobotAssistant.getState();
                 const dx = targetX - state.position.x;
                 const dy = targetY - state.position.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                const walkDuration = (distance / window.RobotAssistant.config.moveSpeed) * 16; // Convert frames to ms
+                // Use flySpeed for calculation since we're in fly mode
+                const flySpeed = window.RobotAssistant.config.flySpeed || 5.0;
+                const walkDuration = (distance / flySpeed) * 16; // Convert frames to ms
                 
                 // Wait for robot to reach destination
                 setTimeout(() => {
@@ -1808,7 +1811,7 @@
                     ensureRobotVisible();
                     
                     if (callback) callback();
-                }, Math.min(walkDuration, 3000)); // Max 3 seconds
+                }, Math.min(walkDuration, 2000)); // Max 2 seconds for fly mode
             } else {
                 if (callback) callback();
             }
@@ -2386,16 +2389,18 @@
      * Follow the cursor
      */
     function followCursor(e) {
-        if (brain.tourMode) return; // Don't follow during tour
+        // Don't follow during tour or if robot has a target
+        if (brain.tourMode) return;
         
         const x = e.clientX;
         const y = window.innerHeight - e.clientY;
         
-        // Only follow if robot is not busy
+        // Only follow if robot is not busy and not in fly mode
         if (window.RobotAssistant) {
             const state = window.RobotAssistant.getState();
-            if (state.animationState === 'idle') {
-                window.RobotAssistant.moveTo(x - 40, y - 40);
+            // Don't follow if robot is walking, has a target, or is in fly mode
+            if (state.animationState === 'idle' && !state.target && !state.isFlyMode) {
+                window.RobotAssistant.moveTo(x - 40, y - 40, false); // Normal speed, not fly mode
             }
         }
     }

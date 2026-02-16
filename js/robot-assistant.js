@@ -13,7 +13,8 @@
     // Configuration
     const CONFIG = {
         robotSize: 80, // Base size in pixels
-        moveSpeed: 0.5, // Pixels per frame
+        moveSpeed: 0.5, // Pixels per frame (normal walking)
+        flySpeed: 5.0, // Pixels per frame (fast flying during tours)
         animationSpeed: 0.05,
         boundaryPadding: 50,
         stateUpdateInterval: 1000, // Save state every second
@@ -38,7 +39,9 @@
         isAuthenticated: false, // User logged in
         userEmail: null, // User email
         isAdmin: false, // User is admin
-        authToken: null // Auth token
+        authToken: null, // Auth token
+        isFlyMode: false, // Fast movement for tours
+        currentSpeed: CONFIG.moveSpeed // Current movement speed
     };
 
     // Three.js components
@@ -373,12 +376,15 @@
             state.target = null;
             state.animationState = 'idle';
             state.lastActivity = Date.now();
+            // Reset to normal speed when target reached
+            state.isFlyMode = false;
+            state.currentSpeed = CONFIG.moveSpeed;
             return;
         }
 
-        // Calculate velocity
-        state.velocity.x = (dx / distance) * CONFIG.moveSpeed;
-        state.velocity.y = (dy / distance) * CONFIG.moveSpeed;
+        // Calculate velocity using current speed (normal or fly mode)
+        state.velocity.x = (dx / distance) * state.currentSpeed;
+        state.velocity.y = (dy / distance) * state.currentSpeed;
 
         // Update position
         state.position.x += state.velocity.x;
@@ -443,10 +449,22 @@
 
     /**
      * Move robot to a specific position
+     * @param {number} x - Target x position
+     * @param {number} y - Target y position  
+     * @param {boolean} useFlyMode - Use fast fly speed for tours
      */
-    function moveTo(x, y) {
+    function moveTo(x, y, useFlyMode = false) {
         state.target = { x, y };
         state.lastActivity = Date.now();
+        
+        // Enable fly mode for faster movement during tours
+        if (useFlyMode) {
+            state.isFlyMode = true;
+            state.currentSpeed = CONFIG.flySpeed;
+        } else {
+            state.isFlyMode = false;
+            state.currentSpeed = CONFIG.moveSpeed;
+        }
     }
 
     /**
