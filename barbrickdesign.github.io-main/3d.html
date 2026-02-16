@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>Tilt Parallax Bubble Tunnel — Fixed Controls</title>
+  <style>
+    :root{
+      --bg:#05060a; --grid:#1fb6ff; --glow:#85d8ff; --hud-text:#dff6ff;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--hud-text);font-family:system-ui,Segoe UI,Roboto,Arial;-webkit-font-smoothing:antialiased}
+    canvas{position:fixed;top:0;left:0;width:100vw;height:100vh;display:block;touch-action:none}
+    .hud{position:fixed;left:12px;top:12px;z-index:120;background:rgba(0,0,0,0.45);padding:8px 12px;border-radius:10px;font-size:13px}
+    .controls{position:fixed;right:12px;top:12px;z-index:120;display:flex;gap:8px}
+    .btn{background:rgba(255,255,255,0.06);color:var(--hud-text);border:1px solid rgba(255,255,255,0.08);padding:8px 10px;border-radius:10px;cursor:pointer}
+    .center-score{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:120;background:rgba(0,0,0,0.45);padding:6px 10px;border-radius:10px;font-weight:600}
+    .start-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;pointer-events:auto}
+    .start-overlay.hidden{display:none !important; pointer-events:none !important; visibility:hidden !important}
+    .start-card{background:rgba(2,6,12,0.95);padding:18px 22px;border-radius:14px;text-align:center;color:var(--hud-text);box-shadow:0 10px 30px rgba(0,0,0,0.6);max-width:92vw}
+    .big-btn{padding:10px 16px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.08);color:var(--hud-text);font-weight:600;cursor:pointer}
+    .hint{font-size:12px;opacity:0.9;margin-top:8px}
+    .debug {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 110;
+      width: calc(40vw - 24px);
+      max-width: 420px;
+      max-height: 36vh;
+      overflow: auto;
+      background: rgba(0,0,0,0.55);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 12px;
+      color: #bfeeff;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      pointer-events: none; /* ensure debug doesn't block input */
+    }
+    .debug h4 { margin: 0 0 6px 0; font-size: 13px; }
+    .debug pre { margin:0; white-space:pre-wrap; word-break:break-word; font-family:monospace; font-size:12px; }
+    .controls .small { padding:6px 8px; font-size:12px; border-radius:8px; }
+    .sliderWrap { display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .sliderWrap input[type="range"] { width:140px; }
+    @media (max-width:600px) {
+      .debug { width: calc(86vw - 24px); max-height: 28vh; }
+      .start-card { padding:14px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" role="application" aria-label="Tilt parallax bubble tunnel"></canvas>
+
+  <div class="hud" id="hud">
+    <div id="tilt">TiltX: 0.00 &nbsp; TiltY: 0.00</div>
+    <div class="hint" id="hint">Tap bubbles to pop • Recenter to zero tilt</div>
+    <div class="sliderWrap">
+      <label style="font-size:12px">Sensitivity</label>
+      <input id="sensitivity" type="range" min="0.5" max="2.5" step="0.05" value="1.0" />
+      <span id="sensVal" style="font-size:12px">1.00</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="enableTilt" class="btn small">Enable Tilt</button>
+    <button id="recenter" class="btn small">Recenter</button>
+    <button id="pause" class="btn small">Pause</button>
+  </div>
+
+  <div class="center-score" id="scoreDisplay">Score: 0</div>
+
+  <div class="start-overlay" id="startOverlay" aria-hidden="false">
+    <div class="start-card" role="dialog" aria-modal="true">
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px">Tilt Parallax Bubble Tunnel</div>
+      <div style="font-size:13px;opacity:0.95;margin-bottom:12px">Tilt to steer the tunnel. Bubbles floss out of the cube center — tap to pop. Spawn speeds up with score.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button id="startBtn" class="big-btn">Start Game</button>
+        <button id="startTiltBtn" class="big-btn">Start + Enable Tilt</button>
+      </div>
+      <div class="hint">On iOS, use "Start + Enable Tilt" to grant motion permission. Debug console below shows events.</div>
+    </div>
+  </div>
+
+  <div class="debug" id="debugConsole" aria-live="polite">
+    <h4>Debug Console</h4>
+    <pre id="debugLog">Ready. Press Start.</pre>
+  </div>
+
+<script>
+/* Final fixed version:
+   - overlay hidden class prevents blocking
+   - debug console non-blocking
+   - all buttons wired and logged
+   - Start overlay hidden via hideOverlay() which sets .hidden class
+*/
+
+/* -------------------- Helpers -------------------- */
+const $ = id => document.getElementById(id);
+function logDebug(msg) {
+  const pre = $('debugLog');
+  const time = new Date().toLocaleTimeString();
+  pre.textContent = `${time} — ${msg}\n` + pre.textContent;
+  // trim to reasonable length
+  const lines = pre.textContent.split('\n').slice(0, 300).join('\n');
+  pre.textContent = lines;
+}
+
+/* -------------------- Canvas & viewport -------------------- */
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d', { alpha: true });
+let viewW = 0, viewH = 0, dpr = Math.max(1, window.devicePixelRatio || 1);
+function resize() {
+  viewW = Math.floor(window.innerWidth);
+  viewH = Math.floor(window.innerHeight);
+  canvas.width = viewW * dpr;
+  canvas.height = viewH * dpr;
+  canvas.style.width = viewW + 'px';
+  canvas.style.height = viewH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  UNIT_SCALE = Math.min(viewW, viewH) / 20;
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* -------------------- Scene params -------------------- */
+let UNIT_SCALE = Math.min(viewW, viewH) / 20;
+const EYE_DEPTH = 2.2;
+const ROOM_DEPTH = 18.0;
+const GRID_W = 6.0, GRID_H = 3.5;
+const GRID_SPACING = 1.0;
+
+/* -------------------- Input / tilt -------------------- */
+let rawTiltX = 0, rawTiltY = 0;
+let smoothTiltX = 0, smoothTiltY = 0;
+const SMOOTH = 0.14;
+let biasX = 0, biasY = 0;
+const VERTICAL_BOOST_BASE = 1.45;
+let sensitivity = 1.0;
+
+function handleDeviceOrientation(e) {
+  const gamma = (typeof e.gamma === 'number') ? e.gamma : 0;
+  const beta  = (typeof e.beta === 'number') ? e.beta : 0;
+  rawTiltX = Math.max(-1, Math.min(1, (gamma / 30) * sensitivity));
+  rawTiltY = Math.max(-1, Math.min(1, (beta  / 25) * sensitivity)) * (VERTICAL_BOOST_BASE * sensitivity);
+}
+
+/* Permission flow */
+async function requestTiltPermission() {
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      logDebug('Requesting iOS motion permission...');
+      const resp = await DeviceOrientationEvent.requestPermission();
+      logDebug('Permission response: ' + resp);
+      if (resp !== 'granted') {
+        logDebug('Permission not granted.');
+        alert('Tilt permission not granted.');
+        return false;
+      }
+    }
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+    logDebug('DeviceOrientation listener attached.');
+    return true;
+  } catch (err) {
+    logDebug('Permission error: ' + (err && err.message ? err.message : String(err)));
+    alert('Tilt permission denied or unavailable.');
+    return false;
+  }
+}
+
+/* -------------------- HUD & controls wiring -------------------- */
+const hudTilt = $('tilt');
+const scoreDisplay = $('scoreDisplay');
+const startOverlay = $('startOverlay');
+const startBtn = $('startBtn');
+const startTiltBtn = $('startTiltBtn');
+const enableTiltBtn = $('enableTilt');
+const recenterBtn = $('recenter');
+const pauseBtn = $('pause');
+const sensSlider = $('sensitivity');
+const sensVal = $('sensVal');
+
+function hideOverlay() {
+  if (!startOverlay) return;
+  startOverlay.classList.add('hidden');
+  startOverlay.style.pointerEvents = 'none';
+  startOverlay.setAttribute('aria-hidden', 'true');
+  logDebug('Start overlay hidden');
+}
+function showOverlay() {
+  if (!startOverlay) return;
+  startOverlay.classList.remove('hidden');
+  startOverlay.style.pointerEvents = 'auto';
+  startOverlay.setAttribute('aria-hidden', 'false');
+  logDebug('Start overlay shown');
+}
+
+enableTiltBtn.addEventListener('click', async () => {
+  logDebug('Enable Tilt clicked');
+  const ok = await requestTiltPermission();
+  logDebug('Enable Tilt result: ' + ok);
+});
+recenterBtn.addEventListener('click', () => {
+  biasX = smoothTiltX;
+  biasY = smoothTiltY;
+  logDebug('Recenter pressed — bias set');
+});
+let running = false;
+pauseBtn.addEventListener('click', () => {
+  running = !running;
+  pauseBtn.textContent = running ? 'Pause' : 'Resume';
+  logDebug('Pause toggled — running=' + running);
+  if (running) {
+    lastFrame = performance.now();
+    requestAnimationFrame(loop);
+  }
+});
+sensSlider.addEventListener('input', () => {
+  sensitivity = parseFloat(sensSlider.value);
+  sensVal.textContent = sensitivity.toFixed(2);
+  logDebug('Sensitivity set to ' + sensitivity.toFixed(2));
+});
+
+/* Start overlay handlers (use hideOverlay to avoid blocking) */
+startBtn.addEventListener('click', () => {
+  logDebug('Start Game clicked');
+  hideOverlay();
+  startGame(false);
+});
+startTiltBtn.addEventListener('click', async () => {
+  logDebug('Start + Enable Tilt clicked');
+  hideOverlay();
+  const ok = await requestTiltPermission();
+  logDebug('Start + Enable Tilt permission result: ' + ok);
+  startGame(ok);
+});
+
+/* -------------------- Starfield -------------------- */
+const stars = [];
+function spawnStar() {
+  stars.push({ x: Math.random() * viewW, y: Math.random() * viewH, z: 0.5 + Math.random() * 2.5, size: 0.6 + Math.random() * 1.6 });
+}
+for (let i = 0; i < 120; i++) spawnStar();
+
+/* -------------------- Projection & tunnel -------------------- */
+function projectOffAxis(p, headX, headY) {
+  const totalDepth = EYE_DEPTH + p.z;
+  if (totalDepth <= 0.05) return null;
+  const ratio = EYE_DEPTH / totalDepth;
+  const screenXVirtual = headX + (p.x - headX) * ratio;
+  const screenYVirtual = headY + (p.y - headY) * ratio;
+  const px = (viewW / 2) + screenXVirtual * UNIT_SCALE;
+  const py = (viewH / 2) - screenYVirtual * UNIT_SCALE;
+  return [px, py];
+}
+function drawTunnel(hx, hy) {
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#1fb6ff';
+  ctx.shadowColor = '#1fb6ff';
+  ctx.shadowBlur = 6;
+  for (let x = -GRID_W; x <= GRID_W + 0.0001; x += GRID_SPACING) {
+    const p1 = projectOffAxis({ x, y: -GRID_H, z: 0 }, hx, hy);
+    const p2 = projectOffAxis({ x, y: -GRID_H, z: ROOM_DEPTH }, hx, hy);
+    const p3 = projectOffAxis({ x, y: GRID_H, z: 0 }, hx, hy);
+    const p4 = projectOffAxis({ x, y: GRID_H, z: ROOM_DEPTH }, hx, hy);
+    if (p1 && p2) { ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke(); }
+    if (p3 && p4) { ctx.beginPath(); ctx.moveTo(p3[0], p3[1]); ctx.lineTo(p4[0], p4[1]); ctx.stroke(); }
+  }
+  for (let y = -GRID_H; y <= GRID_H + 0.0001; y += GRID_SPACING) {
+    const p1 = projectOffAxis({ x: -GRID_W, y, z: 0 }, hx, hy);
+    const p2 = projectOffAxis({ x: -GRID_W, y, z: ROOM_DEPTH }, hx, hy);
+    const p3 = projectOffAxis({ x: GRID_W, y, z: 0 }, hx, hy);
+    const p4 = projectOffAxis({ x: GRID_W, y, z: ROOM_DEPTH }, hx, hy);
+    if (p1 && p2) { ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke(); }
+    if (p3 && p4) { ctx.beginPath(); ctx.moveTo(p3[0], p3[1]); ctx.lineTo(p4[0], p4[1]); ctx.stroke(); }
+  }
+  for (let z = 0; z <= ROOM_DEPTH + 0.0001; z += GRID_SPACING * 2) {
+    const tl = projectOffAxis({ x: -GRID_W, y: GRID_H, z }, hx, hy);
+    const tr = projectOffAxis({ x: GRID_W, y: GRID_H, z }, hx, hy);
+    const br = projectOffAxis({ x: GRID_W, y: -GRID_H, z }, hx, hy);
+    const bl = projectOffAxis({ x: -GRID_W, y: -GRID_H, z }, hx, hy);
+    if (tl && tr && br && bl) {
+      ctx.beginPath(); ctx.moveTo(tl[0], tl[1]); ctx.lineTo(tr[0], tr[1]); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bl[0], bl[1]); ctx.lineTo(br[0], br[1]); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tl[0], tl[1]); ctx.lineTo(bl[0], bl[1]); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tr[0], tr[1]); ctx.lineTo(br[0], br[1]); ctx.stroke();
+    }
+  }
+}
+
+/* -------------------- Bubbles (one at a time) -------------------- */
+let activeBubble = null;
+let spawnDelay = 1500, lastSpawnTime = 0;
+const MIN_DELAY = 300, DELAY_REDUCTION = 0.92;
+let bubbleSpeedBase = 1.2;
+let score = 0, missed = 0, MAX_MISSES = 3;
+const particles = [];
+
+function createBubble() {
+  const jitter = 0.6;
+  const x = (Math.random() * 2 - 1) * jitter;
+  const y = (Math.random() * 2 - 1) * jitter;
+  const z = ROOM_DEPTH + 0.5;
+  const baseRadius = 0.9 + Math.random() * 1.6;
+  const speed = bubbleSpeedBase + Math.random() * 0.6 + score * 0.06;
+  activeBubble = { x, y, z, baseRadius, speed, popped: false, spawnAt: performance.now() };
+  logDebug('Bubble spawned (z=' + activeBubble.z.toFixed(2) + ', speed=' + activeBubble.speed.toFixed(2) + ')');
+}
+
+function drawBubble(b, hx, hy, dt) {
+  b.z -= b.speed * dt;
+  if (b.z < 0) b.z = 0;
+  const scale = 1 + (ROOM_DEPTH - b.z) / ROOM_DEPTH * 3.0;
+  const rScene = b.baseRadius * scale;
+  const p = projectOffAxis({ x: b.x, y: b.y, z: b.z }, hx, hy);
+  if (!p) return false;
+  const screenR = rScene * UNIT_SCALE;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = `rgba(173,216,230,${Math.min(0.85, 0.35 + (1 - b.z / ROOM_DEPTH) * 0.6)})`;
+  ctx.shadowColor = 'rgba(133,216,255,0.9)';
+  ctx.shadowBlur = 18;
+  ctx.arc(p[0], p[1], screenR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.arc(p[0] - screenR * 0.25, p[1] - screenR * 0.25, screenR * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  if (Math.random() < 0.02) {
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(133,216,255,0.12)';
+    ctx.arc(p[0] + (Math.random() - 0.5) * screenR * 0.6, p[1] + (Math.random() - 0.5) * screenR * 0.6, Math.max(1, screenR * 0.06), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return b.z <= 1.2;
+}
+
+/* Pop handling */
+canvas.addEventListener('pointerdown', (ev) => {
+  if (!activeBubble) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+  const hx = smoothTiltX - biasX;
+  const hy = smoothTiltY - biasY;
+  const p = projectOffAxis({ x: activeBubble.x, y: activeBubble.y, z: activeBubble.z }, hx, hy);
+  if (!p) return;
+  const screenR = activeBubble.baseRadius * (1 + (ROOM_DEPTH - activeBubble.z) / ROOM_DEPTH * 3.0) * UNIT_SCALE;
+  const dist = Math.hypot(mx - p[0], my - p[1]);
+  if (dist <= screenR * 0.95 && activeBubble.z <= 1.6) {
+    popBubble();
+  }
+});
+
+function popBubble() {
+  if (!activeBubble) return;
+  const hx = smoothTiltX - biasX;
+  const hy = smoothTiltY - biasY;
+  const p = projectOffAxis({ x: activeBubble.x, y: activeBubble.y, z: activeBubble.z }, hx, hy);
+  if (p) {
+    for (let i = 0; i < 12; i++) {
+      particles.push({
+        x: p[0],
+        y: p[1],
+        vx: (Math.random() - 0.5) * 3,
+        vy: (Math.random() - 0.5) * 3,
+        life: 0.45 + Math.random() * 0.35,
+        size: 1 + Math.random() * 3,
+        alpha: 1
+      });
+    }
+  }
+  activeBubble = null;
+  score++;
+  scoreDisplay.textContent = `Score: ${score}`;
+  logDebug('Bubble popped — score=' + score);
+  spawnDelay = Math.max(MIN_DELAY, spawnDelay * DELAY_REDUCTION);
+  bubbleSpeedBase = Math.min(6.0, bubbleSpeedBase + 0.06);
+  missed = 0;
+}
+
+function handleMiss() {
+  missed++;
+  activeBubble = null;
+  spawnDelay = Math.min(2000, spawnDelay * 1.05);
+  logDebug('Missed bubble — misses=' + missed);
+  if (missed >= MAX_MISSES) {
+    resetGame('Too many misses — restarting');
+  }
+}
+
+/* Particles */
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * 60 * dt;
+    p.y += p.vy * 60 * dt;
+    p.life -= dt;
+    p.alpha = Math.max(0, p.life / 0.8);
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  for (const p of particles) {
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(133,216,255,${Math.max(0, p.life / 0.8)})`;
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* Spawn controller */
+let lastFrame = performance.now();
+function spawnController(now) {
+  if (activeBubble) return;
+  if (now - lastSpawnTime >= spawnDelay) {
+    createBubble();
+    lastSpawnTime = now;
+  }
+}
+
+/* Ambient orbs */
+const ambientOrbs = [];
+function updateAmbientOrbs(dt) {
+  for (let i = ambientOrbs.length - 1; i >= 0; i--) {
+    const o = ambientOrbs[i];
+    o.x += o.vx * 60 * dt;
+    o.y += o.vy * 60 * dt;
+    o.life -= dt;
+    if (o.life <= 0) ambientOrbs.splice(i, 1);
+  }
+}
+function drawAmbientOrbs() {
+  for (const o of ambientOrbs) {
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(133,216,255,0.08)';
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* Reset */
+function resetGame(msg) {
+  activeBubble = null;
+  particles.length = 0;
+  ambientOrbs.length = 0;
+  stars.length = 0;
+  for (let i = 0; i < 120; i++) spawnStar();
+  spawnDelay = 1500;
+  bubbleSpeedBase = 1.2;
+  score = 0;
+  missed = 0;
+  scoreDisplay.textContent = `Score: ${score}`;
+  logDebug('Game reset. ' + (msg || ''));
+}
+
+/* -------------------- Main loop -------------------- */
+function loop(now) {
+  if (!running) return;
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+
+  smoothTiltX += (rawTiltX - smoothTiltX) * SMOOTH;
+  smoothTiltY += (rawTiltY - smoothTiltY) * SMOOTH;
+
+  hudTilt.textContent = `TiltX: ${(smoothTiltX - biasX).toFixed(2)}  TiltY: ${(smoothTiltY - biasY).toFixed(2)}`;
+
+  ctx.clearRect(0, 0, viewW, viewH);
+  const g = ctx.createRadialGradient(viewW / 2, viewH / 2, Math.min(viewW, viewH) * 0.05, viewW / 2, viewH / 2, Math.max(viewW, viewH) * 0.8);
+  g.addColorStop(0, 'rgba(6,10,18,0.15)');
+  g.addColorStop(1, 'rgba(2,4,8,1)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  // Stars
+  ctx.fillStyle = '#fff';
+  for (let i = stars.length - 1; i >= 0; i--) {
+    const s = stars[i];
+    s.y -= s.z * (1 + score * 0.02) * 60 * dt * 0.02;
+    if (s.y < -2) s.y = viewH + 2;
+    ctx.beginPath();
+    ctx.globalAlpha = Math.min(1, 0.6 + s.z * 0.15);
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  if (stars.length < 140) spawnStar();
+
+  const headX = smoothTiltX - biasX;
+  const headY = smoothTiltY - biasY;
+
+  drawTunnel(headX, headY);
+
+  spawnController(performance.now());
+
+  if (activeBubble) {
+    drawBubble(activeBubble, headX, headY, dt);
+    if (activeBubble.z <= 0.02) handleMiss();
+  }
+
+  updateParticles(dt);
+  drawParticles();
+
+  const centerX = viewW / 2 + headX * UNIT_SCALE;
+  const centerY = viewH / 2 - headY * UNIT_SCALE;
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(133,216,255,0.06)';
+  ctx.arc(centerX, centerY, Math.min(viewW, viewH) * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (Math.random() < 0.02) {
+    ambientOrbs.push({
+      x: centerX + (Math.random() - 0.5) * 40,
+      y: centerY + (Math.random() - 0.5) * 40,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      life: 1.2 + Math.random() * 1.6,
+      r: 2 + Math.random() * 3
+    });
+  }
+  updateAmbientOrbs(dt);
+  drawAmbientOrbs();
+
+  scoreDisplay.textContent = `Score: ${score}`;
+
+  requestAnimationFrame(loop);
+}
+
+/* -------------------- Start game helper -------------------- */
+let lastSpawnTime = performance.now();
+function startGame() {
+  running = true;
+  lastFrame = performance.now();
+  lastSpawnTime = performance.now();
+  resetGame();
+  logDebug('Game started');
+  requestAnimationFrame(loop);
+}
+
+/* Auto attach orientation on platforms that don't require permission */
+(function tryAutoAttach() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+    logDebug('Auto-attached deviceorientation (no permission required).');
+  } else {
+    logDebug('Device requires permission for motion (iOS). Use Enable Tilt or Start + Enable Tilt.');
+  }
+})();
+
+/* Initialize */
+resetGame();
+resize();
+lastFrame = performance.now();
+logDebug('Ready. Use Start to begin.');
+
+</script>
+</body>
+</html>

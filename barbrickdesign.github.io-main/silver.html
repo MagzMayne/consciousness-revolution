@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Silver Planner — Growth + Linear Modes (Complete)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --bg:#0b0f14; --card:#141a22; --text:#e7edf7; --muted:#90a4b8; --accent:#4bd5ff; --pos:#7effa1; --neg:#ff6b7a; --border:#2a3340; --pill:#17202b; }
+  * { box-sizing:border-box; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:1rem; background:var(--bg); color:var(--text); }
+  h1 { font-size:1.25rem; margin-bottom:0.5rem; }
+  h2 { font-size:1rem; margin:0 0 0.5rem; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  label { display:block; margin:0.5rem 0 0.25rem; font-weight:600; color:var(--muted); }
+  input, button { width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--border); background:#0f141b; color:var(--text); }
+  button { background:var(--pill); font-weight:700; margin-top:0.5rem; cursor:pointer; }
+  .flex { display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .pill { display:inline-block; padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:999px; font-size:0.8rem; color:var(--muted); }
+  table { border-collapse:collapse; width:100%; min-width:820px; margin-top:0.5rem; font-size:0.9rem; }
+  th, td { border:1px solid var(--border); padding:0.5rem; text-align:right; white-space:nowrap; }
+  th { background:#17202b; color:var(--muted); }
+  td:first-child, th:first-child { text-align:left; }
+  canvas { width:100% !important; max-height:320px; }
+  .pos { color:var(--pos); font-weight:700; }
+  .neg { color:var(--neg); font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Silver Planner — Growth + Linear Modes</h1>
+  <div class="flex">
+    <button id="modeGrowth">Growth mode</button>
+    <button id="modeLinear">Linear mode</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Shared inputs</h2>
+  <div class="flex">
+    <span class="pill">Switch modes any time — inputs persist</span>
+  </div>
+  <label for="bankroll">Bankroll ($)</label>
+  <input id="bankroll" type="number" value="5000" />
+  <label for="spotOz">Spot price ($/oz)</label>
+  <input id="spotOz" type="number" value="58.00" />
+  <label for="resaleOz">Resale price ($/oz)</label>
+  <input id="resaleOz" type="number" value="65.00" />
+  <label for="buyPct">Buy ceiling (% of spot per pure gram)</label>
+  <input id="buyPct" type="number" value="75" />
+  <label for="processPerG">Processing ($/g pure)</label>
+  <input id="processPerG" type="number" value="0.10" />
+  <label for="feePct">Fees (% of revenue)</label>
+  <input id="feePct" type="number" value="15" />
+  <label for="turnoverDays">Turnover days per flip</label>
+  <input id="turnoverDays" type="number" value="7" />
+  <div id="unitEconomics" style="margin-top:0.5rem;"></div>
+</div>
+
+<!-- Growth mode content -->
+<div id="growthContent">
+  <div class="card">
+    <h2>Projected roadmap</h2>
+    <button id="runBtn">Run roadmap</button>
+    <div id="summary" style="margin-top:0.5rem;"></div>
+    <table>
+      <thead><tr>
+        <th>Flip</th><th>Bankroll start</th><th>Target listing g</th><th>Max bid</th><th>Processing</th><th>Revenue</th><th>Profit</th><th>Bankroll end</th><th>Day</th>
+      </tr></thead>
+      <tbody id="roadmapBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Charts</h2>
+    <canvas id="growthChart"></canvas>
+    <canvas id="profitChart" style="margin-top:0.75rem;"></canvas>
+  </div>
+</div>
+
+<!-- Linear mode content -->
+<div id="linearCard" style="display:none;">
+  <div class="card">
+    <h2>Linear income projection</h2>
+    <p class="muted">Enter a desired monthly income to solve for bankroll, or leave it at 0 to compute income supported by your bankroll.</p>
+    <label for="desiredMonthly">Desired monthly income ($)</label>
+    <input id="desiredMonthly" type="number" value="0" />
+    <button id="calcLinearBtn">Calculate steady income</button>
+    <div id="linearResults" style="margin-top:0.5rem;"></div>
+    <canvas id="linearChart" style="margin-top:0.75rem;"></canvas>
+  </div>
+</div>
+
+<script>
+(function(){
+  const gramsPerOz = 31.1035;
+  function fmt(n, dp=2){ return Number(n||0).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+
+  const els = {
+    modeGrowth: document.getElementById('modeGrowth'),
+    modeLinear: document.getElementById('modeLinear'),
+    growthContent: document.getElementById('growthContent'),
+    linearCard: document.getElementById('linearCard'),
+    bankroll: document.getElementById('bankroll'),
+    spotOz: document.getElementById('spotOz'),
+    resaleOz: document.getElementById('resaleOz'),
+    buyPct: document.getElementById('buyPct'),
+    processPerG: document.getElementById('processPerG'),
+    feePct: document.getElementById('feePct'),
+    turnoverDays: document.getElementById('turnoverDays'),
+    unitEconomics: document.getElementById('unitEconomics'),
+    runBtn: document.getElementById('runBtn'),
+    summary: document.getElementById('summary'),
+    roadmapBody: document.getElementById('roadmapBody'),
+    growthChart: document.getElementById('growthChart'),
+    profitChart: document.getElementById('profitChart'),
+    desiredMonthly: document.getElementById('desiredMonthly'),
+    calcLinearBtn: document.getElementById('calcLinearBtn'),
+    linearResults: document.getElementById('linearResults'),
+    linearChart: document.getElementById('linearChart')
+  };
+
+  function inputs(){
+    return {
+      bankroll: parseFloat(els.bankroll.value||0),
+      spotOz: parseFloat(els.spotOz.value||0),
+      resaleOz: parseFloat(els.resaleOz.value||0),
+      buyPct: parseFloat(els.buyPct.value||0)/100,
+      processPerG: parseFloat(els.processPerG.value||0),
+      feePct: parseFloat(els.feePct.value||0)/100,
+      turnoverDays: parseFloat(els.turnoverDays.value||7)
+    };
+  }
+
+  function renderUnitEconomics(){
+    const I = inputs();
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const profitPerG = revenuePerGAfterFees - buyCeilPerG - I.processPerG;
+    const costPerG = buyCeilPerG + I.processPerG;
+    const roi = (profitPerG>0 && costPerG>0) ? (profitPerG/costPerG) : -Infinity;
+
+    els.unitEconomics.innerHTML = `
+      <div class="flex">
+        <span class="pill">Spot: $${fmt(I.spotOz)} /oz ($${fmt(spotPerG,4)} /g)</span>
+        <span class="pill">Resale: $${fmt(I.resaleOz)} /oz ($${fmt(resalePerG,4)} /g)</span>
+        <span class="pill">Buy ceiling: ${fmt(I.buyPct*100,0)}% ⇒ $${fmt(buyCeilPerG,4)} /g pure</span>
+        <span class="pill">Processing: $${fmt(I.processPerG,4)} /g pure</span>
+        <span class="pill">Fees: ${fmt(I.feePct*100,0)}%</span>
+        <span class="pill">Profit/g: $${fmt(profitPerG,4)} | ROI/flip: ${roi>0?fmt(roi*100,2)+'%':'N/A'}</span>
+      </div>
+      ${profitPerG<=0?'<p class="neg">Unit economics negative. Raise resale, lower buy %, or reduce processing/fees.</p>':''}
+    `;
+  }
+
+  // Mode toggle
+  els.modeGrowth.addEventListener('click', ()=>{
+    els.growthContent.style.display='block';
+    els.linearCard.style.display='none';
+  });
+  els.modeLinear.addEventListener('click', ()=>{
+    els.growthContent.style.display='none';
+    els.linearCard.style.display='block';
+  });
+
+  // Growth simulation
+  let gChart=null, pChart=null;
+  function runRoadmap(){
+    const I = inputs();
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const profitPerG = revenuePerGAfterFees - buyCeilPerG - I.processPerG;
+    const costPerG = buyCeilPerG + I.processPerG;
+
+    if (profitPerG <= 0 || costPerG <= 0) {
+      els.summary.innerHTML = '<span class="neg">Unit economics negative — adjust inputs.</span>';
+      els.roadmapBody.innerHTML = '';
+      if (gChart) gChart.destroy(); if (pChart) pChart.destroy();
+      return;
+    }
+
+    let rows=[], bankroll=I.bankroll, day=0, flips=20;
+    for(let flip=1; flip<=flips; flip++){
+      const pureGrams = bankroll / costPerG;
+      const listingGrams = pureGrams / 0.925;
+      const maxBid = pureGrams * buyCeilPerG;
+      const proc = pureGrams * I.processPerG;
+      const revenue = pureGrams * revenuePerGAfterFees;
+      const profit = revenue - (maxBid + proc);
+      bankroll += profit; day += I.turnoverDays;
+      rows.push({ flip, bankrollStart: bankroll - profit, listingGrams, maxBid, proc, revenue, profit, bankrollEnd: bankroll, day });
+    }
+
+    els.summary.innerHTML = `<span class="pos">Flips: ${rows.length}. Final bankroll: $${fmt(rows[rows.length-1].bankrollEnd)}. Cumulative profit: $${fmt(rows[rows.length-1].bankrollEnd - I.bankroll)}.</span>`;
+    els.roadmapBody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.flip}</td><td>$${fmt(r.bankrollStart)}</td><td>${fmt(r.listingGrams)}</td>
+        <td>$${fmt(r.maxBid)}</td><td>$${fmt(r.proc)}</td><td>$${fmt(r.revenue)}</td>
+        <td class="${r.profit>=0?'pos':'neg'}">$${fmt(r.profit)}</td><td>$${fmt(r.bankrollEnd)}</td><td>${r.day}</td>
+      </tr>
+    `).join('');
+
+    const labels = rows.map(r=>r.day);
+    const bankrollData = rows.map(r=>r.bankrollEnd);
+    const cumProfitData = rows.map(r=>r.bankrollEnd - I.bankroll);
+
+    const ctx1 = els.growthChart.getContext('2d');
+    const ctx2 = els.profitChart.getContext('2d');
+    if (gChart) gChart.destroy(); if (pChart) pChart.destroy();
+
+    gChart = new Chart(ctx1, { type:'line',
+      data:{ labels, datasets:[ { label:'Bankroll', data:bankrollData, borderColor: '#4bd5ff', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+    pChart = new Chart(ctx2, { type:'line',
+      data:{ labels, datasets:[ { label:'Cumulative profit', data:cumProfitData, borderColor:'#7effa1', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+  }
+
+  // Linear mode calculation
+  let lChart=null;
+  function calcLinear(){
+    const I = inputs();
+    const desiredMonthly = parseFloat(els.desiredMonthly.value||0);
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const profitPerG = revenuePerGAfterFees - buyCeilPerG - I.processPerG;
+    const costPerG = buyCeilPerG + I.processPerG;
+
+    if (profitPerG <= 0 || costPerG <= 0) {
+      els.linearResults.innerHTML = '<span class="neg">Unit economics negative — adjust inputs.</span>';
+      if (lChart) lChart.destroy();
+      return;
+    }
+
+    const cyclesPerYear = 365 / I.turnoverDays;
+    let monthlyIncome = 0, annualIncome = 0, requiredBankroll = 0;
+
+    if (desiredMonthly > 0) {
+      annualIncome = desiredMonthly * 12;
+      const profitPerDollarPerYear = (profitPerG / costPerG) * cyclesPerYear;
+      requiredBankroll = annualIncome / profitPerDollarPerYear;
+      monthlyIncome = desiredMonthly;
+      els.linearResults.innerHTML = `<span>Required bankroll for $${fmt(desiredMonthly)} /month steady: <span class="pos">$${fmt(requiredBankroll)}</span></span>`;
+    } else {
+      const pureGrams = I.bankroll / costPerG;
+      const profitPerCycle = pureGrams * profitPerG;
+      annualIncome = profitPerCycle * cyclesPerYear;
+      monthlyIncome = annualIncome / 12;
+      els.linearResults.innerHTML = `<span>Bankroll $${fmt(I.bankroll)} supports steady income: <span class="pos">$${fmt(monthlyIncome)}/month</span> ($${fmt(annualIncome)}/year)</span>`;
+    }
+
+    const months = Array.from({length:12}, (_,i)=>'Month '+(i+1));
+    const ctx = els.linearChart.getContext('2d');
+    if (lChart) lChart.destroy();
+    lChart = new Chart(ctx, { type:'line',
+      data:{ labels: months, datasets:[ { label:'Steady income', data: months.map(()=>monthlyIncome), borderColor:'#7effa1', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+  }
+
+  // Bind events
+  els.runBtn.addEventListener('click', runRoadmap);
+  els.calcLinearBtn.addEventListener('click', calcLinear);
+  ['bankroll','spotOz','resaleOz','buyPct','processPerG','feePct','turnoverDays'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', renderUnitEconomics);
+  });
+
+  // Initial render
+  renderUnitEconomics();
+  runRoadmap(); // auto-run so you see something immediately
+})();
+</script>
+</body>
+</html>

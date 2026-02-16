@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mandalorian Metal Forge — Alloy Calculator</title>
+  <style>
+    :root {
+      --bg:#0a0d12;
+      --panel:#12161f;
+      --accent:#d0a86b;
+      --text:#e6e6e6;
+      --muted:#a9b0bf;
+      --danger:#ff6b6b;
+      --ok:#7fd37f;
+    }
+    html,body {height:100%;background:var(--bg);color:var(--text);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+    .app {display:grid;grid-template-columns: 360px 1fr;grid-template-rows: auto 1fr;height:100%;}
+    @media (max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;}}
+    header {
+      grid-column:1/-1;display:flex;align-items:center;gap:.75rem;
+      padding:14px 18px;border-bottom:1px solid #1f2430;background:linear-gradient(180deg,#0c1016,#0a0d12);
+    }
+    header .brand {
+      font-weight:700;letter-spacing:.5px;font-size:1rem;color:var(--text);
+    }
+    header .sub {color:var(--muted);font-size:.9rem}
+    .panel {
+      padding:14px 16px;background:var(--panel);border-right:1px solid #1f2430;
+    }
+    @media (max-width:900px){.panel{border-right:none;border-bottom:1px solid #1f2430}}
+    .section {margin-bottom:12px}
+    .section h3 {margin:.5rem 0;color:var(--accent);font-size:1rem}
+    .row {display:flex;gap:10px;align-items:center;margin-bottom:8px}
+    label {font-size:.86rem;color:var(--muted);min-width:120px}
+    input,select {
+      width:100%;background:#0e131a;border:1px solid #222a38;color:var(--text);
+      padding:10px;border-radius:8px;font-size:.95rem;
+    }
+    .inline {display:flex;gap:8px}
+    .btn {
+      background:linear-gradient(180deg,#9b6f33,#6f4c1f);color:#fff;border:none;border-radius:10px;
+      padding:10px 12px;cursor:pointer;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.35);
+    }
+    .btn.secondary {background:linear-gradient(180deg,#2a3242,#1a202f)}
+    .hint {font-size:.85rem;color:var(--muted);margin-top:6px}
+    .results {
+      padding:10px;background:transparent;color:var(--text);
+    }
+    .cards {display:grid;grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));gap:12px}
+    .card {
+      background:linear-gradient(180deg,#12161f,#0c1016);border:1px solid #1f2430;border-radius:12px;
+      padding:10px;display:flex;flex-direction:column;gap:8px
+    }
+    .badge {display:inline-block;border:1px solid #2a3344;border-radius:8px;padding:4px 8px;color:var(--muted);font-size:.8rem}
+    .stat {display:flex;justify-content:space-between;font-size:.92rem}
+    .stat b {color:var(--accent)}
+    .colorchip {height:28px;border-radius:8px;border:1px solid #1f2430}
+    /* Canvas container */
+    .scene {position:relative}
+    canvas {display:block;width:100%;height:100%}
+    .forge-overlay {
+      position:absolute;bottom:12px;left:12px;background:rgba(10,13,18,.7);
+      border:1px solid #1f2430;border-radius:8px;padding:8px 10px;color:#c9cfdc;font-size:.85rem
+    }
+    .footer {grid-column:1/-1;padding:10px 16px;border-top:1px solid #1f2430;color:var(--muted);font-size:.85rem}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">Mandalorian Metal Forge</div>
+      <div class="sub">Alloy color calculator with 3D tiles</div>
+    </header>
+
+    <aside class="panel">
+      <div class="section">
+        <h3>Materials</h3>
+        <div class="row">
+          <label>Gold karat</label>
+          <select id="goldK">
+            <option value="24">24k (pure)</option>
+            <option value="18">18k</option>
+            <option value="14">14k</option>
+            <option value="10" selected>10k</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Gold grams</label>
+          <input id="goldG" type="number" min="0" step="0.01" value="3.90" />
+        </div>
+        <div class="row">
+          <label>Silver grams</label>
+          <input id="silverG" type="number" min="0" step="0.01" value="2.00" />
+        </div>
+        <div class="row inline">
+          <div style="flex:1">
+            <label>Copper grams</label>
+            <input id="copperG" type="number" min="0" step="0.01" value="0.00" />
+          </div>
+          <div style="flex:1">
+            <label>Pre‑1982 pennies</label>
+            <input id="pennies" type="number" min="0" step="1" value="0" />
+          </div>
+        </div>
+        <div class="row inline">
+          <div style="flex:1">
+            <label>Aluminum grams</label>
+            <input id="alumG" type="number" min="0" step="0.01" value="0.00" />
+          </div>
+          <div style="flex:1">
+            <label>Aluminum cans</label>
+            <input id="cans" type="number" min="0" step="1" value="0" />
+          </div>
+        </div>
+        <div class="hint">Pennies auto‑convert at 2.95 g copper each (pre‑1982). Cans convert at 14 g aluminum each.</div>
+        <div class="row">
+          <button class="btn" id="calcBtn">Forge Alloy</button>
+          <button class="btn secondary" id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Guides</h3>
+        <div class="hint">
+          • Rose gold: copper dominates non‑gold; add small silver for pink tone.<br/>
+          • Purple gold: near‑binary Au–Al (~79% Au, 21% Al); avoid silver/copper; brittle.<br/>
+          • Green gold: Au–Ag; higher silver ratios shift greenish hue.<br/>
+          • White gold: Ni/Pd typically (not covered here).
+        </div>
+      </div>
+    </aside>
+
+    <main class="scene">
+      <div id="threeContainer" style="width:100%;height:100%"></div>
+      <div class="forge-overlay" id="overlay">Forge ready — input materials to cast tiles.</div>
+
+      <section class="results">
+        <h3>Alloy tiles</h3>
+        <div class="cards" id="cards"></div>
+      </section>
+    </main>
+
+    <footer class="footer">This is the way: precise ratios, honest results, forged in light and shadow.</footer>
+  </div>
+
+  <!-- Three.js via CDN -->
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    // === Utility: conversions and alloy logic ===
+    const PENNY_CU = 2.95;    // grams copper per pre‑1982 penny
+    const CAN_AL = 14.0;      // grams aluminum per 12oz can
+
+    function karatFrom(gGold, total) {
+      const frac = total > 0 ? (gGold / total) : 0;
+      return frac * 24;
+    }
+
+    // Simple perceptual color model for gold alloys
+    // We blend target hues based on relative metal proportions.
+    function alloyColor({gold, silver, copper, aluminum}) {
+      const total = Math.max(gold + silver + copper + aluminum, 1e-6);
+      const rAu = gold / total, rAg = silver / total, rCu = copper / total, rAl = aluminum / total;
+
+      // Base hues
+      const yellow = {r: 255, g: 211, b: 79};     // gold
+      const rose   = {r: 210, g: 110, b: 90};     // copper-influenced
+      const pink   = {r: 235, g: 150, b: 140};
+      const green  = {r: 180, g: 210, b: 140};    // silver-influenced
+      const purple = {r: 150, g: 90,  b: 170};    // AuAl2 vibe (approx)
+      const base   = {r: 40,  g: 45,  b: 55};
+
+      // Blend weights
+      // Emphasize copper for rose, silver for greenish/yellow-white, aluminum for purple.
+      const wAu = rAu * 0.8;
+      const wCu = rCu * 1.6;
+      const wAg = rAg * 1.2;
+      const wAl = rAl * 2.0;
+
+      let R = base.r * 0.3, G = base.g * 0.3, B = base.b * 0.3;
+      R += yellow.r * wAu + rose.r * wCu + green.r * wAg + purple.r * wAl;
+      G += yellow.g * wAu + rose.g * wCu + green.g * wAg + purple.g * wAl;
+      B += yellow.b * wAu + rose.b * wCu + green.b * wAg + purple.b * wAl;
+
+      // Normalize and clamp
+      const wSum = wAu + wCu + wAg + wAl + 0.3;
+      R = Math.min(255, Math.max(0, R / wSum * 1.4));
+      G = Math.min(255, Math.max(0, G / wSum * 1.4));
+      B = Math.min(255, Math.max(0, B / wSum * 1.4));
+
+      return `rgb(${Math.round(R)}, ${Math.round(G)}, ${Math.round(B)})`;
+    }
+
+    function advice({gold, silver, copper, aluminum}) {
+      const total = gold + silver + copper + aluminum;
+      const k = karatFrom(gold, total);
+      const out = [];
+      if (total <= 0) return ["Add materials to begin forging."];
+
+      // Purple feasibility
+      const auFrac = total > 0 ? gold / total : 0;
+      const alFrac = total > 0 ? aluminum / total : 0;
+      const purpleTarget = Math.abs(auFrac - 0.79) < 0.04 && Math.abs(alFrac - 0.21) < 0.04;
+      const otherMetals = (silver + copper) > 0;
+
+      if (aluminum > 0) {
+        if (purpleTarget && !otherMetals) {
+          out.push("Purple gold phase near AuAl₂ achieved. Expect brittleness; use for inlays or faceted pieces.");
+        } else if (otherMetals) {
+          out.push("Purple gold disrupted by silver/copper. Remove other metals for a true Au–Al intermetallic.");
+        } else {
+          // Suggest how much to add/remove to hit 79/21
+          const T = gold / 0.79;
+          const needAl = Math.max(0, T * 0.21 - aluminum);
+          if (Math.abs(alFrac - 0.21) > 0.04) {
+            out.push(`For purple gold: adjust aluminum by ~${needAl.toFixed(2)} g to approach 21% Al.`);
+          }
+        }
+      }
+
+      // Rose guidance
+      if (copper > 0 || (silver > 0 && gold > 0)) {
+        if (copper > silver) {
+          out.push("Rose tone reinforced: copper dominates non‑gold. A touch of silver lightens toward pink.");
+        } else if (copper > 0 && silver > 0) {
+          const needCu = Math.max(0, silver - copper);
+          out.push(`For deeper rose: add ~${needCu.toFixed(2)} g more copper to exceed silver.`);
+        }
+      }
+
+      // Karat notes
+      if (k < 8 && gold > 0) out.push(`Karat is low (~${k.toFixed(1)}k). Add gold or reduce other metals to raise purity.`);
+      if (gold === 0) out.push("No gold present. Add gold to compute karat and alloy class.");
+
+      return out.length ? out : ["Composition balanced. Inspect color and karat for suitability."];
+    }
+
+    function classify({gold, silver, copper, aluminum}) {
+      const total = gold + silver + copper + aluminum;
+      if (total === 0) return "No alloy";
+      const k = karatFrom(gold, total);
+      const rCu = copper / total, rAg = silver / total, rAl = aluminum / total;
+      if (rAl > 0.15 && rCu < 0.02 && rAg < 0.02) return "Purple (Au–Al intermetallic potential)";
+      if (rCu > 0.2) return "Red/Rose gold";
+      if (rCu > 0.08 && rAg > 0.04) return "Pink gold";
+      if (rAg > 0.25 && rCu < 0.05) return "Greenish gold";
+      if (rAg > 0.2 && rCu < 0.02) return "Yellow‑white gold";
+      return k >= 18 ? "High‑karat yellow" : "Yellow alloy";
+    }
+
+    // === Three.js scene ===
+    let scene, camera, renderer, controls, tiles = [];
+    const container = document.getElementById('threeContainer');
+
+    function init3D() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0d12);
+
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || (window.innerHeight * 0.55);
+
+      camera = new THREE.PerspectiveCamera(50, width/height, 0.1, 100);
+      camera.position.set(0, 2.2, 6);
+
+      renderer = new THREE.WebGLRenderer({antialias:true, powerPreference: "high-performance"});
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      // Lights: forge glow and rim lights
+      const hemi = new THREE.HemisphereLight(0xffd477, 0x0d1016, 0.8);
+      scene.add(hemi);
+
+      const dir = new THREE.DirectionalLight(0xffc766, 0.5);
+      dir.position.set(2, 3, 2);
+      scene.add(dir);
+
+      const rim = new THREE.PointLight(0x8bb3ff, 0.35, 10);
+      rim.position.set(-3, 2, -2);
+      scene.add(rim);
+
+      // Forge base (glowing ring)
+      const ringGeo = new THREE.TorusGeometry(2.5, 0.07, 32, 200);
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2f3a, emissive: 0x1a1d24, roughness: 0.8, metalness: 0.2
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI/2;
+      scene.add(ring);
+
+      // Forge core glow
+      const glowGeo = new THREE.CircleGeometry(1.2, 64);
+      const glowMat = new THREE.MeshBasicMaterial({color:0xff7a2e});
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.rotation.x = -Math.PI/2;
+      glow.position.y = -0.01;
+      scene.add(glow);
+
+      // Embers: moving points
+      const emberGeo = new THREE.BufferGeometry();
+      const emberCount = 120;
+      const positions = new Float32Array(emberCount * 3);
+      for (let i=0;i<emberCount;i++){
+        positions[i*3]   = (Math.random()-0.5) * 5;
+        positions[i*3+1] = Math.random() * 2;
+        positions[i*3+2] = (Math.random()-0.5) * 5;
+      }
+      emberGeo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+      const emberMat = new THREE.PointsMaterial({color:0xffa35a, size:0.04});
+      const embers = new THREE.Points(emberGeo, emberMat);
+      scene.add(embers);
+
+      // Controls
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.maxPolarAngle = Math.PI * 0.65;
+      controls.minDistance = 3;
+      controls.maxDistance = 12;
+
+      window.addEventListener('resize', onResize);
+
+      // Animate
+      function animate(){
+        requestAnimationFrame(animate);
+        controls.update();
+        ring.rotation.z += 0.002;
+        // flicker glow
+        glow.material.color.setHex(0xff7a2e + Math.floor(Math.sin(Date.now()*0.002)*0x002000));
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    function onResize(){
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || (window.innerHeight * 0.55);
+      camera.aspect = width/height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    function clearTiles3D(){
+      tiles.forEach(m => scene.remove(m));
+      tiles = [];
+    }
+
+    function addTile3D({color, label, karat, composition}) {
+      // Tile geometry
+      const w=1.2,h=0.2,d=1.8;
+      const geo = new THREE.BoxGeometry(w,d,d*0.8, 8,8,8);
+      const c = new THREE.Color(color);
+      const mat = new THREE.MeshStandardMaterial({
+        color: c,
+        metalness: 0.9,
+        roughness: 0.25,
+        emissive: new THREE.Color(0x0c0c0c),
+        envMapIntensity: 1.0
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set((tiles.length%4 - 1.5)*1.6, 0.7 + Math.floor(tiles.length/4)*0.9, -0.5);
+      mesh.rotation.set(0.25, (Math.random()*0.4)-0.2, 0);
+
+      // Label sprite (simple)
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(12,16,22,0.85)';
+      ctx.fillRect(0,0,256,128);
+      ctx.fillStyle = '#d0a86b';
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText(label, 12, 36);
+      ctx.fillStyle = '#e6e6e6';
+      ctx.font = '16px Arial';
+      ctx.fillText(`${karat.toFixed(1)}k`, 12, 62);
+      ctx.fillStyle = '#a9b0bf';
+      ctx.font = '14px Arial';
+      const txt = `Au ${(composition.gold).toFixed(2)}g  Cu ${(composition.copper).toFixed(2)}g  Ag ${(composition.silver).toFixed(2)}g  Al ${(composition.aluminum).toFixed(2)}g`;
+      ctx.fillText(txt, 12, 92);
+      const tex = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({map:tex});
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(2.2,1.1,1);
+      sprite.position.set(0,0.45,0.7);
+      mesh.add(sprite);
+
+      scene.add(mesh);
+      tiles.push(mesh);
+    }
+
+    // === UI handlers ===
+    const goldKEl = document.getElementById('goldK');
+    const goldGEl = document.getElementById('goldG');
+    const silverGEl = document.getElementById('silverG');
+    const copperGEl = document.getElementById('copperG');
+    const penniesEl = document.getElementById('pennies');
+    const alumGEl = document.getElementById('alumG');
+    const cansEl = document.getElementById('cans');
+    const cardsEl = document.getElementById('cards');
+    const overlayEl = document.getElementById('overlay');
+
+    function computeAlloy(){
+      // Conversions
+      const goldK = parseFloat(goldKEl.value || 0);
+      const gGoldTotal = parseFloat(goldGEl.value || 0);
+      const gSilver = parseFloat(silverGEl.value || 0);
+      const pennies = parseInt(penniesEl.value || 0, 10);
+      const gCopperManual = parseFloat(copperGEl.value || 0);
+      const cans = parseInt(cansEl.value || 0, 10);
+      const gAlumManual = parseFloat(alumGEl.value || 0);
+
+      const gCopper = gCopperManual + Math.max(0, pennies) * PENNY_CU;
+      const gAlum = gAlumManual + Math.max(0, cans) * CAN_AL;
+
+      const pureGold = gGoldTotal * (goldK / 24);
+      const baseAlloy = gGoldTotal - pureGold; // unknown mix inside non‑24k input
+      // We model external adds (silver/copper/alum) independently.
+      const comp = {
+        gold: pureGold,
+        silver: gSilver,
+        copper: gCopper,
+        aluminum: gAlum
+      };
+      const total = comp.gold + comp.silver + comp.copper + comp.aluminum + baseAlloy;
+
+      // Visual color uses only known components
+      const color = alloyColor(comp);
+
+      // Classification and advice
+      const cls = classify({...comp, base: baseAlloy});
+      const k = karatFrom(pureGold, total);
+      const tips = advice(comp);
+
+      return {color, cls, karat: k, comp, total, baseAlloy};
+    }
+
+    function renderCards(result){
+      cardsEl.innerHTML = '';
+      const { karat, comp, total, cls, color, baseAlloy } = result;
+
+      const items = [
+        {
+          title: 'Current mix',
+          karat, color, comp,
+          notes: advice(comp)
+        }
+      ];
+
+      // Derived targets: Suggest 18k rose and purple target from current gold
+      if (comp.gold > 0) {
+        // 18k rose target (Cu only)
+        const targetTotal18 = comp.gold / 0.75;
+        const needCu18 = Math.max(0, targetTotal18 - comp.gold);
+        items.push({
+          title: 'Target: 18k rose (Cu)',
+          karat: 18, color: alloyColor({gold: comp.gold, silver: 0, copper: needCu18, aluminum: 0}),
+          comp: {gold: comp.gold, silver: 0, copper: needCu18, aluminum: 0},
+          notes: [`Add ~${needCu18.toFixed(2)} g copper to reach 18k rose from your gold.`]
+        });
+
+        // Purple target 79/21 if no other metals
+        const T = comp.gold / 0.79;
+        const alNeeded = Math.max(0, T * 0.21);
+        items.push({
+          title: 'Target: Purple gold (Au–Al)',
+          karat: karatFrom(comp.gold, comp.gold + alNeeded),
+          color: alloyColor({gold: comp.gold, silver: 0, copper: 0, aluminum: alNeeded}),
+          comp: {gold: comp.gold, silver: 0, copper: 0, aluminum: alNeeded},
+          notes: ["Requires removing silver/copper. Add clean aluminum only.", `Al needed: ~${alNeeded.toFixed(2)} g`]
+        });
+      }
+
+      items.forEach(it => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const chip = document.createElement('div');
+        chip.className = 'colorchip';
+        chip.style.background = it.color;
+        card.appendChild(chip);
+
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = it.title + ' — ' + cls;
+        card.appendChild(badge);
+
+        const stat1 = document.createElement('div');
+        stat1.className = 'stat';
+        stat1.innerHTML = `<div><b>Karat:</b> ${it.karat.toFixed(1)}k</div><div><b>Total:</b> ${total.toFixed(2)} g</div>`;
+        card.appendChild(stat1);
+
+        const stat2 = document.createElement('div');
+        stat2.className = 'stat';
+        stat2.innerHTML = `<div>Au ${it.comp.gold.toFixed(2)} g</div><div>Ag ${it.comp.silver.toFixed(2)} g</div><div>Cu ${it.comp.copper.toFixed(2)} g</div><div>Al ${it.comp.aluminum.toFixed(2)} g</div>`;
+        card.appendChild(stat2);
+
+        const notes = document.createElement('div');
+        notes.className = 'hint';
+        notes.innerHTML = it.notes.map(n => `• ${n}`).join('<br/>');
+        card.appendChild(notes);
+
+        cardsEl.appendChild(card);
+
+        // Add matching 3D tile
+        addTile3D({
+          color: it.color,
+          label: it.title,
+          karat: it.karat,
+          composition: it.comp
+        });
+      });
+
+      overlayEl.textContent = `Forged ${items.length} tile(s). Scene updated.`;
+    }
+
+    // Buttons
+    document.getElementById('calcBtn').addEventListener('click', ()=>{
+      clearTiles3D();
+      const res = computeAlloy();
+      renderCards(res);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      goldKEl.value = '10';
+      goldGEl.value = '3.90';
+      silverGEl.value = '2.00';
+      copperGEl.value = '0.00';
+      penniesEl.value = '0';
+      alumGEl.value = '0.00';
+      cansEl.value = '0';
+      clearTiles3D();
+      cardsEl.innerHTML = '';
+      overlayEl.textContent = 'Forge ready — input materials to cast tiles.';
+    });
+
+    // Initialize
+    init3D();
+  </script>
+</body>
+</html>

@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Secure Shared Safety Map — Mobile</title>
+<meta name="description" content="Client app: local gunshot detection, encrypted event upload, global safe-zone map, admin retrieval (server required)." />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{--bg:#071226;--panel:#071a26;--muted:#9fb0be;--accent:#2dd4bf;--danger:#ef4444}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,#071226,#041423);color:#e6f7f9}
+.header{display:flex;gap:12px;align-items:center;padding:12px}
+h1{font-size:16px;margin:0}
+.container{max-width:980px;margin:12px auto;padding:12px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-bottom:12px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+button.warn{background:var(--danger);color:#fff}
+label{font-size:13px;color:var(--muted)}
+.small{font-size:13px;padding:6px 8px}
+#map{height:420px;border-radius:10px}
+#log{max-height:180px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+input[type="text"], input[type="password"], select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#02121b;color:#e6f7f9}
+textarea{width:100%;height:80px;border-radius:8px;background:#02121b;color:#e6f7f9;padding:8px;border:1px solid rgba(255,255,255,0.03)}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:8px}
+@media(min-width:900px){#map{height:560px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Secure Shared Safety Map</h1>
+    <div style="font-size:13px;color:#9fb0be">Encrypted event upload, global safe-zone feed, admin retrieval</div>
+  </div>
+</div>
+
+<main class="container">
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Local detection & secure upload</div>
+      <div style="font-size:13px;color:var(--muted)">Data is encrypted locally before upload</div>
+    </div>
+
+    <div style="margin-top:10px" class="controls">
+      <button id="btnEnable" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Local Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <button id="btnSync" class="small">Sync Pending Events</button>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label>Sensitivity</label>
+      <input id="sensitivity" type="range" min="0.2" max="5" step="0.1" value="1" />
+      <label>Server</label>
+      <input id="serverUrl" type="text" placeholder="https://api.yourdomain.com" style="width:220px" />
+      <label>Device ID</label>
+      <input id="deviceId" type="text" placeholder="device-uuid or name" style="width:160px" />
+    </div>
+
+    <div style="margin-top:12px">
+      <div id="status" style="color:var(--muted)">Status: idle</div>
+      <div id="log" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Global live map</div>
+      <div style="font-size:13px;color:var(--muted)">Aggregated safe / suspect areas from server</div>
+    </div>
+    <div id="map" style="margin-top:8px"></div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button id="btnRefresh" class="small">Refresh Map Feed</button>
+      <label>Feed interval</label>
+      <select id="feedInterval" class="small"><option value="0">manual</option><option value="30">30s</option><option value="60" selected>60s</option><option value="300">5m</option></select>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="font-weight:700">Admin portal (verification required)</div>
+    <div style="font-size:13px;color:var(--muted)">Admins fetch encrypted blobs and decrypt server-wrapped keys with their private key. Backend must enforce access control.</div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <input id="adminUser" type="text" placeholder="admin username" />
+      <input id="adminPass" type="password" placeholder="password" />
+      <button id="btnAdminLogin" class="small">Admin Login</button>
+      <button id="btnFetchEncrypted" class="small" disabled>Fetch Encrypted Events</button>
+      <button id="btnFetchSafeZones" class="small" disabled>Fetch Safe Zones (decrypted)</button>
+    </div>
+
+    <div style="margin-top:8px">
+      <label>Admin output</label>
+      <textarea id="adminOut" readonly></textarea>
+    </div>
+  </section>
+</main>
+
+<footer>Client-side encryption uses Web Crypto. Server endpoints required: /uploadEvent, /safeZones, /admin/login, /admin/events (see inline comments).</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/*
+Client responsibilities implemented here:
+- detect impulsive events locally (simple energy threshold)
+- create a JSON event payload with timestamp, dominantFreq, amplitude, estimatedDistance, device metadata, and optionally geo
+- generate a symmetric AES-GCM device key (per-device) and persist it in IndexedDB (CryptoKey exportable wrapped form for backup)
+- when uploading, wrap the AES key with the server's public RSA-OAEP (or server-managed key encryption scheme) OR upload it to an admin-retrieval workflow.
+  For simplicity in this client file we:
+    - generate per-device AES-GCM key (keystoreKey)
+    - encrypt event payload with AES-GCM -> ciphertext + iv + tag
+    - ask server to accept {deviceId, ciphertext, iv, alg, timestamp, envelope: {keyWrap: <placeholder>}}.
+  Server must store ciphertext and perform key-wrapping or store envelope to allow admin retrieval.
+- map feed fetches aggregated safe zones (server returns GeoJSON-like objects with privacy-safe shapes)
+- admin UI demonstrates request/response; actual decryption of server-wrapped keys requires server to provide wrapped key material and admin private key (not implemented here)
+
+Server endpoints (expected):
+- POST ${serverUrl}/uploadEvent
+  Body: { deviceId, timestamp, ciphertext (base64), iv (base64), alg: "AES-GCM", meta: {...}, keyEnvelope: { wrappedKey: base64, wrapAlg: "RSA-OAEP", keyId } }
+  Server stores ciphertext and keyEnvelope; admin systems unwrap when authorized and decrypt stored events.
+- GET  ${serverUrl}/safeZones
+  Returns aggregated safe zones: [{id, type:"safe"|"suspect", geometry:GeoJSON, radius_m, score, updatedAt}, ...]
+- POST ${serverUrl}/admin/login  -> returns admin JWT
+- GET  ${serverUrl}/admin/events?since=... (requires admin JWT) -> returns list of encrypted events or decrypted events depending on server policy
+
+Security notes:
+- True key-wrapping and admin retrieval require server-side KMS or public keys and secure authentication.
+- Client-side only key storage is convenient but not a substitute for server-managed key-escrow if admins must decrypt.
+*/
+
+///// Utility helpers /////
+function toBase64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function fromBase64(s){ const bin = atob(s); const len = bin.length; const arr = new Uint8Array(len); for(let i=0;i<len;i++) arr[i]=bin.charCodeAt(i); return arr.buffer; }
+function bufToHex(buffer){ return Array.from(new Uint8Array(buffer)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+///// Local storage helpers for keys and pending events /////
+const DB = {
+  async get(key){ return JSON.parse(localStorage.getItem(key) || 'null'); },
+  async set(key,val){ localStorage.setItem(key, JSON.stringify(val)); },
+  async pushPending(event){ const p = (await DB.get('pending')) || []; p.push(event); await DB.set('pending', p); },
+  async getPending(){ return (await DB.get('pending')) || []; },
+  async clearPending(){ await DB.set('pending', []); }
+};
+
+///// Cryptography: per-device AES key management (Web Crypto) /////
+async function ensureDeviceKey(deviceId){
+  // derive key name by deviceId
+  const keyName = 'aesKey:' + (deviceId || 'default');
+  const exported = await DB.get(keyName);
+  if(exported){
+    try{
+      const raw = fromBase64(exported);
+      const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt','decrypt']);
+      return key;
+    }catch(e){
+      console.warn('Failed reimport key, generating new', e);
+    }
+  }
+  // generate new AES-GCM 256-bit key
+  const key = await crypto.subtle.generateKey({ name:'AES-GCM', length: 256 }, true, ['encrypt','decrypt']);
+  const raw = await crypto.subtle.exportKey('raw', key);
+  await DB.set(keyName, toBase64(raw));
+  return key;
+}
+
+async function encryptEventPayload(key, payloadObj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoder = new TextEncoder();
+  const plaintext = encoder.encode(JSON.stringify(payloadObj));
+  const ciphertext = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, plaintext);
+  return { ciphertext: toBase64(ciphertext), iv: toBase64(iv), alg: 'AES-GCM', tag: null };
+}
+
+async function decryptEventPayload(key, ciphertextB64, ivB64){
+  const ciphertext = fromBase64(ciphertextB64);
+  const iv = new Uint8Array(fromBase64(ivB64));
+  const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ciphertext);
+  const decoder = new TextDecoder();
+  return JSON.parse(decoder.decode(plainBuf));
+}
+
+///// Simple detection engine (energy threshold + peak freq estimate) /////
+let audioContext = null, mediaStream = null, sourceNode = null, scriptNode = null;
+let running = false;
+let sensitivity = 1.0;
+const detectionState = {lastEventAt:0, refractoryMs:800};
+
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnSync = document.getElementById('btnSync');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const serverUrlInput = document.getElementById('serverUrl');
+const deviceIdInput = document.getElementById('deviceId');
+const sensitivityInput = document.getElementById('sensitivity');
+
+btnEnable.addEventListener('click', async ()=>{
+  try{
+    status('Requesting microphone...');
+    const s = await navigator.mediaDevices.getUserMedia({ audio: {channelCount:1, echoCancellation:true, noiseSuppression:true} });
+    mediaStream = s;
+    status('Microphone enabled');
+    btnStart.disabled = false;
+    btnEnable.disabled = true;
+  }catch(e){
+    status('Microphone permission denied or unavailable');
+    console.error(e);
+  }
+});
+
+btnStart.addEventListener('click', async ()=>{
+  if(!mediaStream){
+    status('No microphone stream available');
+    return;
+  }
+  sensitivity = parseFloat(sensitivityInput.value);
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  sourceNode = audioContext.createMediaStreamSource(mediaStream);
+  const bufferSize = 2048;
+  scriptNode = audioContext.createScriptProcessor(bufferSize,1,1);
+  scriptNode.onaudioprocess = async (ev) => {
+    if(!running) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    const amp = rms(input);
+    drawWaveform(input);
+    const now = performance.now();
+    const threshold = 0.12 * sensitivity;
+    if(amp > threshold && (now - detectionState.lastEventAt) > detectionState.refractoryMs){
+      detectionState.lastEventAt = now;
+      // lightweight dominant frequency estimate via zero-crossing period
+      const domFreq = estimateDominantFreq(input, audioContext.sampleRate);
+      const timestamp = new Date().toISOString();
+      const payload = {
+        timestamp,
+        deviceId: deviceIdInput.value || 'anonymous',
+        amplitude: amp,
+        dominantFreq: domFreq,
+        meta: {userAgent: navigator.userAgent},
+      };
+      // attempt geolocation (best-effort)
+      try{
+        const pos = await new Promise((res,rej)=>{
+          navigator.geolocation.getCurrentPosition(p=>res(p), err=>rej(err), {maximumAge:5000, timeout:3000});
+        });
+        payload.location = {lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy_m: pos.coords.accuracy};
+      }catch(e){
+        // no location
+      }
+      await storeAndEncryptEvent(payload);
+      log(`Detected event: ${timestamp} • ${domFreq.toFixed(0)} Hz • amp ${amp.toFixed(3)}`);
+    }
+  };
+  sourceNode.connect(scriptNode);
+  scriptNode.connect(audioContext.destination);
+  running = true;
+  status('Logging active');
+  btnStart.disabled = true; btnStop.disabled = false;
+});
+
+btnStop.addEventListener('click', ()=>{
+  running = false;
+  try{ if(scriptNode) scriptNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioContext) audioContext.close(); }catch(e){}
+  audioContext = null; sourceNode = null; scriptNode = null;
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  status('Stopped');
+});
+
+function status(msg){ statusEl.textContent = 'Status: ' + msg; }
+function log(msg){ const d = new Date().toLocaleString(); logEl.innerHTML = `<div style="padding:6px">${d} — ${msg}</div>` + logEl.innerHTML; }
+
+function rms(buf){ let s=0; for(let i=0;i<buf.length;i++){ s += buf[i]*buf[i]; } return Math.sqrt(s / buf.length); }
+function estimateDominantFreq(buf, sampleRate){
+  // simple zero-crossing frequency estimate robust for impulsive broadband peaks
+  let crossings = 0;
+  for(let i=1;i<buf.length;i++) if(buf[i-1] <= 0 && buf[i] > 0) crossings++;
+  const seconds = buf.length / sampleRate;
+  return crossings / seconds / 2; // zero-crossings to fundamental
+}
+async function storeAndEncryptEvent(payload){
+  const devId = deviceIdInput.value || 'device-unknown';
+  const key = await ensureDeviceKey(devId);
+  const enc = await encryptEventPayload(key, payload);
+  // Envelope: in a production system, wrap AES key with server public key (RSA-OAEP) so server can store wrappedKey.
+  // Here we send a placeholder envelope; server must implement key-wrapping or envelope-based KMS.
+  const envelope = { wrappedKey: null, wrapAlg: 'server-managed', keyId: null };
+  const record = {
+    deviceId: devId,
+    timestamp: payload.timestamp,
+    ciphertext: enc.ciphertext,
+    iv: enc.iv,
+    alg: enc.alg,
+    envelope,
+    meta: payload.meta,
+    location: payload.location || null
+  };
+  // Save locally pending
+  await DB.pushPending(record);
+  log('Event encrypted and queued for upload');
+}
+
+btnSync.addEventListener('click', async ()=>{
+  btnSync.disabled = true;
+  const serverUrl = (document.getElementById('serverUrl').value || '').replace(/\/+$/,'');
+  if(!serverUrl){ alert('Set server URL'); btnSync.disabled = false; return; }
+  const pending = await DB.getPending();
+  if(!pending || pending.length===0){ log('No pending events to upload'); btnSync.disabled = false; return; }
+  status('Uploading ' + pending.length + ' event(s)...');
+  for(const p of pending){
+    try{
+      // send to server; backend must validate and store ciphertext + envelope
+      const resp = await fetch(serverUrl + '/uploadEvent', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(p)
+      });
+      if(resp.ok){
+        log('Uploaded event ' + p.timestamp);
+      }else{
+        const t = await resp.text();
+        log('Upload failed: ' + resp.status + ' ' + t);
+      }
+    }catch(e){
+      log('Upload error: ' + e.message);
+      console.error(e);
+      break; // stop on network failure
+    }
+  }
+  await DB.clearPending();
+  status('Sync complete');
+  btnSync.disabled = false;
+});
+
+///// Map feed and display ///// 
+const map = L.map('map', { zoomControl:true }).setView([20,0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+const zonesLayer = L.layerGroup().addTo(map);
+
+document.getElementById('btnRefresh').addEventListener('click', fetchSafeZones);
+let feedTimer = null;
+document.getElementById('feedInterval').addEventListener('change', ()=>{
+  const val = parseInt(document.getElementById('feedInterval').value,10);
+  if(feedTimer){ clearInterval(feedTimer); feedTimer = null; }
+  if(val>0) feedTimer = setInterval(fetchSafeZones, val*1000);
+});
+
+async function fetchSafeZones(){
+  const serverUrl = (serverUrlInput.value || '').replace(/\/+$/,'');
+  if(!serverUrl){ alert('Set server URL'); return; }
+  try{
+    const res = await fetch(serverUrl + '/safeZones'); // server returns aggregated GeoJSON-like list
+    if(!res.ok) throw new Error('Feed fetch failed ' + res.status);
+    const zones = await res.json();
+    zonesLayer.clearLayers();
+    zones.forEach(z => {
+      // z expected: { id, type: 'safe'|'suspect', geometry: {type:'Point', coordinates:[lon,lat]} OR circle {center:[lat,lon], radius_m}, score, updatedAt }
+      if(z.geometry && z.geometry.type === 'Point'){
+        const [lon,lat] = z.geometry.coordinates;
+        const color = z.type === 'safe' ? '#06b6d4' : '#f97373';
+        const m = L.circle([lat,lon], { radius: z.radius_m || 150, color, fillColor: color, fillOpacity: 0.15, weight:2 }).addTo(zonesLayer);
+        m.bindPopup(`<b>${z.type.toUpperCase()}</b><br>Score: ${z.score || 'n/a'}<br>Updated: ${z.updatedAt || ''}`);
+      } else if(z.center){
+        const [lat,lon] = z.center;
+        const color = z.type === 'safe' ? '#06b6d4' : '#f97373';
+        const m = L.circle([lat,lon], { radius: z.radius_m || 150, color, fillColor: color, fillOpacity: 0.15, weight:2 }).addTo(zonesLayer);
+        m.bindPopup(`<b>${z.type.toUpperCase()}</b><br>Score: ${z.score || 'n/a'}<br>Updated: ${z.updatedAt || ''}`);
+      }
+    });
+    log('Map feed updated (' + zones.length + ' zones)');
+  }catch(e){
+    log('Failed fetch safe zones: ' + e.message);
+    console.error(e);
+  }
+}
+
+///// Admin flow (client demonstrates fetch; server must enforce auth and return encrypted payloads or decrypted ones) /////
+const btnAdminLogin = document.getElementById('btnAdminLogin');
+const btnFetchEncrypted = document.getElementById('btnFetchEncrypted');
+const btnFetchSafeZones = document.getElementById('btnFetchSafeZones');
+const adminUser = document.getElementById('adminUser');
+const adminPass = document.getElementById('adminPass');
+const adminOut = document.getElementById('adminOut');
+let adminJwt = null;
+
+btnAdminLogin.addEventListener('click', async ()=>{
+  const serverUrl = (serverUrlInput.value || '').replace(/\/+$/,'');
+  if(!serverUrl) return alert('Set server URL for admin actions');
+  try{
+    const resp = await fetch(serverUrl + '/admin/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username: adminUser.value, password: adminPass.value})
+    });
+    if(!resp.ok) throw new Error('Login failed ' + resp.status);
+    const data = await resp.json();
+    adminJwt = data.token;
+    adminOut.value = 'Admin authenticated';
+    btnFetchEncrypted.disabled = false;
+    btnFetchSafeZones.disabled = false;
+  }catch(e){
+    adminOut.value = 'Admin login failed: ' + e.message;
+    console.error(e);
+  }
+});
+
+btnFetchEncrypted.addEventListener('click', async ()=>{
+  if(!adminJwt) return alert('Admin not authenticated');
+  const serverUrl = (serverUrlInput.value || '').replace(/\/+$/,'');
+  try{
+    const resp = await fetch(serverUrl + '/admin/events', { headers: { Authorization: 'Bearer ' + adminJwt }});
+    if(!resp.ok) throw new Error('Fetch failed ' + resp.status);
+    const encryptedEvents = await resp.json(); // expected: [{deviceId,timestamp,ciphertext,iv,envelope:{wrappedKey,wrapAlg,keyId},meta,location}, ...]
+    adminOut.value = JSON.stringify(encryptedEvents, null, 2);
+    // admin must use server KMS or private key to unwrap keys; if server returns plaintext events for authorized admins, they are visible here.
+  }catch(e){
+    adminOut.value = 'Fetch error: ' + e.message;
+    console.error(e);
+  }
+});
+
+btnFetchSafeZones.addEventListener('click', async ()=>{
+  if(!adminJwt) return alert('Admin not authenticated');
+  const serverUrl = (serverUrlInput.value || '').replace(/\/+$/,'');
+  try{
+    const resp = await fetch(serverUrl + '/admin/safeZones', { headers: { Authorization: 'Bearer ' + adminJwt }});
+    if(!resp.ok) throw new Error('Fetch failed ' + resp.status);
+    const zones = await resp.json();
+    adminOut.value = JSON.stringify(zones, null, 2);
+  }catch(e){
+    adminOut.value = 'Fetch error: ' + e.message;
+    console.error(e);
+  }
+});
+
+///// On load attempt to initialize device id and server url from localStorage /////
+(async function init(){
+  const sv = localStorage.getItem('serverUrl'); if(sv) serverUrlInput.value = sv;
+  const did = localStorage.getItem('deviceId'); if(did) deviceIdInput.value = did;
+  deviceIdInput.addEventListener('change', ()=>localStorage.setItem('deviceId', deviceIdInput.value));
+  serverUrlInput.addEventListener('change', ()=>localStorage.setItem('serverUrl', serverUrlInput.value));
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gem Bot — Pre-cut Planning & Design Selection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171a2e;
+      --accent: #00aaff;
+      --text: #e6e9f7;
+      --muted: #8b90b3;
+      --ok: #3cd98e;
+      --warn: #ffb600;
+      --bad: #ff5e6b;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      height: 100%;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr auto;
+      min-height: 100vh;
+    }
+    header {
+      padding: 12px 16px;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #22263d;
+    }
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 600;
+    }
+    header .mini {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .controls {
+      display: grid;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #12152a;
+      border-bottom: 1px solid #1e2242;
+    }
+    .controls .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .control-group {
+      display: grid;
+      gap: 8px;
+      background: var(--panel);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #202545;
+    }
+    label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    input, select, button, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #2a2f55;
+      background: #0e1122;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="file"] {
+      padding: 6px;
+    }
+    button.primary {
+      background: var(--accent);
+      border: none;
+      color: #001019;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #1a1f3c;
+      border: 1px solid #2a2f55;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .main {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #202545;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .panel header {
+      background: #1a1f3c;
+      border-bottom: 1px solid #22263d;
+      border-radius: 10px 10px 0 0;
+    }
+    .panel-body {
+      padding: 12px;
+    }
+    .grid-col-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .flex {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+    .card {
+      display: grid;
+      gap: 6px;
+      background: #12152a;
+      border: 1px solid #1e2242;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #1a203f;
+      border: 1px solid #2a2f55;
+      color: var(--muted);
+    }
+    .score {
+      font-weight: 700;
+      color: var(--ok);
+    }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    footer {
+      padding: 10px 16px;
+      border-top: 1px solid #202545;
+      background: #12152a;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    /* Responsive layout enhancements for wider screens */
+    @media (min-width: 900px) {
+      .controls .row {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .main {
+        grid-template-columns: 1.2fr 1fr;
+      }
+      .panels {
+        grid-template-columns: 1fr 1fr;
+      }
+      .grid-col-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Gem Bot — Design Selection & Pre-cut Planning</h1>
+      <div class="mini">Upload rough material, select or import facet designs, and get the top 10 optimal cuts.</div>
+    </div>
+    <div class="flex">
+      <button id="btnReset" class="secondary">Reset</button>
+      <button id="btnExport" class="secondary">Export plan JSON</button>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="row">
+      <div class="control-group">
+        <label>Rough material inputs (image/video optional, dimensions recommended)</label>
+        <input type="file" id="roughMedia" accept="image/*,video/*" />
+        <div class="grid-col-2">
+          <div>
+            <label>Rough length (mm)</label>
+            <input type="number" id="roughLen" placeholder="e.g., 12.0" step="0.01" />
+          </div>
+          <div>
+            <label>Rough width (mm)</label>
+            <input type="number" id="roughWid" placeholder="e.g., 10.0" step="0.01" />
+          </div>
+          <div>
+            <label>Rough height (mm)</label>
+            <input type="number" id="roughHei" placeholder="e.g., 8.0" step="0.01" />
+          </div>
+          <div>
+            <label>Estimated material type</label>
+            <select id="materialType">
+              <option value="diamond">Diamond (n ~ 2.417)</option>
+              <option value="ruby">Ruby (n ~ 1.770)</option>
+              <option value="sapphire">Sapphire (n ~ 1.770)</option>
+              <option value="emerald">Emerald (n ~ 1.580)</option>
+              <option value="quartz">Quartz (n ~ 1.544)</option>
+              <option value="custom">Custom (enter RI)</option>
+            </select>
+          </div>
+          <div>
+            <label>Custom refractive index (if applicable)</label>
+            <input type="number" id="customRI" placeholder="e.g., 1.762" step="0.001" />
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Facet design source</label>
+        <div class="grid-col-2">
+          <div>
+            <label>Load sample library</label>
+            <button id="btnLoadSamples" class="secondary">Load sample facet designs</button>
+          </div>
+          <div>
+            <label>Import designs (JSON)</label>
+            <input type="file" id="designImport" accept="application/json" />
+          </div>
+          <div>
+            <label>Filter by shape</label>
+            <select id="shapeFilter">
+              <option value="">All</option>
+              <option value="round">Round</option>
+              <option value="oval">Oval</option>
+              <option value="pear">Pear</option>
+              <option value="emerald">Emerald</option>
+              <option value="marquise">Marquise</option>
+              <option value="heart">Heart</option>
+            </select>
+          </div>
+          <div>
+            <label>Max facets</label>
+            <input type="number" id="maxFacets" placeholder="e.g., 120" />
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Optimization preferences</label>
+        <div class="grid-col-2">
+          <div>
+            <label>Yield weight</label>
+            <input type="number" id="wYield" value="0.5" step="0.05" />
+          </div>
+          <div>
+            <label>Optical weight</label>
+            <input type="number" id="wOptical" value="0.3" step="0.05" />
+          </div>
+          <div>
+            <label>Risk weight</label>
+            <input type="number" id="wRisk" value="0.2" step="0.05" />
+          </div>
+          <div>
+            <label>Target table size (%)</label>
+            <input type="number" id="targetTable" value="60" step="1" />
+          </div>
+          <div>
+            <label>Target crown height (%)</label>
+            <input type="number" id="targetCrown" value="15" step="1" />
+          </div>
+          <div>
+            <label>Target pavilion depth (%)</label>
+            <input type="number" id="targetPavilion" value="43" step="1" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex">
+      <button id="btnAnalyze" class="primary">Analyze rough & compute top 10 designs</button>
+      <span id="status" class="badge">Idle</span>
+    </div>
+  </section>
+
+  <section class="main">
+    <div class="panel">
+      <header>
+        <h2 style="font-size:16px;margin:0;">Interactive 3D — Wireframe & Optical Preview</h2>
+      </header>
+      <div class="panel-body" style="height: 50vh;">
+        <div id="viewer" style="width:100%;height:100%;"></div>
+        <div class="flex" style="margin-top:8px;gap:10px;">
+          <button id="btnWireframe" class="secondary">Wireframe</button>
+          <button id="btnSolid" class="secondary">Solid</button>
+          <button id="btnRayPreview" class="secondary">Ray preview</button>
+          <button id="btnResetCamera" class="secondary">Reset camera</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel">
+        <header>
+          <h2 style="font-size:16px;margin:0;">Top 10 optimal designs</h2>
+        </header>
+        <div class="panel-body">
+          <div id="results" class="list"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <header>
+          <h2 style="font-size:16px;margin:0;">Edit selected design parameters</h2>
+        </header>
+        <div class="panel-body">
+          <div class="grid-col-2">
+            <div>
+              <label>Design title</label>
+              <input type="text" id="editTitle" />
+            </div>
+            <div>
+              <label>Designer</label>
+              <input type="text" id="editDesigner" />
+            </div>
+            <div>
+              <label>Shape</label>
+              <select id="editShape">
+                <option value="round">Round</option>
+                <option value="oval">Oval</option>
+                <option value="pear">Pear</option>
+                <option value="emerald">Emerald</option>
+                <option value="marquise">Marquise</option>
+                <option value="heart">Heart</option>
+              </select>
+            </div>
+            <div>
+              <label>Gear</label>
+              <input type="number" id="editGear" />
+            </div>
+            <div>
+              <label>RI</label>
+              <input type="number" id="editRI" step="0.001" />
+            </div>
+            <div>
+              <label>Facets</label>
+              <input type="number" id="editFacets" />
+            </div>
+            <div>
+              <label>Length (mm)</label>
+              <input type="number" id="editLen" step="0.01" />
+            </div>
+            <div>
+              <label>Width (mm)</label>
+              <input type="number" id="editWid" step="0.01" />
+            </div>
+            <div>
+              <label>Height (mm)</label>
+              <input type="number" id="editHei" step="0.01" />
+            </div>
+            <div>
+              <label>Table size (%)</label>
+              <input type="number" id="editTable" step="1" />
+            </div>
+            <div>
+              <label>Crown height (%)</label>
+              <input type="number" id="editCrown" step="1" />
+            </div>
+            <div>
+              <label>Pavilion depth (%)</label>
+              <input type="number" id="editPavilion" step="1" />
+            </div>
+          </div>
+          <div class="flex" style="margin-top:8px;">
+            <button id="btnApplyEdit" class="primary">Apply changes</button>
+            <span id="editStatus" class="badge">No selection</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Notes: This tool estimates yield and optical behavior and suggests top designs. Edit parameters and preview in 3D. Export the plan JSON for provenance and downstream steps.</div>
+    <div>For best accuracy, provide true rough dimensions and material type/RI. Video/image input is optional and used to estimate convex hull in future updates.</div>
+  </footer>
+</div>
+
+<!-- Three.js + controls + BVH (for faster ray intersections) -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three-mesh-bvh@0.6.8/dist/index.js"></script>
+
+<script>
+/**
+ * Gem Bot — Pre-cut Planning & Design Selection (Single-file HTML)
+ * - Upload or enter rough material dimensions
+ * - Load/import facet designs
+ * - Compute and display top 10 optimal designs based on yield, optical fit, and risk
+ * - Interactive 3D viewer (wireframe/solid/ray preview)
+ * - Editable design parameters and exportable plan JSON
+ *
+ * This is a working baseline with parametric designs and heuristics.
+ * Extend with real facet plane sets and clipping for exact cuts.
+ */
+
+// ---------------------- Utility helpers ----------------------
+const $ = (id) => document.getElementById(id);
+const clamp = (x,min,max) => Math.max(min, Math.min(max, x));
+const mm3 = (l,w,h) => Math.max(0, l*w*h); // simple bounding box volume
+const toPct = (x) => Math.round(x * 100);
+const fmt = (x, d=2) => (isFinite(x) ? Number(x).toFixed(d) : '—');
+
+function materialRI(type, custom) {
+  const map = {
+    diamond: 2.417,
+    ruby: 1.770, sapphire: 1.770,
+    emerald: 1.580,
+    quartz: 1.544
+  };
+  return type === 'custom' ? Number(custom || 1.7) : map[type] ?? 1.7;
+}
+
+// ---------------------- Sample facet design library ----------------------
+/**
+ * Designs are simplified parametric entries; in production, import real facet planes.
+ * proportions are normalized outcomes; length/width/height are target finished dimensions.
+ */
+let DESIGN_LIBRARY = [];
+
+function loadSampleLibrary() {
+  DESIGN_LIBRARY = [
+    {
+      id: 'R-Brilliant-57',
+      title: 'Round Brilliant 57',
+      designer: 'Standard',
+      shape: 'round',
+      gear: 8,
+      refractiveIndex: 2.417,
+      facets: 57,
+      proportions: { tablePct: 57, crownPct: 15, pavilionPct: 43, girdlePct: 5 },
+      target: { length: null, width: null, height: null }, // width defines
+    },
+    {
+      id: 'R-Brilliant-60',
+      title: 'Round Brilliant 60',
+      designer: 'Variant',
+      shape: 'round',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 60,
+      proportions: { tablePct: 60, crownPct: 16, pavilionPct: 42, girdlePct: 5 },
+      target: { length: null, width: null, height: null },
+    },
+    {
+      id: 'Oval-8x6',
+      title: 'Oval Brilliant',
+      designer: 'Standard',
+      shape: 'oval',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 56,
+      proportions: { tablePct: 58, crownPct: 14, pavilionPct: 43, girdlePct: 5 },
+      target: { length: 8.0, width: 6.0, height: 3.8 },
+    },
+    {
+      id: 'Emerald-Rect-6x4',
+      title: 'Emerald Cut 6x4',
+      designer: 'Standard',
+      shape: 'emerald',
+      gear: 4,
+      refractiveIndex: 1.58,
+      facets: 50,
+      proportions: { tablePct: 62, crownPct: 12, pavilionPct: 40, girdlePct: 6 },
+      target: { length: 6.0, width: 4.0, height: 3.0 },
+    },
+    {
+      id: 'Pear-10x7',
+      title: 'Pear 10x7',
+      designer: 'Standard',
+      shape: 'pear',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 58,
+      proportions: { tablePct: 60, crownPct: 15, pavilionPct: 42, girdlePct: 5 },
+      target: { length: 10.0, width: 7.0, height: 4.0 },
+    },
+    {
+      id: 'Marquise-12x6',
+      title: 'Marquise 12x6',
+      designer: 'Standard',
+      shape: 'marquise',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 58,
+      proportions: { tablePct: 58, crownPct: 15, pavilionPct: 43, girdlePct: 5 },
+      target: { length: 12.0, width: 6.0, height: 3.6 },
+    },
+    {
+      id: 'Heart-7x7',
+      title: 'Heart 7x7',
+      designer: 'Standard',
+      shape: 'heart',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 56,
+      proportions: { tablePct: 58, crownPct: 15, pavilionPct: 42, girdlePct: 5 },
+      target: { length: 7.0, width: 7.0, height: 4.2 },
+    },
+    {
+      id: 'Round-HighCrown',
+      title: 'Round (High Crown)',
+      designer: 'Variant',
+      shape: 'round',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 58,
+      proportions: { tablePct: 54, crownPct: 18, pavilionPct: 42, girdlePct: 6 },
+      target: { length: null, width: null, height: null },
+    },
+    {
+      id: 'Round-LowTable',
+      title: 'Round (Low Table)',
+      designer: 'Variant',
+      shape: 'round',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 58,
+      proportions: { tablePct: 52, crownPct: 16, pavilionPct: 44, girdlePct: 6 },
+      target: { length: null, width: null, height: null },
+    },
+    {
+      id: 'Round-60-60',
+      title: 'Round (60/60)',
+      designer: 'Collector',
+      shape: 'round',
+      gear: 8,
+      refractiveIndex: 2.417,
+      facets: 58,
+      proportions: { tablePct: 60, crownPct: 13, pavilionPct: 42, girdlePct: 5 },
+      target: { length: null, width: null, height: null },
+    },
+    {
+      id: 'Oval-9x7',
+      title: 'Oval 9x7',
+      designer: 'Standard',
+      shape: 'oval',
+      gear: 8,
+      refractiveIndex: 1.77,
+      facets: 56,
+      proportions: { tablePct: 58, crownPct: 14, pavilionPct: 43, girdlePct: 5 },
+      target: { length: 9.0, width: 7.0, height: 4.1 },
+    }
+  ];
+  renderStatus('Sample library loaded');
+}
+
+// ---------------------- Import designs (JSON) ----------------------
+/**
+ * Expected JSON format: array of objects with keys matching sample entries.
+ */
+$('designImport').addEventListener('change', async (e) => {
+  try {
+    const file = e.target.files[0];
+    if (!file) return;
+    const txt = await file.text();
+    const data = JSON.parse(txt);
+    if (!Array.isArray(data)) throw new Error('JSON must be an array of designs.');
+    // Basic validation
+    const valid = data.filter(d => d && d.id && d.shape && d.proportions);
+    DESIGN_LIBRARY = valid;
+    renderStatus(`Imported ${valid.length} designs`);
+  } catch (err) {
+    renderStatus(`Import error: ${err.message}`);
+  }
+});
+
+// ---------------------- Rough analysis (basic) ----------------------
+/**
+ * For simplicity, rough analysis uses user-provided dimensions as a bounding box.
+ * Future: infer convex hull from image/video and adjust yield.
+ */
+function getRoughParams() {
+  const len = Number($('roughLen').value || 0);
+  const wid = Number($('roughWid').value || 0);
+  const hei = Number($('roughHei').value || 0);
+  const type = $('materialType').value;
+  const ri = materialRI(type, $('customRI').value);
+  const V = mm3(len, wid, hei);
+  return { len, wid, hei, ri, V, type };
+}
+
+// ---------------------- Scoring heuristics ----------------------
+/**
+ * Score components:
+ * - Yield: how well finished dimensions fit within rough bounding box
+ * - Optical: how close design RI and target table/crown/pavilion are to user targets
+ * - Risk: penalty if facets exceed max or proportions deviate far from target (proxy)
+ */
+function scoreDesign(design, rough, prefs) {
+  const maxFacets = Number($('maxFacets').value || Infinity);
+  const { tablePct, crownPct, pavilionPct } = design.proportions;
+
+  // Handle target dimensions: if null, propose based on rough width constraints for round shapes
+  const target = proposeTarget(design, rough);
+
+  // Yield estimate: stone volume / rough volume
+  const V_stone = mm3(target.length ?? target.width, target.width, target.height);
+  const yieldRatio = clamp(V_stone / Math.max(rough.V, 1e-6), 0, 1);
+
+  // Fit penalty if any target dimension exceeds rough
+  const fitOK =
+    (target.length ?? target.width) <= rough.len + 1e-6 &&
+    target.width <= rough.wid + 1e-6 &&
+    target.height <= rough.hei + 1e-6;
+  const fitPenalty = fitOK ? 0 : 0.5; // heavy penalty if not fitting
+
+  // Optical score: RI closeness + proportion closeness to user targets
+  const riDelta = Math.abs((design.refractiveIndex || rough.ri) - rough.ri);
+  const riScore = 1 - clamp(riDelta / 0.9, 0, 1); // normalize
+
+  const tTable = Number($('targetTable').value || 60);
+  const tCrown = Number($('targetCrown').value || 15);
+  const tPav = Number($('targetPavilion').value || 43);
+  const propDelta =
+    Math.abs(tablePct - tTable) / 100 +
+    Math.abs(crownPct - tCrown) / 100 +
+    Math.abs(pavilionPct - tPav) / 100;
+  const propScore = 1 - clamp(propDelta / 1.2, 0, 1);
+
+  const opticalScore = 0.6 * riScore + 0.4 * propScore;
+
+  // Risk score (lower is better risk): facet count overshoot, extreme proportions
+  let riskPenalty = 0;
+  if (design.facets > maxFacets) riskPenalty += 0.3;
+  const extremeProps = (tablePct < 48 || tablePct > 68) + (crownPct < 10 || crownPct > 20) + (pavilionPct < 40 || pavilionPct > 44);
+  riskPenalty += 0.1 * extremeProps;
+
+  // Weighted sum
+  const wY = Number($('wYield').value || 0.5);
+  const wO = Number($('wOptical').value || 0.3);
+  const wR = Number($('wRisk').value || 0.2);
+  const total = clamp(
+    wY * (yieldRatio - fitPenalty) +
+    wO * opticalScore +
+    wR * (1 - riskPenalty),
+    0, 1
+  );
+
+  return {
+    score: total,
+    yieldRatio,
+    opticalScore,
+    riskPenalty,
+    fitOK,
+    target
+  };
+}
+
+function proposeTarget(design, rough) {
+  const { shape, target, proportions } = design;
+  // Basic approach: fit within rough width/length, height derived from crown+pavilion
+  let width = target.width ?? clamp(rough.wid * 0.95, 0, rough.wid);
+  let length = target.length ?? ((shape === 'round' || shape === 'heart') ? width : clamp(rough.len * 0.9, 0, rough.len));
+  const heightPct = (proportions.crownPct + proportions.pavilionPct + proportions.girdlePct) / 100;
+  let height = target.height ?? clamp(rough.hei * 0.85, 0, rough.hei);
+  // Normalize height to a plausible percentage of width
+  const idealHeight = width * heightPct;
+  height = clamp(idealHeight, 0, rough.hei);
+  return { length, width, height };
+}
+
+// ---------------------- Results rendering ----------------------
+let RANKED_RESULTS = [];
+let SELECTED_INDEX = -1;
+
+function renderResults() {
+  const container = $('results');
+  container.innerHTML = '';
+  RANKED_RESULTS.slice(0, 10).forEach((item, idx) => {
+    const d = item.design;
+    const target = item.analysis.target;
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <div class="flex" style="justify-content:space-between;">
+        <div>
+          <div style="font-weight:700;">${d.title} <span class="badge">${d.shape}, ${d.facets} facets, gear ${d.gear}</span></div>
+          <div style="font-size:12px;color:${item.analysis.fitOK ? 'var(--muted)' : 'var(--bad)'};">Fit: ${item.analysis.fitOK ? 'OK' : 'Exceeds rough'}</div>
+        </div>
+        <div class="score">Score: ${fmt(item.analysis.score,2)}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">
+        Yield: ${toPct(item.analysis.yieldRatio)}% • Optical: ${toPct(item.analysis.opticalScore)}% • Risk penalty: ${fmt(item.analysis.riskPenalty,2)}
+      </div>
+      <div style="font-size:12px;color:var(--muted)">
+        Target L×W×H: ${fmt(target.length)} × ${fmt(target.width)} × ${fmt(target.height)} mm • RI: ${fmt(d.refractiveIndex || 0,3)}
+      </div>
+      <div class="flex" style="margin-top:6px;">
+        <button class="secondary" data-idx="${idx}">Preview</button>
+        <button class="secondary" data-edit="${idx}">Edit</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+  // Bind actions
+  container.querySelectorAll('button[data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.getAttribute('data-idx'));
+      SELECTED_INDEX = idx;
+      const item = RANKED_RESULTS[idx];
+      renderStatus(`Previewing: ${item.design.title}`);
+      showDesignInViewer(item.design, item.analysis.target);
+    });
+  });
+  container.querySelectorAll('button[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.getAttribute('data-edit'));
+      SELECTED_INDEX = idx;
+      const item = RANKED_RESULTS[idx];
+      populateEditForm(item.design, item.analysis.target);
+      $('editStatus').textContent = `Editing: ${item.design.title}`;
+    });
+  });
+}
+
+// ---------------------- Edit form ----------------------
+function populateEditForm(design, target) {
+  $('editTitle').value = design.title || '';
+  $('editDesigner').value = design.designer || '';
+  $('editShape').value = design.shape || 'round';
+  $('editGear').value = design.gear || 8;
+  $('editRI').value = design.refractiveIndex || '';
+  $('editFacets').value = design.facets || '';
+  $('editLen').value = target.length ?? '';
+  $('editWid').value = target.width ?? '';
+  $('editHei').value = target.height ?? '';
+  $('editTable').value = design.proportions.tablePct ?? 60;
+  $('editCrown').value = design.proportions.crownPct ?? 15;
+  $('editPavilion').value = design.proportions.pavilionPct ?? 43;
+}
+
+$('btnApplyEdit').addEventListener('click', () => {
+  if (SELECTED_INDEX < 0) return;
+  const item = RANKED_RESULTS[SELECTED_INDEX];
+  const d = item.design;
+  const t = item.analysis.target;
+
+  d.title = $('editTitle').value;
+  d.designer = $('editDesigner').value;
+  d.shape = $('editShape').value;
+  d.gear = Number($('editGear').value || d.gear);
+  d.refractiveIndex = Number($('editRI').value || d.refractiveIndex);
+  d.facets = Number($('editFacets').value || d.facets);
+  d.proportions.tablePct = Number($('editTable').value || d.proportions.tablePct);
+  d.proportions.crownPct = Number($('editCrown').value || d.proportions.crownPct);
+  d.proportions.pavilionPct = Number($('editPavilion').value || d.proportions.pavilionPct);
+  // Update target override
+  const newT = {
+    length: Number($('editLen').value || t.length),
+    width: Number($('editWid').value || t.width),
+    height: Number($('editHei').value || t.height),
+  };
+  // Re-score single item
+  const rough = getRoughParams();
+  const prefs = {}; // current UI
+  item.analysis = scoreDesign(d, rough, prefs);
+  item.analysis.target = newT;
+  renderResults();
+  showDesignInViewer(d, newT);
+  $('editStatus').textContent = `Updated: ${d.title}`;
+});
+
+// ---------------------- Core compute: rank designs ----------------------
+function computeTopDesigns() {
+  const rough = getRoughParams();
+  if (!(rough.len && rough.wid && rough.hei)) {
+    renderStatus('Enter rough length, width, and height');
+    return;
+  }
+  // Filters
+  const shapeFilter = $('shapeFilter').value;
+  const maxFacets = Number($('maxFacets').value || Infinity);
+
+  const filtered = DESIGN_LIBRARY.filter(d => {
+    const byShape = !shapeFilter || d.shape === shapeFilter;
+    const byFacets = d.facets <= maxFacets;
+    return byShape && byFacets;
+  });
+
+  // Rank
+  const prefs = {}; // from UI weights
+  const ranked = filtered.map(d => {
+    const analysis = scoreDesign(d, rough, prefs);
+    return { design: d, analysis };
+  }).sort((a,b) => b.analysis.score - a.analysis.score);
+
+  RANKED_RESULTS = ranked.slice(0, 10);
+  renderResults();
+
+  if (RANKED_RESULTS.length) {
+    SELECTED_INDEX = 0;
+    const top = RANKED_RESULTS[0];
+    showDesignInViewer(top.design, top.analysis.target);
+  }
+  renderStatus(`Computed ${Math.min(10, ranked.length)} top designs from ${filtered.length} candidates`);
+}
+
+// ---------------------- Export plan ----------------------
+$('btnExport').addEventListener('click', () => {
+  const rough = getRoughParams();
+  const plan = {
+    timestamp: new Date().toISOString(),
+    rough,
+    preferences: {
+      yieldWeight: Number($('wYield').value),
+      opticalWeight: Number($('wOptical').value),
+      riskWeight: Number($('wRisk').value),
+      targets: {
+        tablePct: Number($('targetTable').value),
+        crownPct: Number($('targetCrown').value),
+        pavilionPct: Number($('targetPavilion').value),
+      }
+    },
+    topDesigns: RANKED_RESULTS.map(r => ({
+      id: r.design.id,
+      title: r.design.title,
+      designer: r.design.designer,
+      shape: r.design.shape,
+      gear: r.design.gear,
+      refractiveIndex: r.design.refractiveIndex,
+      facets: r.design.facets,
+      proportions: r.design.proportions,
+      target: r.analysis.target,
+      scores: {
+        total: r.analysis.score,
+        yield: r.analysis.yieldRatio,
+        optical: r.analysis.opticalScore,
+        riskPenalty: r.analysis.riskPenalty,
+        fitOK: r.analysis.fitOK
+      }
+    }))
+  };
+  const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gem-bot-plan-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---------------------- Status ----------------------
+function renderStatus(text) {
+  $('status').textContent = text;
+}
+
+// ---------------------- 3D Viewer ----------------------
+let scene, camera, renderer, controls, currentMesh, wireframeMode = true, rayPreview = false;
+
+function initViewer() {
+  const container = $('viewer');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#0f1220');
+
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera = new THREE.PerspectiveCamera(55, w/h, 0.01, 100);
+  camera.position.set(0.8, 0.7, 1.2);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(w, h);
+  container.innerHTML = '';
+  container.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.rotateSpeed = 0.8;
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x394066, 0.7);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(2,2,2);
+  scene.add(dir);
+
+  const grid = new THREE.GridHelper(2, 20, 0x223, 0x223);
+  grid.position.y = -0.001;
+  scene.add(grid);
+
+  animate();
+  window.addEventListener('resize', onResize);
+}
+function onResize() {
+  const container = $('viewer');
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Build a basic geometry for preview based on design and target
+function buildPreviewGeometry(design, target) {
+  const shape = design.shape;
+  const w = (target.width || 6) / 10;
+  const l = ((target.length ?? target.width) || 6) / 10;
+  const h = (target.height || 3) / 10;
+
+  let geom;
+  switch (shape) {
+    case 'round': {
+      // Approximate as an octagonal prism tapered (crown/pavilion)
+      const segments = 64;
+      const radius = w/2;
+      geom = new THREE.CylinderGeometry(radius, radius, h, segments, 1, true);
+      break;
+    }
+    case 'oval': {
+      // Scaled cylinder in X/Z
+      const segments = 64;
+      geom = new THREE.CylinderGeometry(0.5, 0.5, h, segments, 1, true);
+      geom.scale(w, 1, l);
+      break;
+    }
+    case 'emerald': {
+      geom = new THREE.BoxGeometry(w, h, l);
+      break;
+    }
+    case 'pear': {
+      const segments = 64;
+      geom = new THREE.ConeGeometry(w/1.8, h, segments, 1, true);
+      break;
+    }
+    case 'marquise': {
+      const segments = 64;
+      geom = new THREE.CapsuleGeometry(w/2.4, l/3, segments, segments);
+      break;
+    }
+    case 'heart': {
+      geom = new THREE.SphereGeometry(w/2.2, 48, 32);
+      geom.scale(1.2, 1.0, 1.1);
+      break;
+    }
+    default:
+      geom = new THREE.BoxGeometry(w, h, l);
+  }
+  geom.computeBoundingSphere();
+  return geom;
+}
+
+function showDesignInViewer(design, target) {
+  if (currentMesh) {
+    scene.remove(currentMesh);
+    currentMesh.geometry.dispose();
+    currentMesh.material.dispose();
+    currentMesh = null;
+  }
+  const geom = buildPreviewGeometry(design, target);
+  let mesh;
+  if (wireframeMode) {
+    const edges = new THREE.EdgesGeometry(geom);
+    const mat = new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 1 });
+    mesh = new THREE.LineSegments(edges, mat);
+  } else {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: 0x88ccff,
+      metalness: 0.0,
+      roughness: 0.05,
+      transmission: 1.0,
+      thickness: 0.5,
+      ior: Number(design.refractiveIndex || 1.7),
+      envMapIntensity: 0.8,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.05
+    });
+    mesh = new THREE.Mesh(geom, mat);
+  }
+  mesh.position.set(0, 0.1, 0);
+  mesh.rotation.x = -Math.PI * 0.08;
+  currentMesh = mesh;
+  scene.add(mesh);
+
+  if (rayPreview && !wireframeMode) {
+    addRayPreview(mesh, Number(design.refractiveIndex || 1.7));
+  } else {
+    clearRayPreview();
+  }
+}
+
+let rayLines = [];
+function clearRayPreview() {
+  rayLines.forEach(l => {
+    scene.remove(l);
+    l.geometry.dispose();
+    l.material.dispose();
+  });
+  rayLines = [];
+}
+function addRayPreview(mesh, iorStone) {
+  clearRayPreview();
+  // Build BVH for intersections
+  THREE.MeshBVHAccelStructure?.dispose && THREE.MeshBVHAccelStructure.dispose();
+  const geom = mesh.geometry;
+  THREE.MeshBVH?.applyBVH(geom);
+
+  const origin = new THREE.Vector3(-0.5, 0.6, 0.8);
+  const dirs = [
+    new THREE.Vector3(1, -0.4, -0.6).normalize(),
+    new THREE.Vector3(1, -0.2, -0.8).normalize(),
+    new THREE.Vector3(1, -0.6, -0.4).normalize(),
+  ];
+  dirs.forEach(dir => {
+    const points = traceRaySimple(origin.clone(), dir.clone(), mesh, 1.0, iorStone, 6);
+    const g = new THREE.BufferGeometry().setFromPoints(points);
+    const m = new THREE.LineBasicMaterial({ color: 0xffd166 });
+    const line = new THREE.Line(g, m);
+    rayLines.push(line);
+    scene.add(line);
+  });
+}
+
+// Minimalistic ray tracing: air -> stone -> air with simple Snell's law, using BVH raycast
+function traceRaySimple(origin, dir, mesh, nAir, nStone, maxBounces) {
+  const pts = [origin.clone()];
+  let inside = false;
+  for (let i = 0; i < maxBounces; i++) {
+    const raycaster = new THREE.Raycaster(origin, dir, 0.0001, 10);
+    const intersects = raycaster.intersectObject(mesh, true);
+    if (!intersects.length) break;
+    const hit = intersects[0];
+    const p = hit.point.clone();
+    const n = hit.face.normal.clone().applyMatrix4(new THREE.Matrix4().extractRotation(mesh.matrixWorld)).normalize();
+
+    // Snell's law
+    const n1 = inside ? nStone : nAir;
+    const n2 = inside ? nAir : nStone;
+    const cosi = clamp(-n.dot(dir), -1, 1);
+    const eta = n1 / n2;
+    const k = 1 - eta * eta * (1 - cosi * cosi);
+
+    if (k < 0) {
+      // Total internal reflection
+      dir = reflect(dir, n).normalize();
+    } else {
+      // Refraction
+      dir = dir.clone().multiplyScalar(eta)
+        .add(n.clone().multiplyScalar(eta * cosi - Math.sqrt(k))).normalize();
+      inside = !inside;
+    }
+    origin = p.clone().add(dir.clone().multiplyScalar(0.0005));
+    pts.push(origin.clone());
+  }
+  return pts;
+}
+function reflect(I, N) {
+  return I.clone().sub(N.clone().multiplyScalar(2 * I.dot(N)));
+}
+
+// ---------------------- Event bindings ----------------------
+$('btnLoadSamples').addEventListener('click', loadSampleLibrary);
+$('btnAnalyze').addEventListener('click', computeTopDesigns);
+$('btnReset').addEventListener('click', () => {
+  DESIGN_LIBRARY = [];
+  RANKED_RESULTS = [];
+  SELECTED_INDEX = -1;
+  $('results').innerHTML = '';
+  $('status').textContent = 'Idle';
+  clearRayPreview();
+  if (currentMesh) {
+    scene.remove(currentMesh);
+    currentMesh.geometry.dispose();
+    currentMesh.material.dispose();
+    currentMesh = null;
+  }
+});
+$('btnWireframe').addEventListener('click', () => {
+  wireframeMode = true;
+  rayPreview = false;
+  if (SELECTED_INDEX >= 0) {
+    const item = RANKED_RESULTS[SELECTED_INDEX];
+    showDesignInViewer(item.design, item.analysis.target);
+  }
+});
+$('btnSolid').addEventListener('click', () => {
+  wireframeMode = false;
+  if (SELECTED_INDEX >= 0) {
+    const item = RANKED_RESULTS[SELECTED_INDEX];
+    showDesignInViewer(item.design, item.analysis.target);
+  }
+});
+$('btnRayPreview').addEventListener('click', () => {
+  wireframeMode = false;
+  rayPreview = true;
+  if (SELECTED_INDEX >= 0) {
+    const item = RANKED_RESULTS[SELECTED_INDEX];
+    showDesignInViewer(item.design, item.analysis.target);
+  }
+});
+$('btnResetCamera').addEventListener('click', () => {
+  camera.position.set(0.8, 0.7, 1.2);
+  controls.target.set(0,0,0);
+  controls.update();
+});
+
+// Initialize viewer and samples on load
+window.addEventListener('DOMContentLoaded', () => {
+  initViewer();
+  loadSampleLibrary();
+  renderStatus('Ready');
+});
+
+</script>
+</body>
+</html>

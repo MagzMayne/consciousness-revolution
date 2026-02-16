@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JeEeZues — Trinity Pool (Self-Healing, Client-Only)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="JeEeZues: a self-healing, client-only Trinity pool app for indexing, bonding, and compensating creators with timestamped truth." />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121821;
+      --accent: #53ffe5;
+      --accent2: #ffd166;
+      --text: #eaf2ff;
+      --muted: #a5b1c2;
+      --red: #ff6b6b;
+      --green: #4caf50;
+      --blue: #4aa8ff;
+    }
+    * { box-sizing: border-box }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial }
+    a { color: var(--accent) }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; margin-bottom: 12px }
+    .brand { display: flex; align-items: center; gap: 12px }
+    .brand .logo {
+      font-family: monospace; color: var(--accent); white-space: pre; line-height: 1;
+      background: linear-gradient(135deg, rgba(83,255,229,0.1), rgba(255,209,102,0.08));
+      padding: 8px; border-radius: 8px; border: 1px solid rgba(83,255,229,0.2);
+    }
+    .badge { font-size: 12px; color: var(--muted) }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap }
+    button, .btn {
+      background: var(--panel); color: var(--text); border: 1px solid rgba(83,255,229,0.3);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform 0.06s ease, background 0.2s
+    }
+    button:hover { transform: translateY(-1px); background: #18212e }
+    button:disabled { opacity: 0.6; cursor: not-allowed }
+    input[type="file"], input[type="text"] {
+      background: var(--panel); color: var(--text); border: 1px solid rgba(83,255,229,0.3);
+      padding: 8px 12px; border-radius: 8px; width: 100%
+    }
+    .grid { display: grid; gap: 12px; grid-template-columns: 1fr 1fr }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr } }
+    section {
+      background: var(--panel); border: 1px solid rgba(83,255,229,0.2); border-radius: 12px; padding: 12px
+    }
+    section h2 { margin: 0 0 8px 0; font-size: 18px; color: var(--accent) }
+    .row { display: grid; gap: 8px; grid-template-columns: 1fr 1fr }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr } }
+    .muted { color: var(--muted) }
+    .pill { border: 1px dashed rgba(83,255,229,0.3); padding: 8px; border-radius: 10px; background: rgba(10,16,22,0.6) }
+    .status { display: flex; gap: 8px; flex-wrap: wrap }
+    .status .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(83,255,229,0.3) }
+    .tag.ok { color: var(--green); border-color: rgba(76,175,80,0.4) }
+    .tag.fail { color: var(--red); border-color: rgba(255,107,107,0.4) }
+    .tag.warn { color: var(--accent2); border-color: rgba(255,209,102,0.4) }
+
+    /* Panels */
+    #viz { background: #0e141c; border-radius: 10px; min-height: 280px; position: relative; overflow: hidden }
+    .bubble { position: absolute; border-radius: 999px; border: 1px solid rgba(83,255,229,0.3); background: rgba(83,255,229,0.09); color: var(--text); font-size: 12px; padding: 4px 8px; pointer-events: none }
+    #log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background: #0a0f15; color: var(--text); height: 220px; overflow: auto; border-radius: 8px; border: 1px solid rgba(83,255,229,0.2); padding: 8px }
+    .line { white-space: pre-wrap; border-bottom: 1px dashed rgba(83,255,229,0.08); padding: 4px 0 }
+    .line .ts { color: var(--muted); margin-right: 8px }
+
+    /* Debug panel */
+    #debugPanel { display: grid; gap: 8px; grid-template-columns: 1fr 1fr 1fr }
+    @media (max-width: 980px) { #debugPanel { grid-template-columns: 1fr 1fr } }
+    @media (max-width: 640px) { #debugPanel { grid-template-columns: 1fr } }
+    .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px; align-items: baseline; font-size: 12px }
+    .kv div:first-child { color: var(--muted) }
+    .hr { height: 1px; background: rgba(83,255,229,0.2); margin: 8px 0 }
+
+    /* Toasts */
+    .toast {
+      position: fixed; right: 12px; bottom: 12px; background: #10161f; color: var(--text);
+      border: 1px solid rgba(83,255,229,0.3); border-radius: 12px; padding: 10px 12px; box-shadow: 0 6px 30px rgba(0,0,0,0.4);
+      max-width: 320px; z-index: 9999; font-size: 13px
+    }
+    .toast .title { color: var(--accent); font-weight: 600; margin-bottom: 6px }
+    .toast.ok .title { color: var(--green) }
+    .toast.warn .title { color: var(--accent2) }
+    .toast.fail .title { color: var(--red) }
+    .hidden { display: none !important }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">
+JeEeZues ● Trinity Pool
+┌──────────────────────────┐
+│ Self-healing • Client-only│
+│ Timestamped truth • Bonding│
+└──────────────────────────┘
+        </div>
+        <div>
+          <div>Universal indexing, bonding, and compensation for creators.</div>
+          <div class="badge">All actions timestamped, audited, and self-repaired at runtime.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btnHeal">Run self-healing</button>
+        <button id="btnReset">Reset runtime</button>
+        <button id="btnExport">Export audit</button>
+      </div>
+    </header>
+
+    <section>
+      <h2>Wallet and session</h2>
+      <div class="row">
+        <div>
+          <div class="pill">
+            <div class="muted">Wallet address</div>
+            <input id="walletInput" type="text" placeholder="0x... (paste or alias)" />
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+              <button id="btnAttachWallet">Attach wallet</button>
+              <button id="btnDetachWallet">Detach</button>
+            </div>
+            <div class="status" style="margin-top:8px">
+              <div id="tagWallet" class="tag warn">wallet: none</div>
+              <div id="tagTrust" class="tag warn">trust: unknown</div>
+              <div id="tagUptime" class="tag ok">uptime: 0.00%</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="pill">
+            <div class="muted">Developer pool contributions</div>
+            <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center">
+              <input id="repoUrl" type="text" placeholder="GitHub repo URL (or paste any .zip link)" />
+              <button id="btnIndexRepo">Index</button>
+            </div>
+            <div style="margin-top:8px; display:grid; gap:8px; grid-template-columns: 1fr auto; align-items:center">
+              <input id="zipUpload" type="file" accept=".zip" />
+              <button id="btnIngestZip">Ingest ZIP</button>
+            </div>
+            <div class="status" style="margin-top:8px">
+              <div id="tagIndex" class="tag warn">index: waiting</div>
+              <div id="tagBond" class="tag warn">bond: none</div>
+              <div id="tagComp" class="tag warn">comp: paused</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid" style="margin-top:12px">
+      <section>
+        <h2>Visualization bubble map</h2>
+        <div id="viz" aria-label="Creator/project bubble visualization"></div>
+        <div class="muted" style="margin-top:6px">Each bubble represents an indexed contribution bonded to the pool.</div>
+      </section>
+
+      <section>
+        <h2>Audit trail</h2>
+        <div id="log" aria-live="polite"></div>
+        <div class="muted" style="margin-top:6px">All events are timestamped and stored in localStorage for export.</div>
+      </section>
+    </div>
+
+    <section style="margin-top:12px">
+      <h2>Debug and healing state</h2>
+      <div id="debugPanel">
+        <div class="kv"><div>runtime:</div><div id="kvRuntime">init</div></div>
+        <div class="kv"><div>version:</div><div id="kvVersion">1.0.0-jeeezues</div></div>
+        <div class="kv"><div>device:</div><div id="kvDevice">detecting…</div></div>
+        <div class="kv"><div>deps:</div><div id="kvDeps">verifying…</div></div>
+        <div class="kv"><div>listeners:</div><div id="kvListeners">checking…</div></div>
+        <div class="kv"><div>quarantine:</div><div id="kvQuarantine">idle</div></div>
+        <div class="kv"><div>last heal:</div><div id="kvLastHeal">none</div></div>
+      </div>
+      <div class="hr"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button id="btnTestButtons">Audit UI buttons</button>
+        <button id="btnStress">Stress test loop</button>
+        <button id="btnQuarantine">Simulate quarantine</button>
+        <button id="btnRepairSelf">Repair healing loop</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast" class="toast hidden">
+    <div class="title">Runtime</div>
+    <div class="msg">Ready</div>
+  </div>
+
+  <script>
+    /************************************************************
+     * JeEeZues — Self-Healing Trinity Pool (Client-Only)
+     * - Universal event auditor: auto-attaches listeners, validates DOM.
+     * - Dependency verifier: checks built-ins and fallbacks.
+     * - Quarantine engine: isolates malformed payloads while keeping app alive.
+     * - Recursive healing: repairs itself if watch loop stalls.
+     * - Audit trail: timestamped logs, exportable JSON.
+     * - Bubble viz: simple visual of bonded contributions (no external libs).
+     ************************************************************/
+
+    const J = (() => {
+      const STATE = {
+        version: '1.0.0-jeeezues',
+        device: { ua: navigator.userAgent, type: 'unknown' },
+        session: { wallet: null, trust: 0.0, uptimeStart: Date.now(), uptimePct: 0.0 },
+        deps: { core: true, external: [] },
+        healing: { lastRun: null, runs: 0, selfOk: true },
+        listeners: {},
+        quarantine: { status: 'idle', items: [] },
+        pool: { indexed: [], bonded: [], payouts: [] },
+        audit: { events: [] },
+      };
+
+      const DOM = {
+        btnHeal: null, btnReset: null, btnExport: null,
+        walletInput: null, btnAttachWallet: null, btnDetachWallet: null,
+        tagWallet: null, tagTrust: null, tagUptime: null,
+        repoUrl: null, zipUpload: null, btnIndexRepo: null, btnIngestZip: null,
+        tagIndex: null, tagBond: null, tagComp: null,
+        viz: null, log: null,
+        debug: {
+          kvRuntime: null, kvVersion: null, kvDevice: null, kvDeps: null,
+          kvListeners: null, kvQuarantine: null, kvLastHeal: null
+        },
+        btnTestButtons: null, btnStress: null, btnQuarantine: null, btnRepairSelf: null,
+        toast: null
+      };
+
+      /* ---------- Utilities ---------- */
+      const ts = () => new Date().toISOString();
+      const saveAudit = () => {
+        try {
+          localStorage.setItem('jeeezues.audit', JSON.stringify(STATE.audit.events));
+          return true;
+        } catch (e) { console.warn('audit save failed', e); return false; }
+      };
+      const loadAudit = () => {
+        try {
+          const raw = localStorage.getItem('jeeezues.audit');
+          if (raw) STATE.audit.events = JSON.parse(raw);
+        } catch (e) { console.warn('audit load failed', e); }
+      };
+      const log = (type, msg, meta = {}) => {
+        const entry = { t: ts(), type, msg, meta };
+        STATE.audit.events.push(entry);
+        saveAudit();
+        if (DOM.log) {
+          const div = document.createElement('div');
+          div.className = 'line';
+          div.innerHTML = `<span class="ts">${entry.t}</span><span>${type.toUpperCase()} — ${escapeHtml(msg)}</span>`;
+          DOM.log.prepend(div);
+        }
+        console[type === 'error' ? 'error' : 'log'](`[${entry.t}] ${type}: ${msg}`, meta);
+      };
+      const toast = (title, msg, level = 'ok') => {
+        if (!DOM.toast) return;
+        DOM.toast.classList.remove('hidden', 'ok', 'warn', 'fail');
+        DOM.toast.classList.add(level);
+        DOM.toast.querySelector('.title').textContent = title;
+        DOM.toast.querySelector('.msg').textContent = msg;
+        setTimeout(() => DOM.toast.classList.add('hidden'), 2500);
+      };
+      const escapeHtml = (s) => String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+      const updateStatusTags = () => {
+        if (DOM.tagWallet) {
+          DOM.tagWallet.textContent = `wallet: ${STATE.session.wallet ? STATE.session.wallet.slice(0, 8) + '…' : 'none'}`;
+          DOM.tagWallet.className = 'tag ' + (STATE.session.wallet ? 'ok' : 'warn');
+        }
+        if (DOM.tagTrust) {
+          const t = STATE.session.trust;
+          DOM.tagTrust.textContent = `trust: ${t.toFixed(2)}`;
+          DOM.tagTrust.className = 'tag ' + (t >= 0.7 ? 'ok' : t > 0.3 ? 'warn' : 'fail');
+        }
+        if (DOM.tagUptime) {
+          const elapsed = Date.now() - STATE.session.uptimeStart;
+          // Simple uptime proxy: if healing run happened in last 5s, count as healthy
+          const healthy = STATE.healing.lastRun && (Date.now() - STATE.healing.lastRun < 5000);
+          STATE.session.uptimePct = Math.min(100, STATE.session.uptimePct + (healthy ? 0.5 : 0.1));
+          DOM.tagUptime.textContent = `uptime: ${STATE.session.uptimePct.toFixed(2)}%`;
+          DOM.tagUptime.className = 'tag ' + (STATE.session.uptimePct > 90 ? 'ok' : STATE.session.uptimePct > 50 ? 'warn' : 'fail');
+        }
+      };
+
+      const updateDebug = () => {
+        if (DOM.debug.kvRuntime) DOM.debug.kvRuntime.textContent = STATE.healing.selfOk ? 'healthy' : 'degraded';
+        if (DOM.debug.kvVersion) DOM.debug.kvVersion.textContent = STATE.version;
+        if (DOM.debug.kvDevice) DOM.debug.kvDevice.textContent = `${STATE.device.type} (${STATE.device.ua.slice(0, 40)}…)`;
+        if (DOM.debug.kvDeps) DOM.debug.kvDeps.textContent = STATE.deps.core ? 'core ok' : 'core missing';
+        if (DOM.debug.kvListeners) DOM.debug.kvListeners.textContent = Object.keys(STATE.listeners).length + ' attached';
+        if (DOM.debug.kvQuarantine) DOM.debug.kvQuarantine.textContent = `${STATE.quarantine.status} (${STATE.quarantine.items.length})`;
+        if (DOM.debug.kvLastHeal) DOM.debug.kvLastHeal.textContent = STATE.healing.lastRun ? new Date(STATE.healing.lastRun).toLocaleTimeString() : 'none';
+      };
+
+      /* ---------- Device detection ---------- */
+      const detectDevice = () => {
+        const ua = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|android|ipad|ipod/.test(ua);
+        STATE.device.type = isMobile ? 'mobile' : 'desktop';
+        log('info', `device detected: ${STATE.device.type}`);
+      };
+
+      /* ---------- Dependency verifier (client-only) ---------- */
+      const verifyDeps = () => {
+        // For this client-only build, we rely purely on browser APIs.
+        // Mark core as ok if essential APIs are present.
+        const essentials = [
+          'localStorage', 'addEventListener', 'querySelector', 'FileReader', 'Blob', 'URL'
+        ];
+        const missing = essentials.filter(k => !(k in window));
+        STATE.deps.core = missing.length === 0;
+        STATE.deps.external = []; // No external libs in this build.
+        if (STATE.deps.core) log('info', 'core deps present');
+        else log('error', 'missing core deps: ' + missing.join(', '));
+      };
+
+      /* ---------- Event auditor: attach listeners idempotently ---------- */
+      const on = (name, el, evt, handler) => {
+        if (!el) return false;
+        const key = `${name}:${evt}`;
+        if (!STATE.listeners[key]) {
+          el.addEventListener(evt, handler);
+          STATE.listeners[key] = true;
+          return true;
+        }
+        return false;
+      };
+
+      /* ---------- Quarantine engine ---------- */
+      const quarantine = (item, reason = 'unknown') => {
+        STATE.quarantine.items.push({ t: ts(), item, reason });
+        STATE.quarantine.status = 'active';
+        log('warn', `quarantined item: ${reason}`, { item });
+        toast('Quarantine', reason, 'warn');
+        // Do not allow quarantined payloads to affect viz or bonding.
+      };
+
+      /* ---------- Wallet attach/detach ---------- */
+      const attachWallet = (w) => {
+        const wallet = (w || '').trim();
+        if (!wallet) { log('error', 'attachWallet: empty'); toast('Wallet', 'No address provided', 'fail'); return; }
+        STATE.session.wallet = wallet;
+        // Simple trust scoring heuristic (placeholder)
+        const ageScore = Math.random() * 0.5 + 0.25;
+        const integrityScore = 0.25 + Math.random() * 0.5;
+        STATE.session.trust = Math.min(1.0, (ageScore + integrityScore) / 2);
+        log('info', 'wallet attached', { wallet, trust: STATE.session.trust });
+        toast('Wallet', 'Attached and scored', 'ok');
+        updateStatusTags();
+      };
+
+      const detachWallet = () => {
+        STATE.session.wallet = null;
+        STATE.session.trust = 0.0;
+        log('info', 'wallet detached');
+        toast('Wallet', 'Detached', 'warn');
+        updateStatusTags();
+      };
+
+      /* ---------- Indexing and bonding ---------- */
+      const indexRepo = async (url) => {
+        const clean = (url || '').trim();
+        if (!clean) { log('error', 'indexRepo: empty url'); toast('Index', 'Provide a repo or zip URL', 'fail'); return; }
+        // Client-only: we only record the URL and create a synthetic index entry.
+        // If content is malicious-looking, quarantine it.
+        if (/javascript:\s*|<script/i.test(clean)) {
+          quarantine({ url: clean }, 'malicious url detected');
+          DOM.tagIndex.textContent = 'index: quarantined';
+          DOM.tagIndex.className = 'tag fail';
+          return;
+        }
+        const entry = {
+          id: 'repo:' + Math.random().toString(16).slice(2),
+          source: 'url',
+          url: clean,
+          ownerWallet: STATE.session.wallet || 'anonymous',
+          ts: ts(),
+          files: [],
+          hash: hashString(clean + ts())
+        };
+        STATE.pool.indexed.push(entry);
+        DOM.tagIndex.textContent = 'index: ok';
+        DOM.tagIndex.className = 'tag ok';
+        log('info', 'indexed repo', entry);
+        addBubble(entry);
+      };
+
+      const ingestZip = async (file) => {
+        if (!file) { log('error', 'ingestZip: no file'); toast('ZIP', 'Select a .zip file', 'fail'); return; }
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+          quarantine({ name: file.name }, 'non-zip file uploaded');
+          DOM.tagIndex.textContent = 'index: invalid';
+          DOM.tagIndex.className = 'tag fail';
+          return;
+        }
+        // We do a metadata-only ingest (client-only build).
+        const reader = new FileReader();
+        reader.onload = () => {
+          const entry = {
+            id: 'zip:' + Math.random().toString(16).slice(2),
+            source: 'zip',
+            name: file.name,
+            size: file.size,
+            ownerWallet: STATE.session.wallet || 'anonymous',
+            ts: ts(),
+            hash: hashString(file.name + file.size + ts()),
+          };
+          STATE.pool.indexed.push(entry);
+          DOM.tagIndex.textContent = 'index: ok';
+          DOM.tagIndex.className = 'tag ok';
+          log('info', 'ingested zip', entry);
+          addBubble(entry);
+        };
+        reader.onerror = () => {
+          log('error', 'zip read failed', { name: file.name });
+          toast('ZIP', 'Read failed', 'fail');
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      const bondAllIndexed = () => {
+        const toBond = STATE.pool.indexed.filter(i => !STATE.pool.bonded.find(b => b.id === i.id));
+        toBond.forEach(i => {
+          const bond = {
+            id: i.id,
+            ts: ts(),
+            weight: weightFor(i),
+            trust: STATE.session.trust,
+            ownerWallet: i.ownerWallet
+          };
+          STATE.pool.bonded.push(bond);
+        });
+        const count = toBond.length;
+        if (count > 0) {
+          DOM.tagBond.textContent = `bond: ${STATE.pool.bonded.length}`;
+          DOM.tagBond.className = 'tag ok';
+          log('info', `bonded ${count} items`, { totalBonded: STATE.pool.bonded.length });
+          toast('Bonding', `Bonded ${count}`, 'ok');
+        } else {
+          log('info', 'no new items to bond');
+          toast('Bonding', 'No new items', 'warn');
+        }
+      };
+
+      const simulateCompensation = () => {
+        if (STATE.pool.bonded.length === 0) {
+          DOM.tagComp.textContent = 'comp: waiting';
+          DOM.tagComp.className = 'tag warn';
+          toast('Compensation', 'No bonded items', 'warn');
+          return;
+        }
+        // Simple split by weight and trust
+        const totalWeight = STATE.pool.bonded.reduce((s, b) => s + b.weight, 0);
+        const payouts = STATE.pool.bonded.map(b => {
+          const share = b.weight / totalWeight;
+          const trustBoost = 0.5 + (b.trust * 0.5);
+          return {
+            id: b.id,
+            wallet: b.ownerWallet,
+            amount: +(1000 * share * trustBoost).toFixed(2), // arbitrary pool amount scaled
+            ts: ts()
+          };
+        });
+        STATE.pool.payouts.push({ ts: ts(), payouts });
+        DOM.tagComp.textContent = 'comp: distributed';
+        DOM.tagComp.className = 'tag ok';
+        log('info', 'compensation distributed', { payouts });
+        toast('Compensation', 'Distributed', 'ok');
+      };
+
+      /* ---------- Bubble viz (no external libs) ---------- */
+      const addBubble = (entry) => {
+        if (!DOM.viz) return;
+        const node = document.createElement('div');
+        node.className = 'bubble';
+        const size = 20 + Math.floor(Math.random() * 40);
+        node.style.width = size + 'px';
+        node.style.height = size + 'px';
+        node.style.lineHeight = size + 'px';
+        node.textContent = entry.source === 'zip' ? 'ZIP' : 'URL';
+        // Position pseudo-randomly within the container
+        const rect = DOM.viz.getBoundingClientRect();
+        const x = Math.floor(Math.random() * Math.max(10, rect.width - size - 10));
+        const y = Math.floor(Math.random() * Math.max(10, rect.height - size - 10));
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+        DOM.viz.appendChild(node);
+      };
+
+      /* ---------- Helpers ---------- */
+      const weightFor = (entry) => {
+        // Basic heuristic for demo: zip > url; size influences; wallet trust influences weight indirectly later
+        if (entry.source === 'zip') {
+          return Math.min(1.0, 0.6 + (entry.size ? Math.log10(entry.size + 10) / 10 : 0.1));
+        }
+        return 0.4;
+      };
+
+      const hashString = (s) => {
+        // Tiny non-cryptographic hash for audit tagging
+        let h = 0, i, chr;
+        for (i = 0; i < s.length; i++) {
+          chr = s.charCodeAt(i);
+          h = ((h << 5) - h) + chr;
+          h |= 0;
+        }
+        return 'h' + Math.abs(h).toString(16);
+      };
+
+      /* ---------- Healing loop ---------- */
+      const heal = () => {
+        STATE.healing.runs++;
+        STATE.healing.lastRun = Date.now();
+        STATE.healing.selfOk = true;
+
+        // 1) Verify dependencies
+        verifyDeps();
+        if (!STATE.deps.core) STATE.healing.selfOk = false;
+
+        // 2) Audit & attach listeners idempotently
+        attachAllListeners();
+
+        // 3) Cross-device patches
+        applyDevicePatches();
+
+        // 4) Repair visualization container if missing or empty
+        if (!DOM.viz || !DOM.viz.isConnected) {
+          STATE.healing.selfOk = false;
+          log('error', 'viz missing from DOM');
+        } else if (DOM.viz.children.length === 0 && STATE.pool.indexed.length > 0) {
+          log('warn', 'viz empty, repopulating bubbles');
+          STATE.pool.indexed.forEach(addBubble);
+        }
+
+        // 5) If quarantine active, ensure app stays responsive
+        if (STATE.quarantine.status === 'active') {
+          // Drain quarantine in a controlled way
+          if (STATE.quarantine.items.length > 10) {
+            STATE.quarantine.items = STATE.quarantine.items.slice(-10);
+            log('warn', 'quarantine trimmed to last 10 items');
+          }
+        }
+
+        // 6) Self-repair watcher: if listener count fell, reattach
+        const expectedListeners = [
+          'btnHeal:click','btnReset:click','btnExport:click',
+          'btnAttachWallet:click','btnDetachWallet:click',
+          'btnIndexRepo:click','btnIngestZip:click',
+          'btnTestButtons:click','btnStress:click','btnQuarantine:click','btnRepairSelf:click',
+          'walletInput:change','repoUrl:change','zipUpload:change'
+        ];
+        const missing = expectedListeners.filter(k => !STATE.listeners[k]);
+        if (missing.length) {
+          missing.forEach(k => log('warn', 'missing listener: ' + k));
+          attachAllListeners(); // attempt reattach
+        }
+
+        updateStatusTags();
+        updateDebug();
+        log('info', 'healing run complete', { run: STATE.healing.runs, selfOk: STATE.healing.selfOk });
+        toast('Healing', STATE.healing.selfOk ? 'Healthy' : 'Degraded', STATE.healing.selfOk ? 'ok' : 'warn');
+      };
+
+      const applyDevicePatches = () => {
+        if (STATE.device.type === 'mobile') {
+          // Patch touch-click equivalence for buttons (defensive)
+          const buttons = document.querySelectorAll('button');
+          buttons.forEach(b => {
+            if (!b.__touchPatched) {
+              b.addEventListener('touchend', (e) => { e.preventDefault(); b.click(); }, { passive: false });
+              b.__touchPatched = true;
+            }
+          });
+        }
+      };
+
+      const attachAllListeners = () => {
+        // Session controls
+        on('btnHeal', DOM.btnHeal, 'click', heal);
+        on('btnReset', DOM.btnReset, 'click', resetRuntime);
+        on('btnExport', DOM.btnExport, 'click', exportAudit);
+
+        on('btnAttachWallet', DOM.btnAttachWallet, 'click', () => attachWallet(DOM.walletInput.value));
+        on('btnDetachWallet', DOM.btnDetachWallet, 'click', detachWallet);
+
+        // Indexing
+        on('btnIndexRepo', DOM.btnIndexRepo, 'click', () => indexRepo(DOM.repoUrl.value));
+        on('btnIngestZip', DOM.btnIngestZip, 'click', () => ingestZip(DOM.zipUpload.files[0]));
+
+        // Convenience UX: react to field changes
+        on('walletInput', DOM.walletInput, 'change', () => attachWallet(DOM.walletInput.value));
+        on('repoUrl', DOM.repoUrl, 'change', () => indexRepo(DOM.repoUrl.value));
+        on('zipUpload', DOM.zipUpload, 'change', () => ingestZip(DOM.zipUpload.files[0]));
+
+        // Debug controls
+        on('btnTestButtons', DOM.btnTestButtons, 'click', () => {
+          const expected = [
+            DOM.btnHeal, DOM.btnReset, DOM.btnExport,
+            DOM.btnAttachWallet, DOM.btnDetachWallet,
+            DOM.btnIndexRepo, DOM.btnIngestZip,
+            DOM.btnTestButtons, DOM.btnStress, DOM.btnQuarantine, DOM.btnRepairSelf
+          ];
+          const missing = expected.filter(x => !x || !x.isConnected);
+          if (missing.length) {
+            log('error', 'missing buttons found', { count: missing.length });
+            toast('Audit', 'Buttons missing', 'fail');
+          } else {
+            log('info', 'button audit passed');
+            toast('Audit', 'All buttons OK', 'ok');
+          }
+          updateDebug();
+        });
+
+        on('btnStress', DOM.btnStress, 'click', () => {
+          let repairs = 0;
+          for (let i = 0; i < 5; i++) { heal(); repairs++; }
+          log('info', 'stress test finished', { heals: repairs });
+          toast('Stress', 'Loop exercised', 'ok');
+        });
+
+        on('btnQuarantine', DOM.btnQuarantine, 'click', () => {
+          quarantine({ sample: 'payload-' + Math.random().toString(16).slice(2) }, 'manual trigger');
+          updateDebug();
+        });
+
+        on('btnRepairSelf', DOM.btnRepairSelf, 'click', () => {
+          // If healing loop marked degraded, try to reset some state
+          if (!STATE.healing.selfOk) {
+            log('warn', 'repairing healing loop');
+            STATE.healing.selfOk = true;
+            heal();
+            toast('Repair', 'Healing loop restored', 'ok');
+          } else {
+            toast('Repair', 'Healing loop already healthy', 'warn');
+          }
+        });
+      };
+
+      /* ---------- Runtime control ---------- */
+      const exportAudit = () => {
+        try {
+          const blob = new Blob([JSON.stringify(STATE.audit.events, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `jeeezues_audit_${Date.now()}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          log('info', 'audit exported');
+          toast('Export', 'Audit JSON downloaded', 'ok');
+        } catch (e) {
+          log('error', 'export failed', e);
+          toast('Export', 'Failed', 'fail');
+        }
+      };
+
+      const resetRuntime = () => {
+        try {
+          STATE.session.uptimeStart = Date.now();
+          STATE.session.uptimePct = 0.0;
+          STATE.pool.indexed = [];
+          STATE.pool.bonded = [];
+          STATE.pool.payouts = [];
+          STATE.quarantine.status = 'idle';
+          STATE.quarantine.items = [];
+          DOM.viz.innerHTML = '';
+          DOM.log.innerHTML = '';
+          STATE.audit.events = [];
+          saveAudit();
+          log('info', 'runtime reset');
+          toast('Runtime', 'Reset complete', 'ok');
+          updateStatusTags();
+          updateDebug();
+        } catch (e) {
+          log('error', 'reset failed', e);
+          toast('Runtime', 'Reset failed', 'fail');
+        }
+      };
+
+      /* ---------- DOM bootstrap ---------- */
+      const bindDom = () => {
+        DOM.btnHeal = document.getElementById('btnHeal');
+        DOM.btnReset = document.getElementById('btnReset');
+        DOM.btnExport = document.getElementById('btnExport');
+
+        DOM.walletInput = document.getElementById('walletInput');
+        DOM.btnAttachWallet = document.getElementById('btnAttachWallet');
+        DOM.btnDetachWallet = document.getElementById('btnDetachWallet');
+
+        DOM.tagWallet = document.getElementById('tagWallet');
+        DOM.tagTrust = document.getElementById('tagTrust');
+        DOM.tagUptime = document.getElementById('tagUptime');
+
+        DOM.repoUrl = document.getElementById('repoUrl');
+        DOM.zipUpload = document.getElementById('zipUpload');
+        DOM.btnIndexRepo = document.getElementById('btnIndexRepo');
+        DOM.btnIngestZip = document.getElementById('btnIngestZip');
+
+        DOM.tagIndex = document.getElementById('tagIndex');
+        DOM.tagBond = document.getElementById('tagBond');
+        DOM.tagComp = document.getElementById('tagComp');
+
+        DOM.viz = document.getElementById('viz');
+        DOM.log = document.getElementById('log');
+
+        DOM.debug.kvRuntime = document.getElementById('kvRuntime');
+        DOM.debug.kvVersion = document.getElementById('kvVersion');
+        DOM.debug.kvDevice = document.getElementById('kvDevice');
+        DOM.debug.kvDeps = document.getElementById('kvDeps');
+        DOM.debug.kvListeners = document.getElementById('kvListeners');
+        DOM.debug.kvQuarantine = document.getElementById('kvQuarantine');
+        DOM.debug.kvLastHeal = document.getElementById('kvLastHeal');
+
+        DOM.btnTestButtons = document.getElementById('btnTestButtons');
+        DOM.btnStress = document.getElementById('btnStress');
+        DOM.btnQuarantine = document.getElementById('btnQuarantine');
+        DOM.btnRepairSelf = document.getElementById('btnRepairSelf');
+
+        DOM.toast = document.getElementById('toast');
+      };
+
+      /* ---------- Auto-bond and auto-comp routines ---------- */
+      const autoOps = () => {
+        // Periodically bond indexed items and simulate compensation
+        setInterval(() => {
+          bondAllIndexed();
+        }, 6000);
+        setInterval(() => {
+          simulateCompensation();
+        }, 12000);
+        // Healing heartbeat
+        setInterval(() => {
+          heal();
+        }, 5000);
+      };
+
+      /* ---------- Init ---------- */
+      const init = () => {
+        bindDom();
+        loadAudit();
+        detectDevice();
+        heal(); // initial run
+        autoOps();
+        log('info', 'JeEeZues initialized', { version: STATE.version });
+      };
+
+      return { init };
+    })();
+
+    // Initialize on DOMContentLoaded with a guarded entry
+    (function guardedInit() {
+      try {
+        document.addEventListener('DOMContentLoaded', () => {
+          J.init();
+        });
+      } catch (e) {
+        console.error('Initialization error', e);
+        // Fallback: try again after a short delay
+        setTimeout(() => {
+          try { J.init(); } catch (e2) { console.error('Second init failed', e2); }
+        }, 100);
+      }
+    })();
+  </script>
+</body>
+</html>

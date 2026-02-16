@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>Tree Limb Risk Analyzer</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#121820; --text:#e6edf3; --accent:#4cc2ff; --warn:#ff9f43; --danger:#ff5252; --ok:#5cd16b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:var(--text); }
+    header { position:sticky; top:0; background:var(--panel); padding:10px 12px; border-bottom:1px solid #1f2630; display:flex; gap:8px; align-items:center; z-index:10; }
+    header h1 { font-size:16px; margin:0; flex:1; }
+    header select, header button { font-size:14px; padding:8px; border-radius:8px; border:1px solid #22303d; background:#0e141b; color:var(--text); }
+    main { padding:10px; display:grid; grid-template-columns:1fr; gap:10px; }
+    .panel { background:var(--panel); border:1px solid #1f2630; border-radius:12px; overflow:hidden; }
+    .panel h2 { font-size:15px; margin:0; padding:10px; border-bottom:1px solid #1f2630; }
+    .content { padding:10px; }
+    .media { position:relative; background:black; }
+    video, canvas { width:100%; height:auto; display:block; }
+    .tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+    .tools button, .tools input, .tools select { padding:8px; border-radius:8px; border:1px solid #22303d; background:#0e141b; color:var(--text); font-size:14px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .col { flex:1 1 260px; min-width:260px; }
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #22303d; }
+    .risk-low { color:var(--ok); border-color:var(--ok); }
+    .risk-med { color:var(--warn); border-color:var(--warn); }
+    .risk-high { color:var(--danger); border-color:var(--danger); }
+    .list { display:flex; flex-direction:column; gap:8px; }
+    .item { padding:8px; border:1px dashed #22303d; border-radius:8px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .input { display:flex; flex-direction:column; gap:4px; }
+    .input label { font-size:12px; opacity:0.8; }
+    .input input, .input select { padding:8px; border-radius:8px; border:1px solid #22303d; background:#0e141b; color:var(--text); }
+    .footer { padding:10px; font-size:12px; opacity:0.8; text-align:center; }
+    .pill { padding:4px 8px; border-radius:999px; background:#0e141b; border:1px solid #22303d; font-size:12px; }
+    .legend { display:flex; gap:6px; flex-wrap:wrap; }
+    .legend .pill.high { border-color:var(--danger); color:var(--danger); }
+    .legend .pill.med { border-color:var(--warn); color:var(--warn); }
+    .legend .pill.low { border-color:var(--ok); color:var(--ok); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Tree Limb Risk Analyzer</h1>
+  <select id="modeSelect" aria-label="Mode">
+    <option value="capture">Capture</option>
+    <option value="trace">Trace</option>
+    <option value="detect">Auto-detect (AI)</option>
+  </select>
+  <button id="startCamBtn">Start camera</button>
+  <button id="snapshotBtn">Snapshot</button>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Video and annotation</h2>
+    <div class="content media">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div class="tools">
+        <button id="clearBtn">Clear annotations</button>
+        <button id="undoBtn">Undo</button>
+        <button id="lockScaleBtn">Lock scale</button>
+        <span class="badge" id="scaleBadge">Scale: unset</span>
+        <span class="badge" id="riskBadge" class="risk-low">Risk: N/A</span>
+      </div>
+      <div class="legend">
+        <span class="pill high">High risk</span>
+        <span class="pill med">Medium</span>
+        <span class="pill low">Low</span>
+      </div>
+      <p class="footer">Tip: First draw a reference length (e.g., 1 m) for scale; then trace main branches from trunk outward.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Field inputs</h2>
+    <div class="content grid">
+      <div class="input">
+        <label for="species">Species (for density/value)</label>
+        <select id="species">
+          <option value="oak">Oak</option>
+          <option value="maple">Maple</option>
+          <option value="ash">Ash</option>
+          <option value="pine">Pine</option>
+          <option value="unknown">Unknown</option>
+        </select>
+      </div>
+      <div class="input">
+        <label for="refMeters">Reference length meters (for scale)</label>
+        <input id="refMeters" type="number" min="0.1" step="0.1" placeholder="1.0"/>
+      </div>
+      <div class="input">
+        <label for="windClass">Wind exposure</label>
+        <select id="windClass">
+          <option value="sheltered">Sheltered</option>
+          <option value="normal">Normal</option>
+          <option value="gusty">Gusty</option>
+        </select>
+      </div>
+      <div class="input">
+        <label for="iceRisk">Ice risk</label>
+        <select id="iceRisk">
+          <option value="low">Low</option>
+          <option value="moderate">Moderate</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="input">
+        <label for="diameterEstimate">Trunk DBH (cm)</label>
+        <input id="diameterEstimate" type="number" min="5" step="1" placeholder="30"/>
+      </div>
+      <div class="input">
+        <label for="numMainBranches">Main branches counted</label>
+        <input id="numMainBranches" type="number" min="1" step="1" placeholder="12"/>
+      </div>
+      <div class="input">
+        <label for="calibrationNote">Calibration note</label>
+        <input id="calibrationNote" type="text" placeholder="Ref length from pruning pole, 2.4 m"/>
+      </div>
+      <div class="input">
+        <label for="crewSkill">Crew skill level</label>
+        <select id="crewSkill">
+          <option value="standard">Standard</option>
+          <option value="expert">Expert climbers</option>
+          <option value="mechanized">Bucket/chipper</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Location and site context</h2>
+    <div class="content row">
+      <div class="col">
+        <div class="tools">
+          <button id="geoBtn">Get location</button>
+          <span class="badge" id="geoBadge">Lat/Lon: unknown</span>
+          <span class="badge" id="wetlandBadge">Wetland: unknown</span>
+        </div>
+        <p>This uses geolocation and a simple heuristic. Replace with wetlands layer (e.g., local GIS) for accuracy.</p>
+      </div>
+      <div class="col">
+        <div class="list" id="breakLog"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Risk and harvest estimator</h2>
+    <div class="content">
+      <div class="grid">
+        <div class="input">
+          <label for="valuePerCord">Market value per cord ($)</label>
+          <input id="valuePerCord" type="number" min="0" step="10" value="180"/>
+        </div>
+        <div class="input">
+          <label for="costPerHour">Crew cost per hour ($)</label>
+          <input id="costPerHour" type="number" min="0" step="5" value="95"/>
+        </div>
+        <div class="input">
+          <label for="haulCost">Haul/disposal cost ($)</label>
+          <input id="haulCost" type="number" min="0" step="10" value="150"/>
+        </div>
+        <div class="input">
+          <label for="siteComplexity">Site complexity</label>
+          <select id="siteComplexity">
+            <option value="open">Open yard</option>
+            <option value="obstacles">Obstacles/wires</option>
+            <option value="tight">Tight urban</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tools">
+        <button id="estimateBtn">Estimate job</button>
+        <span class="badge" id="jobBadge">Job size: N/A</span>
+        <span class="badge" id="valueBadge">Net value: N/A</span>
+      </div>
+
+      <div class="list" id="estimateDetails"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Data & export</h2>
+    <div class="content tools">
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+      <input id="importFile" type="file" accept="application/json" style="display:none"/>
+      <button id="resetBtn">Reset data</button>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ==== Data structures ==== */
+const state = {
+  sessionId: Math.random().toString(36).slice(2),
+  scale: { pixels: null, meters: null, locked: false, pxPerMeter: null },
+  branches: [], // {id, path:[{x,y}], lengthPx, lengthM, diameterM, massKg, risk, broken:false, severity:0}
+  defects: [],  // {id, point:{x,y}, type:'crack|decay|split', severity:0..1}
+  snapshots: [], // {ts, dataUrl}
+  breaks: [], // {ts, lat, lon, branchId, severity, note}
+  geo: { lat:null, lon:null, wetland:null, accuracy:null },
+  inputs: {
+    species:'oak', windClass:'normal', iceRisk:'moderate', diameterEstimateCm:30,
+    numMainBranches:12, calibrationNote:'', crewSkill:'standard',
+    valuePerCord:180, costPerHour:95, haulCost:150, siteComplexity:'open'
+  },
+  estimates: null
+};
+
+const speciesDensity = { // green wood approximate kg/m^3
+  oak: 750, maple: 700, ash: 680, pine: 500, unknown: 650
+};
+const speciesCordFactor = { // cords per m^3 (approx; 1 cord ~3.6m^3 stacked)
+  oak: 1/3.6, maple: 1/3.6, ash: 1/3.6, pine: 1/3.6, unknown: 1/3.6
+};
+
+/* ==== DOM refs ==== */
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+const startCamBtn = document.getElementById('startCamBtn');
+const snapshotBtn = document.getElementById('snapshotBtn');
+const clearBtn = document.getElementById('clearBtn');
+const undoBtn = document.getElementById('undoBtn');
+const lockScaleBtn = document.getElementById('lockScaleBtn');
+const scaleBadge = document.getElementById('scaleBadge');
+const riskBadge = document.getElementById('riskBadge');
+const modeSelect = document.getElementById('modeSelect');
+const geoBtn = document.getElementById('geoBtn');
+const geoBadge = document.getElementById('geoBadge');
+const wetlandBadge = document.getElementById('wetlandBadge');
+const breakLog = document.getElementById('breakLog');
+const estimateBtn = document.getElementById('estimateBtn');
+const jobBadge = document.getElementById('jobBadge');
+const valueBadge = document.getElementById('valueBadge');
+const estimateDetails = document.getElementById('estimateDetails');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+const resetBtn = document.getElementById('resetBtn');
+
+const speciesSel = document.getElementById('species');
+const refMetersInp = document.getElementById('refMeters');
+const windClassSel = document.getElementById('windClass');
+const iceRiskSel = document.getElementById('iceRisk');
+const diameterEstimateInp = document.getElementById('diameterEstimate');
+const numMainBranchesInp = document.getElementById('numMainBranches');
+const calibrationNoteInp = document.getElementById('calibrationNote');
+const crewSkillSel = document.getElementById('crewSkill');
+const valuePerCordInp = document.getElementById('valuePerCord');
+const costPerHourInp = document.getElementById('costPerHour');
+const haulCostInp = document.getElementById('haulCost');
+const siteComplexitySel = document.getElementById('siteComplexity');
+
+/* ==== Camera & canvas ==== */
+let stream = null;
+let drawing = false;
+let currentPath = [];
+let mode = 'capture';
+
+function resizeCanvas() {
+  overlay.width = video.clientWidth || window.innerWidth;
+  overlay.height = video.clientHeight || Math.floor(window.innerHeight * 0.5);
+  renderOverlay();
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+  } catch (e) { alert('Camera access failed. Check permissions.'); }
+}
+
+function snapshot() {
+  const cvs = document.createElement('canvas');
+  cvs.width = video.videoWidth || overlay.width;
+  cvs.height = video.videoHeight || overlay.height;
+  const cctx = cvs.getContext('2d');
+  cctx.drawImage(video, 0, 0, cvs.width, cvs.height);
+  const dataUrl = cvs.toDataURL('image/jpeg', 0.92);
+  state.snapshots.push({ ts: Date.now(), dataUrl });
+  alert('Snapshot saved.');
+}
+
+/* ==== Drawing & annotations ==== */
+overlay.addEventListener('pointerdown', (e)=> {
+  if (mode === 'trace' || mode === 'capture') {
+    drawing = true;
+    currentPath = [{ x: e.offsetX, y: e.offsetY }];
+  }
+  if (mode === 'detect') {
+    // Place a defect marker
+    const defect = { id: crypto.randomUUID(), point:{ x:e.offsetX, y:e.offsetY }, type:'crack', severity:0.6 };
+    state.defects.push(defect);
+    renderOverlay();
+  }
+});
+
+overlay.addEventListener('pointermove', (e)=> {
+  if (!drawing) return;
+  currentPath.push({ x: e.offsetX, y: e.offsetY });
+  renderOverlay();
+});
+
+overlay.addEventListener('pointerup', (e)=> {
+  if (!drawing) return;
+  drawing = false;
+  // Determine if this is a scale ref or a branch
+  if (!state.scale.locked && state.scale.meters && state.scale.pixels === null) {
+    state.scale.pixels = pathLengthPx(currentPath);
+    updateScale();
+  } else {
+    addBranch(currentPath);
+  }
+  currentPath = [];
+  renderOverlay();
+});
+
+function pathLengthPx(path) {
+  let sum = 0;
+  for (let i=1;i<path.length;i++) {
+    const dx = path[i].x - path[i-1].x;
+    const dy = path[i].y - path[i-1].y;
+    sum += Math.hypot(dx, dy);
+  }
+  return sum;
+}
+
+function addBranch(path) {
+  const id = crypto.randomUUID();
+  const lengthPx = pathLengthPx(path);
+  const lengthM = state.scale.pxPerMeter ? (lengthPx / state.scale.pxPerMeter) : null;
+  // Rough diameter: allow manual tweak or infer from stroke width (placeholder = 0.08 m)
+  const diameterM = 0.08;
+  const volumeM3 = lengthM ? (Math.PI * Math.pow(diameterM/2,2) * lengthM * 0.7) : null; // taper factor 0.7
+  const massKg = volumeM3 ? volumeM3 * speciesDensity[state.inputs.species] : null;
+  const risk = computeRisk({ lengthM, diameterM, massKg });
+  state.branches.push({ id, path, lengthPx, lengthM, diameterM, massKg, risk, broken:false, severity:0 });
+}
+
+function computeRisk(b) {
+  // Base risk from slenderness: higher length/diameter ratio increases risk
+  const slender = b.lengthM && b.diameterM ? (b.lengthM / b.diameterM) : 0;
+  let score = Math.min(1, slender/25);
+  // Add defect influence
+  const nearDefect = nearestDefectInfluence(b.path);
+  score = Math.min(1, score + nearDefect);
+  // Wind and ice multipliers
+  const windMul = { sheltered:0.9, normal:1.0, gusty:1.2 }[state.inputs.windClass];
+  const iceMul = { low:1.0, moderate:1.1, high:1.25 }[state.inputs.iceRisk];
+  score = Math.min(1, score * windMul * iceMul);
+  return score;
+}
+
+function nearestDefectInfluence(path) {
+  if (state.defects.length === 0) return 0;
+  const influenceRadius = 40; // px
+  let boost = 0;
+  for (const d of state.defects) {
+    for (const p of path) {
+      const dist = Math.hypot(p.x - d.point.x, p.y - d.point.y);
+      if (dist < influenceRadius) {
+        boost = Math.max(boost, d.severity * (1 - dist/influenceRadius) * 0.5);
+      }
+    }
+  }
+  return boost;
+}
+
+function renderOverlay() {
+  ctx.clearRect(0,0,overlay.width, overlay.height);
+  // Draw existing branches
+  for (const b of state.branches) {
+    ctx.lineWidth = 3;
+    const color = b.risk >= 0.7 ? '#ff5252' : b.risk >= 0.4 ? '#ff9f43' : '#5cd16b';
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    b.path.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+    // Label
+    if (b.lengthM) {
+      ctx.fillStyle = color;
+      const end = b.path[b.path.length-1];
+      ctx.font = '12px system-ui';
+      ctx.fillText(`${b.lengthM.toFixed(2)} m • risk ${(b.risk*100).toFixed(0)}%`, end.x+4, end.y+4);
+    }
+  }
+  // Draw current path
+  if (currentPath.length) {
+    ctx.lineWidth = state.scale.locked ? 3 : 5;
+    ctx.strokeStyle = state.scale.locked ? '#4cc2ff' : '#9aa7b0';
+    ctx.beginPath();
+    currentPath.forEach((p,i)=> i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+  }
+  // Defect markers
+  for (const d of state.defects) {
+    ctx.fillStyle = '#ffeb3b';
+    ctx.beginPath();
+    ctx.arc(d.point.x, d.point.y, 6, 0, Math.PI*2);
+    ctx.fill();
+  }
+  updateBadges();
+}
+
+function updateScale() {
+  const m = parseFloat(refMetersInp.value);
+  state.scale.meters = isFinite(m) && m > 0 ? m : null;
+  if (state.scale.meters && state.scale.pixels) {
+    state.scale.pxPerMeter = state.scale.pixels / state.scale.meters;
+  }
+  scaleBadge.textContent = state.scale.pxPerMeter ? `Scale: ${state.scale.pxPerMeter.toFixed(1)} px/m` : 'Scale: unset';
+}
+
+function updateBadges() {
+  const maxRisk = state.branches.length ? Math.max(...state.branches.map(b=>b.risk||0)) : 0;
+  const cls = maxRisk >= 0.7 ? 'risk-high' : maxRisk >= 0.4 ? 'risk-med' : 'risk-low';
+  riskBadge.className = `badge ${cls}`;
+  riskBadge.textContent = `Risk: ${Math.round(maxRisk*100)}% max`;
+}
+
+/* ==== Controls ==== */
+startCamBtn.addEventListener('click', startCamera);
+snapshotBtn.addEventListener('click', snapshot);
+clearBtn.addEventListener('click', ()=> { state.branches=[]; state.defects=[]; renderOverlay(); });
+undoBtn.addEventListener('click', ()=> {
+  if (state.branches.length) { state.branches.pop(); renderOverlay(); }
+  else if (state.defects.length) { state.defects.pop(); renderOverlay(); }
+});
+lockScaleBtn.addEventListener('click', ()=> {
+  if (!state.scale.locked) {
+    if (!state.scale.meters) alert('Enter reference meters first.');
+    else alert('Draw a straight reference line of known length, then release to set scale.');
+    state.scale.locked = true;
+  } else {
+    state.scale.locked = false; state.scale.pixels=null; state.scale.pxPerMeter=null;
+  }
+  updateScale(); renderOverlay();
+});
+modeSelect.addEventListener('change', (e)=> { mode = e.target.value; });
+
+/* ==== Inputs binding ==== */
+speciesSel.addEventListener('change', ()=> state.inputs.species = speciesSel.value);
+refMetersInp.addEventListener('input', updateScale);
+windClassSel.addEventListener('change', ()=> state.inputs.windClass = windClassSel.value);
+iceRiskSel.addEventListener('change', ()=> state.inputs.iceRisk = iceRiskSel.value);
+diameterEstimateInp.addEventListener('input', ()=> state.inputs.diameterEstimateCm = parseFloat(diameterEstimateInp.value||30));
+numMainBranchesInp.addEventListener('input', ()=> state.inputs.numMainBranches = parseInt(numMainBranchesInp.value||0));
+calibrationNoteInp.addEventListener('input', ()=> state.inputs.calibrationNote = calibrationNoteInp.value);
+crewSkillSel.addEventListener('change', ()=> state.inputs.crewSkill = crewSkillSel.value);
+valuePerCordInp.addEventListener('input', ()=> state.inputs.valuePerCord = parseFloat(valuePerCordInp.value||0));
+costPerHourInp.addEventListener('input', ()=> state.inputs.costPerHour = parseFloat(costPerHourInp.value||0));
+haulCostInp.addEventListener('input', ()=> state.inputs.haulCost = parseFloat(haulCostInp.value||0));
+siteComplexitySel.addEventListener('change', ()=> state.inputs.siteComplexity = siteComplexitySel.value);
+
+/* ==== Geolocation & wetland heuristic ==== */
+geoBtn.addEventListener('click', ()=> {
+  if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos)=> {
+      const { latitude, longitude, accuracy } = pos.coords;
+      state.geo.lat = latitude; state.geo.lon = longitude; state.geo.accuracy = accuracy;
+      geoBadge.textContent = `Lat/Lon: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`;
+      // Placeholder heuristic: low elevation or proximity to water increases wetland likelihood
+      const likelyWetland = heuristicWetland(latitude, longitude);
+      state.geo.wetland = likelyWetland ? 'likely' : 'unlikely';
+      wetlandBadge.textContent = `Wetland: ${state.geo.wetland}`;
+    },
+    (err)=> alert('Geolocation failed. Check permissions.')
+  );
+});
+
+function heuristicWetland(lat, lon) {
+  // Simple pseudo-rule; replace with real GIS lookup:
+  const hash = Math.abs(Math.sin(lat*12.9898 + lon*78.233)) % 1;
+  return hash > 0.7; // ~30% chance; stand-in for demo
+}
+
+/* ==== Break logging ==== */
+function logBreak(branchId, severity, note='') {
+  const entry = { ts: Date.now(), lat: state.geo.lat, lon: state.geo.lon, branchId, severity, note };
+  state.breaks.push(entry);
+  renderBreakLog();
+}
+
+function renderBreakLog() {
+  breakLog.innerHTML = '';
+  for (const b of state.breaks) {
+    const div = document.createElement('div');
+    div.className = 'item';
+    const when = new Date(b.ts).toLocaleString();
+    const loc = (b.lat && b.lon) ? `@ ${b.lat.toFixed(5)}, ${b.lon.toFixed(5)}` : '@ unknown';
+    div.textContent = `Break: branch ${b.branchId?.slice(0,6)} • severity ${b.severity} • ${when} ${loc} • ${b.note}`;
+    breakLog.appendChild(div);
+  }
+}
+
+/* ==== Estimation (job size & value) ==== */
+estimateBtn.addEventListener('click', ()=> {
+  const result = estimateJob();
+  state.estimates = result;
+  jobBadge.textContent = `Job: ${result.jobSize}`;
+  valueBadge.textContent = `Net: $${result.netValue.toFixed(0)}`;
+  renderEstimateDetails(result);
+});
+
+function estimateJob() {
+  const branches = state.branches;
+  const risky = branches.filter(b=> (b.risk||0) >= 0.4);
+  const broken = branches.filter(b=> b.broken);
+  // Complexity multipliers
+  const siteMul = { open:1.0, obstacles:1.3, tight:1.6 }[state.inputs.siteComplexity];
+  const crewMul = { standard:1.0, expert:0.9, mechanized:0.8 }[state.inputs.crewSkill];
+  // Worker hours: base 0.35 h per risky limb + 0.6 h per broken major limb
+  const hours = (risky.length * 0.35 + broken.length * 0.6) * siteMul * crewMul + 1.0; // setup buffer
+  // Wood volume
+  const totalVolM3 = branches.reduce((sum,b)=> sum + (b.massKg ? (b.massKg / speciesDensity[state.inputs.species]) : 0), 0);
+  const cords = totalVolM3 * (speciesCordFactor[state.inputs.species]);
+  const grossValue = cords * (state.inputs.valuePerCord||0);
+  const cost = hours * (state.inputs.costPerHour||0) + (state.inputs.haulCost||0);
+  const netValue = Math.max(0, grossValue - cost);
+  const jobSize = hours < 3 ? 'Small' : hours < 8 ? 'Medium' : 'Large';
+  return { hours, riskyCount:risky.length, brokenCount:broken.length, totalVolM3, cords, grossValue, cost, netValue, jobSize };
+}
+
+function renderEstimateDetails(r) {
+  estimateDetails.innerHTML = '';
+  const rows = [
+    { k:'Risky limbs', v:r.riskyCount },
+    { k:'Broken limbs', v:r.brokenCount },
+    { k:'Worker hours', v:r.hours.toFixed(1) },
+    { k:'Volume (m³)', v:r.totalVolM3.toFixed(2) },
+    { k:'Cords', v:r.cords.toFixed(2) },
+    { k:'Gross value ($)', v:r.grossValue.toFixed(0) },
+    { k:'Estimated cost ($)', v:r.cost.toFixed(0) },
+    { k:'Net value ($)', v:r.netValue.toFixed(0) }
+  ];
+  for (const row of rows) {
+    const div = document.createElement('div'); div.className='item';
+    div.textContent = `${row.k}: ${row.v}`;
+    estimateDetails.appendChild(div);
+  }
+}
+
+/* ==== AI hooks (auto-detect & glasses) ==== */
+// Placeholder: supply frame to external AI (e.g., WebRTC DataChannel or on-device WASM inference)
+// Call setDetections([...]) with outputs: [{type:'branch', path:[{x,y}...], diameterM, broken, severity, risk}, {type:'defect', point:{x,y}, severity}]
+function setDetections(dets) {
+  for (const d of dets) {
+    if (d.type === 'branch') {
+      const id = crypto.randomUUID();
+      const lengthPx = pathLengthPx(d.path);
+      const lengthM = state.scale.pxPerMeter ? (lengthPx / state.scale.pxPerMeter) : null;
+      const diameterM = d.diameterM ?? 0.08;
+      const volumeM3 = lengthM ? (Math.PI * Math.pow(diameterM/2,2) * lengthM * 0.7) : null;
+      const massKg = volumeM3 ? volumeM3 * speciesDensity[state.inputs.species] : null;
+      const risk = d.risk ?? computeRisk({ lengthM, diameterM, massKg, path:d.path });
+      state.branches.push({ id, path:d.path, lengthPx, lengthM, diameterM, massKg, risk, broken:!!d.broken, severity:d.severity||0 });
+      if (d.broken) logBreak(id, d.severity||0.7, 'AI-detected break');
+    } else if (d.type === 'defect') {
+      state.defects.push({ id:crypto.randomUUID(), point:d.point, type:'crack', severity:d.severity||0.5 });
+    }
+  }
+  renderOverlay();
+}
+
+// Example: accept raw RGBA frame for AI glasses; developer integrates model and calls setDetections()
+async function processIncomingFrame(imageBitmap) {
+  // TODO: Run detection model; convert outputs to dets format
+  // setDetections(dets);
+}
+
+/* ==== Storage & export ==== */
+function saveLocal() { localStorage.setItem('treeRisk:'+state.sessionId, JSON.stringify(state)); }
+function loadLocal(json) {
+  Object.assign(state, json);
+  renderOverlay(); renderBreakLog();
+  if (state.estimates) renderEstimateDetails(state.estimates);
+}
+exportBtn.addEventListener('click', ()=> {
+  const blob = new Blob([JSON.stringify(state,null,2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `tree-risk-${state.sessionId}.json`; a.click();
+  URL.revokeObjectURL(url);
+});
+importBtn.addEventListener('click', ()=> importFile.click());
+importFile.addEventListener('change', async (e)=> {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text(); const json = JSON.parse(text);
+  loadLocal(json);
+});
+resetBtn.addEventListener('click', ()=> {
+  if (!confirm('Reset all data?')) return;
+  localStorage.removeItem('treeRisk:'+state.sessionId);
+  location.reload();
+});
+
+/* ==== Init ==== */
+document.addEventListener('visibilitychange', ()=> { if (document.hidden) saveLocal(); });
+</script>
+</body>
+</html>

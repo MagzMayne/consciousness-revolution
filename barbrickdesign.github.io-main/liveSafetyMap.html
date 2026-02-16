@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Live Safety Map — Privacy-preserving</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{
+  --bg:#031321; --panel:#071821; --muted:#9fb0be; --accent:#06b6d4; --danger:#ff6b6b;
+  --safe-color: rgba(34,197,94,0.12); --safe-stroke: rgba(34,197,94,0.35);
+  --shot-color: rgba(239,68,68,0.16); --shot-stroke: rgba(239,68,68,0.85);
+}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+.header{display:flex;gap:12px;align-items:center;padding:12px}
+h1{font-size:16px;margin:0}
+.container{max-width:980px;margin:12px auto;padding:12px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-bottom:12px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{background:var(--accent);border:0;color:#012;padding:8px 10px;border-radius:10px;font-weight:700}
+button.warn{background:var(--danger);color:#fff}
+label{font-size:13px;color:var(--muted)}
+.small{font-size:13px;padding:6px 8px}
+#map{height:62vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+#log{max-height:160px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+.canvasRow{margin-top:8px}
+.info{font-size:13px;color:var(--muted);margin-top:6px}
+.footer{font-size:13px;color:var(--muted);text-align:center;padding:8px}
+
+/* Pulsing visual hint for safe-zone (CSS used as a visual timer; actual Leaflet circle radius is animated via JS) */
+.pulse-dot{
+  width:14px;height:14px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 6px rgba(34,197,94,0.12),0 0 0 12px rgba(34,197,94,0.06);
+  display:inline-block;border:2px solid rgba(255,255,255,0.06);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse{
+  0%{transform:scale(1);box-shadow:0 0 0 6px rgba(34,197,94,0.10),0 0 0 12px rgba(34,197,94,0.04)}
+  50%{transform:scale(1.08);box-shadow:0 0 0 18px rgba(34,197,94,0.08),0 0 0 30px rgba(34,197,94,0.03)}
+  100%{transform:scale(1);box-shadow:0 0 0 6px rgba(34,197,94,0.10),0 0 0 12px rgba(34,197,94,0.04)}
+}
+
+/* small responsive tweaks */
+@media (min-width:900px){ #map{height:68vh} }
+</style>
+</head>
+<body>
+<div class="header">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Live Safety Map</h1>
+    <div class="info">Map centers on your coarse location while audio logging; safe zone pulses while feed is active</div>
+  </div>
+</div>
+
+<main class="container">
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Controls</div>
+      <div style="font-size:13px;color:var(--muted)">Privacy-preserving coarse radii are used</div>
+    </div>
+
+    <div class="controls" style="margin-top:8px">
+      <button id="btnEnable" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="0.2" max="4" step="0.1" value="1" />
+      <label>Privacy radius (m)</label>
+      <input id="privacyRadius" type="number" value="150" min="50" max="2000" style="width:110px" />
+    </div>
+
+    <div class="canvasRow">
+      <canvas id="viz" style="width:100%;height:120px;border-radius:8px;background:#02121b"></canvas>
+    </div>
+
+    <div class="info" id="status">Status: idle</div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Live Map (centers on you while logging)</div>
+      <div style="font-size:13px;color:var(--muted)"><span class="pulse-dot"></span> Feed active indicator</div>
+    </div>
+
+    <div id="map" style="margin-top:8px"></div>
+
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <div style="font-size:13px;color:var(--muted)">Auto-center while logging</div>
+      <label style="margin-left:auto">Map zoom cap</label>
+      <select id="zoomCap" class="small">
+        <option value="14">14 (close)</option>
+        <option value="13" selected>13</option>
+        <option value="12">12</option>
+        <option value="11">11</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Event Log</div>
+      <div style="font-size:13px;color:var(--muted)">Red bubbles indicate detected shots; radius is coarse for privacy</div>
+    </div>
+    <div id="log" style="margin-top:8px" aria-live="polite"></div>
+  </section>
+</main>
+
+<footer class="footer">This client app is for research/prototyping; validate detection with ground truth audio and calibrate privacy radius to your policy.</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/*
+Features implemented:
+- Map centers on user's coarse location while logging
+- Green pulsing safe-zone: Leaflet circle centered on coarse position; JS animates radius (expand/contract) while logging
+- Red dot + red bubble placed for each detected shot event (coarse radius based on privacyRadius)
+- Basic impulsive detection by short-term RMS; dominant freq estimate by zero-crossing (lightweight)
+- Local event log and CSV export
+- Privacy: event marker radius uses privacyRadius to avoid exact location disclosure
+Notes:
+- For production, replace simple detection with a validated classifier and secure upload pipeline.
+*/
+
+let audioCtx = null;
+let stream = null;
+let sourceNode = null;
+let procNode = null;
+let running = false;
+let lastEventAt = 0;
+const refractoryMs = 700;
+
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const sens = document.getElementById('sens');
+const privacyRadiusInput = document.getElementById('privacyRadius');
+const viz = document.getElementById('viz');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const zoomCap = document.getElementById('zoomCap');
+
+const canvasCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvasCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+let map = L.map('map', { zoomControl: true }).setView([20,0], 3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
+let userMarker = null;
+let safeCircle = null;
+let safePulseAnimation = null;
+let shotLayer = L.layerGroup().addTo(map);
+let autoCenter = true;
+let currentPos = null;
+let events = [];
+
+/* initialize safeCircle with a default radius; will be updated when location known */
+function ensureSafeCircle(lat, lon, radius){
+  if(!safeCircle){
+    safeCircle = L.circle([lat, lon], {
+      radius: radius,
+      color: '#22c55e',
+      fillColor: 'rgba(34,197,94,0.10)',
+      weight: 2,
+      fillOpacity: 0.12
+    }).addTo(map);
+  } else {
+    safeCircle.setLatLng([lat,lon]);
+    safeCircle.setRadius(radius);
+  }
+}
+
+/* ensure user marker */
+function ensureUserMarker(lat, lon){
+  if(!userMarker){
+    userMarker = L.circleMarker([lat, lon], { radius:6, color:'#16a34a', fillColor:'#16a34a', fillOpacity:1 }).addTo(map);
+  } else {
+    userMarker.setLatLng([lat, lon]);
+  }
+}
+
+/* start/stop safe pulse animation: we animate circle radius using requestAnimationFrame for smoother control */
+let pulseState = { expanding: true, radiusBase: null, tStart: 0 };
+function startSafePulse(){
+  if(!safeCircle) return;
+  const base = parseFloat(privacyRadiusInput.value) || 150;
+  pulseState.radiusBase = Math.max(80, base); // ensure obfuscation minimum
+  pulseState.tStart = performance.now();
+  if(safePulseAnimation) cancelAnimationFrame(safePulseAnimation);
+  function step(ts){
+    const elapsed = (ts - pulseState.tStart) / 1000;
+    // oscillate radius between 0.85x and 1.25x (keeps privacy)
+    const factor = 0.85 + 0.4 * (0.5 + 0.5 * Math.sin(elapsed * 1.5));
+    const newR = pulseState.radiusBase * factor;
+    safeCircle.setRadius(newR);
+    safePulseAnimation = requestAnimationFrame(step);
+  }
+  safePulseAnimation = requestAnimationFrame(step);
+}
+function stopSafePulse(){
+  if(safePulseAnimation) cancelAnimationFrame(safePulseAnimation);
+  safePulseAnimation = null;
+  if(safeCircle && pulseState.radiusBase) safeCircle.setRadius(pulseState.radiusBase);
+}
+
+/* location handling: watchPosition while logging; otherwise a single getCurrentPosition at enable time */
+let watchId = null;
+async function startLocationWatch(){
+  if(!navigator.geolocation) { status('Geolocation unavailable'); return; }
+  // coarse watch that updates map center and safe zone
+  watchId = navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    currentPos = {lat, lon, accuracy: pos.coords.accuracy};
+    ensureUserMarker(lat, lon);
+    ensureSafeCircle(lat, lon, parseFloat(privacyRadiusInput.value) || 150);
+    if(autoCenter){
+      const z = Math.min(parseInt(zoomCap.value,10), 13);
+      map.setView([lat, lon], z, { animate: true });
+    }
+  }, err => {
+    console.warn('watchPosition error', err);
+  }, { enableHighAccuracy: false, maximumAge: 3000, timeout: 5000 });
+}
+function stopLocationWatch(){
+  if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+}
+
+/* microphone handling and simple impulsive detection */
+btnEnable.addEventListener('click', async () => {
+  status('Requesting microphone & location permission...');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+    status('Microphone enabled; allow location when prompted');
+    btnStart.disabled = false;
+    btnEnable.disabled = true;
+  } catch (e) {
+    console.error(e);
+    status('Microphone permission denied or unavailable');
+  }
+});
+
+btnStart.addEventListener('click', async () => {
+  if(!stream) { status('Enable microphone first'); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sourceNode = audioCtx.createMediaStreamSource(stream);
+  const bufferSize = 2048;
+  procNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+  procNode.onaudioprocess = (ev) => {
+    if(!running) return;
+    const data = ev.inputBuffer.getChannelData(0);
+    drawViz(data);
+    const amp = rms(data);
+    const threshold = 0.12 * parseFloat(sens.value || 1);
+    const now = performance.now();
+    if(amp > threshold && (now - lastEventAt) > refractoryMs){
+      lastEventAt = now;
+      handleDetectedImpulse(data, audioCtx.sampleRate, amp);
+    }
+  };
+  sourceNode.connect(procNode);
+  procNode.connect(audioCtx.destination);
+  running = true;
+  status('Logging active');
+  btnStart.disabled = true;
+  btnStop.disabled = false;
+  btnExport.disabled = false;
+  // start coarse location watch and safe pulse
+  startLocationWatch();
+  startSafePulse();
+};
+
+);
+
+btnStop.addEventListener('click', () => {
+  running = false;
+  try { if(procNode) procNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioCtx) audioCtx.close(); } catch(e){}
+  audioCtx = null; sourceNode = null; procNode = null;
+  status('Stopped');
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  stopLocationWatch();
+  stopSafePulse();
+});
+
+/* simple dominant frequency estimate (zero-cross based) */
+function estimateDominantFreq(buf, sampleRate){
+  let crossings = 0;
+  for(let i=1;i<buf.length;i++){
+    if(buf[i-1] <= 0 && buf[i] > 0) crossings++;
+  }
+  const seconds = buf.length / sampleRate;
+  const hz = (crossings / seconds) / 2;
+  return hz || 0;
+}
+
+/* when an impulse detected: create coarse event, show red bubble (privacyRadius used), log it */
+function handleDetectedImpulse(buffer, sampleRate, amplitude){
+  const domHz = estimateDominantFreq(buffer, sampleRate);
+  const timestamp = new Date().toISOString();
+  const privacyRadius = Math.max( Math.min(parseFloat(privacyRadiusInput.value || 150), 2000), 50 );
+  const event = { timestamp, amplitude, dominantHz: domHz, privacyRadius };
+  // attach coarse location if available, but do not store exact lat/lon in UI marker; we will center marker at a slightly randomized offset inside privacy radius (to obfuscate exact point)
+  if(currentPos){
+    const angle = Math.random() * Math.PI * 2;
+    const r = (Math.random() * 0.6 + 0.2) * privacyRadius; // random offset within 20%-80% of radius
+    const metersToLat = r * Math.cos(angle);
+    const metersToLon = r * Math.sin(angle);
+    // convert meters to degrees roughly (approx)
+    const dLat = metersToLat / 111320;
+    const dLon = metersToLon / (111320 * Math.cos(currentPos.lat * Math.PI / 180));
+    event.lat = currentPos.lat + dLat;
+    event.lon = currentPos.lon + dLon;
+  } else {
+    // no location: use map center
+    const center = map.getCenter();
+    event.lat = center.lat;
+    event.lon = center.lng;
+  }
+  events.unshift(event);
+  addShotMarker(event);
+  appendLogEntry(event);
+}
+
+/* add red dot + red bubble on map for the shot event (bubble uses privacyRadius) */
+function addShotMarker(e){
+  const color = '#ef4444';
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color: color, fillColor: color, fillOpacity:1 }).addTo(shotLayer);
+  const bubble = L.circle([e.lat, e.lon], {
+    radius: e.privacyRadius,
+    color: '--shot-stroke',
+    fillColor: 'rgba(239,68,68,0.12)',
+    weight:2
+  }).addTo(shotLayer);
+  marker.bindPopup(`<b>Detected impulse</b><br>${e.timestamp}<br>Est freq: ${e.dominantHz.toFixed(0)} Hz`);
+  // optional: remove marker after some time (e.g., 10 minutes) to keep map clear
+  setTimeout(()=>{ shotLayer.removeLayer(marker); shotLayer.removeLayer(bubble); }, 1000 * 60 * 10);
+}
+
+/* append event to log UI */
+function appendLogEntry(e){
+  const el = document.createElement('div');
+  el.style.padding = '8px'; el.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+  el.innerHTML = `<div style="font-weight:700">${e.timestamp}</div>
+    <div style="color:var(--muted)">Dominant: ${e.dominantHz.toFixed(0)} Hz • Amp: ${e.amplitude.toFixed(3)} • Radius: ${e.privacyRadius} m</div>`;
+  logEl.prepend(el);
+}
+
+/* export CSV of events */
+btnExport.addEventListener('click', ()=>{
+  if(events.length===0) return alert('No events to export');
+  const hdr = ['timestamp,latitude,longitude,dominantHz,amplitude,privacyRadius'];
+  const rows = events.map(ev => `${ev.timestamp},${ev.lat.toFixed(6)},${ev.lon.toFixed(6)},${ev.dominantHz.toFixed(1)},${ev.amplitude.toFixed(3)},${ev.privacyRadius}`);
+  const csv = hdr.concat(rows).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+/* draw simple waveform */
+function drawViz(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#02121b'; canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.strokeStyle = '#06b6d4'; canvasCtx.beginPath();
+  const step = Math.max(1, Math.floor(buf.length / w));
+  for(let i=0;i<w;i++){
+    const v = buf[i*step] || 0;
+    const y = (1 - (v + 1) / 2) * h;
+    if(i===0) canvasCtx.moveTo(i, y); else canvasCtx.lineTo(i, y);
+  }
+  canvasCtx.stroke();
+}
+
+/* RMS helper and utilities */
+function rms(buf){ let s=0; for(let i=0;i<buf.length;i++){ s += buf[i]*buf[i]; } return Math.sqrt(s / buf.length); }
+
+/* On map move: if user toggles auto-center off, we preserve current view */
+map.on('movestart', ()=>{ /* user moved map; disable auto-center while logging if they pan */ if(running) autoCenter = false; });
+
+/* initial getCurrentPosition to set map view when available */
+navigator.geolocation && navigator.geolocation.getCurrentPosition(pos => {
+  const lat = pos.coords.latitude, lon = pos.coords.longitude;
+  map.setView([lat, lon], 13);
+}, ()=>{}, { enableHighAccuracy:false, maximumAge:60000, timeout:3000 });
+
+/* UI status helper */
+function status(msg){ statusEl.textContent = 'Status: ' + msg; }
+
+/* Keep safe circle radius in sync if privacy radius changed */
+privacyRadiusInput.addEventListener('change', ()=>{
+  const r = Math.max(50, parseFloat(privacyRadiusInput.value) || 150);
+  if(safeCircle && currentPos) safeCircle.setRadius(r);
+  pulseState.radiusBase = Math.max(80, r);
+});
+
+/* zoom cap enforcement while auto-centering */
+zoomCap.addEventListener('change', ()=>{ /* no-op; used when centering */ });
+
+</script>
+</body>
+</html>
+``` [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/surajpaul/testGlamyo/tree/f2a4b1204fbd789dccb3fbb4a648267620600ca8/resources%2Fviews%2Fauth%2Fregister.blade.php?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=8C8422B6-6E91-4F43-A29B-F0B0F97072BB&citationTitle=github.com&citationFullTitle=github.com&chatItemId=NazAGs75M1HaQnc5ZxuPY)

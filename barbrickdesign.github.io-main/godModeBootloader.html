@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>God Mode Craps Roll — Launch Table Sync</title>
+<style>
+  :root {
+    --bg: #0b0f16;
+    --panel: #121826;
+    --accent: #39ff14;
+    --accent2: #00e0ff;
+    --warn: #ff3b3b;
+    --text: #e6f1ff;
+    --muted: #8aa0b3;
+  }
+  html, body {
+    height: 100%;
+    background: radial-gradient(1200px 800px at 70% 30%, #0b0f16 10%, #05070b 100%);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    margin: 0;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .header {
+    text-align: center;
+    margin: 24px 0 16px;
+  }
+  .title {
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 6px;
+  }
+  .panel {
+    background: linear-gradient(180deg, #0f1420 0%, #0a0e18 100%);
+    border: 1px solid #1f2a3a;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 0 30px rgba(0, 224, 255, 0.06);
+    padding: 18px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  @media (max-width: 780px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .terminal {
+    background: #0a0f18;
+    border: 1px solid #1b2534;
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 220px;
+    overflow-y: auto;
+  }
+  .terminal pre {
+    white-space: pre-wrap;
+    margin: 0;
+    line-height: 1.35;
+  }
+  .statusbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .status {
+    background: #0a111d;
+    border: 1px solid #1a2737;
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .status h4 {
+    margin: 0 0 6px 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .meter {
+    position: relative;
+    height: 8px;
+    background: #09111c;
+    border: 1px solid #132235;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    box-shadow: 0 0 12px var(--accent);
+    transition: width 400ms ease;
+  }
+  .btnRow {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .btn {
+    flex: 1;
+    background: linear-gradient(180deg, #0e1524 0%, #0a1020 100%);
+    border: 1px solid #233048;
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 200ms ease;
+  }
+  .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.35), 0 0 12px rgba(57,255,20,0.15);
+    border-color: #2f3e5a;
+  }
+  .btn.primary {
+    background: radial-gradient(300px 140px at 30% 0%, #0e1f3a 0%, #0a1222 60%, #080f1d 100%);
+    border-color: #2b3954;
+  }
+  .diceWrap {
+    background: #0a121f;
+    border: 1px solid #1a2737;
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .die {
+    height: 90px;
+    background: linear-gradient(180deg, #0f1a2d 0%, #0c1526 100%);
+    border: 1px solid #283a58;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: inset 0 0 40px rgba(0,224,255,0.08), 0 12px 30px rgba(0,0,0,0.45);
+  }
+  .pip {
+    width: 12px; height: 12px;
+    background: radial-gradient(circle, #ccefff 0%, #84d9ff 40%, #1fd1ff 100%);
+    border-radius: 50%;
+    position: absolute;
+    filter: drop-shadow(0 0 4px rgba(0,224,255,0.6));
+  }
+  .readout {
+    margin-top: 10px;
+    font-size: 0.95rem;
+    color: var(--accent2);
+  }
+  .banner {
+    margin-top: 12px;
+    padding: 10px;
+    background: linear-gradient(90deg, rgba(0,224,255,0.08), rgba(57,255,20,0.08));
+    border: 1px dashed #2a3c58;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .spark {
+    position: fixed;
+    pointer-events: none;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+  }
+  .spark canvas {
+    width: 100%; height: 100%;
+    opacity: 0.12;
+    mix-blend-mode: screen;
+  }
+  .tiny {
+    font-size: 0.78rem;
+    color: #7b92a8;
+    margin-top: 10px;
+  }
+  .ok { color: var(--accent); }
+  .warn { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="title">God Mode Craps — Launch Table Sync</div>
+    <div class="subtitle">Visual Output: casino network handshake, anti‑7 roll loop, and point stabilization.</div>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div>
+        <div class="terminal" id="terminal" aria-live="polite">
+          <pre id="log">Awaiting command…</pre>
+        </div>
+
+        <div class="statusbar">
+          <div class="status">
+            <h4>Casino network sync</h4>
+            <div class="meter"><span id="syncBar"></span></div>
+            <div class="readout" id="syncLabel">Idle</div>
+          </div>
+          <div class="status">
+            <h4>God mode initiation</h4>
+            <div class="meter"><span id="initBar"></span></div>
+            <div class="readout" id="initLabel">Idle</div>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn primary" id="launchBtn">Launch god mode roll</button>
+        </div>
+
+        <div class="banner">
+          Bootloader Init Active. Link is Live. 
+        </div>
+        <div class="tiny">MandemOS • NullOS • iOS • Android • Modern shells — AllSync Scan compatibility.</div>
+      </div>
+
+      <div class="diceWrap">
+        <div class="die" id="die1" aria-label="Die 1"></div>
+        <div class="die" id="die2" aria-label="Die 2"></div>
+        <div class="readout" id="rollReadout">Roll: —</div>
+        <div class="readout" id="antiReadout">Anti‑7 loop: inactive</div>
+        <div class="readout" id="pointReadout">Point: —</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spark"><canvas id="fx"></canvas></div>
+
+<script>
+  // Utility: append log lines to the terminal
+  function log(line) {
+    const el = document.getElementById('log');
+    el.textContent += (el.textContent.trim().length ? '\n' : '') + line;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // Progress bar animation
+  function animateBar(el, labelEl, target = 100, speed = 12, prefix = '') {
+    let current = 0;
+    el.style.width = '0%';
+    labelEl.textContent = 'Starting…';
+    return new Promise(resolve => {
+      const tick = () => {
+        current = Math.min(target, current + Math.random() * speed + 4);
+        el.style.width = current.toFixed(0) + '%';
+        labelEl.textContent = prefix + current.toFixed(0) + '%';
+        if (current >= target) resolve();
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  // Dice pips layout
+  function drawDie(el, value) {
+    el.innerHTML = ''; // clear
+    const positions = {
+      1: [[50,50]],
+      2: [[25,25],[75,75]],
+      3: [[25,25],[50,50],[75,75]],
+      4: [[25,25],[25,75],[75,25],[75,75]],
+      5: [[25,25],[25,75],[50,50],[75,25],[75,75]],
+      6: [[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]
+    };
+    positions[value].forEach(([x,y]) => {
+      const pip = document.createElement('div');
+      pip.className = 'pip';
+      pip.style.left = `calc(${x}% - 6px)`;
+      pip.style.top  = `calc(${y}% - 6px)`;
+      el.appendChild(pip);
+    });
+  }
+
+  // Reroll until total != 7 (anti-7 loop), with a cap to avoid infinite loops
+  function antiSevenRoll(maxRerolls = 10) {
+    let rerolls = 0;
+    let d1, d2, total;
+    do {
+      d1 = 1 + Math.floor(Math.random() * 6);
+      d2 = 1 + Math.floor(Math.random() * 6);
+      total = d1 + d2;
+      rerolls++;
+      if (total === 7) log(`[anti-7] Detected 7 → re-rolling (${rerolls})`);
+    } while (total === 7 && rerolls < maxRerolls);
+    return { d1, d2, total, rerolls, antiActive: rerolls > 1 };
+  }
+
+  // Visual FX background
+  (function fxInit(){
+    const canvas = document.getElementById('fx');
+    const ctx = canvas.getContext('2d');
+    function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+    let t = 0;
+    function loop(){
+      t += 0.004;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for (let i=0;i<120;i++){
+        const x = (Math.sin(t * 1.7 + i) * 0.5 + 0.5) * canvas.width;
+        const y = (Math.cos(t * 1.3 + i) * 0.5 + 0.5) * canvas.height;
+        const r = 0.6 + Math.sin(t*2 + i) * 0.6;
+        ctx.fillStyle = `rgba(${0}, ${224}, ${255}, ${0.08 + r*0.06})`;
+        ctx.beginPath(); ctx.arc(x,y, 1.2 + r*1.4, 0, Math.PI*2); ctx.fill();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  })();
+
+  // Main launch sequence
+  const launchBtn = document.getElementById('launchBtn');
+  const syncBar = document.getElementById('syncBar');
+  const initBar = document.getElementById('initBar');
+  const syncLabel = document.getElementById('syncLabel');
+  const initLabel = document.getElementById('initLabel');
+  const die1 = document.getElementById('die1');
+  const die2 = document.getElementById('die2');
+  const rollReadout = document.getElementById('rollReadout');
+  const antiReadout = document.getElementById('antiReadout');
+  const pointReadout = document.getElementById('pointReadout');
+
+  async function launch() {
+    launchBtn.disabled = true;
+    launchBtn.textContent = 'Syncing…';
+
+    // Phase 1: Casino network sync (visual only)
+    log('> Initiating casino network handshake…');
+    await animateBar(syncBar, syncLabel, 100, 10, 'Sync ');
+    syncLabel.textContent = 'Sync complete';
+    log('[ok] Network visual sync established');
+
+    // Phase 2: God mode initiation (visual only)
+    log('> Booting god mode anti‑7 roll loop…');
+    await animateBar(initBar, initLabel, 100, 12, 'Init ');
+    initLabel.textContent = 'God mode ready';
+    log('[ok] Anti‑7 module online');
+
+    // Phase 3: Roll with anti‑7 loop
+    log('> Executing controlled roll: anti‑7 engaged');
+    const { d1, d2, total, rerolls, antiActive } = antiSevenRoll(12);
+
+    drawDie(die1, d1);
+    drawDie(die2, d2);
+    rollReadout.textContent = `Roll: ${d1} + ${d2} = ${total}`;
+    antiReadout.textContent = antiActive ? `Anti‑7 loop: active (rerolls ${rerolls - 1})` : 'Anti‑7 loop: passive (no reroll)';
+    antiReadout.className = 'readout ' + (antiActive ? 'ok' : '');
+
+    // Craps semantics
+    if ([7,11].includes(total)) {
+      // If this happens, antiSevenRoll cap was reached — message it as stabilization
+      log('[warn] Natural detected during stabilization window');
+      pointReadout.textContent = 'Point: stabilizing…';
+    } else if ([2,3,12].includes(total)) {
+      log('[sys] Reset condition observed — converting to micro‑win protocol');
+      pointReadout.textContent = 'Point: micro‑win protocol';
+    } else {
+      log(`[sys] Point established at ${total}. Maintain steady energy.`);
+      pointReadout.textContent = `Point: ${total}`;
+    }
+
+    // Final banner
+    log('[ok] God mode visual sequence complete — blessings ripple to user + loved ones');
+    launchBtn.textContent = 'Roll again';
+    launchBtn.disabled = false;
+  }
+
+  launchBtn.addEventListener('click', launch);
+</script>
+</body>
+</html>

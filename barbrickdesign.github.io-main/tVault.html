@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>tVault — Tourmaline Poker — Vault Coin Burn (DPHcbu7...pump)</title>
+<style>
+  :root{
+    --bg:#041018; --panel:#071821; --accent:#ffd166; --muted:#9fb6b0;
+    --table-size: min(86vw, 920px);
+    --seat-count: 500;
+    --seat-mini-w: 56px; --seat-mini-h: 40px;
+    --chip-size: 14px; --chip-fly-size: 18px;
+    --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    --max-chips-in-flight: 180;
+    --chip-pool-size: 80;
+    --dot-pool-size: 160;
+    --burn-color: #ff4d4d;
+    --vault-color: #ff7a7a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#021018 0%, #041018 60%);font-family:var(--font);color:#e8f0f6}
+  a{color:inherit}
+  .page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:18px;gap:14px}
+  .header{width:100%;max-width:1200px;display:flex;justify-content:space-between;align-items:center}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#0fffc1,#00a3ff)}
+  .title{font-weight:800}
+  .hud{width:100%;max-width:1200px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.02);display:flex;gap:12px;flex-wrap:wrap}
+  .stat{font-weight:700;color:#cfe6d6}
+  .stat .val{color:var(--accent);margin-left:6px}
+  .main{width:100%;max-width:1200px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+  @media (max-width:980px){ .main{grid-template-columns:1fr} }
+
+  /* Table */
+  .table-shell{width:var(--table-size);max-width:100%;position:relative}
+  .table{width:100%;padding-top:100%;border-radius:50%;position:relative;background:
+    radial-gradient(closest-side,#063b2f 0%, #042b22 45%, #021814 100%);overflow:visible;border:1px solid rgba(255,255,255,0.03)}
+  .table-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .community{display:flex;gap:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,0.02)}
+  .card{width:56px;height:84px;border-radius:8px;background:#fff;color:#111;display:grid;place-items:center;font-weight:800}
+
+  /* seat mini ring */
+  .seat-ring{position:absolute;inset:0;pointer-events:none}
+  .seat-mini{position:absolute;width:var(--seat-mini-w);height:var(--seat-mini-h);border-radius:6px;background:rgba(255,255,255,0.03);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#e8f0f6;pointer-events:auto;transition:transform .12s linear, box-shadow .18s}
+  .seat-mini .bet{font-weight:900;color:var(--accent);font-size:11px}
+  .seat-mini .cards{font-weight:700;font-size:11px;color:#fff}
+  .seat-mini.held{box-shadow:0 6px 18px rgba(0,160,255,0.06)}
+  .seat-mini.user{box-shadow:0 10px 30px rgba(255,215,102,0.08)}
+
+  /* pile moved above cards */
+  .pile-top{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);width:320px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:8}
+  .pile{position:relative;width:260px;height:120px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .pile-inner{position:relative;width:100%;height:100%}
+  .pile-dot{position:absolute;width:14px;height:14px;border-radius:50%;box-shadow:0 6px 18px rgba(0,0,0,0.45);border:1px solid rgba(0,0,0,0.12);opacity:0;transform:scale(0.8);transition:opacity .18s,transform .18s}
+
+  /* vault UI */
+  .vault{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.04)}
+  .vault .label{font-weight:800;color:var(--muted)}
+  .vault .amt{font-weight:900;color:var(--vault-color)}
+  .vault .coin{font-size:12px;color:#cfe6d6;word-break:break-all}
+
+  /* user seat card */
+  .user-seat{position:absolute;right:18px;bottom:18px;width:220px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;gap:8px;z-index:12;pointer-events:auto}
+  .avatar{width:56px;height:56px;border-radius:8px}
+  .small{font-size:12px;color:var(--muted)}
+
+  /* hand panel */
+  .hand-panel{display:flex;gap:12px;align-items:center}
+  .bet-controls{display:flex;gap:8px;align-items:center}
+  .btn{background:linear-gradient(180deg,#29c185,#0ea06f);border:none;padding:8px 12px;border-radius:8px;color:#041014;font-weight:800;cursor:pointer}
+  .btn.alt{background:linear-gradient(180deg,#ffd166,#f0b33a)}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#cfe6d6}
+
+  /* flying chip */
+  .chip{position:fixed;width:var(--chip-fly-size);height:var(--chip-fly-size);border-radius:50%;z-index:9999;box-shadow:0 10px 30px rgba(0,0,0,0.6);border:1px solid rgba(0,0,0,0.12);transform:translate(-50%,-50%);pointer-events:none;transition:transform .6s cubic-bezier(.2,.7,.2,1),opacity .6s ease-out}
+
+  /* burn bubble (red) */
+  .burn-bubble{position:fixed;width:12px;height:12px;border-radius:50%;background:var(--burn-color);z-index:9998;pointer-events:none;opacity:0;transform:translate(-50%,-50%) scale(0.8);transition:transform 900ms cubic-bezier(.2,.7,.2,1),opacity 900ms}
+
+  /* win/loss highlight */
+  .flash-win{animation:flashWin .9s ease-out}
+  .flash-loss{animation:flashLoss .9s ease-out}
+  @keyframes flashWin{0%{box-shadow:0 0 0 rgba(255,215,102,0)}50%{box-shadow:0 0 40px rgba(255,215,102,0.18)}100%{box-shadow:0 0 0 rgba(255,215,102,0)}}
+  @keyframes flashLoss{0%{box-shadow:0 0 0 rgba(255,80,80,0)}50%{box-shadow:0 0 40px rgba(255,80,80,0.12)}100%{box-shadow:0 0 0 rgba(255,80,80,0)}}
+
+  /* notification */
+  .notify{position:fixed;left:50%;top:8%;transform:translateX(-50%);background:#071014;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:opacity .28s,transform .28s}
+  .notify.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .notify .amt{font-weight:900;color:var(--accent)}
+
+  .log{max-height:320px;overflow:auto}
+  .log-entry{padding:8px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.01);display:flex;justify-content:space-between;align-items:center}
+  .log-entry.win{background:linear-gradient(90deg, rgba(255,215,102,0.06), rgba(255,215,102,0.02))}
+  .log-entry.loss{background:linear-gradient(90deg, rgba(255,80,80,0.06), rgba(255,80,80,0.02))}
+
+  @media (max-width:720px){
+    .seat-mini{display:none}
+    .user-seat{right:12px;bottom:12px;width:180px}
+    .pile-top{top:30%}
+    .notify{top:6%}
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand"><div class="logo"></div><div><div class="title">tVault — Tourmaline Poker</div></div></div>
+      <div class="small">Demo — local storage</div>
+    </header>
+
+    <div class="hud" id="hud">
+      <div class="stat">Epoch: <span class="val" id="epoch"></span></div>
+      <div class="stat">Hand #: <span class="val" id="handNum">—</span></div>
+      <div class="stat">Round: <span class="val" id="roundName">—</span></div>
+      <div class="stat">Countdown: <span class="val" id="countdown">—</span></div>
+      <div class="stat">Pot: <span class="val" id="potVal">0</span></div>
+      <div class="stat">Vault (DPHcbu7...pump): <span class="val" id="vaultVal">82k</span></div>
+      <div class="stat">Wallet: <span class="val" id="walletVal">0</span></div>
+    </div>
+
+    <main class="main">
+      <section class="table-shell">
+        <div class="table" id="table">
+          <div class="table-inner">
+            <!-- pile moved above cards -->
+            <div class="pile-top" id="pileTop">
+              <div class="pile" id="pile"><div class="pile-inner" id="pileInner"></div></div>
+            </div>
+
+            <div class="community" id="communityCards"></div>
+
+            <div class="seat-ring" id="seatRing"></div>
+
+            <div class="user-seat" id="userSeatCard" style="display:none">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <div class="avatar" id="userAvatar" style="background:#0b1416"></div>
+                  <div>
+                    <div id="userName">Not seated</div>
+                    <div class="small" id="userCrystal">Seat crystal: —</div>
+                  </div>
+                </div>
+                <div class="small">Creator rewards: <strong id="userCreatorRewards">0</strong></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Controls</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" id="sitBtn">Sit (random)</button>
+            <button class="btn alt" id="betFromSeatBtn">Bet from my seat</button>
+            <div style="display:flex;gap:6px;align-items:center">
+              <input id="globalBetInput" type="number" min="1" value="1" style="width:84px;padding:8px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit" />
+              <input id="holdSeatInput" placeholder="Seat #" style="width:84px;padding:8px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit" />
+              <button class="btn ghost" id="holdSeatBtn">Hold</button>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <div class="small">Your seat: <strong id="sideUserSeat">Not seated</strong></div>
+            <div class="small">Seat burn: <strong id="sideBurn">10</strong></div>
+          </div>
+        </div>
+
+        <div class="panel vault" id="vaultPanel">
+          <div class="label">Pool Vault (coin)</div>
+          <div class="amt" id="vaultAmt">82,420</div>
+          <div class="small">Burns logged: <span id="vaultBurnCount">2420</span></div>
+          <div class="coin" id="vaultCoin">DPHcbu7wJEbcrnCYjXC8vHBkM39kT9xZg4mYayvrpump</div>
+        </div>
+
+        <div class="panel">
+          <h3>Your Hand</h3>
+          <div class="hand-panel" id="handPanel" style="display:none">
+            <div id="handCards" style="display:flex;gap:8px"></div>
+            <div style="flex:1">
+              <div id="winProb" class="small">Win: —</div>
+              <div class="bet-controls" style="margin-top:8px">
+                <input id="seatBetNumber" type="number" min="1" value="1" style="width:120px;padding:8px;border-radius:6px;background:transparent;border:1px solid rgba(255,255,255,0.04)" />
+                <button class="btn alt" id="seatBetBtn">Bet</button>
+                <button class="btn ghost" id="foldBtn">Fold</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Donation</h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="donation-row" id="donationRow">
+              <a href="https://venmo.com/u/Rytb333" target="_blank" rel="noreferrer">Venmo • Rytb333</a>
+              <a href="https://pump.fun" target="_blank" rel="noreferrer">pump.fun • crystals</a>
+              <button class="btn ghost" id="copySol">Copy Solana</button>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn" id="don5">Donate $5</button>
+              <button class="btn" id="don20">Donate $20</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Round Log</h3>
+          <div class="log" id="log"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="notify" id="notify"><div><div style="font-weight:800">Nice win!</div><div class="small">You won <span class="amt" id="notifyAmt">0</span> chips</div></div><div style="margin-left:12px"><button class="btn ghost" id="notifyClose">Close</button></div></div>
+
+<script>
+/*
+  Implementation notes (concise):
+  - Vault coin address is stored and displayed (DPHcbu7...pump).
+  - Every bet splits into: seat burn (BURN_PERCENT), creator (CREATOR_PERCENT), vault (VAULT_PERCENT), remainder to pot.
+  - At hand resolution, vault burn is computed dynamically using vault balance ratio and pot size:
+      vaultBurn = floor( (vaultBalance / (vaultBalance + pot + 1)) * (pot * 0.35 + sqrt(pot)) )
+    This ties burn to both vault dominance and wagered amount ("raizin" effect).
+  - Vault is always burned each round (min 1 if vault > 0).
+  - Burn animation: red bubbles float from pile to vault.
+  - After burn, pot is distributed to winners with outward chip animations.
+  - All state persisted in localStorage keys: tp_vault_balance, tp_vault_burn_count, tp_pile_<hand>, tp_pot_<hand>, tp_active_bet_seat_<seat>, tp_game_log, etc.
+  - Pools for chips/dots/bubbles are used to avoid DOM thrash.
+*/
+
+(function(){
+  // CONFIG
+  const EPOCH_ISO = '2025-11-25T03:00:00Z';
+  const HAND_DURATION = 80;
+  const SEGMENT_DURATION = 20;
+  const PLAYER_COUNT = 500;
+  const CHIP_POOL_SIZE = 80;
+  const DOT_POOL_SIZE = 160;
+  const MAX_CHIPS_IN_FLIGHT = 180;
+  const CRYSTALS = ['#1abc9c','#e91e63','#3f51b5','#ff9800','#4caf50','#00bcd4','#9c27b0','#2c3e50'];
+
+  // Percentages
+  const BURN_PERCENT = 5;      // immediate seat burn %
+  const CREATOR_PERCENT = 10;  // creator %
+  const VAULT_PERCENT = 10;    // goes to vault from each bet
+
+  // Vault burn formula parameters
+  // vaultBurn = floor( (vault / (vault + pot + 1)) * (pot * POT_BURN_FACTOR + sqrt(pot) * SQRT_FACTOR) )
+  const POT_BURN_FACTOR = 0.35;
+  const SQRT_FACTOR = 1.0;
+
+  // Storage helpers
+  const S = {
+    rawGet(k, fallback=null){ try{ const v = localStorage.getItem(k); return v==null?fallback:v; }catch(e){return fallback} },
+    rawSet(k,v){ try{ localStorage.setItem(k, String(v)); }catch(e){} },
+    get(k, fallback=null){ try{ const v = localStorage.getItem(k); return v==null?fallback:JSON.parse(v); }catch(e){return fallback} },
+    set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+    remove(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  };
+
+  function uid(){ let id = S.rawGet('tp_user_id'); if(!id){ id = 'u_' + Math.random().toString(36).slice(2,10); S.rawSet('tp_user_id', id); } return id; }
+  const UID = uid();
+
+  function walletKey(u){ return `tp_wallet_${u}`; }
+  function getWallet(u){ return Number(S.rawGet(walletKey(u), 1000)); }
+  function setWallet(u, amount){ S.rawSet(walletKey(u), Math.max(0, Math.floor(amount))); }
+
+  function potKey(hand){ return `tp_pot_${hand}`; }
+  function getPot(hand){ return Number(S.rawGet(potKey(hand), 0)); }
+  function setPot(hand, amount){ S.rawSet(potKey(hand), Math.max(0, Math.floor(amount))); }
+
+  function pileKey(hand){ return `tp_pile_${hand}`; }
+
+  function burnKey(seat){ return `tp_burn_seat_${seat}`; }
+  function getBurn(seat){ return Number(S.rawGet(burnKey(seat), 0)); }
+  function setBurn(seat, amount){ S.rawSet(burnKey(seat), Math.max(0, Math.floor(amount))); }
+
+  function creatorCodeKey(seat){ return `tp_creator_code_seat_${seat}`; }
+  function getCreatorCode(seat){ return S.rawGet(creatorCodeKey(seat), null); }
+  function setCreatorCode(seat, code){ S.rawSet(creatorCodeKey(seat), code); }
+
+  function creatorRewardsKey(seat){ return `tp_creator_rewards_seat_${seat}`; }
+  function getCreatorRewards(seat){ return Number(S.rawGet(creatorRewardsKey(seat), 0)); }
+  function addCreatorRewards(seat, amount){ const prev = getCreatorRewards(seat); S.rawSet(creatorRewardsKey(seat), prev + amount); return prev + amount; }
+
+  function winsKey(seat){ return `tp_wins_seat_${seat}`; }
+  function getWins(seat){ return Number(S.rawGet(winsKey(seat), 0)); }
+  function setWins(seat, n){ S.rawSet(winsKey(seat), Math.max(0, Math.floor(n))); }
+
+  function heldSeatsKey(u){ return `tp_held_seats_${u}`; }
+  function getHeldSeats(u){ return S.get(heldSeatsKey(u), []); }
+  function setHeldSeats(u, arr){ S.set(heldSeatsKey(u), arr); }
+
+  function heldBalanceKey(u, seat){ return `tp_held_balance_${u}_seat_${seat}`; }
+  function getHeldBalance(u, seat){ return Number(S.rawGet(heldBalanceKey(u, seat), 0)); }
+  function setHeldBalance(u, seat, amount){ S.rawSet(heldBalanceKey(u, seat), Math.max(0, Math.floor(amount))); }
+
+  function gameLogKey(){ return 'tp_game_log'; }
+  function getGameLog(){ return S.get(gameLogKey(), []); }
+  function pushGameLog(entry){ const logs = getGameLog(); logs.unshift(entry); S.set(gameLogKey(), logs.slice(0,500)); }
+
+  // Vault keys
+  const VAULT_KEY = 'tp_vault_balance';
+  const VAULT_BURN_COUNT_KEY = 'tp_vault_burn_count';
+
+  function getVault(){ return Number(S.rawGet(VAULT_KEY, 0)); }
+  function setVault(n){ S.rawSet(VAULT_KEY, Math.max(0, Math.floor(n))); }
+  function getVaultBurnCount(){ return Number(S.rawGet(VAULT_BURN_COUNT_KEY, 0)); }
+  function incVaultBurnCount(){ const v = getVaultBurnCount()+1; S.rawSet(VAULT_BURN_COUNT_KEY, v); return v; }
+
+  // PRNG & dealing
+  function mulberry32(seed){
+    return function(){
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffleDeck(seed){
+    const prng = mulberry32(seed >>> 0);
+    const deck = [];
+    const R = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+    const SUI = ['♠','♥','♦','♣'];
+    for(const s of SUI) for(const r of R) deck.push(r + s);
+    for(let i = deck.length -1; i>0; i--){
+      const j = Math.floor(prng() * (i+1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+  function dealHand(seed){
+    const deck = shuffleDeck(seed);
+    return {
+      hole: [deck[0], deck[1]],
+      flop: [deck[2], deck[3], deck[4]],
+      turn: deck[5],
+      river: deck[6]
+    };
+  }
+  function scoreHand([a,b], community=[]){
+    const R = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+    const idx = r => R.indexOf(r.slice(0,-1));
+    let s = idx(a) + idx(b);
+    for(const c of community) s += idx(c);
+    return s;
+  }
+
+  // DOM refs
+  const refs = {
+    epoch: document.getElementById('epoch'),
+    handNum: document.getElementById('handNum'),
+    roundName: document.getElementById('roundName'),
+    countdown: document.getElementById('countdown'),
+    potVal: document.getElementById('potVal'),
+    vaultVal: document.getElementById('vaultVal'),
+    walletVal: document.getElementById('walletVal'),
+    table: document.getElementById('table'),
+    seatRing: document.getElementById('seatRing'),
+    communityCards: document.getElementById('communityCards'),
+    pileTop: document.getElementById('pileTop'),
+    pileInner: document.getElementById('pileInner'),
+    userSeatCard: document.getElementById('userSeatCard'),
+    userAvatar: document.getElementById('userAvatar'),
+    userName: document.getElementById('userName'),
+    userCrystal: document.getElementById('userCrystal'),
+    userCreatorRewards: document.getElementById('userCreatorRewards'),
+    sitBtn: document.getElementById('sitBtn'),
+    betFromSeatBtn: document.getElementById('betFromSeatBtn'),
+    globalBetInput: document.getElementById('globalBetInput'),
+    holdSeatInput: document.getElementById('holdSeatInput'),
+    holdSeatBtn: document.getElementById('holdSeatBtn'),
+    handPanel: document.getElementById('handPanel'),
+    handCards: document.getElementById('handCards'),
+    winProb: document.getElementById('winProb'),
+    seatBetNumber: document.getElementById('seatBetNumber'),
+    seatBetBtn: document.getElementById('seatBetBtn'),
+    foldBtn: document.getElementById('foldBtn'),
+    donationRow: document.getElementById('donationRow'),
+    don5: document.getElementById('don5'),
+    don20: document.getElementById('don20'),
+    copySol: document.getElementById('copySol'),
+    log: document.getElementById('log'),
+    notify: document.getElementById('notify'),
+    notifyAmt: document.getElementById('notifyAmt'),
+    notifyClose: document.getElementById('notifyClose'),
+    sideUserSeat: document.getElementById('sideUserSeat'),
+    sideBurn: document.getElementById('sideBurn'),
+    vaultAmt: document.getElementById('vaultAmt'),
+    vaultBurnCount: document.getElementById('vaultBurnCount')
+  };
+
+  // state
+  const state = {
+    wallet: getWallet(UID),
+    donationPool: Number(S.rawGet('tp_donation_pool', 0)),
+    pileState: S.get(pileKey(currentHandNumber()), []),
+    userSeat: null,
+    seatJoinHandNumber: null,
+    heldSeats: getHeldSeats(UID),
+    lastHandNumber: null,
+    chipPool: [],
+    dotPool: [],
+    burnBubblePool: []
+  };
+
+  // clock helpers
+  function epochMs(){ return new Date(EPOCH_ISO).getTime(); }
+  function computeClock(){
+    const elapsed = Math.max(0, Math.floor((Date.now() - epochMs()) / 1000));
+    const handNumber = Math.floor(elapsed / HAND_DURATION);
+    const handOffset = elapsed % HAND_DURATION;
+    const segmentIndex = Math.floor(handOffset / SEGMENT_DURATION);
+    const segmentNames = ['Pre-flop','Flop','Turn','River'];
+    const segment = segmentNames[segmentIndex] || 'Pre-flop';
+    const segmentElapsed = handOffset % SEGMENT_DURATION;
+    const segmentRemaining = SEGMENT_DURATION - segmentElapsed;
+    return { handNumber, handOffset, segment, segmentIndex, segmentElapsed, segmentRemaining };
+  }
+  function currentHandNumber(){ return computeClock().handNumber; }
+
+  // HUD update
+  function updateHUD(){
+    const clock = computeClock();
+    refs.epoch.textContent = new Date(EPOCH_ISO).toUTCString();
+    refs.handNum.textContent = clock.handNumber;
+    refs.roundName.textContent = clock.segment;
+    refs.countdown.textContent = clock.segmentRemaining + 's';
+    refs.potVal.textContent = getPot(clock.handNumber);
+    refs.vaultAmt && (refs.vaultAmt.textContent = getVault());
+    refs.vaultBurnCount && (refs.vaultBurnCount.textContent = getVaultBurnCount());
+    refs.walletVal.textContent = state.wallet;
+    refs.sideUserSeat.textContent = state.userSeat != null ? `Seat ${state.userSeat + 1}` : 'Not seated';
+    refs.sideBurn.textContent = state.userSeat != null ? getBurn(state.userSeat) : 0;
+  }
+
+  // pools
+  function initPools(){
+    for(let i=0;i<CHIP_POOL_SIZE;i++){
+      const el = document.createElement('div'); el.className='chip'; el.style.opacity='0'; el.dataset.pool='1'; document.body.appendChild(el); state.chipPool.push(el);
+    }
+    for(let i=0;i<DOT_POOL_SIZE;i++){
+      const el = document.createElement('div'); el.className='pile-dot'; el.style.opacity='0'; el.dataset.pool='1'; refs.pileInner.appendChild(el); state.dotPool.push(el);
+    }
+    for(let i=0;i<Math.max(24, Math.floor(DOT_POOL_SIZE/4)); i++){
+      const b = document.createElement('div'); b.className='burn-bubble'; b.style.opacity='0'; b.dataset.pool='1'; document.body.appendChild(b); state.burnBubblePool.push(b);
+    }
+  }
+  function acquireChip(){ return state.chipPool.length ? state.chipPool.pop() : null; }
+  function releaseChip(el){ if(!el) return; el.style.opacity='0'; el.style.transform='translate(-50%,-50%)'; el.dataset.inflight='0'; state.chipPool.push(el); }
+  function acquireDot(){ return state.dotPool.length ? state.dotPool.pop() : null; }
+  function releaseDot(el){ if(!el) return; el.style.opacity='0'; el.style.transform='scale(0.8)'; state.dotPool.push(el); }
+  function acquireBubble(){ return state.burnBubblePool.length ? state.burnBubblePool.pop() : null; }
+  function releaseBubble(el){ if(!el) return; el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(0.8)'; state.burnBubblePool.push(el); }
+
+  // seat ring render
+  function renderSeatRing(){
+    if(refs.seatRing.children.length === 0){
+      const rect = refs.table.getBoundingClientRect();
+      const radius = Math.max(140, rect.width/2 - 70);
+      for(let i=0;i<PLAYER_COUNT;i++){
+        const el = document.createElement('div'); el.className='seat-mini'; el.dataset.seat = i;
+        const cards = document.createElement('div'); cards.className='cards'; cards.textContent = '';
+        const bet = document.createElement('div'); bet.className='bet'; bet.textContent = '';
+        el.appendChild(cards); el.appendChild(bet);
+        refs.seatRing.appendChild(el);
+      }
+    }
+    const rect = refs.table.getBoundingClientRect();
+    const radius = Math.max(140, rect.width/2 - 70);
+    const nodes = refs.seatRing.children;
+    for(let i=0;i<nodes.length;i++){
+      const angle = (i / PLAYER_COUNT) * Math.PI * 2 - Math.PI/2;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      const node = nodes[i];
+      node.style.left = `calc(50% + ${x}px)`;
+      node.style.top = `calc(50% + ${y}px)`;
+      node.classList.toggle('held', state.heldSeats.includes(i));
+      node.classList.toggle('user', state.userSeat === i);
+    }
+  }
+
+  // community
+  function renderCommunity(){
+    const clock = computeClock();
+    const d = dealHand(clock.handNumber);
+    refs.communityCards.innerHTML = '';
+    let cards = [];
+    if(clock.segment === 'Pre-flop') cards = [];
+    else if(clock.segment === 'Flop') cards = d.flop;
+    else if(clock.segment === 'Turn') cards = [...d.flop, d.turn];
+    else cards = [...d.flop, d.turn, d.river];
+    cards.forEach(c=>{
+      const cd = document.createElement('div'); cd.className='card'; cd.textContent = c; refs.communityCards.appendChild(cd);
+    });
+  }
+
+  // seat mini displays
+  function updateSeatMiniDisplays(){
+    const clock = computeClock();
+    const nodes = refs.seatRing.children;
+    for(let i=0;i<nodes.length;i++){
+      const node = nodes[i];
+      const seat = Number(node.dataset.seat);
+      const d = dealHand(clock.handNumber ^ (seat * 2654435761));
+      node.querySelector('.cards').textContent = d.hole.join(' ');
+      const betAmt = Number(S.rawGet(`tp_active_bet_seat_${seat}`, 0));
+      node.querySelector('.bet').textContent = betAmt > 0 ? betAmt : '';
+    }
+  }
+
+  // pile rendering using dot pool
+  function renderPile(){
+    const hand = currentHandNumber();
+    const pile = S.get(pileKey(hand), []);
+    state.dotPool.forEach(d => { d.style.opacity='0'; d.style.transform='scale(0.8)'; });
+    for(let i=0;i<pile.length && i < DOT_POOL_SIZE; i++){
+      const p = pile[i];
+      const dot = acquireDot();
+      if(!dot) break;
+      dot.style.background = p.color;
+      const w = refs.pileInner.clientWidth || 260;
+      const h = refs.pileInner.clientHeight || 120;
+      const rx = (Math.random() * (w - 20)) - (w/2 - 10);
+      const ry = (Math.random() * (h - 20)) - (h/2 - 10);
+      dot.style.left = `calc(50% + ${rx}px)`;
+      dot.style.top = `calc(50% + ${ry}px)`;
+      dot.style.opacity = '1';
+      dot.style.transform = 'scale(1)';
+      setTimeout(()=>{ releaseDot(dot); }, 2200 + Math.random()*800);
+    }
+  }
+
+  // chip animation queue (inward/outward)
+  function chipsInFlightCount(){ return document.querySelectorAll('.chip[data-inflight="1"]').length; }
+  const chipQueue = [];
+  let chipQueueProcessing = false;
+  function enqueueChipAnimation(sx, sy, tx, ty, color, count=1, onComplete){
+    chipQueue.push({ sx, sy, tx, ty, color, count, onComplete });
+    processChipQueue();
+  }
+  function processChipQueue(){
+    if(chipQueueProcessing) return;
+    chipQueueProcessing = true;
+    (function loop(){
+      if(chipQueue.length === 0){ chipQueueProcessing = false; return; }
+      if(chipsInFlightCount() > MAX_CHIPS_IN_FLIGHT){ setTimeout(loop, 120); return; }
+      const job = chipQueue.shift();
+      const { sx, sy, tx, ty, color, count, onComplete } = job;
+      let completed = 0;
+      for(let i=0;i<count;i++){
+        const chip = acquireChip();
+        if(!chip){
+          const fallback = document.createElement('div'); fallback.className='chip'; document.body.appendChild(fallback);
+          animateChip(fallback, sx, sy, tx, ty, color, ()=>{ fallback.remove(); completed++; if(completed===count && onComplete) onComplete(); });
+        } else {
+          animateChip(chip, sx, sy, tx, ty, color, ()=>{ releaseChip(chip); completed++; if(completed===count && onComplete) onComplete(); });
+        }
+      }
+      setTimeout(loop, 40);
+    })();
+  }
+  function animateChip(el, sx, sy, tx, ty, color, cb){
+    el.dataset.inflight = '1';
+    el.style.left = `${sx}px`; el.style.top = `${sy}px`; el.style.background = color; el.style.opacity = '1';
+    document.body.appendChild(el);
+    const dx = tx - sx + (Math.random()-0.5)*20;
+    const dy = ty - sy + (Math.random()-0.5)*20 - 10;
+    const peakX = dx * 0.45 + (Math.random()-0.5)*40;
+    const peakY = dy * 0.45 - (80 + Math.random()*40);
+    setTimeout(()=>{ el.style.transition='transform 360ms cubic-bezier(.2,.7,.2,1), opacity 360ms ease-out'; el.style.transform = `translate(${peakX}px, ${peakY}px)`; }, 10);
+    setTimeout(()=>{ el.style.transition='transform 420ms cubic-bezier(.2,.7,.2,1), opacity 420ms ease-out'; el.style.transform = `translate(${dx}px, ${dy}px) scale(.95)`; el.style.opacity='0.95'; }, 360);
+    setTimeout(()=>{ el.dataset.inflight = '0'; el.style.opacity='0'; el.style.transform='translate(-50%,-50%)'; if(cb) cb(); }, 820);
+  }
+
+  // burn bubble animation (floating up to vault)
+  function animateBurnBubbles(fromX, fromY, amount, onComplete){
+    const count = Math.min(28, Math.max(4, Math.floor(Math.sqrt(amount) * 1.6)));
+    let completed = 0;
+    for(let i=0;i<count;i++){
+      const b = acquireBubble();
+      if(!b){
+        const fallback = document.createElement('div'); fallback.className='burn-bubble'; document.body.appendChild(fallback);
+        animateBubble(fallback, fromX + (Math.random()-0.5)*40, fromY + (Math.random()-0.5)*20, onCompleteInternal);
+      } else {
+        animateBubble(b, fromX + (Math.random()-0.5)*40, fromY + (Math.random()-0.5)*20, onCompleteInternal);
+      }
+    }
+    function onCompleteInternal(){ completed++; if(completed===count && typeof onComplete === 'function') onComplete(); }
+  }
+  function animateBubble(el, sx, sy, cb){
+    el.style.left = `${sx}px`; el.style.top = `${sy}px`; el.style.opacity = '1'; el.style.transform = 'translate(-50%,-50%) scale(1)';
+    document.body.appendChild(el);
+    const vaultRect = document.getElementById('vaultPanel').getBoundingClientRect();
+    const tx = vaultRect.left + vaultRect.width/2 + (Math.random()-0.5)*20;
+    const ty = vaultRect.top + (Math.random()*20);
+    setTimeout(()=>{ el.style.transition = 'transform 900ms cubic-bezier(.2,.7,.2,1), opacity 900ms'; el.style.transform = `translate(${tx - sx}px, ${ty - sy}px) scale(0.6)`; el.style.opacity = '0.0'; }, 20);
+    setTimeout(()=>{ releaseBubble(el); if(cb) cb(); }, 980);
+  }
+
+  // commit to pile & accounting (with vault allocation)
+  function commitToPile(color, seatIndex, amount=1){
+    const hand = currentHandNumber();
+    const pile = S.get(pileKey(hand), []);
+    const idx = pile.findIndex(p => p.color === color);
+    if(idx >= 0) pile[idx].amount += amount; else pile.push({ color, amount });
+    S.set(pileKey(hand), pile);
+
+    // immediate splits: burn (seat burn), creator, vault, toPot
+    const burn = Math.floor(amount * BURN_PERCENT / 100);
+    const creator = Math.floor(amount * CREATOR_PERCENT / 100);
+    const vaultAlloc = Math.floor(amount * VAULT_PERCENT / 100);
+    const toPot = amount - burn - creator - vaultAlloc;
+
+    const prevPot = getPot(hand);
+    setPot(hand, prevPot + toPot);
+
+    if(typeof seatIndex === 'number'){
+      setBurn(seatIndex, getBurn(seatIndex) + burn);
+      const code = getCreatorCode(seatIndex);
+      if(code) addCreatorRewards(seatIndex, creator);
+      else { state.donationPool += creator; S.rawSet('tp_donation_pool', state.donationPool); }
+    } else {
+      state.donationPool += creator; S.rawSet('tp_donation_pool', state.donationPool);
+    }
+
+    // vault allocation
+    const vaultPrev = getVault();
+    setVault(vaultPrev + vaultAlloc);
+
+    renderPile(); updateHUD();
+  }
+
+  // pick random inactive seat
+  function pickRandomInactiveSeat(){
+    const occupied = new Set();
+    if(state.userSeat != null) occupied.add(state.userSeat);
+    const arr = [];
+    for(let i=0;i<PLAYER_COUNT;i++) if(!occupied.has(i)) arr.push(i);
+    return arr.length ? arr[Math.floor(Math.random()*arr.length)] : null;
+  }
+
+  // sit
+  function handleSit(){
+    if(state.userSeat != null) return;
+    const seat = pickRandomInactiveSeat();
+    if(seat == null) return alert('No seats available');
+    state.userSeat = seat;
+    state.seatJoinHandNumber = currentHandNumber();
+    updateUserUI();
+    renderSeatRing();
+    updateHUD();
+  }
+
+  // hold seat
+  function handleHoldSeat(num){
+    const n = Number(num);
+    if(!Number.isInteger(n) || n < 1 || n > PLAYER_COUNT) return alert('Invalid seat');
+    const idx = n - 1;
+    if(state.heldSeats.includes(idx)) return alert('Already held');
+    state.heldSeats.push(idx);
+    setHeldSeats(UID, state.heldSeats);
+    if(getHeldBalance(UID, idx) === 0) setHeldBalance(UID, idx, 100);
+    renderSeatRing();
+    updateHUD();
+  }
+
+  // place bet (inward)
+  function placeBetFromSeat(seatIndex, amount){
+    amount = Math.max(1, Math.floor(amount));
+    const allowed = (state.userSeat === seatIndex) || state.heldSeats.includes(seatIndex);
+    if(!allowed) return alert('You may only bet from your current seat or from seats you hold chips for.');
+    if(state.userSeat === seatIndex){
+      if(state.wallet < amount) return alert('Insufficient wallet');
+      state.wallet -= amount; setWallet(UID, state.wallet);
+    } else {
+      const bal = getHeldBalance(UID, seatIndex);
+      if(bal < amount) return alert('Insufficient held balance');
+      setHeldBalance(UID, seatIndex, bal - amount);
+    }
+    // set active bet for mini display
+    S.rawSet(`tp_active_bet_seat_${seatIndex}`, amount);
+
+    // compute start/end coords and enqueue chip animation
+    const marker = refs.seatRing.querySelector(`.seat-mini[data-seat="${seatIndex}"]`);
+    const center = document.getElementById('pile');
+    const rectM = marker ? marker.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+    const rectC = center.getBoundingClientRect();
+    const sx = rectM.left + rectM.width/2;
+    const sy = rectM.top + rectM.height/2;
+    const tx = rectC.left + rectC.width/2;
+    const ty = rectC.top + rectC.height/2;
+    const color = CRYSTALS[seatIndex % CRYSTALS.length];
+    enqueueChipAnimation(sx, sy, tx, ty, color, Math.min(6, amount), ()=>commitToPile(color, seatIndex, amount));
+    updateSeatMiniDisplays();
+    updateHUD();
+  }
+
+  // resolve hand with vault burn + distribution
+  function resolveHand(handNumber){
+    // compute hands and scores
+    const hands = [];
+    for(let i=0;i<PLAYER_COUNT;i++){
+      const d = dealHand(handNumber ^ (i * 2654435761));
+      hands.push(d.hole);
+    }
+    const d0 = dealHand(handNumber);
+    const board = [...d0.flop, d0.turn, d0.river];
+    const scores = hands.map(h => scoreHand(h, board));
+    const maxScore = Math.max(...scores);
+    const winners = scores.reduce((acc,s,idx)=> s===maxScore ? acc.concat(idx) : acc, []);
+    if(winners.length === 0) return;
+
+    const potForHand = getPot(handNumber) || 0;
+
+    // Vault burn calculation (based on vault ratio and pot "raizin")
+    const vaultBefore = getVault();
+    // formula ties vault dominance and pot size; ensures at least 1 burned when vault>0
+    let vaultBurn = 0;
+    if(vaultBefore > 0 && potForHand > 0){
+      const ratio = vaultBefore / (vaultBefore + potForHand + 1);
+      const base = potForHand * POT_BURN_FACTOR;
+      const sqrtTerm = Math.sqrt(potForHand) * SQRT_FACTOR;
+      vaultBurn = Math.floor(ratio * (base + sqrtTerm));
+      if(vaultBurn < 1) vaultBurn = 1;
+      if(vaultBurn > vaultBefore) vaultBurn = vaultBefore;
+    } else if(vaultBefore > 0){
+      // small vault but no pot: burn a tiny amount to keep mechanism active
+      vaultBurn = Math.max(1, Math.floor(vaultBefore * 0.02));
+    } else {
+      vaultBurn = 0;
+    }
+
+    // apply vault burn immediately (visual + accounting)
+    if(vaultBurn > 0){
+      setVault(vaultBefore - vaultBurn);
+      incVaultBurnCount();
+      // animate burn bubbles from pile to vault
+      const pileRect = document.getElementById('pile').getBoundingClientRect();
+      const fromX = pileRect.left + pileRect.width/2;
+      const fromY = pileRect.top + pileRect.height/2;
+      animateBurnBubbles(fromX, fromY, vaultBurn, ()=>{
+        // after burn animation completes, log the burn and proceed to distribution
+        const burnEntry = {
+          type: 'vault_burn',
+          hand: handNumber,
+          burned: vaultBurn,
+          vaultBefore,
+          vaultAfter: getVault(),
+          timestamp: Date.now()
+        };
+        pushGameLog(burnEntry);
+        // proceed to distribute pot
+        distributePotToWinners(handNumber, winners, potForHand);
+      });
+    } else {
+      // no vault burn; proceed immediately
+      distributePotToWinners(handNumber, winners, potForHand);
+    }
+  }
+
+  // distribution: animate outward chips from pile to winners seats, update wallets and logs
+  function distributePotToWinners(handNumber, winners, potForHand){
+    if(!winners || winners.length === 0) return;
+    const share = Math.floor(potForHand / winners.length);
+    const remainder = potForHand - share * winners.length;
+
+    // animate outward chips: compute pile center
+    const pileRect = document.getElementById('pile').getBoundingClientRect();
+    const sx = pileRect.left + pileRect.width/2;
+    const sy = pileRect.top + pileRect.height/2;
+
+    let completed = 0;
+    winners.forEach((seat, idx) => {
+      const marker = refs.seatRing.querySelector(`.seat-mini[data-seat="${seat}"]`);
+      const rect = marker ? marker.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+      const tx = rect.left + rect.width/2;
+      const ty = rect.top + rect.height/2;
+
+      let amt = share + (idx < remainder ? 1 : 0);
+      const chipsToSend = Math.min(10, Math.max(1, Math.floor(Math.sqrt(amt))));
+      enqueueChipAnimation(sx, sy, tx, ty, CRYSTALS[seat % CRYSTALS.length], chipsToSend, ()=>{
+        // update balances after animation
+        if(state.userSeat != null && seat === state.userSeat){
+          state.wallet += amt; setWallet(UID, state.wallet);
+        } else {
+          if(state.heldSeats.includes(seat)){
+            const bal = getHeldBalance(UID, seat);
+            setHeldBalance(UID, seat, bal + amt);
+          }
+        }
+        setWins(seat, getWins(seat) + 1);
+        completed++;
+        if(completed === winners.length){
+          // finalize: clear pot and pile for this hand
+          setPot(handNumber, 0);
+          S.remove(pileKey(handNumber));
+          state.pileState = [];
+          // push distribution log entry
+          const entry = {
+            type: 'hand_result',
+            hand: handNumber,
+            winners,
+            pot: potForHand,
+            share,
+            remainder,
+            timestamp: Date.now()
+          };
+          pushGameLog(entry);
+          renderPile();
+          updateHUD();
+          renderLog();
+          // flash winners
+          animateWinnersFlash(winners);
+        }
+      });
+    });
+  }
+
+  function animateWinnersFlash(winners){
+    winners.forEach(s=>{
+      const el = refs.seatRing.querySelector(`.seat-mini[data-seat="${s}"]`);
+      if(el){ el.classList.add('flash-win'); setTimeout(()=>el.classList.remove('flash-win'),900); }
+    });
+    if(state.userSeat != null){
+      const userEl = refs.userSeatCard;
+      if(winners.includes(state.userSeat)) { userEl.classList.add('flash-win'); setTimeout(()=>userEl.classList.remove('flash-win'),900); }
+      else { userEl.classList.add('flash-loss'); setTimeout(()=>userEl.classList.remove('flash-loss'),900); }
+    }
+  }
+
+  // render log
+  function renderLog(){
+    const logs = getGameLog();
+    refs.log.innerHTML = '';
+    logs.slice(0,40).forEach(e=>{
+      const div = document.createElement('div'); div.className = 'log-entry';
+      const left = document.createElement('div');
+      if(e.type === 'vault_burn'){
+        left.textContent = `Burn • Hand ${e.hand} • Burned ${e.burned}`;
+      } else if(e.type === 'hand_result'){
+        left.textContent = `#${e.hand} • Winners: ${e.winners.map(w=>'P'+(w+1)).join(', ')}`;
+      } else {
+        left.textContent = `#${e.round || e.hand || '—'} • ${e.winners ? e.winners.map(w=>'P'+(w+1)).join(', ') : ''}`;
+      }
+      const right = document.createElement('div'); right.textContent = e.pot ? `Pot ${e.pot}` : '';
+      div.appendChild(left); div.appendChild(right); refs.log.appendChild(div);
+    });
+  }
+
+  // user hand UI
+  function renderHandForUser(){
+    if(state.userSeat == null) { refs.handPanel.style.display = 'none'; return; }
+    const clock = computeClock();
+    if(state.seatJoinHandNumber == null || clock.handNumber <= state.seatJoinHandNumber){ refs.handPanel.style.display = 'none'; return; }
+    const d = dealHand(clock.handNumber ^ (state.userSeat * 2654435761));
+    refs.handCards.innerHTML = '';
+    d.hole.forEach(c=>{ const cd = document.createElement('div'); cd.className='card'; cd.textContent = c; refs.handCards.appendChild(cd); });
+    const win = estimateWinProbability(d.hole, allHandsFor(clock.handNumber), state.userSeat);
+    refs.winProb.textContent = `Win: ${win.toFixed(1)}%`;
+    refs.handPanel.style.display = 'flex';
+  }
+  function allHandsFor(handNumber){ const arr=[]; for(let i=0;i<PLAYER_COUNT;i++){ arr.push(dealHand(handNumber ^ (i * 2654435761)).hole); } return arr; }
+  function estimateWinProbability(myHand, allHands, meIdx){
+    if(!myHand) return 0;
+    const myScore = scoreHand(myHand, communityForCurrent());
+    let wins=0,total=0;
+    for(let i=0;i<allHands.length;i++){ if(i===meIdx) continue; const opp = scoreHand(allHands[i], communityForCurrent()); if(myScore >= opp) wins++; total++; }
+    return total ? (wins/total)*100 : 0;
+  }
+  function communityForCurrent(){ const clock = computeClock(); const d = dealHand(clock.handNumber); if(clock.segment==='Pre-flop') return []; if(clock.segment==='Flop') return d.flop; if(clock.segment==='Turn') return [...d.flop,d.turn]; return [...d.flop,d.turn,d.river]; }
+
+  // simulation (visual)
+  let simRunning = true;
+  function startSimulation(){
+    function tick(){
+      if(!simRunning) return;
+      if(Math.random() < 0.18){
+        const seat = Math.floor(Math.random()*PLAYER_COUNT);
+        const amount = Math.floor(Math.random()*4)+1;
+        S.rawSet(`tp_active_bet_seat_${seat}`, amount);
+        const marker = refs.seatRing.querySelector(`.seat-mini[data-seat="${seat}"]`);
+        const center = document.getElementById('pile');
+        const rectM = marker ? marker.getBoundingClientRect() : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+        const rectC = center.getBoundingClientRect();
+        const sx = rectM.left + rectM.width/2;
+        const sy = rectM.top + rectM.height/2;
+        const tx = rectC.left + rectC.width/2;
+        const ty = rectC.top + rectC.height/2;
+        const color = CRYSTALS[seat % CRYSTALS.length];
+        enqueueChipAnimation(sx, sy, tx, ty, color, Math.min(4, amount), ()=>commitToPile(color, seat, amount));
+      }
+      setTimeout(tick, 900 + Math.random()*1600);
+    }
+    tick();
+  }
+
+  // donate & copy
+  function donate(amount){
+    const a = Math.max(1, Math.floor(amount));
+    state.donationPool += a; S.rawSet('tp_donation_pool', state.donationPool);
+    const hand = currentHandNumber(); setPot(hand, getPot(hand) + a);
+    updateHUD();
+  }
+  function copySol(){ const addr = 'DPHcbu7wJEbcrnCYjXC8vHBkM39kT9xZg4mYayvrpump'; if(navigator.clipboard) navigator.clipboard.writeText(addr); alert('Vault coin address copied (demo)'); }
+
+  // events wiring
+  function wire(){
+    refs.sitBtn.addEventListener('click', ()=>{ handleSit(); updateUserUI(); });
+    refs.holdSeatBtn.addEventListener('click', ()=>{ handleHoldSeat(refs.holdSeatInput.value); });
+    refs.betFromSeatBtn.addEventListener('click', ()=>{ if(state.userSeat==null) return alert('Sit first'); placeBetFromSeat(state.userSeat, Number(refs.globalBetInput.value)); });
+    refs.seatBetBtn.addEventListener('click', ()=>{ if(state.userSeat==null) return alert('Sit first'); placeBetFromSeat(state.userSeat, Number(refs.seatBetNumber.value)); });
+    refs.don5.addEventListener('click', ()=>donate(5));
+    refs.don20.addEventListener('click', ()=>donate(20));
+    refs.copySol.addEventListener('click', copySol);
+    refs.notifyClose && refs.notifyClose.addEventListener('click', ()=>refs.notify.classList.remove('show'));
+    window.addEventListener('resize', ()=>renderSeatRing());
+  }
+
+  // update user UI
+  function updateUserUI(){
+    if(state.userSeat == null){ refs.userSeatCard.style.display = 'none'; refs.handPanel.style.display = 'none'; return; }
+    refs.userSeatCard.style.display = 'block';
+    refs.userAvatar.style.background = CRYSTALS[state.userSeat % CRYSTALS.length];
+    refs.userName.textContent = `Player ${state.userSeat + 1}`;
+    refs.userCrystal.textContent = `Seat crystal: ${state.userSeat % CRYSTALS.length}`;
+    refs.userCreatorRewards.textContent = getCreatorRewards(state.userSeat);
+  }
+
+  // clock loop
+  function startClock(){
+    function tick(){
+      updateHUD();
+      renderCommunity();
+      renderPile();
+      renderSeatRing();
+      updateSeatMiniDisplays();
+      renderHandForUser();
+      renderLog();
+      const clock = computeClock();
+      if(state.lastHandNumber == null) state.lastHandNumber = clock.handNumber;
+      if(clock.handNumber > state.lastHandNumber){
+        const handToResolve = state.lastHandNumber;
+        resolveHand(handToResolve);
+        state.lastHandNumber = clock.handNumber;
+      }
+      requestAnimationFrame(()=>setTimeout(tick, 300));
+    }
+    tick();
+  }
+
+  // init
+  function init(){
+    state.wallet = getWallet(UID);
+    state.donationPool = Number(S.rawGet('tp_donation_pool', 0));
+    state.pileState = S.get(pileKey(currentHandNumber()), []);
+    initPools();
+    renderSeatRing();
+    updateSeatMiniDisplays();
+    renderPile();
+    renderLog();
+    updateUserUI();
+    updateHUD();
+    wire();
+    startSimulation();
+    startClock();
+  }
+
+  init();
+
+  // expose minimal API for debugging
+  window.tVault = { state, placeBetFromSeat, commitToPile, getGameLog };
+
+  // helpers
+  function pileKey(h){ return `tp_pile_${h}`; }
+  function gameLogKey(){ return 'tp_game_log'; }
+
+})();
+</script>
+</body>
+</html>

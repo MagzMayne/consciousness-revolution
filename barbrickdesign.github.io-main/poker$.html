@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>TRON POKER — Single & P2P with win logic</title>
+<meta name="theme-color" content="#0b0f1a"/>
+<style>
+  :root {
+    --bg: #0b0f1a; --panel: #111625; --accent: #00e5ff; --accent2: #7cffd4;
+    --text: #e6f7ff; --muted: #89a1b0; --danger: #ff4d6d; --success: #54ffbd;
+    --warning: #ffd166; --glow: 0 0 18px rgba(0,229,255,0.4), 0 0 4px rgba(124,255,212,0.5);
+  }
+  *{box-sizing:border-box} html,body{height:100%;background:radial-gradient(1200px at 50% 10%,#0b132b 0%,var(--bg) 60%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;margin:0}
+  a{color:var(--accent2);text-decoration:none}
+  .app{max-width:1100px;margin:0 auto;padding:16px}
+  .brand{display:flex;align-items:center;justify-content:space-between}
+  .logo{font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);text-shadow:var(--glow)}
+  .chip{border:1px solid rgba(0,229,255,0.3);padding:4px 8px;border-radius:999px;color:var(--muted)}
+  .panel{background:linear-gradient(180deg,rgba(17,22,37,0.9),rgba(12,16,28,0.9));border:1px solid rgba(0,229,255,0.2);border-radius:14px;box-shadow:var(--glow);padding:14px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:900px){.grid{grid-template-columns:2fr 1fr}}
+  .btn{background:linear-gradient(90deg,#00e5ff,#7cffd4);border:none;color:#04222a;font-weight:700;padding:10px 14px;border-radius:10px;box-shadow:var(--glow);cursor:pointer}
+  .btn-outline{background:transparent;color:var(--accent);border:1px solid rgba(0,229,255,0.5);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .btn-todo{background:transparent;color:#fff;border:1px solid var(--danger);padding:8px 12px;border-radius:10px;box-shadow:0 0 10px rgba(255,77,109,0.4)}
+  .row{display:flex;align-items:center;gap:8px} .row.space{justify-content:space-between}
+  .label{color:var(--muted);font-size:12px} .value{font-weight:700}
+  .kbd{font-family:ui-monospace,Menlo,Consolas;background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);padding:2px 6px;border-radius:6px;color:#9df;word-break:break-all}
+  input,select,textarea{background:#0b132b;color:#e6f7ff;border:1px solid rgba(0,229,255,0.3);border-radius:8px;padding:6px}
+  textarea{width:100%;min-height:90px}
+  .three-wrap{position:relative;border:1px solid rgba(124,255,212,0.2);border-radius:18px;overflow:hidden}
+  #threeCanvas{width:100%;height:420px;display:block;background:radial-gradient(800px at 50% 50%, rgba(0,229,255,0.08), rgba(0,0,0,0) 80%)}
+  .cardsHud{position:absolute;bottom:12px;left:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .cardHud{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.35);color:#fff;font-weight:800}
+  .seatsGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+  .seat{border:1px solid rgba(0,229,255,0.25);border-radius:10px;padding:6px;text-align:center;transition:border-color .2s, box-shadow .2s}
+  .seat.free{color:var(--accent2)} .seat.taken{color:var(--muted)} .seat.me{color:var(--success);border-color:rgba(84,255,189,0.5)}
+  .seat.win{border-color:rgba(84,255,189,0.9); box-shadow:0 0 16px rgba(84,255,189,0.5)}
+  .seat.lose{border-color:rgba(255,77,109,0.9); box-shadow:0 0 16px rgba(255,77,109,0.4)}
+  .footer{margin:16px 0;color:var(--muted);font-size:12px;text-align:center}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:40}
+  .modal .box{background:#0b132b;border:1px solid rgba(0,229,255,0.4);border-radius:12px;padding:16px;max-width:360px;box-shadow:var(--glow);text-align:center}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="brand">
+    <div class="logo">TRON POKER</div>
+    <div class="chip">Single • P2P • Neon</div>
+  </div>
+
+  <div class="panel three-wrap">
+    <canvas id="threeCanvas"></canvas>
+    <div class="cardsHud" id="cardsHud"></div>
+  </div>
+
+  <div class="panel" id="controlsPanel">
+    <div class="row space">
+      <div class="value">Controls</div>
+      <div class="row" style="gap:6px;">
+        <span class="kbd" id="statusPill">Starting solo…</span>
+      </div>
+    </div>
+    <div class="row" style="gap:8px; flex-wrap:wrap;">
+      <button class="btn" id="joinMatch">Join match</button>
+      <button class="btn-outline" id="freePlay">Play for free</button>
+      <a class="btn-outline" id="donateLink" href="https://venmo.com/u/Rytb333" target="_blank">Donate via Venmo</a>
+      <button class="btn-outline" id="startGame">Start game</button>
+      <button class="btn-outline" id="dealNext">Deal next hand</button>
+      <button class="btn-outline" id="showdownBtn">Showdown</button>
+    </div>
+    <div class="row" style="gap:12px; margin-top:8px; flex-wrap:wrap;">
+      <button class="btn-outline" id="checkBtn">Check</button>
+      <button class="btn-outline" id="callBtn">Call</button>
+      <button class="btn-outline" id="betBtn">Bet</button>
+      <button class="btn-outline" id="foldBtn">Fold</button>
+      <input id="betSize" type="number" min="1" placeholder="10" style="width:90px;">
+    </div>
+    <div class="row space" style="margin-top:8px;">
+      <div>
+        <div class="label">Variant</div>
+        <select id="variant">
+          <option>Texas Hold'em</option>
+          <option>Omaha</option>
+          <option>Five Card Draw</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">Action time</div>
+        <input id="actionTime" type="number" value="25" style="width:100px;">
+      </div>
+      <div>
+        <div class="label">Seats</div>
+        <select id="tableSize"><option>6</option><option>9</option></select>
+      </div>
+      <div>
+        <div class="label">Theme</div>
+        <select id="theme">
+          <option>Tron</option><option>Neon</option><option>Night</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="tablePanel">
+    <div class="row space">
+      <div class="value" id="tableTitle">Table — initializing</div>
+      <div class="row" style="gap:6px;">
+        <div class="label">Pot</div>
+        <div class="value" id="pot">$0</div>
+        <div class="label" style="margin-left:12px;">Hand timer</div>
+        <div class="value" id="handTimer">—</div>
+      </div>
+    </div>
+    <div class="seatsGrid" id="seatsGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="value">Trust-based donations and tickets</div>
+    <div class="label">Donations are verified manually. Bots are auto-marked paid in solo mode.</div>
+    <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+      <div>
+        <div class="label">Your PayPal email</div>
+        <input id="paypalEmail" placeholder="you@example.com" style="width:240px;">
+      </div>
+      <div>
+        <div class="label">Your Venmo handle</div>
+        <input id="venmoHandle" placeholder="@yourhandle" style="width:200px;">
+      </div>
+      <div>
+        <div class="label">Generate ticket</div>
+        <button class="btn-outline" id="genTicket">Generate game card</button>
+      </div>
+      <div>
+        <div class="label">Save ticket</div>
+        <button class="btn-outline" id="saveTicket">Save game card</button>
+      </div>
+      <div>
+        <div class="label">Mark ticket paid (one-time)</div>
+        <button class="btn-outline" id="markPaid">Mark as paid</button>
+      </div>
+    </div>
+    <div class="label" style="margin-top:8px;">Game card (share for validation)</div>
+    <div class="kbd" id="ticketView">—</div>
+  </div>
+
+  <div class="panel" id="logPanel">
+    <div class="value">Log</div>
+    <div id="log" style="font-family:ui-monospace; font-size:12px; white-space:pre-wrap; color:#89f7ff; max-height:240px; overflow:auto;"></div>
+  </div>
+
+  <div class="footer">
+    Three.js neon table • Bots hidden • Win/loss visuals • Turn alerts • Fair chip distribution
+  </div>
+</div>
+
+<!-- Turn alert modal -->
+<div class="modal" id="turnModal">
+  <div class="box">
+    <div class="value">Your turn</div>
+    <div class="label" style="margin-top:6px;">Choose Check, Call, Bet, or Fold.</div>
+    <div class="row" style="justify-content:center; gap:8px; margin-top:12px;">
+      <button class="btn-outline" id="turnOk">Got it</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+(function(){
+  // --- State ---
+  const state = {
+    me: { handle: 'You', fp: '', paypal: '', venmo: '' },
+    table: { id: null, seats: [], variant: "Texas Hold'em", pot: 0 },
+    bots: [],
+    deck: [],
+    handClock: null,
+    handLeft: 0,
+    soloCompleted: false,
+    ticket: null,
+    potMeshes: [],
+    actionIndex: 0, // seat index for whose turn (solo: player -> bots cycle)
+    street: 'river' // simplified single street for MVP
+  };
+
+  // --- Helpers ---
+  const el = id => document.getElementById(id);
+  const log = msg => { const ts = new Date().toLocaleTimeString(); el('log').textContent += `[${ts}] ${msg}\n`; el('log').scrollTop = el('log').scrollHeight; };
+  const seatByUser = name => state.table.seats.find(s=>s.user===name);
+  const markSeatGlow = (name, type) => {
+    // update seat CSS
+    const grid = el('seatsGrid').children;
+    for (let i=0; i<state.table.seats.length; i++){
+      const s = state.table.seats[i];
+      const node = grid[i];
+      node.classList.remove('win','lose');
+      if (s.user === name){
+        node.classList.add(type);
+      }
+    }
+  };
+
+  // --- Fingerprint ---
+  function fingerprint() {
+    const data = [navigator.userAgent, navigator.language, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+    return btoa(unescape(encodeURIComponent(data))).slice(0, 24);
+  }
+
+  // --- Three.js setup ---
+  let scene, camera, renderer, tableMesh;
+  const cardMeshes = [];
+  function initThree(){
+    const canvas = el('threeCanvas');
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f1a);
+
+    camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 6, 9);
+    camera.lookAt(0, 0, 0);
+
+    const ambient = new THREE.AmbientLight(0x88ffff, 0.6);
+    scene.add(ambient);
+    const spot = new THREE.SpotLight(0x00e5ff, 1.0, 50, Math.PI/4, 0.5, 1);
+    spot.position.set(8, 10, 8);
+    scene.add(spot);
+
+    const tableGeo = new THREE.CylinderGeometry(6, 6, 0.4, 64);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x112639, emissive: 0x06334a, metalness: 0.3, roughness: 0.6 });
+    tableMesh = new THREE.Mesh(tableGeo, tableMat);
+    tableMesh.position.y = -0.2;
+    scene.add(tableMesh);
+
+    const ringGeo = new THREE.RingGeometry(6.2, 6.5, 64);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI/2;
+    ring.position.y = 0.01;
+    scene.add(ring);
+
+    animate();
+    window.addEventListener('resize', onResize);
+  }
+  function onResize(){
+    const canvas = el('threeCanvas');
+    camera.aspect = canvas.clientWidth/canvas.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  }
+  function animate(){
+    requestAnimationFrame(animate);
+    tableMesh.rotation.y += 0.0015;
+    renderer.render(scene, camera);
+  }
+
+  // --- Cards HUD and 3D ---
+  function hudCards(myHole=[], community=[]){
+    const hud = el('cardsHud'); hud.innerHTML = '';
+    [...community.map(c => `Board: ${c}`), ...myHole.map(c => `You: ${c}`)]
+      .forEach(t => { const d = document.createElement('div'); d.className='cardHud'; d.textContent=t; hud.appendChild(d); });
+  }
+  function clear3DCards(){ cardMeshes.forEach(m => scene.remove(m)); cardMeshes.length = 0; }
+  function spawnCard(text, x, z, delayIndex=0, tilt=0){
+    const geo = new THREE.PlaneGeometry(0.6, 0.9, 1, 1);
+    const canvas = document.createElement('canvas'); canvas.width=256; canvas.height=384;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0,0,256,384);
+    ctx.strokeStyle = '#88ffff'; ctx.lineWidth = 6; ctx.strokeRect(10,10,236,364);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 64px ui-sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 192);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, emissive: new THREE.Color(0x003344), emissiveIntensity: 0.6 });
+    const plane = new THREE.Mesh(geo, mat);
+    plane.position.set(x, 0.45, z);
+    plane.rotation.x = -Math.PI/2;
+    plane.rotation.z = tilt;
+    plane.scale.set(0.01,0.01,0.01);
+    scene.add(plane);
+    cardMeshes.push(plane);
+    const start = { x: 0, z: -6, s: 0.01 }; const target = { x, z, s: 1 };
+    const t0 = performance.now() + delayIndex*120;
+    function animFrame(now){
+      const t = Math.min(1, (now - t0)/500);
+      plane.position.x = start.x + (target.x - start.x)*t;
+      plane.position.z = start.z + (target.z - start.z)*t;
+      const s = start.s + (target.s - start.s)*t;
+      plane.scale.set(s,s,s);
+      if (t < 1) requestAnimationFrame(animFrame);
+    }
+    requestAnimationFrame(animFrame);
+  }
+  function layout3DCards(myHole, community){
+    clear3DCards();
+    // Community cards center row (even spacing, no overlap)
+    const spacing = 1.3;
+    const startX = -((community.length-1) * spacing)/2;
+    community.forEach((c,i)=> spawnCard(c, startX + i*spacing, 0, i, 0));
+    // Player hole cards fanned near camera side, wider spacing to avoid overlap
+    const holeSpacing = 1.2;
+    const startHX = -(myHole.length-1)*holeSpacing/2;
+    myHole.forEach((c,i)=> spawnCard(c, startHX + i*holeSpacing, 3.0, i, (i===0?-0.28:0.28)));
+  }
+
+  // --- Pot chips ---
+  function clearPot(){
+    state.potMeshes.forEach(m => scene.remove(m));
+    state.potMeshes.length = 0;
+  }
+  function addChipsToPot(amount){
+    const chipColors = {5:0xff4d6d, 10:0x00a2ff, 25:0x54ffbd};
+    let remaining = amount;
+    let yOffset = state.potMeshes.length * 0.12;
+    while(remaining > 0){
+      const denom = remaining >= 25 ? 25 : (remaining >= 10 ? 10 : 5);
+      const color = chipColors[denom];
+      const geo = new THREE.CylinderGeometry(0.3,0.3,0.1,32);
+      const mat = new THREE.MeshStandardMaterial({ color });
+      const chip = new THREE.Mesh(geo, mat);
+      chip.position.set(0, 0.05 + yOffset, 0); // center pile
+      scene.add(chip);
+      state.potMeshes.push(chip);
+      yOffset += 0.12;
+      remaining -= denom;
+    }
+  }
+
+  // --- Deck & RNG ---
+  const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const suits = ['♠','♥','♦','♣'];
+  function canonicalDeck(){ return suits.flatMap(s => ranks.map(r => `${r}${s}`)); }
+  async function sha256hex(str){ const enc = new TextEncoder().encode(str); const buf = await crypto.subtle.digest('SHA-256', enc); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+  function randomSeed(){ const arr = new Uint8Array(32); crypto.getRandomValues(arr); return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+  function rngFromHex(seedHex){ let x = parseInt(seedHex.slice(0,8),16) || 2463534242; return () => { x ^= x<<13; x ^= x>>>17; x ^= x<<5; return (x>>>0); }; }
+  function shuffleDeckWithSeed(deck, seedHex){ const rand = rngFromHex(seedHex); for(let i=deck.length-1;i>0;i--){ const j = rand() % (i+1); [deck[i],deck[j]]=[deck[j],deck[i]]; } return deck; }
+
+  // --- Bots ---
+  function createBots(n){
+    const names = ['Nova','Quark','Vega','Flux','Ion','Echo','Rune','Bolt','Luna'];
+    const bots = [];
+    for(let i=0;i<n;i++){
+      bots.push({ id:'B'+i, name:names[i%names.length], aggression:0.45+(i%3)*0.2, risk:0.4+Math.random()*0.4, stack:1000, paid:true, ticketUsed:true, folded:false });
+    }
+    return bots;
+  }
+  const rankValue = r => ({'A':14,'K':13,'Q':12,'J':11,'10':10,'9':9,'8':8,'7':7,'6':6,'5':5,'4':4,'3':3,'2':2}[r]);
+  function parseCard(c){ const r=c.slice(0,-1), s=c.slice(-1); return { r, s, v: rankValue(r) }; }
+
+  // Hand evaluator (Texas Hold'em core ranks; simplified but consistent)
+  function getBest5From7(cards){
+    // cards: array of 7 strings like 'A♠'
+    const parsed = cards.map(parseCard);
+    const values = parsed.map(p=>p.v).sort((a,b)=>b-a);
+    const suitsArr = parsed.map(p=>p.s);
+    const counts = {}; values.forEach(v => counts[v] = (counts[v]||0)+1);
+    const flushSuit = ['♠','♥','♦','♣'].find(s => suitsArr.filter(x=>x===s).length>=5);
+    const isFlush = !!flushSuit;
+    const uniqVals = [...new Set(values)];
+    // Straight detection with A-low
+    const straightVals = [...new Set(values)].sort((a,b)=>b-a);
+    const hasWheel = [14,5,4,3,2].every(v => straightVals.includes(v));
+    let straightHigh = 0;
+    for (let i=0;i<straightVals.length-4;i++){
+      if (straightVals[i]-straightVals[i+4]===4){ straightHigh = straightVals[i]; break; }
+    }
+    if (straightHigh===0 && hasWheel) straightHigh = 5; // A-5 straight
+
+    // Rank categories
+    const fourKind = Object.entries(counts).find(([v,c])=>c===4);
+    const triples = Object.entries(counts).filter(([v,c])=>c===3).map(([v])=>parseInt(v));
+    const pairs = Object.entries(counts).filter(([v,c])=>c===2).map(([v])=>parseInt(v)).sort((a,b)=>b-a);
+
+    // Straight flush
+    if (isFlush){
+      const flushCards = parsed.filter(p=>p.s===flushSuit).map(p=>p.v).sort((a,b)=>b-a);
+      const uniqueFlush = [...new Set(flushCards)];
+      let sfHigh = 0;
+      for (let i=0;i<uniqueFlush.length-4;i++){
+        if (uniqueFlush[i]-uniqueFlush[i+4]===4){ sfHigh = uniqueFlush[i]; break; }
+      }
+      const hasWheelFlush = [14,5,4,3,2].every(v=>uniqueFlush.includes(v));
+      if (sfHigh || hasWheelFlush) return { rank:8, kickers:[sfHigh||5] }; // 8=straight flush
+    }
+    if (fourKind) return { rank:7, kickers:[parseInt(fourKind[0]), Math.max(...uniqVals.filter(v=>v!==parseInt(fourKind[0])))] }; // quads
+    if (triples.length && pairs.length) return { rank:6, kickers:[triples[0], pairs[0]] }; // full house
+    if (isFlush) return { rank:5, kickers: values.slice(0,5) }; // flush
+    if (straightHigh) return { rank:4, kickers:[straightHigh] }; // straight
+    if (triples.length) return { rank:3, kickers:[triples[0], ...values.filter(v=>v!==triples[0]).slice(0,2)] }; // trips
+    if (pairs.length>=2) return { rank:2, kickers:[pairs[0], pairs[1], ...values.filter(v=>v!==pairs[0]&&v!==pairs[1]).slice(0,1)] }; // two pair
+    if (pairs.length===1) return { rank:1, kickers:[pairs[0], ...values.filter(v=>v!==pairs[0]).slice(0,3)] }; // one pair
+    return { rank:0, kickers: values.slice(0,5) }; // high card
+  }
+  function compareHands(h1, h2){
+    if (h1.rank !== h2.rank) return h1.rank > h2.rank ? 1 : -1;
+    for (let i=0;i<Math.max(h1.kickers.length, h2.kickers.length); i++){
+      const a = h1.kickers[i]||0, b = h2.kickers[i]||0;
+      if (a!==b) return a>b?1:-1;
+    }
+    return 0;
+  }
+
+  // Bot hole (hidden visually; only used for evaluation)
+  function drawBotHole(name){
+    // derive deterministic positions per name from deck after community (start at 5)
+    const base = 6 + (Math.abs(name.charCodeAt(0)) % 20);
+    const count = state.table.variant === 'Omaha' ? 4 : (state.table.variant === 'Five Card Draw' ? 5 : 2);
+    return state.deck.slice(base, base+count);
+  }
+
+  // --- UI: Seats and balances ---
+  function renderSeats(){
+    const grid = el('seatsGrid'); grid.innerHTML = '';
+    state.table.seats.forEach(s => {
+      const div = document.createElement('div');
+      const meClass = (s.user === state.me.handle) ? 'me' : (s.user ? 'taken' : 'free');
+      const paidBadge = s.paid ? '✓ paid' : 'unpaid';
+      const ticketBadge = s.ticketUsed ? '• ticket used' : '• ticket open';
+      div.className = 'seat '+meClass;
+      div.innerHTML = `
+        <div class="label">Seat ${s.n}</div>
+        <div class="value">${s.user || '—'}</div>
+        <div class="label">Chips: ${s.stack ?? 1000}</div>
+        <div class="label">${paidBadge} ${ticketBadge}</div>
+      `;
+      grid.appendChild(div);
+    });
+  }
+
+  // --- Turn alert modal ---
+  function showTurnAlert(){
+    const modal = el('turnModal');
+    modal.style.display = 'flex';
+  }
+  el('turnOk').onclick = ()=>{ el('turnModal').style.display = 'none'; };
+
+  // --- Hand/timer & turn cycle ---
+  function startHandClock(){
+    clearInterval(state.handClock);
+    const actionTime = parseInt(el('actionTime').value || '25', 10);
+    state.handLeft = actionTime;
+    el('handTimer').textContent = `${state.handLeft}s`;
+    state.handClock = setInterval(()=>{
+      state.handLeft--;
+      el('handTimer').textContent = `${state.handLeft}s`;
+      if (state.handLeft <= 0){
+        log('Hand timer expired → auto-advance.');
+        advanceTurn(true);
+        state.handLeft = actionTime;
+      }
+    }, 1000);
+  }
+
+  function advanceTurn(auto=false){
+    // cycle: player -> each bot -> showdown
+    const seats = state.table.seats.filter(s => !s.folded);
+    state.actionIndex = (state.actionIndex + 1) % seats.length;
+    const actor = seats[state.actionIndex];
+    if (actor.user === state.me.handle){
+      showTurnAlert();
+      log('Your turn.');
+    } else {
+      // bot acts automatically
+      botAutoAction(actor.user);
+    }
+  }
+
+  // --- Deal ---
+  async function ensureDeckFinalized(){
+    if (state.deck.length === 52) return true;
+    const players = [state.me.handle].concat(state.bots.map(b=>b.name));
+    const seeds = await Promise.all(players.map(()=>randomSeed()));
+    const finalSeedHash = await sha256hex(seeds.join('|'));
+    state.deck = shuffleDeckWithSeed(canonicalDeck(), finalSeedHash);
+    log(`Shuffle finalized (solo). Seed hash: ${finalSeedHash}`);
+    return true;
+  }
+  function dealHand(){
+    ensureDeckFinalized();
+    clearPot();
+    state.table.seats.forEach(s => s.folded=false);
+    state.street = 'river';
+    state.actionIndex = -1; // so first advanceTurn targets player
+    const variant = state.table.variant;
+    const community = [];
+    if (variant === "Texas Hold'em" || variant === "Omaha"){
+      community.push(state.deck[0], state.deck[1], state.deck[2], state.deck[3], state.deck[4]);
+    }
+    const holeCount = variant === 'Omaha' ? 4 : (variant === 'Five Card Draw' ? 5 : 2);
+    const myHole = state.deck.slice(5, 5+holeCount);
+    hudCards(myHole, community);
+    layout3DCards(myHole, community);
+    state.table.pot = 0; el('pot').textContent = `$0`;
+    el('tableTitle').textContent = `Table ${state.table.id} • ${state.table.seats.length} seats • ${state.table.variant}`;
+    renderSeats();
+    startHandClock();
+    advanceTurn();
+    log(`Dealt: ${variant}.`);
+  }
+
+  // --- Actions (solo) ---
+  function ensurePlayerTurn(){
+    const seats = state.table.seats.filter(s => !s.folded);
+    const actor = seats[state.actionIndex];
+    return actor && actor.user === state.me.handle;
+  }
+
+  el('checkBtn').onclick = () => {
+    if (!ensurePlayerTurn()) { log('Not your turn.'); return; }
+    log(`${state.me.handle} checked.`);
+    advanceTurn();
+  };
+  el('callBtn').onclick = () => {
+    if (!ensurePlayerTurn()) { log('Not your turn.'); return; }
+    log(`${state.me.handle} called.`);
+    advanceTurn();
+  };
+  el('betBtn').onclick = () => {
+    if (!ensurePlayerTurn()) { log('Not your turn.'); return; }
+    const size = parseInt(el('betSize').value||'10',10);
+    const seat = seatByUser(state.me.handle);
+    if(!seat){ log('No seat found.'); return; }
+    if(seat.stack < size){ log('Insufficient chips.'); return; }
+    seat.stack -= size;
+    state.table.pot += size;
+    el('pot').textContent = `$${state.table.pot}`;
+    renderSeats();
+    addChipsToPot(size);
+    log(`${state.me.handle} bet $${size}.`);
+    advanceTurn();
+  };
+  el('foldBtn').onclick = () => {
+    if (!ensurePlayerTurn()) { log('Not your turn.'); return; }
+    const seat = seatByUser(state.me.handle);
+    seat.folded = true;
+    log(`${state.me.handle} folded.`);
+    advanceTurn();
+  };
+
+  // Bot automatic action
+  function botAutoAction(name){
+    const seat = seatByUser(name);
+    if (!seat || seat.folded) { advanceTurn(); return; }
+    const actRoll = Math.random();
+    if (actRoll < 0.15) { seat.folded=true; log(`${name} folded.`); advanceTurn(); return; }
+    if (actRoll < 0.45) { log(`${name} checked.`); advanceTurn(); return; }
+    const bet = Math.floor(5 + Math.random()*30);
+    const pay = Math.min(bet, seat.stack);
+    seat.stack -= pay;
+    state.table.pot += pay;
+    el('pot').textContent = `$${state.table.pot}`;
+    addChipsToPot(pay);
+    renderSeats();
+    log(`${name} bet $${pay}.`);
+    advanceTurn();
+  }
+
+  // --- Showdown & winner determination ---
+  function determineWinner(){
+    // Only player hole cards are visible; bots hidden. Evaluate all non-folded.
+    const board = [state.deck[0],state.deck[1],state.deck[2],state.deck[3],state.deck[4]];
+    const contenders = state.table.seats.filter(s=>!s.folded);
+    let bestSeat = null, bestScore = null, bestHand = null;
+
+    contenders.forEach(s=>{
+      const hole = (s.user===state.me.handle)
+        ? state.deck.slice(5, state.table.variant==='Omaha'?9:(state.table.variant==='Five Card Draw'?10:7))
+        : drawBotHole(s.user);
+      const all = hole.concat(board);
+      const score = getBest5From7(all);
+      if (!bestScore || compareHands(score, bestScore) > 0){
+        bestSeat = s; bestScore = score; bestHand = { hole, board };
+      }
+    });
+
+    if (bestSeat){
+      bestSeat.stack += state.table.pot;
+      log(`${bestSeat.user} wins pot $${state.table.pot} (rank ${bestScore.rank}).`);
+      markSeatGlow(bestSeat.user, 'win');
+      contenders.forEach(s => { if (s.user !== bestSeat.user) markSeatGlow(s.user, 'lose'); });
+      clearPot();
+      state.table.pot = 0;
+      el('pot').textContent = `$0`;
+      renderSeats();
+    } else {
+      log('No winner (all folded?).');
+    }
+  }
+  el('showdownBtn').onclick = determineWinner;
+
+  // --- Trust-based donation & ticket (one-time) ---
+  function generateTicket(){
+    const id = 'TKT-' + Math.random().toString(36).slice(-8);
+    const audit = {
+      tableId: state.table.id,
+      variant: state.table.variant,
+      seats: state.table.seats.map(s => ({ n: s.n, user: s.user, paid: !!s.paid, stack: s.stack })),
+      pot: state.table.pot
+    };
+    state.ticket = {
+      id, user: state.me.handle, tableId: state.table.id,
+      paypal: state.me.paypal || null, venmo: state.me.venmo || null,
+      createdAt: new Date().toISOString(), used: false, audit
+    };
+    el('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    log(`Game card generated: ${id}`);
+  }
+  function saveTicket(){
+    if(!state.ticket){ log('Generate ticket first.'); return; }
+    const blob = new Blob([JSON.stringify(state.ticket, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${state.ticket.id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    log('Game card saved.');
+  }
+  function markTicketPaid(){
+    if(!state.ticket){ log('No ticket to mark paid.'); return; }
+    if(state.ticket.used){ log('Ticket already used — cannot mark again.'); return; }
+    if(!(state.ticket.paypal || state.ticket.venmo)){
+      log('Provide PayPal email or Venmo handle before marking paid.');
+      return;
+    }
+    state.ticket.used = true;
+    el('ticketView').textContent = JSON.stringify(state.ticket, null, 2);
+    log('Ticket marked paid (one-time).');
+  }
+
+  // --- Buttons (tickets) ---
+  el('genTicket').onclick = () => { state.me.paypal = (el('paypalEmail').value||'').trim(); state.me.venmo = (el('venmoHandle').value||'').trim(); generateTicket(); };
+  el('saveTicket').onclick = saveTicket;
+  el('markPaid').onclick = markTicketPaid;
+
+  // --- Controls ---
+  el('joinMatch').onclick = ()=> { startSinglePlayer(true); };
+  el('freePlay').onclick = ()=> { log('Free play selected — donation optional.'); };
+  el('donateLink').onclick = ()=> { log('Opened Venmo donation link.'); };
+  el('startGame').onclick = ()=> { startSinglePlayer(false); };
+  el('dealNext').onclick = ()=> { dealHand(); };
+
+  // --- Theme ---
+  el('theme').onchange = e => {
+    const t = e.target.value;
+    document.documentElement.style.setProperty('--accent', t==='Neon' ? '#ff00ff' : t==='Night' ? '#00a2ff' : '#00e5ff');
+    document.documentElement.style.setProperty('--accent2', t==='Neon' ? '#ffd54f' : t==='Night' ? '#7cffd4' : '#7cffd4');
+  };
+
+  // --- Single-player start (bots auto-paid) ---
+  async function startSinglePlayer(fromJoin){
+    el('statusPill').textContent = 'Single player';
+    const seats = parseInt(el('tableSize').value,10);
+    const botCount = seats - 1;
+    state.bots = createBots(botCount);
+    state.table = {
+      id: 'SP-' + Math.random().toString(36).slice(-6),
+      seats: Array.from({length: seats}, (_,i)=>({
+        n:i+1,
+        user: i===0 ? state.me.handle : state.bots[i-1].name,
+        stack: 1000,
+        paid: i===0 ? false : true,
+        ticketUsed: i===0 ? false : true,
+        folded: false
+      })),
+      variant: el('variant').value,
+      pot: 0
+    };
+    renderSeats();
+    await ensureDeckFinalized();
+    dealHand();
+    if (fromJoin) log('Solo session started.');
+  }
+
+  // --- Init ---
+  state.me.fp = fingerprint();
+  initThree();
+  el('statusPill').textContent = 'Starting solo…';
+  startSinglePlayer(true);
+})();
+</script>
+</body>
+</html>

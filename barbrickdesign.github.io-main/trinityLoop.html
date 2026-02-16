@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Trinity Pool — Project Valuer & Index</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#071022;--card:#071827;--muted:#9fb0c8;--accent:#60a5fa;--good:#10b981;--warn:#f59e0b;--danger:#ef4444;
+    --glass: rgba(255,255,255,0.03);
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;color:#e6eef8;background:linear-gradient(180deg,#04101b 0%,#071022 100%);padding:20px;box-sizing:border-box}
+  .wrap{max-width:1100px;margin:0 auto}
+  header{display:flex;gap:16px;align-items:center}
+  h1{font-size:20px;margin:0}
+  .lead{color:var(--muted);margin:0;font-size:13px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid var(--glass);padding:14px;border-radius:12px;margin-top:14px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1 1 300px;min-width:300px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:8px}
+  .drop{border:2px dashed rgba(255,255,255,0.03);padding:16px;border-radius:8px;text-align:center;cursor:pointer}
+  .btn{background:var(--accent);color:#041022;padding:10px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(96,165,250,0.12)}
+  .btn.small{padding:6px 8px;font-size:13px;border-radius:6px}
+  input[type=file]{display:none}
+  table{width:100%;border-collapse:collapse;margin-top:12px}
+  th,td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:13px}
+  th{color:var(--muted);text-align:left}
+  pre{background:#041528;padding:12px;border-radius:8px;overflow:auto;color:#bfe0ff}
+  .small{font-size:12px;color:var(--muted)}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.02);font-weight:700;color:var(--muted);font-size:12px}
+  footer{margin-top:18px;color:var(--muted);font-size:12px;text-align:center}
+  .list{max-height:320px;overflow:auto;margin-top:8px}
+  .project-card{border-radius:8px;padding:10px;margin-bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));display:flex;justify-content:space-between;align-items:center}
+  input[type=search]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit}
+  .meta{color:var(--muted);font-size:12px}
+  .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-weight:700;color:var(--muted);font-size:12px;margin-right:6px}
+  .grid {display:grid;grid-template-columns:1fr 320px;gap:12px}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Trinity Pool</h1>
+      <p class="lead">Local-first repository valuer and indexer for pooled project submissions (Memory · Speed · Accuracy).</p>
+    </div>
+    <div style="margin-left:auto" class="pill">Local IndexedDB • Web Worker • Fuzzy Index</div>
+  </header>
+
+  <section class="card grid" aria-label="controls and pool">
+    <div>
+      <div class="card">
+        <label>Upload repository ZIP (or drop)</label>
+        <div class="drop" id="dropzone">Click or drop ZIP here</div>
+        <input id="fileInput" type="file" accept=".zip"/>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="analyzeBtn" class="btn" disabled>Analyze ZIP</button>
+          <button id="saveBtn" class="btn ghost" disabled>Save to Pool</button>
+          <button id="reindexBtn" class="btn ghost">Re-index Pool</button>
+          <button id="exportPoolBtn" class="btn ghost">Export Pool</button>
+          <button id="clearPoolBtn" class="btn ghost">Clear Pool</button>
+        </div>
+        <div style="margin-top:8px" id="status" class="small">No file loaded</div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <label>Search pool (accuracy + speed)</label>
+        <input id="searchInput" type="search" placeholder="Search by project name, file path, keyword, module..." />
+        <div id="searchMeta" class="meta" style="margin-top:6px">Indexed projects: <span id="idxCount">0</span></div>
+        <div id="searchResults" class="list" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong id="poolCount">0</strong> pooled projects
+            <div class="meta" id="poolLines">0 lines</div>
+          </div>
+          <div style="text-align:right">
+            <div class="meta">Total worth</div>
+            <div style="font-weight:800" id="poolWorth">$0</div>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.02);margin:10px 0"/>
+        <div id="poolList" class="list"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <label>Trinity Controls</label>
+        <div class="small" style="margin-bottom:8px">Adjust parameters for the three subsystems</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div><strong>Memory</strong>: <span id="memPolicy">compressed (LZ)</span></div>
+          <div><strong>Speed</strong>: <span id="speedPolicy">worker + inverted-index</span></div>
+          <div><strong>Accuracy</strong>: <span id="accPolicy">fuzzy + line-provenance</span></div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section id="analysis" style="display:none" class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h2 id="projectTitle" style="margin:0;font-size:16px">Analysis</h2>
+        <div class="meta" id="projectMeta">—</div>
+      </div>
+      <div style="text-align:right">
+        <div class="meta">Estimated Value</div>
+        <div style="font-size:18px;font-weight:800" id="estValue">$0</div>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.02);margin:10px 0"/>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1 1 600px">
+        <label>Top files</label>
+        <div id="fileTableWrap"></div>
+      </div>
+      <div style="width:320px">
+        <label>Feature summary</label>
+        <div id="featureSummary" class="small" style="padding:8px;background:rgba(255,255,255,0.01);border-radius:8px"></div>
+        <label style="margin-top:12px">Scoring</label>
+        <div id="scoreSummary" class="small" style="padding:8px;background:rgba(255,255,255,0.01);border-radius:8px;margin-top:6px"></div>
+      </div>
+    </div>
+
+    <label style="margin-top:12px">Line-level evidence (sample)</label>
+    <pre id="evidence" style="height:160px"></pre>
+  </section>
+
+  <footer class="small card">
+    <div><strong>Notes</strong></div>
+    <div style="margin-top:6px">All processing is local. Pool can grow large — re-indexing runs in an incremental recursive loop inside a Web Worker so the UI stays responsive. Tweak heuristics in the source to match procurement examples. Exported JSON/CSV can be used to compile proposals and capability statements.</div>
+  </footer>
+</div>
+
+<!-- libs -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+
+<script>
+/* Trinity Pool — client-side implementation
+   - Worker for parsing and indexing
+   - IndexedDB store with compressed blobs using LZString
+   - Inverted index + Fuse fuzzy search for accuracy
+   - Recursive re-index loop for incremental processing
+   - Transparent heuristics for valuation (editable)
+*/
+
+// ---------- Configuration (edit to tune) ----------
+const CONFIG = {
+  BASELINE: 10000,
+  MODULE_BASE: {
+    static_site: 25000, data_viz:150000, dashboard:200000, simulation:180000,
+    backend_api:120000, security_hardening:90000, open_source_governance:80000
+  },
+  FEATURE_KEYWORDS: {
+    simulation: ["physics","simulate","velocity","acceleration","dt","step","collision","engine","racecar","helicopter","thrust"],
+    data_viz: ["d3.","plot","chart","svg","canvas","visualize","tooltip","dataset","csv","json"],
+    auth: ["signin","login","oauth","token","jwt","session","credentials"],
+    api_calls: ["fetch(","XMLHttpRequest","axios",".ajax(","$.ajax(","POST ","GET "],
+    storage: ["localStorage","sessionStorage","indexedDB","fs.","writeFile","save","export"],
+    web_design: ["responsive","viewport","flex","grid","@media","bootstrap","tailwind"],
+    crypto: ["wallet","metamask","web3","ethers","mint","contract","smart contract"],
+    gov: ["sam.gov","solicitation","RFP","RFQ","procurement"]
+  },
+  CHUNK_SIZE: 30, // files per worker chunk for large zips
+  MAX_DISPLAY_FILES: 500
+};
+
+// ---------- DOM refs ----------
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const saveBtn = document.getElementById('saveBtn');
+const reindexBtn = document.getElementById('reindexBtn');
+const exportPoolBtn = document.getElementById('exportPoolBtn');
+const clearPoolBtn = document.getElementById('clearPoolBtn');
+const status = document.getElementById('status');
+const projectTitle = document.getElementById('projectTitle');
+const projectMeta = document.getElementById('projectMeta');
+const estValue = document.getElementById('estValue');
+const fileTableWrap = document.getElementById('fileTableWrap');
+const featureSummary = document.getElementById('featureSummary');
+const scoreSummary = document.getElementById('scoreSummary');
+const evidence = document.getElementById('evidence');
+const poolList = document.getElementById('poolList');
+const poolCount = document.getElementById('poolCount');
+const poolLines = document.getElementById('poolLines');
+const poolWorth = document.getElementById('poolWorth');
+const idxCountEl = document.getElementById('idxCount');
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const analysisSection = document.getElementById('analysis');
+
+let loadedZipFile = null;
+let currentAnalysis = null;
+
+// ---------- IndexedDB wrapper (keyed by analysis.id) ----------
+const DB_NAME = 'trinity_pool_v1';
+const STORE = 'analyses_v1';
+function openDb(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded = ()=> {
+      r.result.createObjectStore(STORE,{keyPath:'id'});
+      // meta store
+      const meta = r.result.createObjectStore('meta',{keyPath:'k'});
+    };
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = e=> rej(e);
+  });
+}
+async function dbPut(obj){
+  const db = await openDb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction([STORE],'readwrite');
+    tx.objectStore(STORE).put(obj);
+    tx.oncomplete = ()=> res();
+    tx.onerror = e=> rej(e);
+  });
+}
+async function dbGet(id){
+  const db = await openDb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction([STORE],'readonly');
+    const r = tx.objectStore(STORE).get(id);
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = e=> rej(e);
+  });
+}
+async function dbGetAll(){
+  const db = await openDb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction([STORE],'readonly');
+    const r = tx.objectStore(STORE).getAll();
+    r.onsuccess = ()=> res(r.result || []);
+    r.onerror = e=> rej(e);
+  });
+}
+async function dbDelete(id){
+  const db = await openDb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction([STORE],'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = ()=> res();
+    tx.onerror = e=> rej(e);
+  });
+}
+async function dbClear(){
+  const db = await openDb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction([STORE],'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = ()=> res();
+    tx.onerror = e=> rej(e);
+  });
+}
+
+// ---------- Helpers ----------
+function fmt(n){ return n.toLocaleString(); }
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sanitize(n){ return (n||'project').replace(/[^\w\-_\.]/g,'_').slice(0,80); }
+function downloadObjectAsJson(obj, name){
+  const blob = new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ---------- Web Worker Setup ----------
+let indexWorker = null;
+function initWorker(){
+  if (indexWorker) return;
+  const workerBlob = new Blob([workerCode()],{type:'application/javascript'});
+  indexWorker = new Worker(URL.createObjectURL(workerBlob));
+}
+function terminateWorker(){
+  if (indexWorker){ indexWorker.terminate(); indexWorker = null; }
+}
+
+// ---------- Main flow: load ZIP and dispatch parsing to worker ----------
+dropzone.addEventListener('click', ()=> fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.borderColor='#60a5fa' });
+dropzone.addEventListener('dragleave', e=>{ dropzone.style.borderColor='' });
+dropzone.addEventListener('drop', e=> {
+  e.preventDefault();
+  dropzone.style.borderColor='';
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+fileInput.addEventListener('change', ()=> {
+  if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+function loadFile(f){
+  if (!f.name.toLowerCase().endsWith('.zip')){ status.textContent='Please upload a ZIP file.'; return; }
+  loadedZipFile = f;
+  status.textContent = `Loaded ${f.name} • ${fmt(Math.round(f.size/1024))} KB`;
+  analyzeBtn.disabled = false;
+  saveBtn.disabled = true;
+}
+
+analyzeBtn.addEventListener('click', async ()=>{
+  if (!loadedZipFile) return;
+  analyzeBtn.disabled = true; status.textContent = 'Reading ZIP...';
+  try {
+    const ab = await readFileAsArrayBuffer(loadedZipFile);
+    const zip = await JSZip.loadAsync(ab);
+    const entries = Object.keys(zip.files).filter(p=> !zip.files[p].dir);
+    // build file list with text extraction where possible
+    const textExt = ['.html','.htm','.js','.css','.json','.md','.svg','.txt','.py','.java','.go','.xml','.csv','.yaml','.yml'];
+    const files = [];
+    for (const p of entries){
+      const entry = zip.files[p];
+      const ext = '.' + p.split('.').pop().toLowerCase();
+      const isText = textExt.includes(ext);
+      let txt = null;
+      if (isText){
+        try { txt = await entry.async('text'); }
+        catch(e){ txt = ''; }
+      }
+      files.push({ path: p.replace(/^\/+/,''), name: p.split('/').pop(), ext, size: entry._data.uncompressedSize || 0, text: txt });
+    }
+
+    status.textContent = `Extracted ${files.length} files. Dispatching to worker for analysis...`;
+    initWorker();
+
+    // send files to worker in chunks if large
+    const chunks = chunkArray(files, CONFIG.CHUNK_SIZE);
+    const aggregated = { files: [], featureCounts: {}, totalLines:0, fileCount: files.length, matches: [] };
+    for (let i=0;i<chunks.length;i++){
+      status.textContent = `Analyzing chunk ${i+1}/${chunks.length}...`;
+      const res = await runWorkerAnalyze(chunks[i]);
+      // merge results
+      aggregated.files.push(...res.files);
+      for (const k in res.featureCounts) aggregated.featureCounts[k] = (aggregated.featureCounts[k]||0) + (res.featureCounts[k]||0);
+      aggregated.totalLines += res.totalLines || 0;
+      aggregated.matches.push(...res.matches);
+    }
+
+    // compute final analysis locally using same heuristics as worker
+    const analysis = finalizeAnalysis(aggregated, files);
+    currentAnalysis = analysis;
+    showAnalysis(analysis);
+    saveBtn.disabled = false;
+    status.textContent = 'Analysis ready. Save to pool or export.';
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Error: see console.';
+  } finally { analyzeBtn.disabled = false; }
+});
+
+async function runWorkerAnalyze(filesChunk){
+  return new Promise((res,rej)=>{
+    initWorker();
+    indexWorker.onmessage = e=> {
+      if (e.data && e.data.type === 'chunkResult') res(e.data.payload);
+    };
+    indexWorker.onerror = e=> rej(e);
+    indexWorker.postMessage({ cmd:'analyzeChunk', payload: { files: filesChunk, keywords: CONFIG.FEATURE_KEYWORDS }});
+  });
+}
+
+// ---------- Finalize analysis on main thread (scoring & modules) ----------
+function finalizeAnalysis(aggregated, files){
+  const fileRecords = aggregated.files.sort((a,b)=> (b.lineCount||0)-(a.lineCount||0)).slice(0, CONFIG.MAX_DISPLAY_FILES);
+  const featureCounts = aggregated.featureCounts;
+  const totalLines = aggregated.totalLines;
+  const fileCount = aggregated.fileCount;
+
+  const Complexity = clamp(Math.round((totalLines / Math.max(1,fileCount)) / 200 * 10),0,10);
+  const DataIntegration = clamp(Math.round((featureCounts.data_viz + featureCounts.storage + featureCounts.api_calls) / 10),0,10);
+  const Simulation = clamp(Math.round(featureCounts.simulation / 5),0,10);
+  const Security = clamp(Math.round((featureCounts.auth + featureCounts.crypto) / 4),0,10);
+  const Accessibility = clamp(Math.round((files.filter(f=> ['.html','.css'].includes(f.ext)).length) / 3),0,10);
+  const Maintainability = clamp(Math.round((files.filter(f=> ['.md','.json','.js'].includes(f.ext)).length) / 5),0,10);
+
+  // modules
+  const modules = [];
+  if ((featureCounts.web_design||0) + (featureCounts.data_viz||0) + (featureCounts.api_calls||0) > 0) modules.push('static_site');
+  if ((featureCounts.data_viz||0) > 3) modules.push('data_viz');
+  if ((featureCounts.api_calls||0) > 2) modules.push('backend_api');
+  if ((featureCounts.simulation||0) > 0) modules.push('simulation');
+  if ((featureCounts.auth||0) > 0 || (featureCounts.crypto||0) > 0) modules.push('security_hardening');
+  if ((featureCounts.crypto||0) > 2 || (featureCounts.web_design||0) > 5) modules.push('open_source_governance');
+  if (modules.length===0) modules.push('static_site');
+
+  let moduleTotal = 0;
+  const moduleDetails = modules.map(m=>{
+    const v = CONFIG.MODULE_BASE[m] || 0;
+    const scale = 1 + ((Complexity + Maintainability) / 20);
+    const value = Math.round(v * scale);
+    moduleTotal += value;
+    return { module: m, base: v, scale: Number(scale.toFixed(2)), value };
+  });
+
+  const estimated = Math.round(CONFIG.BASELINE + moduleTotal);
+  const id = 'A' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+  // build compact evidence sample
+  const matchesSample = aggregated.matches.slice(0,30);
+
+  const metaName = sanitize(loadedZipFile ? loadedZipFile.name.replace(/\.zip$/i,'') : 'uploaded_repo');
+
+  const analysis = {
+    id, meta: { name: metaName, fileCount, totalLines, createdAt: new Date().toISOString() },
+    files: fileRecords,
+    featureCounts, scores: { Complexity, DataIntegration, Simulation, Security, Accessibility, Maintainability },
+    modules: moduleDetails, estimatedValueUSD: estimated, rawCounts: { totalFiles: fileCount, totalLines }, matches: matchesSample
+  };
+
+  return analysis;
+}
+
+// ---------- Display analysis ----------
+function showAnalysis(a){
+  analysisSection.style.display = 'block';
+  projectTitle.textContent = a.meta.name;
+  projectMeta.textContent = `${a.files.length} files shown • ${a.rawCounts.totalFiles} total files • ${fmt(a.rawCounts.totalLines)} lines`;
+  estValue.textContent = `$${fmt(a.estimatedValueUSD)}`;
+
+  // files table
+  const rows = a.files.map(f=> `<tr><td style="min-width:300px">${escapeHtml(f.path)}</td><td>${f.ext}</td><td>${f.lineCount||0}</td><td class="small">${fmt(f.size||0)} bytes</td></tr>`).join('');
+  fileTableWrap.innerHTML = `<table><thead><tr><th>Path</th><th>Ext</th><th>Lines</th><th class="small">Size</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+  featureSummary.innerHTML = Object.entries(a.featureCounts).map(([k,v])=>`<div><strong>${k}</strong>: ${v}</div>`).join('');
+  scoreSummary.innerHTML = Object.entries(a.scores).map(([k,v])=>`<div>${k}: <strong>${v}</strong>/10</div>`).join('') + '<div style="margin-top:8px"><strong>Modules</strong>: '+ a.modules.map(m=>`${m.module} ($${fmt(m.value)})`).join(', ') + '</div>';
+
+  evidence.textContent = a.matches.map(m=> `${m.file}:${m.line} ${m.keyword} → ${m.snippet}`).join('\n\n') || 'No matches found';
+}
+
+// ---------- Save to pool (Memory) with compression and index update ----------
+saveBtn.addEventListener('click', async ()=>{
+  if (!currentAnalysis) return;
+  status.textContent = 'Compressing and saving analysis to pool...';
+  // compress analysis JSON (LZ)
+  const json = JSON.stringify(currentAnalysis);
+  const compressed = LZString.compressToUTF16(json);
+  const obj = { id: currentAnalysis.id, meta: currentAnalysis.meta, compressed, estimatedValueUSD: currentAnalysis.estimatedValueUSD, createdAt: new Date().toISOString() };
+  await dbPut(obj);
+  await refreshPoolUI();
+  status.textContent = 'Saved to pool.';
+});
+
+// ---------- Pool UI refresh and indexing ----------
+async function refreshPoolUI(){
+  const all = await dbGetAll();
+  poolCount.textContent = all.length;
+  const totalLines = all.reduce((s,a)=>{
+    try { const d = JSON.parse(LZString.decompressFromUTF16(a.compressed)); return s + (d.rawCounts.totalLines||0); } catch(e){ return s; }
+  },0);
+  poolLines.textContent = `${fmt(totalLines)} total lines`;
+  const totalWorth = all.reduce((s,a)=> s + (a.estimatedValueUSD || a.estimatedValueUSD===0 ? a.estimatedValueUSD : (a.estimatedValueUSD||0)), 0);
+  poolWorth.textContent = `$${fmt(totalWorth)}`;
+  poolList.innerHTML = all.map(a=>{
+    const d = LZString.decompressFromUTF16(a.compressed);
+    let parsed;
+    try { parsed = JSON.parse(d); } catch(e){ parsed = { meta:{name:a.meta.name}, estimatedValueUSD: a.estimatedValueUSD||0 }; }
+    return `<div class="project-card">
+      <div><div style="font-weight:700">${escapeHtml(parsed.meta.name)}</div><div class="meta">${parsed.meta.fileCount} files • ${fmt(parsed.rawCounts.totalLines)} lines</div></div>
+      <div style="text-align:right"><div style="font-weight:800">$${fmt(parsed.estimatedValueUSD)}</div><div style="margin-top:8px">
+      <button class="btn small" onclick="downloadFromPool('${a.id}')">Download</button>
+      <button class="btn small" style="margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,0.03)" onclick="deleteFromPool('${a.id}')">Delete</button>
+      </div></div></div>`;
+  }).join('');
+  idxCountEl.textContent = all.length;
+  // build inverted index and Fuse search index for speed+accuracy
+  buildIndexes(all);
+}
+
+// download helper
+window.downloadFromPool = async function(id){
+  const obj = await dbGet(id);
+  if (!obj) return;
+  const json = LZString.decompressFromUTF16(obj.compressed);
+  const parsed = JSON.parse(json);
+  downloadObjectAsJson(parsed, `${sanitize(parsed.meta.name)}_analysis.json`);
+};
+
+window.deleteFromPool = async function(id){
+  if (!confirm('Delete this analysis from pool?')) return;
+  await dbDelete(id);
+  await refreshPoolUI();
+};
+
+// ---------- Indexing (Speed + Accuracy) ----------
+let invertedIndex = {}; // term -> set of ids (keys)
+let fuseIndex = null;   // Fuse instance
+let poolDocsCache = []; // parsed analyses (for search)
+async function buildIndexes(all){
+  invertedIndex = {};
+  poolDocsCache = [];
+  for (const a of all){
+    try {
+      const json = LZString.decompressFromUTF16(a.compressed);
+      const parsed = JSON.parse(json);
+      poolDocsCache.push({ id: a.id, name: parsed.meta.name, text: indexableText(parsed), estimatedValueUSD: parsed.estimatedValueUSD });
+      // simple tokenization
+      const tokens = tokenize(indexableText(parsed));
+      for (const t of tokens){
+        invertedIndex[t] = invertedIndex[t] || new Set();
+        invertedIndex[t].add(a.id);
+      }
+    } catch(e){}
+  }
+  // convert sets to arrays for serialization
+  for (const k in invertedIndex) invertedIndex[k] = Array.from(invertedIndex[k]);
+  // create Fuse index for fuzzy search
+  if (poolDocsCache.length){
+    fuseIndex = new Fuse(poolDocsCache, { keys: ['name','text'], threshold:0.35, ignoreLocation:true, minMatchCharLength:2, includeScore:true });
+  } else { fuseIndex = null; }
+}
+
+// produce a single long string from analysis for indexing
+function indexableText(parsed){
+  const parts = [];
+  parts.push(parsed.meta.name || '');
+  for (const f of (parsed.files || [])){
+    parts.push(f.path || '');
+    if (f.matches && f.matches.length){
+      for (const m of f.matches) parts.push(m.snippet || '');
+    }
+  }
+  return parts.join(' ');
+}
+function tokenize(s){
+  return Array.from(new Set(s.toLowerCase().match(/[a-z0-9\-_]{3,}/g) || [])); // unique tokens of length >=3
+}
+
+// ---------- Search UI ----------
+searchInput.addEventListener('input', async (e)=>{
+  const q = e.target.value.trim();
+  if (!q) { searchResults.innerHTML=''; return; }
+  // quick inverted lookup first
+  const tks = tokenize(q);
+  const hits = new Map(); // id -> score
+  for (const tk of tks){
+    if (invertedIndex[tk]){
+      for (const id of invertedIndex[tk]){
+        hits.set(id, (hits.get(id)||0) + 1);
+      }
+    }
+  }
+  let results = [];
+  // map hits to poolDocsCache entries
+  if (hits.size){
+    const all = poolDocsCache;
+    for (const [id,score] of hits.entries()){
+      const doc = all.find(x=> x.id === id);
+      if (doc) results.push({ item: doc, score: 1/score });
+    }
+    // sort by score
+    results.sort((a,b)=> a.score - b.score);
+  }
+
+  // if no inverted hits or fuzzy needed, run Fuse fuzzy search for accuracy
+  if (!results.length && fuseIndex){
+    const fRes = fuseIndex.search(q, { limit: 20 });
+    results = fRes.map(r=> ({ item: r.item, score: r.score }) );
+  }
+
+  // render top results
+  searchResults.innerHTML = results.slice(0,30).map(r=> {
+    return `<div class="project-card"><div><div style="font-weight:700">${escapeHtml(r.item.name)}</div><div class="meta">${escapeHtml(r.item.text.slice(0,120))}...</div></div><div style="text-align:right"><div style="font-weight:800">$${fmt(r.item.estimatedValueUSD)}</div></div></div>`;
+  }).join('');
+});
+
+// ---------- Re-index Pool (recursive incremental loop) ----------
+reindexBtn.addEventListener('click', async ()=>{
+  status.textContent = 'Re-indexing pool incrementally...';
+  await reindexPoolRecursive();
+  status.textContent = 'Re-index complete.';
+});
+async function reindexPoolRecursive(){
+  // pull all, and re-run worker summarization in chunks to update compressed blobs and scores
+  const all = await dbGetAll();
+  if (!all.length){ status.textContent = 'Pool empty.'; return; }
+  initWorker();
+  // process in chunks to avoid blocking
+  for (let i=0;i<all.length;i+=CONFIG.CHUNK_SIZE){
+    const slice = all.slice(i, i+CONFIG.CHUNK_SIZE);
+    // decompress and send parsed files to worker for re-analysis of matches and featureCounts
+    const payload = [];
+    for (const a of slice){
+      try {
+        const json = LZString.decompressFromUTF16(a.compressed);
+        const parsed = JSON.parse(json);
+        // build minimal file list for worker
+        const files = (parsed.files || []).map(f=> ({ path: f.path, ext: f.ext, text: f.text || '' }) );
+        payload.push({ id: a.id, meta: parsed.meta, files });
+      } catch(e){}
+    }
+    if (!payload.length) continue;
+    const res = await new Promise((resolv, rej)=>{
+      indexWorker.onmessage = e=> {
+        if (e.data && e.data.type === 'reindexChunkResult') resolv(e.data.payload);
+      };
+      indexWorker.postMessage({ cmd:'reindexChunk', payload, keywords: CONFIG.FEATURE_KEYWORDS });
+    });
+    // res is array of updated analyses (id, analysis)
+    for (const updated of res){
+      try {
+        const compressed = LZString.compressToUTF16(JSON.stringify(updated.analysis));
+        const storeObj = { id: updated.id, meta: updated.analysis.meta, compressed, estimatedValueUSD: updated.analysis.estimatedValueUSD, createdAt: new Date().toISOString() };
+        await dbPut(storeObj);
+      } catch(e){}
+    }
+    // small delay to keep UI responsive
+    await new Promise(r=> setTimeout(r,60));
+  }
+  await refreshPoolUI();
+}
+
+// ---------- Export/clear ----------
+exportPoolBtn.addEventListener('click', async ()=>{
+  const all = await dbGetAll();
+  if (!all.length){ status.textContent = 'Pool empty'; return; }
+  const bundle = { exportedAt: new Date().toISOString(), analyses: [] };
+  for (const a of all){
+    try { const json = LZString.decompressFromUTF16(a.compressed); bundle.analyses.push(JSON.parse(json)); } catch(e){}
+  }
+  downloadObjectAsJson(bundle, `trinity_pool_${all.length}.json`);
+});
+clearPoolBtn.addEventListener('click', async ()=>{
+  if (!confirm('Clear entire local pool?')) return;
+  await dbClear();
+  await refreshPoolUI();
+});
+
+// ---------- Utilities ----------
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+function chunkArray(arr,size){ const out=[]; for (let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; }
+function readFileAsArrayBuffer(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=e=>rej(e); r.readAsArrayBuffer(file); }); }
+
+// ---------- initial load pool -----------
+(async ()=> { await refreshPoolUI(); })();
+
+// ---------- worker code as string ----------
+function workerCode(){
+  return `
+  // worker: performs chunk analysis and reindexing
+  self.onmessage = async (e) => {
+    const { cmd, payload, keywords } = e.data;
+    if (cmd === 'analyzeChunk') {
+      const res = analyzeFiles(payload.files, keywords);
+      self.postMessage({ type: 'chunkResult', payload: res });
+    } else if (cmd === 'reindexChunk') {
+      const out = [];
+      for (const item of payload){
+        const aggregated = analyzeFiles(item.files, keywords);
+        // finalize analysis similar to main thread but simpler
+        const analysis = finalizeForWorker(item.meta, aggregated);
+        out.push({ id: item.id, analysis });
+      }
+      self.postMessage({ type: 'reindexChunkResult', payload: out });
+    }
+  };
+
+  function analyzeFiles(files, keywords){
+    const featureCounts = {};
+    for (const k in keywords) featureCounts[k]=0;
+    const fileSummaries = [];
+    let totalLines = 0;
+    const matches = [];
+    for (const f of files){
+      const text = f.text || '';
+      const lines = text ? text.split(/\\r\\n|\\n/) : [];
+      const fileMatch = [];
+      for (let i=0;i<lines.length;i++){
+        const ln = lines[i];
+        for (const feat in keywords){
+          for (const kw of keywords[feat]){
+            if (ln.toLowerCase().includes(kw.toLowerCase())){
+              featureCounts[feat] = (featureCounts[feat]||0) + 1;
+              fileMatch.push({ feature: feat, keyword: kw, line: i+1, snippet: ln.trim().slice(0,240) });
+              matches.push({ file: f.path, feature:feat, keyword:kw, line:i+1, snippet: ln.trim().slice(0,240) });
+            }
+          }
+        }
+      }
+      fileSummaries.push({ path: f.path, ext: f.ext, lineCount: lines.length, size: f.size || 0, matches: fileMatch });
+      totalLines += lines.length;
+    }
+    return { files: fileSummaries, featureCounts, totalLines, matches };
+  }
+
+  function finalizeForWorker(meta, aggregated){
+    const totalLines = aggregated.totalLines || 0;
+    const fileCount = aggregated.files.length || 0;
+    const featureCounts = aggregated.featureCounts || {};
+    const Complexity = Math.max(0, Math.min(10, Math.round((totalLines / Math.max(1,fileCount)) / 200 * 10)));
+    const DataIntegration = Math.max(0, Math.min(10, Math.round(( (featureCounts.data_viz||0) + (featureCounts.storage||0) + (featureCounts.api_calls||0) ) / 10)));
+    const Simulation = Math.max(0, Math.min(10, Math.round((featureCounts.simulation||0) / 5)));
+    const Security = Math.max(0, Math.min(10, Math.round(((featureCounts.auth||0) + (featureCounts.crypto||0)) / 4)));
+    const Accessibility = Math.max(0, Math.min(10, Math.round(( aggregated.files.filter(f=> ['.html','.css'].includes(f.ext)).length ) / 3)));
+    const Maintainability = Math.max(0, Math.min(10, Math.round(( aggregated.files.filter(f=> ['.md','.json','.js'].includes(f.ext)).length ) / 5)));
+
+    // module selection (mirror main)
+    const modules = [];
+    if ( ((featureCounts.web_design||0) + (featureCounts.data_viz||0) + (featureCounts.api_calls||0)) > 0) modules.push('static_site');
+    if ( (featureCounts.data_viz||0) > 3) modules.push('data_viz');
+    if ( (featureCounts.api_calls||0) > 2) modules.push('backend_api');
+    if ( (featureCounts.simulation||0) > 0) modules.push('simulation');
+    if ( (featureCounts.auth||0) > 0 || (featureCounts.crypto||0) > 0) modules.push('security_hardening');
+    if ( (featureCounts.crypto||0) > 2 || (featureCounts.web_design||0) > 5) modules.push('open_source_governance');
+    if (!modules.length) modules.push('static_site');
+
+    // base values -- must align with main CONFIG (not embedded here to keep worker small)
+    const BASELINE = 10000;
+    const MODULE_BASE = { static_site:25000, data_viz:150000, dashboard:200000, simulation:180000, backend_api:120000, security_hardening:90000, open_source_governance:80000 };
+
+    let moduleTotal = 0;
+    const moduleDetails = modules.map(m=>{
+      const v = MODULE_BASE[m] || 0;
+      const scale = 1 + ((Complexity + Maintainability) / 20);
+      const value = Math.round(v * scale);
+      moduleTotal += value;
+      return { module: m, base: v, scale: Number(scale.toFixed(2)), value };
+    });
+    const estimated = Math.round(BASELINE + moduleTotal);
+    // build minimal analysis object
+    const analysis = { meta, files: aggregated.files, featureCounts, scores: { Complexity, DataIntegration, Simulation, Security, Accessibility, Maintainability }, modules: moduleDetails, estimatedValueUSD: estimated, rawCounts: { totalFiles: fileCount, totalLines } };
+    return analysis;
+  }
+  `;
+}
+
+// ---------- re-export helper functions for pool UI ----------
+window.refreshPoolUI = refreshPoolUI;
+window.downloadFromPool = window.downloadFromPool;
+window.deleteFromPool = window.deleteFromPool;
+
+// ---------- initial hydration ----------
+refreshPoolUI();
+
+</script>
+</body>
+</html>

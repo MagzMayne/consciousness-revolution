@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CCART — Enhanced 3D Holographic Card • Offline Create / Sign Later</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <style>
+    :root{ --bg:#030515; --panel:#07111a; --muted:#9fb0d6; --accent:#7bead8; --card-w:420px; --card-h:560px; }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:radial-gradient(1000px 700px at 10% 10%, #071029,var(--bg));color:#eaf2ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+    .wrap{max-width:1200px;margin:18px auto;padding:16px;display:grid;gap:14px}
+    .hdr{display:flex;gap:12px;align-items:center}
+    .logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#072a3f,#0b2b37)}
+    .panel{background:linear-gradient(180deg,var(--panel),#041018);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.02)}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .input,select{padding:8px;border-radius:8px;background:#06121a;border:1px solid rgba(255,255,255,0.03);color:#eaf2ff}
+    .btn{padding:8px 12px;border-radius:8px;background:linear-gradient(180deg,#0b2e3a,#05252f);border:1px solid rgba(255,255,255,0.03);color:#eaf2ff;cursor:pointer}
+    .btn[disabled]{opacity:0.6;cursor:not-allowed}
+    .preview{display:grid;grid-template-columns:var(--card-w) 1fr;gap:16px}
+    @media(max-width:980px){ .preview{grid-template-columns:1fr} :root{--card-w:100%} }
+    .card{width:var(--card-w);height:var(--card-h);border-radius:14px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.03);position:relative;display:flex;align-items:center;justify-content:center}
+    .badge{position:absolute;left:12px;top:12px;background:linear-gradient(180deg,#08324a,#052733);padding:6px 10px;border-radius:999px;color:#cfeef6;font-weight:600;z-index:30;pointer-events:none}
+    .meta{position:absolute;right:12px;bottom:12px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:#cfeef6;z-index:30;pointer-events:none}
+    .canvasHost{width:100%;height:100%}
+    .holo{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;z-index:20}
+    .log{height:160px;overflow:auto;background:linear-gradient(180deg,#041018,#051423);border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:12px;color:#9fb0d6}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:12px}
+    .small{font-size:13px;color:#9fb0d6}
+    .kv{display:flex;justify-content:space-between;gap:8px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="logo" aria-hidden></div>
+      <div>
+        <div style="font-weight:700">CCART — Enhanced 3D Holographic Card</div>
+        <div class="small">Upload video or image. Create and archive offline. Sign later with Phantom. Mobile + desktop with touch/mouse/tilt.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls" style="justify-content:space-between">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label class="small" for="inputMedia">Media</label>
+          <input id="inputMedia" class="input" type="file" accept="video/*,image/*" />
+          <select id="resolution" class="input"><option>640x640</option><option>720x720</option><option selected>1024x1024</option></select>
+          <input id="fps" class="input" type="number" value="30" style="width:84px" title="FPS" />
+          <input id="duration" class="input" type="number" value="6" style="width:84px" title="Duration (s)" />
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="btnCreate" class="btn">Create (offline)</button>
+          <button id="btnConnect" class="btn">Connect Phantom</button>
+          <button id="btnSign" class="btn" disabled>Sign Latest</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview">
+      <div class="card panel" id="card">
+        <div class="badge" id="badgeRarity">—</div>
+        <div id="canvasHost" class="canvasHost" aria-hidden></div>
+        <div class="meta" id="metaBox">Traits —</div>
+        <svg class="holo" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+          <defs><linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.04"/><stop offset="1" stop-color="#7bead8" stop-opacity="0.02"/></linearGradient></defs>
+          <rect width="100" height="100" fill="url(#hg)"></rect>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Controls & Archive</div>
+          <div class="small" id="phantomStatus">Phantom: disconnected</div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="kv"><div class="small">Serial</div><div id="serial">—</div></div>
+          <div class="kv" style="margin-top:6px"><div class="small">Rarity</div><div id="rarityScore">—</div></div>
+          <div class="kv" style="margin-top:6px"><div class="small">USD</div><div><input id="usd" class="input" type="number" value="0" style="width:140px" /></div></div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnPost" class="btn" disabled>Post (stub)</button>
+          <button id="btnShare" class="btn" disabled>Copy Share Link</button>
+          <button id="btnMeta" class="btn" disabled>Download Metadata</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small" style="font-weight:700">Local Archive</div>
+          <div id="gallery" class="gallery"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <div class="small" style="font-weight:700">Logs</div>
+          <div id="log" class="log" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+    // DOM
+    const inputMedia = document.getElementById('inputMedia');
+    const btnCreate = document.getElementById('btnCreate');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnSign = document.getElementById('btnSign');
+    const btnPost = document.getElementById('btnPost');
+    const btnShare = document.getElementById('btnShare');
+    const btnMeta = document.getElementById('btnMeta');
+    const canvasHost = document.getElementById('canvasHost');
+    const badgeRarity = document.getElementById('badgeRarity');
+    const metaBox = document.getElementById('metaBox');
+    const serialEl = document.getElementById('serial');
+    const rarityScoreEl = document.getElementById('rarityScore');
+    const usdEl = document.getElementById('usd');
+    const phantomStatus = document.getElementById('phantomStatus');
+    const galleryEl = document.getElementById('gallery');
+    const logEl = document.getElementById('log');
+    const resolutionSel = document.getElementById('resolution');
+    const fpsInput = document.getElementById('fps');
+    const durationInput = document.getElementById('duration');
+
+    function log(msg, level='info'){
+      const line = `[${new Date().toISOString()}] ${msg}`;
+      const d = document.createElement('div'); d.textContent = line; logEl.prepend(d);
+      if(level === 'error') console.error(line); else console.log(line);
+    }
+
+    // IndexedDB archive
+    const Archive = (function(){
+      const NAME='ccart_enhanced_v1', STORE='items'; let db;
+      function open(){ return new Promise((res,rej)=>{ if(db) return res(db); const rq=indexedDB.open(NAME,1); rq.onupgradeneeded = e => { const _db=e.target.result; if(!_db.objectStoreNames.contains(STORE)) _db.createObjectStore(STORE,{ keyPath:'id' }); }; rq.onsuccess = e => { db = e.target.result; res(db); }; rq.onerror = e => rej(e.target.error); }); }
+      async function add(item){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(item); tx.oncomplete = ()=>res(true); tx.onerror = e=>rej(e.target.error); }); }
+      async function all(){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readonly'); const rq=tx.objectStore(STORE).getAll(); rq.onsuccess = ()=>res(rq.result||[]); rq.onerror = e=>rej(e.target.error); }); }
+      return { add, all };
+    })();
+
+    // state
+    let state = {
+      mediaFile: null,
+      sanitized: null, // { type:'video'|'image', video?, bitmap?, traits, serial, seed }
+      renderer: null, scene: null, camera: null, mesh: null, controls: null,
+      videoEl: null,
+      phantomPubKey: null,
+      lastArchived: null,
+      tiltEnabled: false
+    };
+
+    // helpers: seed/serial/traits/rarity
+    function seedFromBitmap(bitmap){
+      const c = document.createElement('canvas'); c.width = Math.min(64, bitmap.width); c.height = Math.min(64, bitmap.height);
+      const ctx = c.getContext('2d'); ctx.drawImage(bitmap,0,0,c.width,c.height);
+      const d = ctx.getImageData(0,0,c.width,c.height).data; let h = 2166136261;
+      for(let i=0;i<d.length;i+=47){ h ^= d[i]; h = (h * 16777619) >>> 0; }
+      return h.toString(16);
+    }
+    function makeSerial(seed){ const now = Date.now().toString(36).toUpperCase(); return `${seed.slice(0,6).toUpperCase()}-${now.slice(-6)}`; }
+    function traitsFromSeed(seed){
+      const s = parseInt(seed.slice(0,8),16||0);
+      const motifs=['Abstract','Portrait','Landscape','Cosmic','Specimen','Architect'];
+      const palettes=['Azure','Crimson','Emerald','Cosmic','Void','Slate'];
+      return { motif: motifs[s % motifs.length], palette: palettes[(s>>4) % palettes.length], seed };
+    }
+    function computeSharpness(bitmap){
+      const w = Math.min(256, bitmap.width), h = Math.min(256, bitmap.height); const tmp = document.createElement('canvas'); tmp.width=w; tmp.height=h;
+      const ctx = tmp.getContext('2d'); ctx.drawImage(bitmap,0,0,w,h);
+      const id = ctx.getImageData(0,0,w,h).data; const gray = new Float32Array(w*h);
+      let idx=0; for(let i=0;i<id.length;i+=4) gray[idx++]=0.2126*id[i]+0.7152*id[i+1]+0.0722*id[i+2];
+      let sumSq=0, mean=0;
+      for(let y=1;y<h-1;y++){ for(let x=1;x<w-1;x++){ const i=y*w+x; const lap = 4*gray[i]-gray[i-1]-gray[i+1]-gray[i-w]-gray[i+w]; mean+=lap; sumSq+=lap*lap; } }
+      const n=(w-2)*(h-2); return Math.max(0,(sumSq/n)-Math.pow(mean/n,2));
+    }
+    function computeEntropy(bitmap){
+      const tmp = document.createElement('canvas'); tmp.width=128; tmp.height=128; const ctx = tmp.getContext('2d'); ctx.drawImage(bitmap,0,0,128,128);
+      const id = ctx.getImageData(0,0,128,128).data; const hist = new Uint32Array(256);
+      for(let i=0;i<id.length;i+=4){ const lum=Math.floor(0.2126*id[i]+0.7152*id[i+1]+0.0722*id[i+2]); hist[lum]++; }
+      const total = 128*128; let ent=0; for(let i=0;i<256;i++){ if(hist[i]===0) continue; const p = hist[i]/total; ent -= p*Math.log2(p); } return ent;
+    }
+    function resolutionScore(w,h){ return Math.log2(w*h)/20; }
+    function computeRarity(bitmap,w,h){
+      const sharp = computeSharpness(bitmap), ent = computeEntropy(bitmap), res = resolutionScore(w,h);
+      const sN = Math.tanh(Math.log10(1 + sharp)), eN = Math.tanh(ent/6);
+      const score = Math.round((sN*0.45 + eN*0.35 + res*0.2) * 100);
+      let tier='Common'; if(score>=90) tier='Legendary'; else if(score>=80) tier='Epic'; else if(score>=65) tier='Rare'; else if(score>=45) tier='Uncommon';
+      return { score, tier, comps:{ sharp, ent, res } };
+    }
+    function usdFromScore(score){ const floor=1, cap=5000; const n=Math.max(0,Math.min(1,(score-20)/80)); return Math.round((floor + Math.pow(n,2.4)*(cap-floor)) * 100)/100; }
+
+    // three.js
+    function initThree(){
+      // cleanup previous
+      if(state.renderer){
+        try{ state.renderer.forceContextLoss(); }catch(e){}
+        state.renderer.domElement.remove();
+        state.renderer = null;
+      }
+      canvasHost.innerHTML = '';
+      const canvas = document.createElement('canvas'); canvas.style.width='100%'; canvas.style.height='100%'; canvasHost.appendChild(canvas);
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+      const w = canvasHost.clientWidth, h = canvasHost.clientHeight; renderer.setSize(w,h,false);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 1000); camera.position.set(0,0,6);
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x111216, 0.9); scene.add(hemi);
+      const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(-6,8,4); scene.add(dir);
+      const geom = new THREE.PlaneGeometry(3.6, 4.8, 64, 64);
+      const pos = geom.attributes.position;
+      for(let i=0;i<pos.count;i++){ const x = pos.getX(i), y = pos.getY(i); pos.setZ(i, Math.sin(x*0.6)*0.03 + Math.cos(y*0.6)*0.018); } pos.needsUpdate = true;
+      const mat = new THREE.MeshStandardMaterial({ color:0x0b0b10, metalness:0.04, roughness:0.5, emissive:0x001a1a });
+      const mesh = new THREE.Mesh(geom, mat); scene.add(mesh);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enablePan = false;
+      controls.enableZoom = true; controls.minDistance = 3; controls.maxDistance = 12;
+      controls.autoRotate = true; controls.autoRotateSpeed = 0.6;
+      controls.enableDamping = true; controls.dampingFactor = 0.08;
+
+      let last = performance.now();
+      function animate(now){
+        const dt = (now - last)/1000; last = now;
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      const ro = new ResizeObserver(()=>{ const w = canvasHost.clientWidth, h=canvasHost.clientHeight; renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); });
+      ro.observe(canvasHost);
+
+      state.renderer = renderer; state.scene = scene; state.camera = camera; state.mesh = mesh; state.controls = controls;
+      log('three.js scene initialized');
+    }
+
+    function setVideoTexture(videoEl, metadata){
+      if(!state.mesh) initThree();
+      const tex = new THREE.VideoTexture(videoEl);
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.format = THREE.RGBAFormat;
+      state.mesh.material.map = tex;
+      const palMap = { 'Azure':0x3b9cff,'Crimson':0xff4b6b,'Emerald':0x00c48c,'Cosmic':0x7b62ff,'Void':0x0a0a10,'Slate':0x7b8aa3 };
+      try{ state.mesh.material.emissive = new THREE.Color(palMap[metadata?.traits?.palette] || 0x001a1a); }catch(e){}
+      state.mesh.material.needsUpdate = true;
+    }
+    function setImageTexture(bitmap, metadata){
+      if(!state.mesh) initThree();
+      const tex = new THREE.CanvasTexture(bitmap);
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.format = THREE.RGBAFormat;
+      state.mesh.material.map = tex;
+      const palMap = { 'Azure':0x3b9cff,'Crimson':0xff4b6b,'Emerald':0x00c48c,'Cosmic':0x7b62ff,'Void':0x0a0a10,'Slate':0x7b8aa3 };
+      try{ state.mesh.material.emissive = new THREE.Color(palMap[metadata?.traits?.palette] || 0x001a1a); }catch(e){}
+      state.mesh.material.needsUpdate = true;
+    }
+
+    // device tilt
+    function enableTiltOnce(){
+      if(state.tiltEnabled) return;
+      const onFirst = async ()=>{
+        document.removeEventListener('pointerdown', onFirst);
+        try{
+          if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+            const p = await DeviceOrientationEvent.requestPermission(); if(p !== 'granted'){ log('DeviceOrientation permission not granted'); return; }
+          }
+          window.addEventListener('deviceorientation', (ev)=>{
+            if(!state.mesh) return;
+            const b = ev.beta || 0; const g = ev.gamma || 0;
+            const fx=0.006, fy=0.006;
+            state.mesh.rotation.x = THREE.MathUtils.lerp(state.mesh.rotation.x, -b*fx, 0.12);
+            state.mesh.rotation.y = THREE.MathUtils.lerp(state.mesh.rotation.y, g*fy, 0.12);
+          });
+          state.tiltEnabled = true; log('Device tilt enabled');
+        }catch(e){ log('Tilt enable failed: ' + (e.message||e), 'error'); }
+      };
+      document.addEventListener('pointerdown', onFirst, { once:true, passive:true });
+    }
+
+    // render to WebM or frames
+    async function renderFromMedia(sanitized, opts){
+      const [rw,rh] = opts.res.split('x').map(s=>parseInt(s,10));
+      const fps = Math.max(12, Math.min(60, opts.fps||30));
+      const duration = Math.max(1, Math.min(60, opts.duration||6));
+      const frames = Math.ceil(duration * fps);
+      const off = document.createElement('canvas'); off.width = rw; off.height = rh; const ctx = off.getContext('2d');
+
+      function drawFrame(){
+        ctx.fillStyle = '#02060a'; ctx.fillRect(0,0,rw,rh);
+        if(sanitized.type === 'video' && sanitized.video){
+          const v = sanitized.video;
+          const iw = v.videoWidth || rw, ih = v.videoHeight || rh;
+          const ir = iw/ih, dr = rw/rh;
+          let dw, dh; if(ir > dr){ dw = rw; dh = Math.round(dw / ir); } else { dh = rh; dw = Math.round(dh * ir); }
+          const dx = Math.round((rw - dw)/2), dy = Math.round((rh - dh)/2);
+          try{ ctx.drawImage(v, 0,0, iw, ih, dx, dy, dw, dh); }catch(e){}
+        } else if(sanitized.type === 'image' && sanitized.bitmap){
+          const bmp = sanitized.bitmap;
+          const iw=bmp.width, ih=bmp.height, ir=iw/ih, dr=rw/rh;
+          let dw, dh; if(ir>dr){ dw=rw; dh=Math.round(dw/ir); } else { dh=rh; dw=Math.round(dh*ir); }
+          const dx = Math.round((rw-dw)/2), dy = Math.round((rh-dh)/2);
+          ctx.drawImage(bmp, 0,0, iw, ih, dx, dy, dw, dh);
+        }
+        ctx.fillStyle='rgba(255,255,255,0.03)'; ctx.fillRect(0,rh-36,rw,36);
+        ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.font='600 18px system-ui'; ctx.textAlign='right'; ctx.fillText('CCART', rw-16, rh-12);
+      }
+
+      let stream = null;
+      try{ stream = off.captureStream ? off.captureStream(fps) : null; }catch(e){ stream = null; }
+      if(stream && typeof MediaRecorder !== 'undefined' && !/iPhone|iPad|iPod/.test(navigator.userAgent)){
+        const candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+        for(const mime of candidates){
+          try{
+            if(MediaRecorder.isTypeSupported && !MediaRecorder.isTypeSupported(mime)) continue;
+            const recorder = new MediaRecorder(stream, { mimeType: mime, bitsPerSecond: 3500000 });
+            const parts = [];
+            recorder.ondataavailable = e => { if(e.data && e.data.size) parts.push(e.data); };
+            recorder.start();
+            let f = 0;
+            await new Promise(res=>{
+              function step(){
+                drawFrame();
+                f++;
+                if(f <= frames) requestAnimationFrame(step); else setTimeout(()=>{ try{ recorder.stop(); }catch(e){}; res(); }, 80);
+              }
+              requestAnimationFrame(step);
+            });
+            const blob = new Blob(parts, { type: mime });
+            return { type:'webm', blob };
+          }catch(e){ /* try next mime */ }
+        }
+      }
+
+      // frames fallback
+      const arr = [];
+      for(let i=0;i<frames;i++){
+        drawFrame();
+        const b = await new Promise(res=>off.toBlob(res,'image/png',0.92));
+        arr.push({ name:`frame_${String(i).padStart(4,'0')}.png`, blob: b });
+      }
+      if(typeof CompressionStream !== 'undefined'){
+        const cs = new CompressionStream('gzip'); const writer = cs.writable.getWriter();
+        for(const f of arr){
+          await writer.write(new TextEncoder().encode(`FILE:${f.name}\nSIZE:${f.blob.size}\n---\n`));
+          const r = f.blob.stream().getReader();
+          while(true){ const { value, done } = await r.read(); if(done) break; await writer.write(value); }
+          await writer.write(new TextEncoder().encode('\n===EOF===\n'));
+        }
+        await writer.close();
+        const gz = await new Response(cs.readable).blob();
+        return { type:'frames-gzip', blob: gz };
+      } else { return { type:'frames-array', frames: arr }; }
+    }
+
+    // Phantom connect & sign
+    async function connectPhantom(){
+      if(window.solana && window.solana.isPhantom){
+        try{ const r = await window.solana.connect(); state.phantomPubKey = r.publicKey.toString(); phantomStatus.textContent = 'Phantom: ' + state.phantomPubKey.slice(0,6) + '...' + state.phantomPubKey.slice(-4); log('Phantom connected: ' + state.phantomPubKey); btnSign.disabled = false; }
+        catch(e){ log('Phantom connect failed: ' + (e.message||e), 'error'); alert('Phantom connect failed'); }
+      } else alert('Phantom not detected');
+    }
+    async function signWithPhantom(metadata){
+      if(!state.phantomPubKey) throw new Error('Phantom not connected');
+      const enc = new TextEncoder().encode(JSON.stringify(metadata));
+      const signed = await window.solana.signMessage(enc, 'utf8');
+      const sig = btoa(String.fromCharCode(...signed.signature));
+      return { signature: sig, signer: signed.publicKey.toString() };
+    }
+
+    // archive helper
+    async function archiveBlob(blob, metadata){
+      const buf = await blob.arrayBuffer();
+      const item = { id: metadata.id, name: metadata.name, type: blob.type || 'application/octet-stream', size: blob.size || buf.byteLength, createdAt: new Date().toISOString(), metadata, blobBuffer: buf };
+      await Archive.add(item);
+      state.lastArchived = item;
+      log('Archived: ' + item.name);
+      return item;
+    }
+
+    // pump.fun stub
+    async function postStub(blob, metadata){
+      log('pump.fun stub called — replace with secure server in production');
+      await new Promise(r=>setTimeout(r,300));
+      return { ok:true, id:'pump_stub_'+Date.now(), url: location.href + '#coin=' + encodeURIComponent(metadata.name) };
+    }
+
+    // UI wiring
+    inputMedia.addEventListener('change', async (ev)=>{
+      const f = ev.target.files && ev.target.files[0]; if(!f) return;
+      try{
+        const isVideo = /^video\//i.test(f.type);
+        const isImage = /^image\//i.test(f.type);
+        if(!isVideo && !isImage) throw new Error('Unsupported file type');
+        state.mediaFile = f;
+
+        if(isVideo){
+          const v = document.createElement('video');
+          v.muted = true; v.loop = true; v.playsInline = true; v.autoplay = false; v.controls = false; v.preload = 'auto'; v.src = URL.createObjectURL(f);
+          state.videoEl = v;
+          await new Promise((res,rej)=>{ v.onloadedmetadata = ()=>res(); v.onerror = e=>rej(e); });
+          try{ await v.play(); }catch(e){ log('Autoplay blocked; tap card to play', 'info'); }
+          const cb = document.createElement('canvas'); cb.width = Math.min(512, v.videoWidth||512); cb.height = Math.min(512, v.videoHeight||512);
+          const cctx = cb.getContext('2d'); cctx.drawImage(v,0,0,cb.width,cb.height);
+          const bitmap = await createImageBitmap(cb);
+          const seed = seedFromBitmap(bitmap); const serial = makeSerial(seed); const traits = traitsFromSeed(seed);
+          state.sanitized = { type:'video', video:v, bitmap, traits, serial, seed };
+          serialEl.textContent = serial; metaBox.textContent = `Traits: ${traits.motif} • ${traits.palette}`;
+          const r = computeRarity(bitmap, bitmap.width, bitmap.height);
+          badgeRarity.textContent = r.tier; rarityScoreEl.textContent = r.score; usdEl.value = usdFromScore(r.score);
+          initThree(); setVideoTexture(v, { traits });
+          enableTiltOnce();
+          log(`Video loaded: ${f.name} (${v.videoWidth}x${v.videoHeight})`);
+        } else {
+          const bmp = await createImageBitmap(f);
+          const seed = seedFromBitmap(bmp); const serial = makeSerial(seed); const traits = traitsFromSeed(seed);
+          state.sanitized = { type:'image', bitmap: bmp, traits, serial, seed };
+          serialEl.textContent = serial; metaBox.textContent = `Traits: ${traits.motif} • ${traits.palette}`;
+          const r = computeRarity(bmp, bmp.width, bmp.height);
+          badgeRarity.textContent = r.tier; rarityScoreEl.textContent = r.score; usdEl.value = usdFromScore(r.score);
+          initThree(); setImageTexture(bmp, { traits });
+          enableTiltOnce();
+          log(`Image loaded: ${f.name} (${bmp.width}x${bmp.height})`);
+        }
+      }catch(err){ log('Upload failed: ' + (err && err.message ? err.message : err), 'error'); alert('Upload failed: ' + (err && err.message ? err.message : err)); }
+    });
+
+    btnCreate.addEventListener('click', async ()=>{
+      if(!state.sanitized) return alert('Upload a video or image first');
+      btnCreate.disabled = true;
+      try{
+        if(state.sanitized.type === 'video' && state.videoEl && state.videoEl.paused){
+          try{ await state.videoEl.play(); }catch(e){}
+        }
+        const opts = { res: resolutionSel.value, fps: parseInt(fpsInput.value,10)||30, duration: parseInt(durationInput.value,10)||6 };
+        log('Rendering animation (offline create)...');
+        const out = await renderFromMedia(state.sanitized, opts);
+        let blob;
+        if(out.type === 'webm') blob = out.blob;
+        else if(out.type === 'frames-gzip') blob = out.blob;
+        else if(out.type === 'frames-array'){ blob = new Blob(out.frames.map(f=>f.blob), { type:'application/octet-stream' }); }
+        else throw new Error('Unsupported render output');
+
+        const metadata = {
+          id: 'ccart_' + Date.now(),
+          name: 'CCART-' + (state.sanitized.serial || ('X'+Date.now())),
+          rarityScore: parseInt(rarityScoreEl.textContent) || 0,
+          rarityTier: badgeRarity.textContent,
+          usdSuggested: parseFloat(usdEl.value)||0,
+          traits: state.sanitized.traits || {},
+          serial: state.sanitized.serial || '',
+          createdAt: new Date().toISOString(),
+          sourceFilename: state.mediaFile?.name || 'uploaded'
+        };
+        const archived = await archiveBlob(blob, metadata);
+        state.lastArchived = archived;
+
+        btnShare.disabled = false; btnMeta.disabled = false; btnPost.disabled = false; btnSign.disabled = !(state.phantomPubKey ? false : true);
+
+        btnMeta.onclick = ()=>{ const jd = new Blob([JSON.stringify(metadata,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href = URL.createObjectURL(jd); a.download = `${metadata.name}_meta.json`; a.click(); };
+        btnShare.onclick = ()=>{ const url = URL.createObjectURL(new Blob([archived.blobBuffer],{type:archived.type})); navigator.clipboard?.writeText(url).then(()=>alert('Share link copied')); };
+        btnPost.onclick = async ()=>{ try{ btnPost.disabled=true; const res = await postStub(new Blob([archived.blobBuffer],{type:archived.type}), archived.metadata); log('pump.fun stub result: ' + JSON.stringify(res)); alert('Posted (stub)'); }catch(e){ log('Post failed: ' + (e.message||e),'error'); } finally{ btnPost.disabled=false; } };
+
+        log('Create finished and archived: ' + archived.name);
+        rebuildGallery();
+      }catch(e){ log('Create failed: ' + (e && e.message ? e.message : e), 'error'); alert('Create failed'); }
+      finally{ btnCreate.disabled = false; }
+    });
+
+    btnConnect.addEventListener('click', async ()=>{ await connectPhantom(); });
+
+    btnSign.addEventListener('click', async ()=>{
+      if(!state.phantomPubKey) return alert('Connect Phantom first');
+      const items = await Archive.all(); if(!items.length) return alert('No archived items to sign');
+      const item = items[items.length - 1];
+      try{
+        const meta = Object.assign({}, item.metadata);
+        const res = await signWithPhantom(meta);
+        meta.signature = res.signature; meta.signedBy = res.signer; meta.signedAt = new Date().toISOString(); meta.signed = true;
+        item.metadata = meta; await Archive.add(item);
+        log('Archived item signed: ' + item.id);
+        alert('Archived item signed');
+        rebuildGallery();
+      }catch(e){ log('Sign failed: ' + (e.message||e), 'error'); alert('Sign failed'); }
+    });
+
+    async function rebuildGallery(){
+      const items = await Archive.all();
+      galleryEl.innerHTML = '';
+      items.reverse().forEach(it=>{
+        const box = document.createElement('div'); box.className='panel'; box.style.padding='8px';
+        const t = document.createElement('div'); t.style.fontWeight='700'; t.textContent = it.name; box.appendChild(t);
+        const m = document.createElement('div'); m.className='small'; m.textContent = `${it.metadata.rarityTier || '-'} • ${it.metadata.usdSuggested || '-'} USD • ${it.metadata.signed ? 'Signed' : 'Unsigned'}`; box.appendChild(m);
+        const act = document.createElement('div'); act.style.marginTop='8px'; act.style.display='flex'; act.style.gap='8px';
+        const open = document.createElement('button'); open.className='btn'; open.textContent='Open'; open.onclick = ()=>{ const blob = new Blob([it.blobBuffer],{type:it.type}); const url = URL.createObjectURL(blob); window.open(url,'_blank'); };
+        const copy = document.createElement('button'); copy.className='btn'; copy.textContent='Copy Link'; copy.onclick = ()=>{ const url = URL.createObjectURL(new Blob([it.blobBuffer],{type:it.type})); navigator.clipboard?.writeText(url).then(()=>alert('Copied blob link')); };
+        const signItem = document.createElement('button'); signItem.className='btn'; signItem.textContent='Sign (Phantom)'; signItem.disabled = !state.phantomPubKey; signItem.onclick = async ()=>{ if(!state.phantomPubKey) return alert('Connect Phantom'); try{ const md = Object.assign({}, it.metadata); const s = await signWithPhantom(md); md.signature = s.signature; md.signedBy = s.signer; md.signedAt = new Date().toISOString(); md.signed = true; it.metadata = md; await Archive.add(it); rebuildGallery(); alert('Item signed'); }catch(e){ alert('Sign failed'); } };
+        act.appendChild(open); act.appendChild(copy); act.appendChild(signItem);
+        box.appendChild(act); galleryEl.appendChild(box);
+      });
+    }
+
+    (async function init(){
+      initThree();
+      await rebuildGallery();
+      log('CCART ready — buttons wired and logs active');
+      enableTiltOnce();
+    })();
+  </script>
+</body>
+</html>

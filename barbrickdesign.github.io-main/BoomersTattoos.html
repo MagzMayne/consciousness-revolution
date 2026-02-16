@@ -1,0 +1,408 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>BloomersTattoos — Pixel-Flow Hub</title>
+<style>
+  :root{--bg:#070707;--panel:rgba(12,12,12,0.72);--muted:#d6d6d6}
+  html,body{height:100%;margin:0;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,Arial;color:var(--muted);-webkit-font-smoothing:antialiased}
+  #wrap{position:relative;width:100%;max-width:1100px;padding:12px;box-sizing:border-box}
+  canvas{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.6);background:#111}
+  #ui{position:fixed;left:10px;top:10px;background:var(--panel);padding:12px;border-radius:10px;backdrop-filter:blur(6px);font-size:13px;z-index:60;max-width:calc(100% - 24px)}
+  #ui .compact{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #ui label{display:block;margin:6px 0;color:#e9e9e9}
+  #ui input[type=range]{width:160px}
+  #ui input[type=file],#ui button, #ui select{padding:8px 10px;border-radius:7px;border:0;background:#222;color:#fff;cursor:pointer;font-size:13px}
+  #status{position:fixed;right:10px;top:10px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:8px;font-size:13px;color:#ffd;z-index:60}
+  #log{position:fixed;left:10px;bottom:10px;max-width:calc(100% - 20px);max-height:28vh;overflow:auto;background:rgba(0,0,0,0.45);padding:8px;border-radius:8px;font-size:12px;color:#ccc;z-index:60}
+  #hashReadout{margin-top:8px;font-family:monospace;font-size:12px;color:#9df;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:6px;display:inline-block}
+  .small{font-size:12px;color:#bdbdbd}
+  .muted{color:#aaa}
+  @media (min-width:760px){ #ui input[type=range]{width:190px} }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="900" height="700" role="img" aria-label="BloomersTattoos animated bloom"></canvas>
+</div>
+
+<div id="ui" aria-hidden="true">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <strong style="font-size:14px">BloomersTattoos Hub</strong>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="hideui" aria-label="Toggle UI">Hide UI</button>
+    </div>
+  </div>
+
+  <div class="compact">
+    <label style="flex:1 1 100%;">Choose Image <input id="fileIn" type="file" accept="image/*"></label>
+    <div class="small" style="flex:1 1 100%">Default demo image: <code>X9dvbXGFGnkKR919MoaBt.jpeg</code></div>
+
+    <label style="width:48%;">Filter
+      <select id="filterSelect" style="width:100%">
+        <option value="none">None</option>
+        <option value="desaturate">Desaturate</option>
+        <option value="contrast">Contrast boost</option>
+        <option value="blur">Soft blur</option>
+      </select>
+    </label>
+
+    <label style="width:48%;">Density <input id="density" type="range" min="4" max="36" value="10"></label>
+    <label style="width:48%;">Growth Speed <input id="speed" type="range" min="0.2" max="3" step="0.1" value="1.0"></label>
+    <label style="width:48%;">Trichome <input id="spark" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+
+    <div style="display:flex;gap:8px;width:100%;margin-top:6px">
+      <button id="restart">Restart</button>
+      <button id="setcore">Set as Core</button>
+      <button id="saveframe">Save Frame</button>
+      <button id="exportlog">Export Log</button>
+    </div>
+
+    <div id="hashReadout" style="flex:1 1 100%">Image hex: <span id="imgHex">—</span></div>
+    <div class="small" style="width:100%;margin-top:6px">First uploaded image can be marked as the Core activation layer and will be locked as the canonical image for session validation and logging.</div>
+  </div>
+</div>
+
+<div id="status">Status: <span id="sttext">loading demo image</span></div>
+<div id="log" aria-live="polite"></div>
+
+<script>
+/* BloomersTattoos single-file hub
+   - Drop this file in a folder with X9dvbXGFGnkKR919MoaBt.jpeg (or upload) and open in a modern browser
+   - Features: upload/drag-drop, pre-pixel filters, SHA-256 hex, mark first image as Core, local index log (localStorage), pixel-flow animation
+   - No wallet or on-chain transaction code is included
+*/
+
+/* -- Config and elements -- */
+const DEFAULT_IMAGE = 'X9dvbXGFGnkKR919MoaBt.jpeg';
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const logEl = document.getElementById('log');
+const sttext = document.getElementById('sttext');
+const fileIn = document.getElementById('fileIn');
+const imgHexEl = document.getElementById('imgHex');
+const filterSelect = document.getElementById('filterSelect');
+
+let deviceRatio = Math.max(1, window.devicePixelRatio || 1);
+function fitCanvas(){ const cssW = Math.min(window.innerWidth - 24, 1100); const cssH = Math.round((cssW * 700) / 900); canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px'; canvas.width = Math.round(cssW * deviceRatio); canvas.height = Math.round(cssH * deviceRatio); }
+fitCanvas(); window.addEventListener('resize', ()=>{ deviceRatio = Math.max(1, window.devicePixelRatio || 1); fitCanvas(); });
+
+function uiLog(msg){ const d=document.createElement('div'); d.textContent = (new Date()).toLocaleTimeString() + ' — ' + msg; logEl.prepend(d); console.log(msg); }
+function setStatus(s){ sttext.textContent = s; }
+
+/* -- Local log / Core image tracking -- */
+const LOG_KEY = 'bloomers_index_log_v1';
+function loadIndexLog(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); }catch(e){ return []; } }
+function saveIndexLog(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+function appendIndexLog(entry){ const arr = loadIndexLog(); arr.unshift(entry); saveIndexLog(arr); uiLog('Index log appended: ' + entry.filename + ' ' + entry.sha256.slice(0,8)); }
+
+function getCoreEntry(){ const arr = loadIndexLog(); return arr.length ? arr[arr.length-1] : null; } // core stored as last element with core:true flag
+function setCoreEntry(entry){
+  // mark entry as core and keep it as canonical reference (append with core:true)
+  const core = Object.assign({}, entry, { core: true, coreSetAt: Date.now() });
+  appendIndexLog(core);
+  uiLog('Core image set: ' + entry.filename + ' ' + entry.sha256.slice(0,8));
+}
+
+/* -- Image loading and uploads -- */
+let img = new Image();
+img.crossOrigin = 'anonymous';
+let imgURL = null;
+let imgFile = null;
+let imgLoaded = false;
+
+function loadImageSource(src, fileObj){
+  setStatus('loading image');
+  if(imgURL){ URL.revokeObjectURL(imgURL); imgURL = null; }
+  img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { imgLoaded = true; setStatus('image loaded'); initFromImage(fileObj); uiLog('Loaded image ' + (fileObj ? fileObj.name : src)); };
+  img.onerror = (e) => { imgLoaded = false; setStatus('image load failed'); drawFallback(); uiLog('Image load failed: ' + src); };
+  img.src = src;
+}
+
+fileIn.addEventListener('change', async (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  imgFile = f;
+  imgURL = URL.createObjectURL(f);
+  try{ const hex = await computeSHA256Hex(f); f.sha256Hex = hex; imgHexEl.textContent = hex; uiLog('Computed SHA-256 for ' + f.name); }catch(e){ imgHexEl.textContent = 'error'; uiLog('Hash error'); }
+  loadImageSource(imgURL, f);
+});
+
+document.body.addEventListener('dragover', (e)=>e.preventDefault(), {passive:false});
+document.body.addEventListener('drop', async (e)=>{ e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(!f) return; imgFile = f; imgURL = URL.createObjectURL(f); try{ const hex = await computeSHA256Hex(f); f.sha256Hex = hex; imgHexEl.textContent = hex; uiLog('Computed SHA-256 for dropped file'); }catch(e){ imgHexEl.textContent = 'error'; uiLog('Hash error'); } loadImageSource(imgURL, f); });
+
+setStatus('attempting demo image load');
+loadImageSource(DEFAULT_IMAGE, null);
+
+/* -- Simple filters (pre-pixelation) -- */
+function applyFilterToContext(srcCtx){
+  const imgData = srcCtx.getImageData(0,0,srcCtx.canvas.width,srcCtx.canvas.height);
+  const data = imgData.data;
+  const filter = filterSelect.value;
+  if(filter === 'none') return srcCtx;
+  if(filter === 'desaturate'){
+    for(let i=0;i<data.length;i+=4){
+      const avg = (data[i]+data[i+1]+data[i+2])/3;
+      data[i]=avg; data[i+1]=avg; data[i+2]=avg;
+    }
+    srcCtx.putImageData(imgData,0,0); return srcCtx;
+  }
+  if(filter === 'contrast'){
+    const contrast = 1.18; const intercept = 128*(1-contrast);
+    for(let i=0;i<data.length;i+=4){
+      data[i] = Math.min(255, Math.max(0, data[i]*contrast + intercept));
+      data[i+1] = Math.min(255, Math.max(0, data[i+1]*contrast + intercept));
+      data[i+2] = Math.min(255, Math.max(0, data[i+2]*contrast + intercept));
+    }
+    srcCtx.putImageData(imgData,0,0); return srcCtx;
+  }
+  if(filter === 'blur'){
+    const tmp = document.createElement('canvas'); tmp.width = srcCtx.canvas.width; tmp.height = srcCtx.canvas.height;
+    const tctx = tmp.getContext('2d'); const scale = 0.3;
+    tctx.drawImage(srcCtx.canvas, 0, 0, Math.max(1, Math.round(srcCtx.canvas.width*scale)), Math.max(1, Math.round(srcCtx.canvas.height*scale)));
+    srcCtx.clearRect(0,0,srcCtx.canvas.width,srcCtx.canvas.height);
+    srcCtx.drawImage(tmp, 0, 0, srcCtx.canvas.width, srcCtx.canvas.height); return srcCtx;
+  }
+  return srcCtx;
+}
+
+/* -- SHA-256 hex functions -- */
+function bufToHex(buffer){
+  const hexCodes = []; const view = new DataView(buffer);
+  for(let i = 0; i < view.byteLength; i += 4){
+    const value = view.getUint32(i, false); hexCodes.push(value.toString(16).padStart(8, '0'));
+  }
+  return hexCodes.join('');
+}
+async function computeSHA256Hex(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  return bufToHex(hashBuffer);
+}
+
+/* -- Particle system (pixel-flow) -- */
+const state = { particles: [], sparks: [], t:0 };
+
+function createParticlesFromContext(tctx, filename, sha256hex, appliedFilter){
+  state.particles.length = 0; state.sparks.length = 0; state.t = 0;
+  let density = +document.getElementById('density').value;
+  if(deviceRatio > 2) density = Math.min( Math.max(8, density), 20 );
+  if(window.innerWidth < 420) density = Math.max(density, 10);
+  const step = Math.max(2, Math.round(density));
+  const imgData = tctx.getImageData(0,0,tctx.canvas.width,tctx.canvas.height).data;
+  for(let y=0;y<tctx.canvas.height;y+=step){
+    for(let x=0;x<tctx.canvas.width;x+=step){
+      const i = ((y*tctx.canvas.width)+x)*4;
+      const a = imgData[i+3];
+      if(a < 12) continue;
+      state.particles.push({
+        x: x / deviceRatio, y: y / deviceRatio, ox: x / deviceRatio, oy: y / deviceRatio,
+        r: imgData[i], g: imgData[i+1], b: imgData[i+2], a,
+        brightness: (imgData[i]+imgData[i+1]+imgData[i+2])/3,
+        mode: 'idle', vx:0, vy:0, t: Math.random()
+      });
+    }
+  }
+  seedEmitters(5);
+  const entry = { timestamp: Date.now(), filename: filename || DEFAULT_IMAGE, sha256: sha256hex || 'n/a', filter: appliedFilter || 'none' };
+  appendIndexLog(entry);
+}
+
+function initFromImage(fileObj){
+  const tmp = document.createElement('canvas'); tmp.width = canvas.width; tmp.height = canvas.height;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#000'; tctx.fillRect(0,0,tmp.width,tmp.height);
+  const ratio = Math.min(tmp.width / img.width, tmp.height / img.height);
+  const iw = Math.round(img.width * ratio), ih = Math.round(img.height * ratio);
+  const ix = Math.round((tmp.width - iw)/2), iy = Math.round((tmp.height - ih)/2);
+  tctx.drawImage(img, ix, iy, iw, ih);
+  applyFilterToContext(tctx);
+  createParticlesFromContext(tctx, fileObj ? fileObj.name : DEFAULT_IMAGE, fileObj ? (fileObj.sha256Hex || imgHexEl.textContent) : imgHexEl.textContent, filterSelect.value);
+  requestAnimationFrame(loop);
+}
+
+function seedEmitters(n){
+  const pool = state.particles.filter(p => p.x < (canvas.width/deviceRatio)*0.55 && p.x > (canvas.width/deviceRatio)*0.18 && p.y > (canvas.height/deviceRatio)*0.25 && p.y < (canvas.height/deviceRatio)*0.75);
+  for(let i=0;i<n;i++){
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    if(!pick) continue;
+    pick.mode = 'emitter'; pick.emitTimer = Math.random()*1.6;
+  }
+}
+function toLeafColor(){ return [ Math.round(95 + Math.random()*65), Math.round(20 + Math.random()*50), Math.round(120 + Math.random()*100) ]; }
+function pistilColor(){ return [ Math.round(220 + Math.random()*35), Math.round(140 + Math.random()*45), Math.round(140 + Math.random()*45) ]; }
+function spawnSpark(x,y){ state.sparks.push({ x,y, vx:(Math.random()-0.5)*0.6, vy:-0.15-Math.random()*0.45, life:0.6+Math.random()*0.8, t:0, size:0.6+Math.random()*1.6 }); }
+
+function loop(){
+  state.t += 0.016;
+  const speed = +document.getElementById('speed').value;
+  const sparkLevel = +document.getElementById('spark').value;
+
+  ctx.save();
+  ctx.setTransform(deviceRatio,0,0,deviceRatio,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = 'rgba(8,8,8,0.16)'; ctx.fillRect(0,0,canvas.width/deviceRatio,canvas.height/deviceRatio);
+
+  for(let p of state.particles){
+    p.t += 0.02 * speed;
+    if(p.mode === 'emitter'){
+      p.emitTimer -= 0.02 * speed;
+      if(p.emitTimer <= 0){
+        p.emitTimer = 0.15 + Math.random()*0.65;
+        const n = findNeighbor(p, 18);
+        if(n && n.mode === 'idle'){ n.mode = 'grow'; n.growProg = 0; n.leafColor = toLeafColor(); }
+      }
+    }
+    if(p.mode === 'grow'){
+      p.growProg += 0.02 * speed * (0.6 + Math.random()*0.9);
+      p.vx += (Math.random()-0.5)*0.12; p.vy += (Math.random()-0.4)*0.06;
+      p.x += p.vx; p.y += p.vy;
+      if(p.growProg > 1){
+        p.mode = 'leaf';
+        p.leaf = { size: 0.9 + Math.random()*1.5, angle: (Math.random()-0.5)*3.2, pistils: Math.random()>0.4 ? Math.floor(1+Math.random()*3):0 };
+        if(Math.random() < sparkLevel){ for(let s=0;s<Math.floor(1+Math.random()*3);s++) spawnSpark(p.x + (Math.random()-0.5)*8, p.y + (Math.random()-0.5)*8); }
+      }
+    }
+    if(p.mode === 'leaf'){
+      p.x += Math.sin((state.t + p.ox)*0.6)*0.2;
+      p.y += Math.cos((state.t + p.oy)*0.4)*0.08;
+      if(Math.random() < 0.006 * speed * sparkLevel) spawnSpark(p.x + (Math.random()-0.5)*12, p.y + (Math.random()-0.5)*12);
+    }
+  }
+
+  for(let p of state.particles){
+    if(p.mode === 'leaf'){
+      const lc = p.leafColor || toLeafColor();
+      const size = p.leaf.size * (12 / Math.max(1, +document.getElementById('density').value));
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.leaf.angle);
+      const g = ctx.createLinearGradient(-size,0,size,0);
+      g.addColorStop(0, `rgba(${Math.max(0,lc[0]-20)},${lc[1]},${Math.min(255,lc[2]+20)},0.98)`);
+      g.addColorStop(0.6, `rgba(${lc[0]},${Math.min(255,lc[1]+10)},${lc[2]},0.98)`);
+      g.addColorStop(1, `rgba(${Math.min(255,lc[0]+30)},${Math.min(255,lc[1]+40)},${Math.min(255,lc[2]+60)},0.98)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(0,0,size*1.6,size,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(10,8,12,0.18)'; ctx.lineWidth = 0.8; ctx.beginPath();
+      for(let i=-6;i<=6;i++){ ctx.lineTo((i/6)*size*1.6, Math.sin(i)*0.7*size); }
+      ctx.stroke();
+      for(let ph=0; ph<p.leaf.pistils; ph++){
+        const angle = -1.4 + Math.random()*2.8;
+        const len = size * (0.6 + Math.random()*1.0);
+        const pc = pistilColor();
+        ctx.strokeStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},0.98)`; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(len*0.2,len*0.2, Math.cos(angle)*len, Math.sin(angle)*len*0.6); ctx.stroke();
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${Math.min(0.25, p.brightness/600)})`;
+      const s = Math.max(1, 12 / +document.getElementById('density').value);
+      ctx.fillRect(p.x - 0.5, p.y - 0.5, s, s);
+    }
+  }
+
+  for(let i = state.sparks.length - 1; i >= 0; i--){
+    const s = state.sparks[i];
+    s.t += 0.02 * (+document.getElementById('speed').value);
+    s.x += s.vx; s.y += s.vy; s.vy += 0.01*(0.6+Math.random()*0.6);
+    const alpha = Math.max(0, 1 - s.t/s.life);
+    ctx.fillStyle = `rgba(255,255,255,${0.75*alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size * (1 + (1-alpha)*1.6), 0, Math.PI*2);
+    ctx.fill();
+    if(s.t > s.life) state.sparks.splice(i,1);
+  }
+
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+
+function findNeighbor(center, radius){
+  let best=null, bestD=Infinity;
+  for(let p of state.particles){
+    if(p.mode !== 'idle') continue;
+    const dx = p.x - center.x, dy = p.y - center.y;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if(d < radius && d < bestD){ best = p; bestD = d; }
+  }
+  return best;
+}
+
+/* -- UI interactions and helpers -- */
+document.getElementById('restart').addEventListener('click', async () => {
+  if(!img || !img.complete || img.naturalWidth === 0){ setStatus('no valid image loaded'); uiLog('Restart blocked: no valid image'); return; }
+  setStatus('restarting');
+  const tmp = document.createElement('canvas'); tmp.width = canvas.width; tmp.height = canvas.height;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#000'; tctx.fillRect(0,0,tmp.width,tmp.height);
+  const ratio = Math.min(tmp.width / img.width, tmp.height / img.height);
+  const iw = Math.round(img.width * ratio), ih = Math.round(img.height * ratio);
+  const ix = Math.round((tmp.width - iw)/2), iy = Math.round((tmp.height - ih)/2);
+  tctx.drawImage(img, ix, iy, iw, ih);
+  applyFilterToContext(tctx);
+  if(imgFile && !imgFile.sha256Hex){ try{ imgFile.sha256Hex = await computeSHA256Hex(imgFile); }catch(e){} }
+  createParticlesFromContext(tctx, imgFile ? imgFile.name : DEFAULT_IMAGE, imgFile ? (imgFile.sha256Hex || imgHexEl.textContent) : imgHexEl.textContent, filterSelect.value);
+  setStatus('running');
+});
+
+document.getElementById('setcore').addEventListener('click', () => {
+  // The core is the first uploaded image or the currently loaded image if none was set previously
+  const coreCandidate = imgFile ? { filename: imgFile.name, sha256: imgFile.sha256Hex || imgHexEl.textContent } : { filename: DEFAULT_IMAGE, sha256: imgHexEl.textContent };
+  if(!coreCandidate.sha256 || coreCandidate.sha256 === 'n/a'){ uiLog('Cannot set core: no SHA-256 fingerprint available'); return; }
+  setCoreEntry(coreCandidate);
+});
+
+document.getElementById('hideui').addEventListener('click', () => {
+  const ui = document.getElementById('ui'); ui.style.display = ui.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('saveframe').addEventListener('click', () => {
+  const exportCanvas = document.createElement('canvas'); exportCanvas.width = canvas.width; exportCanvas.height = canvas.height;
+  const ectx = exportCanvas.getContext('2d'); ectx.drawImage(canvas, 0, 0);
+  exportCanvas.toBlob((blob) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bloom_frame.png'; a.click(); uiLog('Saved current frame as bloom_frame.png'); }, 'image/png');
+});
+
+document.getElementById('exportlog').addEventListener('click', () => {
+  const arr = loadIndexLog(); const data = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(arr, null, 2));
+  const a = document.createElement('a'); a.href = data; a.download = 'bloomers_index_log.json'; a.click(); uiLog('Exported index log (' + arr.length + ' entries)');
+});
+
+/* -- File hashing hooks (compute on upload and drop) -- */
+fileIn.addEventListener('change', async (ev) => {
+  const f = ev.target.files && ev.target.files[0]; if(!f) return;
+  imgFile = f;
+  try{ const hex = await computeSHA256Hex(f); f.sha256Hex = hex; imgHexEl.textContent = hex; uiLog('Computed SHA-256 for ' + f.name); }catch(e){ imgHexEl.textContent = 'error'; uiLog('Hash error'); }
+});
+
+document.body.addEventListener('drop', async (e) => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(!f) return;
+  imgFile = f;
+  try{ const hex = await computeSHA256Hex(f); f.sha256Hex = hex; imgHexEl.textContent = hex; uiLog('Computed SHA-256 for dropped file'); }catch(e){ imgHexEl.textContent = 'error'; uiLog('Hash error'); }
+});
+
+/* -- Demo image hash attempt (best-effort via fetch) -- */
+(async function tryDemoHash(){ try{ const resp = await fetch(DEFAULT_IMAGE); if(!resp.ok) throw new Error('fetch failed'); const blob = await resp.blob(); const hex = await computeSHA256Hex(new File([blob], DEFAULT_IMAGE)); imgHexEl.textContent = hex; uiLog('Computed demo image SHA-256 (best effort)'); }catch(e){ uiLog('Demo image hash not available via fetch: ' + e.message); } })();
+
+/* -- Fallback and accessibility -- */
+function drawFallback(){ ctx.save(); ctx.setTransform(deviceRatio,0,0,deviceRatio,0,0); ctx.fillStyle = '#222'; ctx.fillRect(0,0,canvas.width/deviceRatio,canvas.height/deviceRatio); ctx.fillStyle = '#999'; ctx.font = '18px Inter, Arial'; ctx.fillText('No image loaded. Place ' + DEFAULT_IMAGE + ' beside this HTML or upload one.', 18, 40); ctx.restore(); }
+
+let paused = false;
+canvas.addEventListener('click', ()=>{ paused = !paused; setStatus(paused ? 'paused' : 'running'); });
+
+/* Keep animation loop responsive to pause */
+const baseLoop = loop;
+function wrappedLoop(){
+  if(!paused) baseLoop();
+  else requestAnimationFrame(wrappedLoop);
+}
+requestAnimationFrame(wrappedLoop);
+
+/* End of script */
+</script>
+</body>
+</html>

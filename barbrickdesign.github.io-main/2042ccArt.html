@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>CCART • 3D Holographic Rotating Card • Phantom • pump.fun</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="dark"/>
+<!-- three.js -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+<style>
+:root{
+  --bg:#040616; --panel:#07121a; --muted:#9fb0d6; --accent:#7bead8; --glass:rgba(255,255,255,0.03);
+  --card-w:420px; --card-h:560px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(1000px 600px at 10% 10%, #071029,var(--bg));color:#eaf2ff;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
+.app{max-width:1200px;margin:20px auto;padding:18px;display:grid;gap:16px}
+.header{display:flex;gap:12px;align-items:center}
+.logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#072a3f,#0b2b37);box-shadow:0 12px 36px rgba(0,0,0,0.6)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panel{background:linear-gradient(180deg,var(--panel),#041018);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.02)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.small{font-size:13px;color:var(--muted)}
+.previewRow{display:grid;grid-template-columns:var(--card-w) 1fr;gap:16px}
+@media(max-width:980px){ .previewRow{grid-template-columns:1fr} :root{--card-w:100%} }
+
+.cardWrap{width:var(--card-w);height:var(--card-h);border-radius:14px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,0.03);position:relative}
+.overlay{position:absolute;left:12px;top:12px;z-index:30;pointer-events:none}
+.badge{background:linear-gradient(180deg,#08324a,#052733);padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.02);color:#cfeef6;font-weight:600}
+.metaBox{position:absolute;right:12px;bottom:12px;z-index:30;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;color:var(--muted)}
+.canvasHost{width:100%;height:100%}
+.holo-face{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen}
+
+.uiBlock{padding:10px;border-radius:10px;background:linear-gradient(180deg,#07121a,#061018);border:1px solid rgba(255,255,255,0.02)}
+.btn{padding:8px 12px;border-radius:8px;background:linear-gradient(180deg,#0b2e3a,#05252f);border:1px solid rgba(255,255,255,0.03);color:#eaf2ff;cursor:pointer}
+.input{padding:8px;border-radius:8px;background:#06121a;border:1px solid rgba(255,255,255,0.03);color:#eaf2ff}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px}
+.log{height:140px;overflow:auto;background:linear-gradient(180deg,#041018,#051423);border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.02);font-family:monospace;font-size:12px;color:var(--muted)}
+.footer{margin-top:12px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="logo" aria-hidden></div>
+    <div>
+      <div style="font-weight:700">CCART • 3D Holographic Rotating Card • Phantom • pump.fun</div>
+      <div class="small">Touch/Mouse/DeviceTilt controls • Shareable blob links • Client-side pump.fun stub</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div class="small">Upload an image to generate a holographic card. Use Phantom to sign metadata before posting.</div>
+      <div class="controls">
+        <input id="fileInput" type="file" accept="image/png,image/jpeg" class="input"/>
+        <select id="resolution" class="input">
+          <option>640x640</option><option>720x720</option><option selected>1024x1024</option>
+        </select>
+        <input id="fps" type="number" value="24" class="input" style="width:80px"/>
+        <input id="duration" type="number" value="6" class="input" style="width:80px"/>
+        <button id="connectPhantom" class="btn">Connect Phantom</button>
+        <button id="createSign" class="btn" style="font-weight:700">Create & Sign</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="previewRow">
+    <div class="cardWrap">
+      <div class="overlay"><div class="badge" id="rarityBadge">—</div></div>
+      <div id="canvasHost" class="canvasHost"></div>
+      <div class="metaBox" id="metaBox">Traits —</div>
+      <!-- Holographic overlay (CSS effect inspired by referenced work) -->
+      <svg class="holo-face" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        <defs>
+          <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.04"/>
+            <stop offset="1" stop-color="#7bead8" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="100" height="100" fill="url(#g1)"></rect>
+      </svg>
+    </div>
+
+    <div class="uiBlock">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Card Controls</div>
+        <div class="small" id="phantomStatus">Phantom: disconnected</div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="small kv"><div>Serial</div><div id="serial">—</div></div>
+        <div class="small kv" style="margin-top:6px"><div>Rarity</div><div id="rarityScore">—</div></div>
+        <div class="small kv" style="margin-top:6px"><div>Suggested USD</div><div><input id="usdValue" class="input" type="number" step="0.01" value="0" style="width:140px"/></div></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button id="postBtn" class="btn" disabled>Post to pump.fun (stub)</button>
+        <button id="shareBtn" class="btn" disabled>Get Share Link</button>
+        <button id="downloadMeta" class="btn" disabled>Download Metadata</button>
+      </div>
+
+      <div style="margin-top:12px" class="small">Gallery & archive</div>
+      <div id="gallery" class="gallery"></div>
+
+      <div style="margin-top:12px">
+        <div class="small" style="font-weight:700">Logs</div>
+        <div id="log" class="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel footer">Designed to be simple, sweet, and professional — a 2042-ready holographic card preview. For production, replace client-side pump.fun posting with a secure server relay and perform governance for sensitive uploads.</div>
+</div>
+
+<script>
+/* CCART Enhanced single-file
+   - Rotating 3D card (Three.js) with OrbitControls, touch & mouse support
+   - CSS holographic overlay and shader-like feel inspired by referenced pen
+   - DeviceOrientation tilt for mobile head-tilt interaction
+   - Phantom connect + signMessage (if Phantom present)
+   - Render to WebM where possible, frames fallback with gzip packing
+   - Local archive in IndexedDB and shareable blob URLs
+   - pump.fun client-side stub; replace with secure server for production
+*/
+
+/* ---------- IndexedDB archive ---------- */
+const DB = (function(){
+  const NAME='ccart_rot_v3', STORE='items'; let db;
+  function open(){ return new Promise((res,rej)=>{ if(db) return res(db); const rq=indexedDB.open(NAME,1); rq.onupgradeneeded = e => { const _db = e.target.result; if(!_db.objectStoreNames.contains(STORE)) _db.createObjectStore(STORE,{ keyPath:'id' }); }; rq.onsuccess = e => { db = e.target.result; res(db); }; rq.onerror = e => rej(e.target.error); }); }
+  async function add(item){ const _db = await open(); return new Promise((res,rej)=>{ const tx = _db.transaction(STORE,'readwrite'); tx.objectStore(STORE).put(item); tx.oncomplete = ()=>res(true); tx.onerror = e => rej(e.target.error); }); }
+  async function all(){ const _db = await open(); return new Promise((res,rej)=>{ const tx=_db.transaction(STORE,'readonly'); const rq = tx.objectStore(STORE).getAll(); rq.onsuccess = ()=>res(rq.result || []); rq.onerror = e=>rej(e.target.error); }); }
+  return { add, all };
+})();
+
+/* ---------- DOM refs ---------- */
+const fileInput = document.getElementById('fileInput');
+const canvasHost = document.getElementById('canvasHost');
+const rarityBadge = document.getElementById('rarityBadge'), rarityScoreEl = document.getElementById('rarityScore');
+const serialEl = document.getElementById('serial'), metaBox = document.getElementById('metaBox');
+const connectPhantomBtn = document.getElementById('connectPhantom'), phantomStatus = document.getElementById('phantomStatus');
+const createSignBtn = document.getElementById('createSign'), postBtn = document.getElementById('postBtn'), shareBtn = document.getElementById('shareBtn');
+const usdValueInput = document.getElementById('usdValue'), downloadMetaBtn = document.getElementById('downloadMeta');
+const galleryEl = document.getElementById('gallery'), logEl = document.getElementById('log');
+const resolutionSel = document.getElementById('resolution'), fpsInput = document.getElementById('fps'), durationInput = document.getElementById('duration');
+
+/* ---------- logging ---------- */
+function log(msg, level='info'){ const line = `[${new Date().toISOString()}] ${msg}`; const d = document.createElement('div'); d.textContent = line; logEl.prepend(d); if(level==='error') console.error(line); else console.log(line); }
+
+/* ---------- state ---------- */
+let state = { sanitized: null, lastArchived: null, phantomPubKey: null, latestRender: null };
+
+/* ---------- deterministic helpers ---------- */
+function seedFromBitmap(bitmap){
+  const c = document.createElement('canvas'); c.width = Math.min(64, bitmap.width); c.height = Math.min(64, bitmap.height);
+  const ctx = c.getContext('2d'); ctx.drawImage(bitmap,0,0,c.width,c.height);
+  const d = ctx.getImageData(0,0,c.width,c.height).data;
+  let h = 2166136261;
+  for(let i=0;i<d.length;i+=47){ h ^= d[i]; h = (h * 16777619) >>> 0; }
+  return h.toString(16);
+}
+function generateSerial(seed){ const now = Date.now().toString(36).toUpperCase(); return `${seed.slice(0,6).toUpperCase()}-${now.slice(-6)}`; }
+function traitsFromSeed(seed){
+  const s = parseInt(seed.slice(0,8),16||0);
+  const motifs=['Abstract','Portrait','Landscape','Cosmic','Specimen','Architect'];
+  const palettes=['Azure','Crimson','Emerald','Cosmic','Void','Slate'];
+  return { motif: motifs[s % motifs.length], palette: palettes[(s>>4) % palettes.length], seed };
+}
+
+/* ---------- image metrics & rarity ---------- */
+function computeSharpness(bitmap){
+  const w = Math.min(256, bitmap.width), h = Math.min(256, bitmap.height);
+  const tmp = document.createElement('canvas'); tmp.width=w; tmp.height=h; const ctx=tmp.getContext('2d'); ctx.drawImage(bitmap,0,0,w,h);
+  const id = ctx.getImageData(0,0,w,h).data; const gray = new Float32Array(w*h);
+  let idx=0; for(let i=0;i<id.length;i+=4) gray[idx++] = 0.2126*id[i] + 0.7152*id[i+1] + 0.0722*id[i+2];
+  let sumSq=0, mean=0;
+  for(let y=1;y<h-1;y++){ for(let x=1;x<w-1;x++){ const i=y*w+x; const lap = 4*gray[i] - gray[i-1] - gray[i+1] - gray[i-w] - gray[i+w]; mean += lap; sumSq += lap*lap; } }
+  const n=(w-2)*(h-2); return Math.max(0, (sumSq/n) - Math.pow(mean/n,2));
+}
+function computeEntropy(bitmap){
+  const tmp = document.createElement('canvas'); tmp.width=128; tmp.height=128; const ctx=tmp.getContext('2d'); ctx.drawImage(bitmap,0,0,128,128);
+  const id = ctx.getImageData(0,0,128,128).data; const hist = new Uint32Array(256);
+  for(let i=0;i<id.length;i+=4){ const lum = Math.floor(0.2126*id[i]+0.7152*id[i+1]+0.0722*id[i+2]); hist[lum]++; }
+  const total = 128*128; let ent=0; for(let i=0;i<256;i++){ if(hist[i]===0) continue; const p = hist[i]/total; ent -= p * Math.log2(p); } return ent;
+}
+function resolutionScore(w,h){ return Math.log2(w*h)/20; }
+function computeRarity(bitmap,w,h){
+  const sharp = computeSharpness(bitmap), ent = computeEntropy(bitmap), res = resolutionScore(w,h);
+  const sN = Math.tanh(Math.log10(1 + sharp)), eN = Math.tanh(ent/6);
+  const score = Math.round((sN*0.45 + eN*0.35 + res*0.2) * 100);
+  let tier='Common'; if(score>=90) tier='Legendary'; else if(score>=80) tier='Epic'; else if(score>=65) tier='Rare'; else if(score>=45) tier='Uncommon';
+  return { score, tier, comps:{ sharp, ent, res } };
+}
+function usdFromScore(score){ const floor=1, cap=5000; const n=Math.max(0,Math.min(1,(score-20)/80)); return Math.round((floor+Math.pow(n,2.4)*(cap-floor))*100)/100; }
+
+/* ---------- three.js scene & card ---------- */
+let renderer, scene, camera, cardMesh, composer, controls;
+function initThree(){
+  // clear host
+  canvasHost.innerHTML = '';
+  const canvas = document.createElement('canvas'); canvas.style.width='100%'; canvas.style.height='100%';
+  canvasHost.appendChild(canvas);
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  const w = canvasHost.clientWidth, h = canvasHost.clientHeight;
+  renderer.setSize(w,h,false);
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, w/h, 0.1, 1000); camera.position.set(0,0,6);
+
+  const hemi = new THREE.HemisphereLight(0xffffff,0x111216,0.9); scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff,0.9); dir.position.set(-6,8,4); scene.add(dir);
+
+  const geom = new THREE.PlaneGeometry(3.6, 4.8, 96, 96);
+  const pos = geom.attributes.position;
+  for(let i=0;i<pos.count;i++){ const x=pos.getX(i), y=pos.getY(i); pos.setZ(i, Math.sin(x*0.6)*0.03 + Math.cos(y*0.6)*0.018); }
+  pos.needsUpdate = true;
+
+  const mat = new THREE.MeshStandardMaterial({ color:0x0b0b10, metalness:0.04, roughness:0.5, emissive:0x001a22, side:THREE.FrontSide });
+  cardMesh = new THREE.Mesh(geom, mat); scene.add(cardMesh);
+
+  composer = new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(w,h), 0.6, 0.4, 0.6);
+  composer.addPass(bloom);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enablePan = false; controls.enableZoom = false; controls.autoRotate = true; controls.autoRotateSpeed = 0.6;
+  controls.enableDamping = true; controls.dampingFactor = 0.06;
+
+  let last = performance.now();
+  (function animate(now){
+    const dt = (now - last)/1000; last = now;
+    controls.update();
+    composer.render();
+    requestAnimationFrame(animate);
+  })();
+
+  window.addEventListener('resize', ()=>{ const w=canvasHost.clientWidth,h=canvasHost.clientHeight; renderer.setSize(w,h,false); camera.aspect = w/h; camera.updateProjectionMatrix(); composer.setSize(w,h); });
+}
+
+/* apply texture from bitmap */
+async function applyBitmapToCard(bitmap, metadata){
+  const tex = new THREE.CanvasTexture(bitmap);
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+  cardMesh.material.map = tex;
+  // subtle emissive color from palette
+  const mapPal = { 'Azure':0x3b9cff, 'Crimson':0xff4b6b, 'Emerald':0x00c48c, 'Cosmic':0x7b62ff, 'Void':0x0a0a10, 'Slate':0x7b8aa3 };
+  if(metadata && metadata.traits && metadata.traits.palette) {
+    try{ cardMesh.material.emissive = new THREE.Color(mapPal[metadata.traits.palette] || 0x041a1d); }catch(e){}
+  }
+  cardMesh.material.needsUpdate = true;
+}
+
+/* ---------- DeviceOrientation tilt mapping ---------- */
+let tiltActive = false;
+function enableTilt(){
+  if(tiltActive) return;
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+    DeviceOrientationEvent.requestPermission().then(p=>{
+      if(p==='granted'){ window.addEventListener('deviceorientation', tiltHandler); tiltActive = true; log('Device tilt enabled'); }
+    }).catch(e=>{ log('Tilt permission denied', 'error'); });
+  } else { window.addEventListener('deviceorientation', tiltHandler); tiltActive = true; }
+}
+function tiltHandler(ev){
+  if(!ev.beta && !ev.gamma) return;
+  const b = ev.beta || 0, g = ev.gamma || 0;
+  const fx = 0.006, fy = 0.006;
+  cardMesh.rotation.x = THREE.MathUtils.lerp(cardMesh.rotation.x, -b * fx, 0.12);
+  cardMesh.rotation.y = THREE.MathUtils.lerp(cardMesh.rotation.y, g * fy, 0.12);
+}
+
+/* ---------- Rendering pipeline (MediaRecorder or frames fallback) ---------- */
+async function renderAnimation(sanitized, opts, progressCB){
+  const [rw,rh] = opts.res.split('x').map(n=>parseInt(n,10));
+  const fps = Math.max(12, Math.min(60, opts.fps||24));
+  const duration = Math.max(1, Math.min(60, opts.duration||6));
+  const frames = Math.ceil(duration * fps);
+  const off = document.createElement('canvas'); off.width = rw; off.height = rh; const offCtx = off.getContext('2d');
+
+  function drawFrame(t){
+    offCtx.fillStyle = '#02060a'; offCtx.fillRect(0,0,rw,rh);
+    // fit image
+    const bmp = sanitized.bitmap;
+    const iw=bmp.width, ih=bmp.height, ir=iw/ih, dr=rw/rh;
+    let dw, dh; if(ir>dr){ dw=rw; dh=Math.round(dw/ir); } else { dh=rh; dw=Math.round(dh*ir); }
+    const dx = Math.round((rw-dw)/2 + (t-0.5)*0.08*rw), dy = Math.round((rh-dh)/2 + Math.sin(t*Math.PI*2)*0.02*rh);
+    offCtx.drawImage(bmp, 0,0, iw, ih, dx, dy, dw, dh);
+    offCtx.fillStyle = 'rgba(255,255,255,0.03)'; offCtx.fillRect(0, rh-36, rw, 36);
+    offCtx.fillStyle = 'rgba(255,255,255,0.06)'; offCtx.font='600 18px system-ui'; offCtx.textAlign='right'; offCtx.fillText('CCART', rw-16, rh-12);
+  }
+
+  // try MediaRecorder
+  let stream = null;
+  try{ stream = off.captureStream ? off.captureStream(fps) : null; }catch(e){ stream=null; }
+  if(stream && typeof MediaRecorder !== 'undefined' && !/iPhone|iPad|iPod/.test(navigator.userAgent)){
+    const candidates = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+    for(const mime of candidates){
+      try{
+        if(MediaRecorder.isTypeSupported && !MediaRecorder.isTypeSupported(mime)) continue;
+        const rec = new MediaRecorder(stream, { mimeType: mime });
+        const parts = [];
+        rec.ondataavailable = e => { if(e.data && e.data.size) parts.push(e.data); };
+        rec.start();
+        let f=0;
+        await new Promise(res=>{
+          function step(){
+            const t = f/frames; drawFrame(t);
+            if(progressCB) progressCB(Math.floor((f/frames)*100));
+            f++; if(f<=frames) requestAnimationFrame(step); else setTimeout(()=>{ try{ rec.stop(); }catch(e){}; res(); },80);
+          }
+          requestAnimationFrame(step);
+        });
+        const blob = new Blob(parts, { type: mime });
+        return { type:'webm', blob };
+      }catch(e){ /* try next */ }
+    }
+  }
+  // frames fallback
+  const arr=[];
+  for(let i=0;i<frames;i++){
+    const t = i/frames; drawFrame(t);
+    if(progressCB) progressCB(Math.floor((i/frames)*100));
+    const b = await new Promise(res=>off.toBlob(res,'image/png',0.92));
+    arr.push({ name:`frame_${String(i).padStart(4,'0')}.png`, blob: b });
+  }
+  if(typeof CompressionStream !== 'undefined'){
+    const cs = new CompressionStream('gzip'); const writer = cs.writable.getWriter();
+    for(const f of arr){
+      await writer.write(new TextEncoder().encode(`FILE:${f.name}\nSIZE:${f.blob.size}\n---\n`));
+      const r = f.blob.stream().getReader();
+      while(true){ const {value,done} = await r.read(); if(done) break; await writer.write(value); }
+      await writer.write(new TextEncoder().encode('\n===EOF===\n'));
+    }
+    await writer.close(); const gz = await new Response(cs.readable).blob(); return { type:'frames-gzip', blob: gz };
+  } else {
+    return { type:'frames-array', frames: arr };
+  }
+}
+
+/* ---------- Phantom connect & sign ---------- */
+async function connectPhantom(){
+  if(window.solana && window.solana.isPhantom){
+    try{
+      const res = await window.solana.connect();
+      state.phantomPubKey = res.publicKey.toString();
+      phantomStatus.textContent = 'Phantom: ' + state.phantomPubKey.slice(0,6) + '...' + state.phantomPubKey.slice(-4);
+      log('Phantom connected: ' + state.phantomPubKey);
+    }catch(e){ log('Phantom connect failed: ' + (e.message||e), 'error'); alert('Phantom connect failed: ' + (e.message||e)); }
+  } else alert('Phantom wallet not detected');
+}
+async function signWithPhantom(metadata){
+  if(!state.phantomPubKey) throw new Error('Phantom not connected');
+  const msg = JSON.stringify(metadata);
+  const enc = new TextEncoder().encode(msg);
+  try{
+    const signed = await window.solana.signMessage(enc, 'utf8');
+    const sig = btoa(String.fromCharCode(...signed.signature));
+    return { signature: sig, signer: signed.publicKey.toString() };
+  }catch(e){ log('Sign failed: ' + (e.message||e), 'error'); throw e; }
+}
+
+/* ---------- pump.fun client stub ---------- */
+async function postPumpFun(blob, meta){
+  log('pump.fun client stub: in production, replace with secure server relay');
+  await new Promise(r=>setTimeout(r,400));
+  return { ok:true, id:'pump_stub_' + Date.now(), url: location.href + '#coin=' + encodeURIComponent(meta.name) };
+}
+
+/* ---------- archive & UI flows ---------- */
+function logAndAlert(msg){ log(msg); alert(msg); }
+
+fileInput.addEventListener('change', async (e)=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    const allowed=['image/png','image/jpeg']; if(!allowed.includes(f.type)) throw new Error('Unsupported type');
+    const bmp = await createImageBitmap(f);
+    state.sanitized = { blob: f, bitmap: bmp, width: bmp.width, height: bmp.height };
+    const seed = seedFromBitmap(bmp); const serial = generateSerial(seed); const traits = traitsFromSeed(seed);
+    state.sanitized.serial = serial; state.sanitized.traits = traits;
+    serialEl.textContent = serial; metaBox.textContent = `Traits: ${traits.motif} • ${traits.palette}`;
+    const r = computeRarity(bmp, bmp.width, bmp.height);
+    rarityBadge.textContent = r.tier; rarityScoreEl.textContent = r.score; usdValueInput.value = usdFromScore(r.score);
+    // init three and apply texture
+    initThree(); await applyBitmapToCard(bmp, { traits });
+    enableTilt(); log(`Loaded ${f.name} (${bmp.width}x${bmp.height}) • rarity ${r.score}`);
+  }catch(err){ log('Upload failed: ' + (err.message||err), 'error'); alert('Upload failed: ' + (err.message||err)); }
+});
+
+connectPhantomBtn.addEventListener('click', connectPhantom);
+
+/* Create & Sign: render, sign metadata, archive */
+createSignBtn.addEventListener('click', async ()=>{
+  if(!state.sanitized) return alert('Upload an image first');
+  createSignBtn.disabled = true;
+  try{
+    const opts = { res: resolutionSel.value, fps: parseInt(fpsInput.value,10)||24, duration: parseInt(durationInput.value,10)||6 };
+    log('Rendering animation...');
+    const out = await renderAnimation(state.sanitized, opts, pct=>{ /* Could show progress */ });
+    state.latestRender = out;
+    let blobForArchive;
+    if(out.type === 'webm') blobForArchive = out.blob;
+    else if(out.type === 'frames-gzip') blobForArchive = out.blob;
+    else throw new Error('Unsupported render output');
+    // metadata
+    const rscore = parseInt(rarityScoreEl.textContent) || 0;
+    const metadata = { id: 'ccart_' + Date.now(), name: `CCART-${state.sanitized.serial}`, rarityScore: rscore, rarityTier: rarityBadge.textContent, usdSuggested: parseFloat(usdValueInput.value)||0, traits: state.sanitized.traits, serial: state.sanitized.serial, createdAt: new Date().toISOString() };
+    // sign if Phantom connected
+    if(state.phantomPubKey){
+      try{
+        const signed = await signWithPhantom(metadata);
+        metadata.signature = signed.signature; metadata.signedBy = signed.signer;
+        log('Metadata signed by Phantom');
+      }catch(e){ log('Signing skipped: ' + (e.message||e), 'error'); }
+    }
+    // archive
+    const buf = await blobForArchive.arrayBuffer();
+    const item = { id: metadata.id, name: metadata.name + (out.type==='webm'?'.webm':'.gzip'), type: blobForArchive.type || 'application/octet-stream', size: blobForArchive.size || buf.byteLength, createdAt: new Date().toISOString(), metadata, blobBuffer: buf };
+    await DB.add(item);
+    state.lastArchived = item;
+    log('Archived: ' + item.name);
+    postBtn.disabled = false; shareBtn.disabled = false; downloadMetaBtn.disabled = false;
+    downloadMetaBtn.onclick = ()=>{ const jd = new Blob([JSON.stringify(metadata,null,2)], { type:'application/json' }); const a=document.createElement('a'); a.href = URL.createObjectURL(jd); a.download = `${metadata.name}_meta.json`; a.click(); };
+    // create shareable blob URL
+    const blobURL = URL.createObjectURL(blobForArchive);
+    shareBtn.onclick = ()=>{ navigator.clipboard?.writeText(blobURL).then(()=>alert('Share link copied')); };
+    // populate gallery
+    rebuildGallery();
+  }catch(e){ log('Create & Sign failed: ' + (e.message||e), 'error'); alert('Create & Sign failed: ' + (e.message||e)); }
+  finally{ createSignBtn.disabled = false; }
+});
+
+postBtn.addEventListener('click', async ()=>{
+  if(!state.lastArchived) return alert('Archive an item first');
+  postBtn.disabled = true;
+  try{
+    const blob = new Blob([state.lastArchived.blobBuffer], { type: state.lastArchived.type });
+    const resp = await postPumpFun(blob, state.lastArchived.metadata);
+    log('pump.fun stub response: ' + JSON.stringify(resp));
+    alert('Posted (stub) — replace with server for production');
+  }catch(e){ log('Post failed: ' + (e.message||e), 'error'); alert('Post failed: ' + (e.message||e)); }
+  finally{ postBtn.disabled = false; }
+});
+
+/* rebuild gallery */
+async function rebuildGallery(){
+  const items = await DB.all();
+  galleryEl.innerHTML = '';
+  items.reverse().forEach(it=>{
+    const box = document.createElement('div'); box.className='panel';
+    const title = document.createElement('div'); title.style.fontWeight='700'; title.textContent = it.name; box.appendChild(title);
+    const meta = document.createElement('div'); meta.className='small'; meta.textContent = `${it.metadata.rarityTier || '-'} • ${it.metadata.usdSuggested || '-'} USD • ${new Date(it.createdAt).toLocaleString()}`;
+    box.appendChild(meta);
+    const actions = document.createElement('div'); actions.style.marginTop='8px';
+    const openBtn = document.createElement('button'); openBtn.className='btn'; openBtn.textContent='Open'; openBtn.onclick = ()=>{ const blob = new Blob([it.blobBuffer], { type: it.type }); const url = URL.createObjectURL(blob); window.open(url,'_blank'); };
+    const copyBtn = document.createElement('button'); copyBtn.className='btn'; copyBtn.textContent='Copy Link'; copyBtn.onclick = ()=>{ const blob = new Blob([it.blobBuffer], { type: it.type }); const url = URL.createObjectURL(blob); navigator.clipboard?.writeText(url).then(()=>alert('Copied blob link')); };
+    actions.appendChild(openBtn); actions.appendChild(copyBtn); box.appendChild(actions);
+    galleryEl.appendChild(box);
+  });
+}
+
+/* ---------- init ---------- */
+(function init(){
+  initThree(); log('CCART holographic card client ready');
+  // small hint to enable tilt on first tap
+  cardShell.addEventListener('pointerdown', ()=>{ enableTilt(); }, { once: true });
+  rebuildGallery().catch(()=>{});
+})();
+
+/* expose tilt enable on small screens */
+const cardShell = document.querySelector('.cardWrap');
+</script>
+</body>
+</html>

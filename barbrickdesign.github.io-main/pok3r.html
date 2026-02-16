@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>TRON POKER — Peer-to-peer</title>
+<meta name="theme-color" content="#0b0f1a"/>
+<style>
+  :root {
+    --bg: #0b0f1a; --panel: #111625; --accent: #00e5ff; --accent2: #7cffd4;
+    --text: #e6f7ff; --muted: #89a1b0; --danger: #ff4d6d; --success: #54ffbd;
+    --warning: #ffd166; --glow: 0 0 18px rgba(0,229,255,0.4), 0 0 4px rgba(124,255,212,0.5);
+  }
+  *{box-sizing:border-box} html,body{height:100%;background:radial-gradient(1200px at 50% 10%,#0b132b 0%,var(--bg) 60%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial;margin:0}
+  a{color:var(--accent2);text-decoration:none}
+  .app{max-width:980px;margin:0 auto;padding:16px}
+  .brand{display:flex;align-items:center;justify-content:space-between}
+  .logo{font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);text-shadow:var(--glow)}
+  .chip{border:1px solid rgba(0,229,255,0.3);padding:4px 8px;border-radius:999px;color:var(--muted)}
+  .panel{background:linear-gradient(180deg,rgba(17,22,37,0.9),rgba(12,16,28,0.9));border:1px solid rgba(0,229,255,0.2);border-radius:14px;box-shadow:var(--glow);padding:14px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:720px){.grid{grid-template-columns:2fr 1fr}}
+  .btn{background:linear-gradient(90deg,#00e5ff,#7cffd4);border:none;color:#04222a;font-weight:700;padding:10px 14px;border-radius:10px;box-shadow:var(--glow);cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-outline{background:transparent;color:var(--accent);border:1px solid rgba(0,229,255,0.5);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .row{display:flex;align-items:center;gap:8px} .row.space{justify-content:space-between}
+  .label{color:var(--muted);font-size:12px} .value{font-weight:700}
+  .kbd{font-family:ui-monospace,Menlo,Consolas; background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);padding:2px 6px;border-radius:6px;color:var(--accent2);word-break:break-all}
+  input,select,textarea{background:#0b132b;color:#e6f7ff;border:1px solid rgba(0,229,255,0.3);border-radius:8px;padding:6px}
+  textarea{width:100%;min-height:90px}
+  .table{position:relative;background:radial-gradient(240px at 50% 50%,rgba(0,229,255,0.08),rgba(0,0,0,0) 80%);border:1px solid rgba(124,255,212,0.2);border-radius:18px;padding:16px;min-height:220px}
+  .seats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .seat{border:1px solid rgba(0,229,255,0.25);border-radius:10px;padding:6px;text-align:center}
+  .seat.free{color:var(--accent2)} .seat.taken{color:var(--muted)} .seat.me{color:var(--success);border-color:rgba(84,255,189,0.5)}
+  .cards{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .card{width:42px;height:60px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(0,0,0,0.2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,0.4)}
+  .timer{font-weight:800;color:var(--warning)}
+  .footer{margin:16px 0;color:var(--muted);font-size:12px;text-align:center}
+  .safe{padding-bottom:24px}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.25)}
+</style>
+</head>
+<body>
+<div class="app safe" id="app">
+  <div class="brand">
+    <div class="logo">TRON POKER</div>
+    <div class="chip">Peer-to-peer • Mobile-first</div>
+  </div>
+
+  <div class="panel" id="authPanel">
+    <div class="row space">
+      <div>
+        <div class="label">Your handle</div>
+        <input id="handle" placeholder="@player" style="width:200px;" />
+      </div>
+      <button class="btn" id="saveHandle">Save</button>
+    </div>
+    <div class="label" style="margin-top:8px;">Device fingerprint</div>
+    <div class="kbd" id="fingerprint">—</div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel" id="connectPanel">
+        <div class="row space">
+          <div class="value">Connection</div>
+          <div class="row" style="gap:6px;">
+            <span class="pill" id="connStatus">Disconnected</span>
+          </div>
+        </div>
+
+        <div class="row" style="gap:12px; flex-wrap:wrap;">
+          <button class="btn" id="hostBtn">Host table</button>
+          <button class="btn-outline" id="joinBtn">Join table</button>
+          <button class="btn-outline" id="resetConn">Reset</button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="label">Offer (copy from host or generate below)</div>
+          <textarea id="sdpOffer" placeholder="Paste host offer here…"></textarea>
+        </div>
+        <div class="row" style="gap:8px; margin-top:6px;">
+          <button class="btn-outline" id="genOffer">Generate offer (host)</button>
+          <button class="btn-outline" id="copyOffer">Copy offer</button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="label">Answer (paste from guest and connect as host)</div>
+          <textarea id="sdpAnswer" placeholder="Paste guest answer here…"></textarea>
+        </div>
+        <div class="row" style="gap:8px; margin-top:6px;">
+          <button class="btn-outline" id="genAnswer">Generate answer (guest)</button>
+          <button class="btn-outline" id="copyAnswer">Copy answer</button>
+          <button class="btn" id="connectPeer">Connect</button>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="label">Peers connected</div>
+          <div class="kbd" id="peerCount">0</div>
+        </div>
+      </div>
+
+      <div class="panel" id="lobby">
+        <div class="row space">
+          <div class="value">Lobby</div>
+          <button class="btn" id="createTable">Create table</button>
+        </div>
+        <div class="label">Pick a table and seat, then send Venmo to log your seat. Host marks verification.</div>
+        <div class="list" id="tables"></div>
+      </div>
+
+      <div class="panel" id="tablePanel" style="display:none;">
+        <div class="row space">
+          <div class="value" id="tableTitle">Table</div>
+          <div class="row">
+            <div class="label">Variant</div>
+            <select id="variant">
+              <option>Texas Hold'em</option>
+              <option>Omaha</option>
+              <option>Five Card Draw</option>
+            </select>
+            <button class="btn-outline" id="leaveTable">Leave</button>
+          </div>
+        </div>
+
+        <div class="table">
+          <div class="row space">
+            <div>
+              <div class="label">Hand timer</div>
+              <div class="timer" id="handTimer">—</div>
+            </div>
+            <div>
+              <div class="label">Pot</div>
+              <div class="value" id="pot">$0</div>
+            </div>
+            <div>
+              <div class="label">Seats filled</div>
+              <div class="value" id="seatsFilled">0/6</div>
+            </div>
+          </div>
+
+          <div class="seats" id="seats"></div>
+
+          <div class="row space" style="margin-top:10px;">
+            <div>
+              <div class="label">Your cards</div>
+              <div class="cards" id="myCards"></div>
+            </div>
+            <div>
+              <div class="label">Community</div>
+              <div class="cards" id="community"></div>
+            </div>
+          </div>
+
+          <div class="row space" style="margin-top:12px;">
+            <div class="row" style="gap:6px;">
+              <button class="btn-outline" id="checkBtn">Check</button>
+              <button class="btn-outline" id="callBtn">Call</button>
+              <button class="btn-outline" id="betBtn">Bet</button>
+              <button class="btn-outline" id="foldBtn">Fold</button>
+            </div>
+            <div class="row" style="gap:6px;">
+              <div class="label">Bet size</div>
+              <input id="betSize" type="number" min="1" placeholder="10" style="width:90px;">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="value">Seat logging via Venmo</div>
+          <div class="label">Send donation to <span class="kbd">venmo.com/u/Rytb333</span> with this exact note:</div>
+          <div class="kbd" id="venmoNote">TABLE:— SEAT:— USER:—</div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn" id="confirmSeat">Mark verified (host)</button>
+            <button class="btn-outline" id="seatHelp">Help</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="value">Fair shuffle</div>
+          <div class="label">Each player commits a seed; host collects reveals and shuffles using combined seed.</div>
+          <div class="row" style="gap:8px; flex-wrap:wrap;">
+            <button class="btn-outline" id="commitSeed">Commit seed</button>
+            <button class="btn-outline" id="revealSeed">Reveal seed</button>
+            <button class="btn" id="finalizeShuffle">Finalize shuffle (host)</button>
+          </div>
+          <div class="label" style="margin-top:8px;">Your commit</div>
+          <div class="kbd" id="myCommit">—</div>
+          <div class="label" style="margin-top:8px;">Commit log</div>
+          <div class="kbd" id="commitLog">—</div>
+        </div>
+
+        <div class="panel" id="logPanel">
+          <div class="value">Log</div>
+          <div id="log" style="font-family:ui-monospace; font-size:12px; white-space:pre-wrap; color:#89f7ff; max-height:200px; overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="value">Tournament</div>
+        <div class="label">Payout email prepared to <span class="kbd">barbrickdesign@gmail.com</span> after end.</div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" id="startTournament">Start timed tournament</button>
+          <button class="btn-outline" id="endTournament">End now</button>
+          <button class="btn-outline" id="payoutEmail">Prepare payout email</button>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <div class="label">Blind level</div>
+          <select id="blindLevel">
+            <option value="60">Level up every 60s</option>
+            <option value="120">Level up every 120s</option>
+            <option value="180">Level up every 180s</option>
+          </select>
+        </div>
+        <div class="label" style="margin-top:8px;">Status</div>
+        <div class="kbd" id="tournamentStatus">—</div>
+      </div>
+
+      <div class="panel">
+        <div class="value">Settings</div>
+        <div class="label">Table size</div>
+        <select id="tableSize">
+          <option>6</option><option>9</option>
+        </select>
+        <div class="label" style="margin-top:8px;">Action time (seconds)</div>
+        <input id="actionTime" type="number" value="25" style="width:100px;">
+        <div class="label" style="margin-top:8px;">Theme</div>
+        <select id="theme">
+          <option>Tron</option><option>Neon</option><option>Night</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Peer-to-peer • Verifiable shuffle • Transparent logs • Mobile-first
+  </div>
+</div>
+
+<script>
+(function(){
+  // Core state
+  const state = {
+    me: { handle: '', fp: '', seatToken: null, seed: null, commit: null, revealed: null },
+    host: { isHost: false, peers: {}, tableId: null },
+    lobby: { tables: [], playersOnline: 0 },
+    table: null,
+    timer: null,
+    tournament: { running: false, levelSeconds: 60, startTs: null },
+    deck: []
+  };
+
+  const el = id => document.getElementById(id);
+  const log = msg => {
+    const ts = new Date().toLocaleTimeString();
+    el('log').textContent += `[${ts}] ${msg}\n`;
+    el('log').scrollTop = el('log').scrollHeight;
+  };
+
+  // Basic fingerprint
+  function fingerprint() {
+    const data = [navigator.userAgent, navigator.language, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+    return btoa(unescape(encodeURIComponent(data))).slice(0, 24);
+  }
+
+  // P2P signaling (manual copy/paste) and datachannel mesh with host
+  let rtc = null;
+  let dataChannels = []; // for guest: one to host; for host: one per guest
+
+  function setConnStatus(text){ el('connStatus').textContent = text; }
+
+  async function createPeerConnection() {
+    rtc = new RTCPeerConnection({
+      iceServers: [] // no external STUN/TURN; direct only
+    });
+    rtc.onicecandidate = (e) => {
+      // Candidates included in SDP by default (trickle disabled for simplicity)
+    };
+    rtc.onconnectionstatechange = () => {
+      setConnStatus(rtc.connectionState);
+    };
+  }
+
+  // Host: create offer and datachannel for each guest
+  async function hostGenerateOffer() {
+    state.host.isHost = true;
+    await createPeerConnection();
+    const dc = rtc.createDataChannel('poker');
+    setupDataChannel(dc, /*isHost*/true);
+    const offer = await rtc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+    await rtc.setLocalDescription(offer);
+    el('sdpOffer').value = JSON.stringify(rtc.localDescription);
+    log('Host offer generated. Share with guests.');
+  }
+
+  async function hostConnectWithAnswer() {
+    try {
+      const answer = JSON.parse(el('sdpAnswer').value.trim());
+      await rtc.setRemoteDescription(answer);
+      dataChannels.push(rtc.createDataChannel ? null : null); // placeholder
+      log('Host connected to a guest.');
+      incrementPeerCount();
+    } catch(e) {
+      log('Failed to connect with guest answer.');
+    }
+  }
+
+  // Guest: consume offer, create answer, open datachannel on ondatachannel event
+  async function guestGenerateAnswer() {
+    state.host.isHost = false;
+    await createPeerConnection();
+    rtc.ondatachannel = (ev) => {
+      const dc = ev.channel;
+      setupDataChannel(dc, /*isHost*/false);
+    };
+    const offer = JSON.parse(el('sdpOffer').value.trim());
+    await rtc.setRemoteDescription(offer);
+    const answer = await rtc.createAnswer();
+    await rtc.setLocalDescription(answer);
+    el('sdpAnswer').value = JSON.stringify(rtc.localDescription);
+    log('Guest answer generated. Send to host.');
+  }
+
+  function setupDataChannel(dc, isHostSide) {
+    dc.onopen = () => {
+      setConnStatus('Connected');
+      // Announce presence
+      send({ type: 'hello', handle: state.me.handle, fp: state.me.fp });
+      log('Data channel open.');
+    };
+    dc.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      handleMessage(msg);
+    };
+    dc.onclose = () => {
+      setConnStatus('Disconnected');
+    };
+    dataChannels.push(dc);
+  }
+
+  function send(obj) {
+    const s = JSON.stringify(obj);
+    dataChannels.forEach(dc => { try { dc.readyState === 'open' && dc.send(s); } catch {} });
+  }
+
+  function incrementPeerCount(){
+    const current = parseInt(el('peerCount').textContent || '0', 10) + 1;
+    el('peerCount').textContent = current;
+  }
+
+  // Message handling
+  function handleMessage(m) {
+    switch(m.type){
+      case 'hello':
+        log(`Peer hello: ${m.handle}`);
+        incrementPeerCount();
+        break;
+      case 'lobby':
+        state.lobby = m.lobby;
+        renderLobby();
+        break;
+      case 'table_state':
+        state.table = m.table;
+        renderTable();
+        break;
+      case 'timer':
+        el('handTimer').textContent = `${m.seconds}s`;
+        break;
+      case 'deal':
+        renderCards(m.myHole || [], m.community || []);
+        break;
+      case 'pot':
+        el('pot').textContent = `$${m.value}`;
+        break;
+      case 'seat_mark':
+        log(`Seat ${m.seat} marked verified for ${m.user}`);
+        // Update local table view
+        const idx = state.table.seats.findIndex(s => s.n === m.seat);
+        if (idx >= 0) state.table.seats[idx].verified = true;
+        renderTable();
+        break;
+      case 'commit':
+        appendCommitLog(`${m.user}: ${m.commit}`);
+        break;
+      case 'reveal':
+        appendCommitLog(`${m.user} revealed.`);
+        break;
+      case 'shuffle_final':
+        log(`Final shuffle ready. Seed: ${m.finalSeedHash}`);
+        state.deck = m.deck;
+        break;
+      case 'action_broadcast':
+        log(`${m.user} ${m.action}${m.size ? ' $'+m.size : ''}.`);
+        break;
+      case 'chat':
+        log(`Chat: ${m.text}`);
+        break;
+    }
+  }
+
+  // UI rendering
+  function renderLobby() {
+    const container = el('tables'); container.innerHTML = '';
+    state.lobby.tables.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.innerHTML = `
+        <div class="row space"><div class="value">${t.name}</div><button class="btn-outline" data-id="${t.id}">Join</button></div>
+        <div class="label">Buy-in: $${t.buyIn} • Variant: ${t.variant}</div>
+        <div class="row" style="gap:8px; margin-top:6px;">
+          ${(t.seats || []).map(s => `<span class="kbd">Seat ${s.n}: ${s.user ? s.user : 'free'}${s.verified ? ' ✓' : ''}</span>`).join('')}
+        </div>
+      `;
+      div.querySelector('button').addEventListener('click', () => openTable(t));
+      container.appendChild(div);
+    });
+  }
+
+  function openTable(t) {
+    state.table = JSON.parse(JSON.stringify(t));
+    el('lobby').style.display = 'none';
+    el('tablePanel').style.display = 'block';
+    el('tableTitle').textContent = `${t.name} • ${(t.seats||[]).length} seats`;
+    renderTable();
+    log(`Joined ${t.name}. Choose a seat and send Venmo with the exact note.`);
+  }
+
+  function renderTable() {
+    const seats = el('seats'); seats.innerHTML = '';
+    const filled = (state.table.seats || []).filter(s => !!s.user).length;
+    el('seatsFilled').textContent = `${filled}/${(state.table.seats||[]).length || el('tableSize').value}`;
+    (state.table.seats || []).forEach(s => {
+      const seat = document.createElement('div');
+      const meClass = (s.user === state.me.handle) ? 'me' : (s.user ? 'taken' : 'free');
+      seat.className = 'seat ' + meClass;
+      seat.innerHTML = `
+        <div class="label">Seat ${s.n} ${s.verified ? '• verified' : ''}</div>
+        <div class="value">${s.user ? s.user : '—'}</div>
+        ${(!s.user) ? '<button class="btn-outline" data-seat="'+s.n+'">Claim</button>' : ''}
+      `;
+      if (!s.user) {
+        seat.querySelector('button').addEventListener('click', () => proposeSeat(s.n));
+      }
+      seats.appendChild(seat);
+    });
+    updateVenmoNote();
+  }
+
+  function renderCards(myHole, community) {
+    const myCardsEl = el('myCards'); const communityEl = el('community');
+    myCardsEl.innerHTML = ''; communityEl.innerHTML = '';
+    myHole.forEach(c => myCardsEl.appendChild(cardEl(c)));
+    community.forEach(c => communityEl.appendChild(cardEl(c)));
+  }
+  function cardEl(text){ const d=document.createElement('div'); d.className='card'; d.textContent=text; return d; }
+
+  // Venmo note
+  function updateVenmoNote() {
+    const note = `TABLE:${state.table?.id || '—'} SEAT:${state.table?.pendingSeat || '—'} USER:${state.me.handle || '—'}`;
+    el('venmoNote').textContent = note;
+  }
+
+  // Lobby/table management (host creates and broadcasts)
+  function createHostTable() {
+    const size = parseInt(el('tableSize').value, 10);
+    const table = {
+      id: 'T-' + Math.random().toString(36).slice(-6),
+      name: `Table ${state.lobby.tables.length+1}`,
+      seats: Array.from({length:size}, (_,i)=>({ n:i+1, user:null, verified:false })),
+      variant: el('variant').value || 'Texas Hold\'em',
+      buyIn: 10
+    };
+    state.lobby.tables.push(table);
+    state.host.tableId = table.id;
+    send({ type:'lobby', lobby: state.lobby });
+    renderLobby();
+    log(`Host created ${table.name} (${table.id}).`);
+  }
+
+  function proposeSeat(n) {
+    if (!state.me.handle) { alert('Set your handle first.'); return; }
+    state.table.pendingSeat = n;
+    updateVenmoNote();
+    // broadcast seat proposal to host
+    send({ type:'action_broadcast', user: state.me.handle, action: `proposed seat ${n}` });
+    log(`Proposed Seat ${n}. Send Venmo and wait for host verification.`);
+  }
+
+  // Host marks seat verified (after manual check)
+  function markSeatVerified() {
+    if (!state.table?.pendingSeat) { alert('Choose a seat first.'); return; }
+    const seatIndex = state.table.seats.findIndex(s => s.n === state.table.pendingSeat);
+    if (seatIndex === -1) return;
+    state.table.seats[seatIndex].user = state.me.handle;
+    state.table.seats[seatIndex].verified = true;
+    state.table.pendingSeat = null;
+    // broadcast table update
+    send({ type:'seat_mark', seat: state.table.seats[seatIndex].n, user: state.me.handle });
+    send({ type:'table_state', table: state.table });
+    renderTable();
+    log(`Seat locked and marked verified.`);
+  }
+
+  // Fair shuffle: commit–reveal
+  function randomSeed() {
+    const arr = new Uint8Array(32); crypto.getRandomValues(arr);
+    return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function sha256hex(str) {
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  function appendCommitLog(text){
+    const cur = el('commitLog').textContent;
+    el('commitLog').textContent = (cur==='—' ? '' : cur+'\n') + text;
+  }
+  async function commitSeed() {
+    state.me.seed = randomSeed();
+    state.me.commit = await sha256hex(state.me.seed);
+    el('myCommit').textContent = state.me.commit;
+    send({ type:'commit', user: state.me.handle, commit: state.me.commit });
+    appendCommitLog(`${state.me.handle}: ${state.me.commit}`);
+    log('Seed committed.');
+  }
+  function revealSeed() {
+    if (!state.me.seed) { alert('Commit first'); return; }
+    state.me.revealed = state.me.seed;
+    send({ type:'reveal', user: state.me.handle, seed: state.me.revealed });
+    appendCommitLog(`${state.me.handle} revealed.`);
+    log('Seed revealed.');
+  }
+
+  // Host finalizes shuffle after collecting reveals
+  async function finalizeShuffle() {
+    // In pure P2P, we assume all reveals sent; combine them deterministically
+    // For demo, host uses locally captured seeds from commitLog (not ideal). In practice, capture seeds via messages.
+    // We'll track revealed seeds received during handleMessage('reveal')
+  }
+  const revealedSeeds = [];
+  // Capture reveals from peers
+  function handleMessage(m) {
+    switch(m.type){
+      case 'hello': log(`Peer hello: ${m.handle}`); incrementPeerCount(); break;
+      case 'lobby': state.lobby = m.lobby; renderLobby(); break;
+      case 'table_state': state.table = m.table; renderTable(); break;
+      case 'timer': el('handTimer').textContent = `${m.seconds}s`; break;
+      case 'deal': renderCards(m.myHole || [], m.community || []); break;
+      case 'pot': el('pot').textContent = `$${m.value}`; break;
+      case 'seat_mark': log(`Seat ${m.seat} marked verified for ${m.user}`); const idx = state.table.seats.findIndex(s => s.n === m.seat); if (idx >= 0) state.table.seats[idx].verified = true; renderTable(); break;
+      case 'commit': appendCommitLog(`${m.user}: ${m.commit}`); break;
+      case 'reveal': revealedSeeds.push({ user: m.user, seed: m.seed }); appendCommitLog(`${m.user} revealed.`); break;
+      case 'shuffle_final': log(`Final shuffle ready. Seed: ${m.finalSeedHash}`); state.deck = m.deck; break;
+      case 'action_broadcast': log(`${m.user} ${m.action}${m.size ? ' $'+m.size : ''}.`); break;
+      case 'chat': log(`Chat: ${m.text}`); break;
+    }
+  }
+
+  async function hostFinalizeShuffle() {
+    // Combine seeds deterministically
+    const allSeeds = revealedSeeds.map(r => r.seed).concat(state.me.revealed ? [state.me.revealed] : []);
+    if (allSeeds.length === 0) { alert('No seeds revealed yet'); return; }
+    const concat = allSeeds.join('|');
+    const finalSeedHash = await sha256hex(concat);
+    const deck = canonicalDeck();
+    fisherYates(deck, finalSeedHash);
+    state.deck = deck;
+    send({ type:'shuffle_final', finalSeedHash, deck });
+    log('Shuffle finalized and broadcast.');
+  }
+
+  // Deck and shuffle
+  function canonicalDeck() {
+    const ranks = ['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+    const suits = ['♠','♥','♦','♣'];
+    return suits.flatMap(s => ranks.map(r => `${r}${s}`));
+  }
+  function xorshift32(seedHex){
+    // derive 32-bit int from seed hash hex
+    let x = parseInt(seedHex.slice(0,8),16) || 2463534242;
+    return () => {
+      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+      return (x >>> 0);
+    };
+  }
+  function fisherYates(arr, seedHex){
+    const rand = xorshift32(seedHex);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = rand() % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Dealing and timers (host authoritative, broadcast)
+  let handClock = null, handLeft = 0;
+  function startHandLoop() {
+    if (!state.host.isHost) return;
+    const actionTime = parseInt(el('actionTime').value || '25', 10);
+    handLeft = actionTime;
+    el('handTimer').textContent = `${handLeft}s`;
+    deal(el('variant').value);
+    if (handClock) clearInterval(handClock);
+    handClock = setInterval(() => {
+      handLeft--;
+      send({ type:'timer', seconds: handLeft });
+      el('handTimer').textContent = `${handLeft}s`;
+      if (handLeft <= 0) {
+        log('Auto-fold on timeout. Next hand.');
+        deal(el('variant').value);
+        handLeft = actionTime;
+      }
+    }, 1000);
+  }
+
+  function deal(variant) {
+    if (state.deck.length !== 52) {
+      log('Deck not finalized. Finalize shuffle first.');
+      return;
+    }
+    // For simplicity, broadcast community cards; each client derives its own hole cards deterministically from position
+    const deckCopy = state.deck.slice();
+    const community = [];
+    if (variant === 'Texas Hold\'em' || variant === 'Omaha') {
+      // flop/turn/river positions
+      community.push(deckCopy[0], deckCopy[1], deckCopy[2], deckCopy[3], deckCopy[4]);
+    }
+    // My hole cards: derive from handle hash to pick positions (not ideal but deterministic)
+    sha256hex(state.me.handle + '|' + state.table?.id).then(h => {
+      const base = parseInt(h.slice(0,4),16) % 40 + 5; // start after community
+      const count = variant === 'Omaha' ? 4 : (variant === 'Five Card Draw' ? 5 : 2);
+      const myHole = deckCopy.slice(base, base+count);
+      renderCards(myHole, community);
+      send({ type:'deal', myHole, community });
+      // Pot update example (host can compute real pot from actions)
+      send({ type:'pot', value: Math.floor(Math.random()*200) });
+    });
+  }
+
+  // Actions (broadcast to peers)
+  el('checkBtn').onclick = () => { send({ type:'action_broadcast', user: state.me.handle, action: 'checked' }); };
+  el('callBtn').onclick = () => { send({ type:'action_broadcast', user: state.me.handle, action: 'called' }); };
+  el('betBtn').onclick = () => { send({ type:'action_broadcast', user: state.me.handle, action: 'bet', size: parseInt(el('betSize').value||'10',10) }); };
+  el('foldBtn').onclick = () => { send({ type:'action_broadcast', user: state.me.handle, action: 'folded' }); };
+
+  // Tournament controls (host)
+  el('startTournament').onclick = () => {
+    state.tournament.running = true;
+    state.tournament.levelSeconds = parseInt(el('blindLevel').value, 10);
+    state.tournament.startTs = Date.now();
+    el('tournamentStatus').textContent = `Running • Levels every ${state.tournament.levelSeconds}s`;
+    log('Tournament started.');
+    startHandLoop();
+  };
+  el('endTournament').onclick = () => {
+    state.tournament.running = false;
+    el('tournamentStatus').textContent = 'Ended';
+    log('Tournament ended.');
+    if (handClock) clearInterval(handClock);
+  };
+  el('payoutEmail').onclick = () => {
+    const winner = state.me.handle || '—';
+    const subject = encodeURIComponent(`Tournament payout — ${state.table?.id || '—'}`);
+    const body = encodeURIComponent(`Winner: ${winner}\nTable: ${state.table?.id}\nVariant: ${el('variant').value}\nAudit: finalSeed=${state.deck.length? 'set' : 'unset'}\nCommit log:\n${el('commitLog').textContent}`);
+    window.location.href = `mailto:barbrickdesign@gmail.com?subject=${subject}&body=${body}`;
+  };
+
+  // Theme switch
+  el('theme').onchange = e => {
+    const t = e.target.value;
+    document.documentElement.style.setProperty('--accent', t==='Neon' ? '#ff00ff' : t==='Night' ? '#00a2ff' : '#00e5ff');
+    document.documentElement.style.setProperty('--accent2', t==='Neon' ? '#ffd54f' : t==='Night' ? '#7cffd4' : '#7cffd4');
+  };
+
+  // UI bindings
+  el('saveHandle').onclick = () => {
+    state.me.handle = (el('handle').value || '').trim();
+    if (!state.me.handle) { alert('Enter a handle.'); return; }
+    log(`Handle set: ${state.me.handle}`);
+    renderTable();
+  };
+  el('seatHelp').onclick = () => alert('Send donation to venmo.com/u/Rytb333 with the exact note shown. Host will mark your seat verified.');
+  el('leaveTable').onclick = () => {
+    el('tablePanel').style.display = 'none';
+    el('lobby').style.display = 'block';
+    state.table = null;
+  };
+
+  // Connection buttons
+  el('hostBtn').onclick = () => { state.host.isHost = true; setConnStatus('Hosting'); };
+  el('joinBtn').onclick = () => { state.host.isHost = false; setConnStatus('Joining'); };
+  el('resetConn').onclick = () => {
+    if (rtc) { try { rtc.close(); } catch {} }
+    dataChannels = []; rtc = null; setConnStatus('Disconnected'); el('peerCount').textContent = '0';
+    el('sdpOffer').value = ''; el('sdpAnswer').value = '';
+    log('Connection reset.');
+  };
+  el('genOffer').onclick = hostGenerateOffer;
+  el('copyOffer').onclick = () => { navigator.clipboard.writeText(el('sdpOffer').value); log('Offer copied.'); };
+  el('genAnswer').onclick = guestGenerateAnswer;
+  el('copyAnswer').onclick = () => { navigator.clipboard.writeText(el('sdpAnswer').value); log('Answer copied.'); };
+  el('connectPeer').onclick = hostConnectWithAnswer;
+
+  // Create table (host) and broadcast lobby
+  el('createTable').onclick = () => {
+    if (!state.host.isHost) { alert('Only host can create tables.'); return; }
+    createHostTable();
+  };
+
+  // Commit–reveal controls
+  el('commitSeed').onclick = commitSeed;
+  el('revealSeed').onclick = revealSeed;
+  el('finalizeShuffle').onclick = hostFinalizeShuffle;
+
+  // Init
+  state.me.fp = fingerprint();
+  el('fingerprint').textContent = state.me.fp;
+
+  // Local default lobby
+  state.lobby.playersOnline = 1;
+  state.lobby.tables = [];
+  renderLobby();
+})();
+</script>
+</body>
+</html>

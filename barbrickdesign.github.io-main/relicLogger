@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Relic Logger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 500px;
+      width: 90%;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    label {
+      margin-top: 1rem;
+      display: block;
+      font-weight: 600;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    button {
+      background: #0078d4;
+      color: white;
+      font-weight: bold;
+      margin-top: 1.5rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    .log {
+      margin-top: 1.5rem;
+      background: #eef2fa;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🔐 Relic Logger & GitHub Sync</h2>
+
+    <label for="keyId">Key ID</label>
+    <input type="text" id="keyId" placeholder="e.g. abc123" />
+
+    <label for="walletLink">Wallet Link</label>
+    <input type="text" id="walletLink" placeholder="e.g. 6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk" />
+
+    <label for="relicType">Relic Type</label>
+    <select id="relicType">
+      <option value="governance">Governance</option>
+      <option value="access">Access</option>
+      <option value="proof">Proof</option>
+      <option value="symbolic">Symbolic</option>
+      <option value="test">Test</option>
+    </select>
+
+    <label for="syncTarget">Sync Target</label>
+    <select id="syncTarget">
+      <option value="mandem">Mandem.os</option>
+      <option value="null">null.os</option>
+      <option value="both">Mandem + null</option>
+    </select>
+
+    <label for="githubToken">GitHub Token</label>
+    <input type="password" id="githubToken" placeholder="GitHub Personal Access Token" />
+
+    <label for="repoPath">GitHub Repo (user/repo)</label>
+    <input type="text" id="repoPath" placeholder="e.g. AgentR/mandem-sync" />
+
+    <button onclick="logRelic()">Log & Sync Relic</button>
+
+    <div class="log" id="logOutput">🧾 Output will appear here…</div>
+  </div>
+
+  <script src="https://cdn.skypack.dev/@octokit/rest"></script>
+  <script>
+    async function logRelic() {
+      const keyId = document.getElementById('keyId').value.trim();
+      const walletLink = document.getElementById('walletLink').value.trim();
+      const relicType = document.getElementById('relicType').value;
+      const syncTarget = document.getElementById('syncTarget').value;
+      const githubToken = document.getElementById('githubToken').value.trim();
+      const repoPath = document.getElementById('repoPath').value.trim();
+      const timestamp = new Date().toISOString();
+
+      const [owner, repo] = repoPath.split('/');
+      const coinId = 'coin_' + Math.random().toString(36).substring(2, 10);
+      const valueUSD = (relicType === 'symbolic' || relicType === 'test') ? 0 : Math.floor(Math.random() * 1000);
+
+      let relic = {
+        relic_id: keyId,
+        wallet_link: walletLink,
+        relic_type: relicType,
+        coin_id: coinId,
+        value_usd: valueUSD,
+        creator_id: 'AgentR',
+        timestamp
+      };
+
+      let output = `✅ Relic Created:\n${JSON.stringify(relic, null, 2)}\n`;
+
+      if (syncTarget === 'null' || syncTarget === 'both') {
+        relic.creator_id = 'null_agent';
+        relic.value_usd = 0;
+        output += `🕳️ Synced to null.os — value nullified, creator anonymized\n`;
+      }
+
+      if (syncTarget === 'mandem' || syncTarget === 'both') {
+        output += `📡 Synced to Mandem.os — lineage + classification registered\n`;
+      }
+
+      if (githubToken && owner && repo) {
+        const octokit = new Octokit.Octokit({ auth: githubToken });
+        const path = `relics/${timestamp.split('T')[0]}-${keyId}.json`;
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(relic, null, 2))));
+
+        try {
+          await octokit.repos.createOrUpdateFileContents({
+            owner,
+            repo,
+            path,
+            message: `Relic sync: ${keyId}`,
+            content,
+            committer: { name: "RelicBot", email: "bot@mandem.os" },
+            author: { name: "RelicBot", email: "bot@mandem.os" }
+          });
+          output += `📁 Pushed to GitHub: ${owner}/${repo}/${path}\n`;
+        } catch (err) {
+          output += `❌ GitHub Push Failed: ${err.message}\n`;
+        }
+      } else {
+        output += `⚠️ GitHub sync skipped — missing token or repo path\n`;
+      }
+
+      document.getElementById('logOutput').textContent = output;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+Pixel-Flow Tattoo Bloom — single-file demo
+
+Use the page below as a standalone demo. It loads the provided demo image by default (X9dvbXGFGnkKR919MoaBt.jpeg) and lets any user upload their own image to replace it. Save this as bloom_demo.html in the same folder as X9dvbXGFGnkKR919MoaBt.jpeg, open in Chrome or Safari, hide the UI for clean recording, and press Restart to seed the growth from the currently loaded image.
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pixel-Flow Tattoo Bloom — Demo</title>
+<style>
+  :root{--bg:#070707;--panel:rgba(12,12,12,0.6);--muted:#cfcfcf}
+  html,body{height:100%;margin:0;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,Arial;color:var(--muted)}
+  #wrap{position:relative}
+  canvas{background:#111;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,0.6);display:block}
+  #ui{position:fixed;left:12px;top:12px;background:var(--panel);padding:12px;border-radius:10px;backdrop-filter:blur(6px);font-size:13px}
+  #ui label{display:block;margin:8px 0;color:#e9e9e9}
+  #ui input[type=range]{width:190px}
+  #ui .row{display:flex;gap:8px;align-items:center;margin-top:6px}
+  #ui button,input[type=file]{padding:8px 10px;border-radius:6px;border:0;background:#222;color:#fff;cursor:pointer;font-size:13px}
+  #status{position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:8px;font-size:13px;color:#ffd}
+  #log{position:fixed;left:12px;bottom:12px;max-width:420px;max-height:160px;overflow:auto;background:rgba(0,0,0,0.45);padding:8px;border-radius:8px;font-size:12px;color:#ccc}
+  .small{font-size:12px;color:#bdbdbd}
+  a.link{color:#9cd; text-decoration:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="900" height="700" role="img" aria-label="Animated tattoo bloom"></canvas>
+</div>
+
+<div id="ui" aria-hidden="true">
+  <div><strong>Pixel-Flow Tattoo Bloom</strong></div>
+  <label>Image file (drop or choose) <input id="fileIn" type="file" accept="image/*"></label>
+  <label>Density <input id="density" type="range" min="4" max="30" value="12"></label>
+  <label>Growth Speed <input id="speed" type="range" min="0.2" max="3" step="0.1" value="1.2"></label>
+  <label>Trichome Spark <input id="spark" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+  <div class="row">
+    <button id="restart">Restart</button>
+    <button id="hideui">Hide UI</button>
+    <button id="saveframe">Save Frame</button>
+  </div>
+  <div class="small" style="margin-top:8px">Default demo image: <code>X9dvbXGFGnkKR919MoaBt.jpeg</code></div>
+</div>
+
+<div id="status">Status: <span id="sttext">loading demo image</span></div>
+<div id="log" aria-hidden="true"></div>
+
+<script>
+/* Demo HTML (single file)
+   - Put your image file X9dvbXGFGnkKR919MoaBt.jpeg next to this HTML
+   - Or upload any image with the file chooser or drag-and-drop
+   - Use Restart to resample and seed growth
+*/
+
+const DEFAULT_IMAGE = 'X9dvbXGFGnkKR919MoaBt.jpeg';
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const W = canvas.width, H = canvas.height;
+const logEl = document.getElementById('log');
+const sttext = document.getElementById('sttext');
+const fileIn = document.getElementById('fileIn');
+
+function log(msg){ const d = document.createElement('div'); d.textContent = (new Date()).toLocaleTimeString() + ' — ' + msg; logEl.prepend(d); console.log(msg); }
+function setStatus(s){ sttext.textContent = s; }
+
+let img = new Image();
+img.crossOrigin = 'anonymous';
+imgLoaded = false;
+let imgURL = null;
+
+// Load default demo image first
+function loadImageSource(src){
+  setStatus('loading ' + src);
+  if(imgURL){ URL.revokeObjectURL(imgURL); imgURL = null; }
+  img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => { imgLoaded = true; setStatus('image loaded'); initFromImage(); log('Loaded image: ' + src); };
+  img.onerror = (e) => { imgLoaded = false; setStatus('image load failed'); log('Image load error for ' + src + ' — check filename or CORS'); drawFallback(); };
+  img.src = src;
+}
+
+// Accept uploaded files (file chooser + drag/drop)
+fileIn.addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  if(imgURL){ URL.revokeObjectURL(imgURL); imgURL = null; }
+  imgURL = URL.createObjectURL(f);
+  loadImageSource(imgURL);
+});
+
+document.body.addEventListener('dragover', (e) => { e.preventDefault(); }, {passive:false});
+document.body.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  if(imgURL){ URL.revokeObjectURL(imgURL); imgURL = null; }
+  imgURL = URL.createObjectURL(f);
+  loadImageSource(imgURL);
+});
+
+function drawFallback(){
+  ctx.fillStyle = '#222'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#999'; ctx.font = '18px Inter, Arial'; ctx.fillText('No image loaded. Place ' + DEFAULT_IMAGE + ' beside this HTML or upload one.', 18, 40);
+}
+
+setStatus('attempting demo image load');
+loadImageSource(DEFAULT_IMAGE);
+
+/* Particle system state */
+const state = { particles: [], sparks: [], t:0 };
+
+function createParticlesFromTemp(tctx){
+  state.particles.length = 0; state.sparks.length = 0; state.t = 0;
+  const density = +document.getElementById('density').value;
+  const step = Math.max(2, density);
+  const imgData = tctx.getImageData(0,0,W,H).data;
+  for(let y=0;y<H;y+=step){
+    for(let x=0;x<W;x+=step){
+      const i = ((y*W)+x)*4;
+      const a = imgData[i+3];
+      if(a < 12) continue;
+      state.particles.push({
+        x,y, ox:x, oy:y,
+        r: imgData[i], g: imgData[i+1], b: imgData[i+2], a,
+        brightness: (imgData[i]+imgData[i+1]+imgData[i+2])/3,
+        mode:'idle', vx:0, vy:0, t: Math.random()
+      });
+    }
+  }
+  seedEmitters(6);
+  log('Particles created: ' + state.particles.length);
+}
+
+function initFromImage(){
+  const tmp = document.createElement('canvas');
+  tmp.width = W; tmp.height = H;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#000'; tctx.fillRect(0,0,W,H);
+  const ratio = Math.min(W / img.width, H / img.height);
+  const iw = img.width * ratio, ih = img.height * ratio;
+  const ix = (W - iw) / 2, iy = (H - ih) / 2;
+  tctx.drawImage(img, ix, iy, iw, ih);
+  createParticlesFromTemp(tctx);
+  requestAnimationFrame(loop);
+}
+
+function seedEmitters(n){
+  const pool = state.particles.filter(p => p.x < W*0.55 && p.x > W*0.18 && p.y > H*0.25 && p.y < H*0.75);
+  for(let i=0;i<n;i++){
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    if(!pick) continue;
+    pick.mode = 'emitter';
+    pick.emitTimer = Math.random()*1.6;
+  }
+}
+
+/* Colors and small behaviors */
+function toLeafColor(){
+  const r = Math.round(95 + Math.random()*65);
+  const g = Math.round(20 + Math.random()*50);
+  const b = Math.round(120 + Math.random()*100);
+  return [r,g,b];
+}
+function pistilColor(){
+  return [Math.round(220 + Math.random()*35), Math.round(140 + Math.random()*45), Math.round(140 + Math.random()*45)];
+}
+function spawnSpark(x,y){
+  state.sparks.push({ x,y, vx: (Math.random()-0.5)*0.6, vy: -0.15 - Math.random()*0.45, life: 0.6 + Math.random()*0.8, t:0, size: 0.6 + Math.random()*1.6 });
+}
+
+/* Main loop */
+function loop(){
+  state.t += 0.016;
+  const speed = +document.getElementById('speed').value;
+  const sparkLevel = +document.getElementById('spark').value;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(8,8,8,0.16)'; ctx.fillRect(0,0,W,H);
+
+  for(let p of state.particles){
+    p.t += 0.02 * speed;
+    if(p.mode === 'emitter'){
+      p.emitTimer -= 0.02 * speed;
+      if(p.emitTimer <= 0){
+        p.emitTimer = 0.15 + Math.random()*0.65;
+        const n = findNeighbor(p, 18);
+        if(n && n.mode === 'idle'){ n.mode = 'grow'; n.growProg = 0; n.leafColor = toLeafColor(); }
+      }
+    }
+    if(p.mode === 'grow'){
+      p.growProg += 0.02 * speed * (0.6 + Math.random()*0.9);
+      p.vx += (Math.random()-0.5)*0.12; p.vy += (Math.random()-0.4)*0.06;
+      p.x += p.vx; p.y += p.vy;
+      if(p.growProg > 1){
+        p.mode = 'leaf';
+        p.leaf = { size: 0.9 + Math.random()*1.5, angle: (Math.random()-0.5)*3.2, pistils: Math.random()>0.4 ? Math.floor(1+Math.random()*3):0 };
+        if(Math.random() < sparkLevel){ for(let s=0;s<Math.floor(1+Math.random()*3);s++) spawnSpark(p.x + (Math.random()-0.5)*8, p.y + (Math.random()-0.5)*8); }
+      }
+    }
+    if(p.mode === 'leaf'){
+      p.x += Math.sin((state.t + p.ox)*0.6)*0.2;
+      p.y += Math.cos((state.t + p.oy)*0.4)*0.08;
+      if(Math.random() < 0.006 * speed * sparkLevel) spawnSpark(p.x + (Math.random()-0.5)*12, p.y + (Math.random()-0.5)*12);
+    }
+  }
+
+  for(let p of state.particles){
+    if(p.mode === 'leaf'){
+      const lc = p.leafColor || toLeafColor();
+      const size = p.leaf.size * (12 / Math.max(1, +document.getElementById('density').value));
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.leaf.angle);
+      const g = ctx.createLinearGradient(-size,0,size,0);
+      g.addColorStop(0, `rgba(${Math.max(0,lc[0]-20)},${lc[1]},${Math.min(255,lc[2]+20)},0.98)`);
+      g.addColorStop(0.6, `rgba(${lc[0]},${Math.min(255,lc[1]+10)},${lc[2]},0.98)`);
+      g.addColorStop(1, `rgba(${Math.min(255,lc[0]+30)},${Math.min(255,lc[1]+40)},${Math.min(255,lc[2]+60)},0.98)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(0,0,size*1.6,size,0,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(10,8,12,0.18)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      for(let i=-6;i<=6;i++){ ctx.lineTo((i/6)*size*1.6, Math.sin(i)*0.7*size); }
+      ctx.stroke();
+
+      for(let ph=0; ph<p.leaf.pistils; ph++){
+        const angle = -1.4 + Math.random()*2.8;
+        const len = size * (0.6 + Math.random()*1.0);
+        const pc = pistilColor();
+        ctx.strokeStyle = `rgba(${pc[0]},${pc[1]},${pc[2]},0.98)`;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(len*0.2,len*0.2, Math.cos(angle)*len, Math.sin(angle)*len*0.6);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${Math.min(0.25, p.brightness/600)})`;
+      const s = Math.max(1, 12 / +document.getElementById('density').value);
+      ctx.fillRect(p.x - 0.5, p.y - 0.5, s, s);
+    }
+  }
+
+  for(let i = state.sparks.length - 1; i >= 0; i--){
+    const s = state.sparks[i];
+    s.t += 0.02 * (+document.getElementById('speed').value);
+    s.x += s.vx; s.y += s.vy; s.vy += 0.01*(0.6+Math.random()*0.6);
+    const alpha = Math.max(0, 1 - s.t/s.life);
+    ctx.fillStyle = `rgba(255,255,255,${0.75*alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size * (1 + (1-alpha)*1.6), 0, Math.PI*2);
+    ctx.fill();
+    if(s.t > s.life) state.sparks.splice(i,1);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function findNeighbor(center, radius){
+  let best=null, bestD=Infinity;
+  for(let p of state.particles){
+    if(p.mode !== 'idle') continue;
+    const dx = p.x - center.x, dy = p.y - center.y;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if(d < radius && d < bestD){ best = p; bestD = d; }
+  }
+  return best;
+}
+
+/* UI hooks */
+document.getElementById('restart').addEventListener('click', () => {
+  if(!img || !img.complete || img.naturalWidth === 0){ setStatus('no valid image loaded'); log('Restart blocked: no valid image'); return; }
+  setStatus('restarting');
+  const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#000'; tctx.fillRect(0,0,W,H);
+  const ratio = Math.min(W / img.width, H / img.height);
+  const iw = img.width * ratio, ih = img.height * ratio;
+  const ix = (W - iw) / 2, iy = (H - ih) / 2;
+  tctx.drawImage(img, ix, iy, iw, ih);
+  createParticlesFromTemp(tctx);
+  setStatus('running');
+});
+
+document.getElementById('hideui').addEventListener('click', () => {
+  const ui = document.getElementById('ui');
+  ui.style.display = ui.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('saveframe').addEventListener('click', () => {
+  const data = canvas.toDataURL('image/png');
+  const a = document.createElement('a'); a.href = data; a.download = 'bloom_frame.png'; a.click();
+  log('Saved current frame as bloom_frame.png');
+});
+
+/* Resize note: canvas is fixed for consistent recording; adapt if needed */
+</script>
+</body>
+</html>

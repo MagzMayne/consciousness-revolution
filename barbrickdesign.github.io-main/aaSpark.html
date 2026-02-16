@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AuctionSpark — Professional Edition (Merged)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2212%22 font-size=%2212%22>⚡</text></svg>">
+  <style>
+    :root {
+      --bg:#0b0e12; --panel:#0f141b; --ink:#d6e3ff; --muted:#9aa0bf;
+      --primary:#4aa3ff; --accent:#9333ea; --success:#16a34a; --danger:#dc2626;
+      --border:#1c2230;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+    header { background: linear-gradient(90deg, var(--primary), var(--accent)); padding: 16px; }
+    header .wrap { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 20px; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    h2 { margin: 0 0 12px 0; color: var(--primary); font-size: 18px; }
+    h3 { margin: 12px 0 8px 0; color: var(--muted); font-size: 14px; }
+    .btn { background: var(--primary); color: #061422; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+    .btn.secondary { background: var(--accent); color: #fff; }
+    .btn.danger { background: var(--danger); color: #fff; }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border); padding: 8px; text-align: left; font-size: 14px; }
+    th { background: #12161c; color: var(--muted); }
+    td { background: var(--panel); }
+    .muted { color: var(--muted); font-size: 12px; }
+    .list { display: grid; gap: 10px; }
+    .item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    input, select, textarea { border-radius: 8px; border: 1px solid var(--border); background: #0c1118; color: var(--ink); padding: 8px; }
+    .rarity { font-size: 12px; padding: 3px 8px; border-radius: 999px; display: inline-block; border: 1px solid var(--border); }
+    .Ultra-Rare { background: #31175a; color: #e9dbff; border-color: #5b2aa3; }
+    .Rare { background: #122a5b; color: #dbe7ff; border-color: #254c9f; }
+    .Limited { background: #3a2a06; color: #ffe9bd; border-color: #9f7d2e; }
+    .Standard { background: #1b2028; color: #cfd6e3; border-color: #3a434f; }
+    .toast { position: fixed; right: 16px; bottom: 16px; background: #111827; color: #fff; border-radius: 8px; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+    .status { font-size: 12px; display: inline-flex; align-items: center; gap: 8px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--danger); }
+    .dot.ok { background: var(--success); }
+    .totals { margin-top: 12px; font-size: 14px; line-height: 1.6; }
+    .totals .row { display: flex; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 8px; }
+    .pill { background:#12161c; border:1px solid var(--border); padding:6px 10px; border-radius:8px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>AuctionSpark — Professional Edition</h1>
+      <div class="status">
+        <span class="dot" id="walletDot"></span>
+        <span id="walletStatus">MetaMask: Not connected</span>
+        <button class="btn ghost" id="connectBtn">Connect MetaMask</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+      <!-- Main content -->
+      <section class="card">
+        <h2>Live auctions</h2>
+        <div id="auctionList" class="list"></div>
+        <div class="controls">
+          <button class="btn danger" id="startDropParty">Start Drop Party</button>
+          <span id="dropPartyStatus" class="muted">No drop party active.</span>
+        </div>
+
+        <h3>Quick actions</h3>
+        <div class="controls">
+          <button class="btn secondary" id="seedToAuction">Post seed lot auction</button>
+          <button class="btn ghost" id="exportReceipts">Export receipts</button>
+        </div>
+      </section>
+
+      <!-- Sidebar -->
+      <aside class="card">
+        <h2>Seed pack inventory</h2>
+        <table id="inventoryTable">
+          <thead>
+            <tr>
+              <th>Seed type</th>
+              <th>Rarity</th>
+              <th>Quantity</th>
+              <th>Base price (USD)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="controls">
+          <select id="seedType"></select>
+          <input type="number" id="seedChange" placeholder="+1 or -1" />
+          <button class="btn" id="updateInventoryBtn">Update inventory</button>
+        </div>
+
+        <div id="totals" class="totals">
+          <div class="row">
+            <span class="pill"><strong>Grand total (USD):</strong></span>
+            <span id="grandTotal">$0.00</span>
+          </div>
+          <div style="margin-top:8px;">
+            <div><span class="rarity Ultra-Rare">Ultra-Rare</span> <span id="totalUltraRare" style="float:right;">$0.00</span></div>
+            <div><span class="rarity Rare">Rare</span> <span id="totalRare" style="float:right;">$0.00</span></div>
+            <div><span class="rarity Limited">Limited</span> <span id="totalLimited" style="float:right;">$0.00</span></div>
+            <div><span class="rarity Standard">Standard</span> <span id="totalStandard" style="float:right;">$0.00</span></div>
+          </div>
+        </div>
+
+        <h3>Economy settings</h3>
+        <div class="controls">
+          <input type="number" id="sparkletRewardPerDrop" value="0.5" step="0.1" />
+          <span class="muted">Sparklet reward per drop-party purchase</span>
+        </div>
+
+        <h3>Globals</h3>
+        <div class="controls" style="gap:0; flex-direction: column;">
+          <textarea id="globalVars" rows="8" style="width:100%; resize: vertical;">{
+  "vaultAddress": "0x446f8232ba20da4ef13d230e4d55e978e3081197",
+  "poolAddress": "0x0000000000000000000000000000000000000000",
+  "burnAddress": "0x000000000000000000000000000000000000dEaD",
+  "sparkletTokenAddress": "0x0000000000000000000000000000000000000000",
+  "sparkletFeeUSD": 0.10,
+  "vaultPercent": 0.5,
+  "poolPercent": 0.3,
+  "burnPercent": 0.2
+}</textarea>
+          <div class="controls">
+            <button class="btn ghost" id="saveGlobals">Save globals</button>
+            <span class="muted">Configure vault/pool/burn and Sparklet token.</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:20px;">
+      <h2>Receipts & audit log</h2>
+      <div id="receiptList" class="list"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    // Toast helper
+    function toast(msg, type) {
+      var el = document.createElement("div");
+      el.className = "toast " + (type || "");
+      el.textContent = String(msg);
+      document.body.appendChild(el);
+      setTimeout(function(){ try { el.remove(); } catch(_){} }, 4500);
+    }
+
+    // Basic state
+    var state = {
+      auctions: [
+        { id: "auc_1", name: "Property Lot — SF", startingPrice: 9500, baseCurrency: "USD", sold: false },
+        { id: "auc_2", name: "Block Explorer #18", startingPrice: 6000, baseCurrency: "USD", sold: false }
+      ],
+      receipts: [],
+      wallet: { connected: false, address: null }
+    };
+
+    // Seed catalog (Upland generate seed order, base prices in USD)
+    var seedCatalog = {
+      "Purple Tulip": { rarity:"Ultra-Rare", qty:0, basePrice:5000 },
+      "White Rose": { rarity:"Ultra-Rare", qty:0, basePrice:5000 },
+      "Oil Palm Tree": { rarity:"Ultra-Rare", qty:0, basePrice:5000 },
+      "Lavender": { rarity:"Rare", qty:0, basePrice:2000 },
+      "Orange Daisy": { rarity:"Rare", qty:0, basePrice:2000 },
+      "Red Rose": { rarity:"Rare", qty:0, basePrice:2000 },
+      "Weeping Willow Tree": { rarity:"Rare", qty:0, basePrice:2000 },
+      "Magnolia Tree": { rarity:"Rare", qty:0, basePrice:2000 },
+      "White Tulip": { rarity:"Limited", qty:0, basePrice:500 },
+      "Red Tulip": { rarity:"Limited", qty:0, basePrice:500 },
+      "Yellow Rose": { rarity:"Limited", qty:0, basePrice:500 },
+      "Pink Rose": { rarity:"Limited", qty:0, basePrice:500 },
+      "Boxwood": { rarity:"Limited", qty:0, basePrice:500 },
+      "Lawn Grass": { rarity:"Standard", qty:0, basePrice:100 },
+      "Arborvitae": { rarity:"Standard", qty:0, basePrice:100 },
+      "Pine Tree": { rarity:"Standard", qty:0, basePrice:100 },
+      "Maple Tree": { rarity:"Standard", qty:0, basePrice:100 }
+    };
+
+    // Populate seed dropdown
+    function populateSeedDropdown() {
+      var select = document.getElementById("seedType");
+      select.innerHTML = "";
+      Object.keys(seedCatalog).forEach(function(seed){
+        var opt = document.createElement("option");
+        opt.value = seed; opt.textContent = seed;
+        select.appendChild(opt);
+      });
+    }
+
+    // Calculate totals
+    function calculateTotals() {
+      var grandTotal = 0;
+      var groupTotals = { "Ultra-Rare":0, "Rare":0, "Limited":0, "Standard":0 };
+
+      Object.values(seedCatalog).forEach(function(s){
+        var subtotal = s.qty * s.basePrice;
+        grandTotal += subtotal;
+        groupTotals[s.rarity] += subtotal;
+      });
+
+      return { grandTotal: grandTotal, groupTotals: groupTotals };
+    }
+
+    // Render inventory table + totals
+    function renderInventory() {
+      var tbody = document.querySelector("#inventoryTable tbody");
+      tbody.innerHTML = "";
+      Object.entries(seedCatalog).forEach(function([seed, data]){
+        var tr = document.createElement("tr");
+        tr.innerHTML = "<td>"+seed+"</td>"+
+                       "<td><span class='rarity "+data.rarity+"'>"+data.rarity+"</span></td>"+
+                       "<td>"+data.qty+"</td>"+
+                       "<td>$"+Number(data.basePrice).toFixed(2)+"</td>";
+        tbody.appendChild(tr);
+      });
+
+      var totals = calculateTotals();
+      document.getElementById("grandTotal").textContent = "$" + totals.grandTotal.toFixed(2);
+      document.getElementById("totalUltraRare").textContent = "$" + totals.groupTotals["Ultra-Rare"].toFixed(2);
+      document.getElementById("totalRare").textContent = "$" + totals.groupTotals["Rare"].toFixed(2);
+      document.getElementById("totalLimited").textContent = "$" + totals.groupTotals["Limited"].toFixed(2);
+      document.getElementById("totalStandard").textContent = "$" + totals.groupTotals["Standard"].toFixed(2);
+    }
+
+    // Update inventory counts (auto recalculates totals)
+    function updateInventory() {
+      var seedType = document.getElementById("seedType").value;
+      var change = parseInt(document.getElementById("seedChange").value, 10);
+      if (!isNaN(change)) {
+        seedCatalog[seedType].qty += change;
+        if (seedCatalog[seedType].qty < 0) seedCatalog[seedType].qty = 0;
+        renderInventory();
+        addReceipt("inventory_update", { seed: seedType, change: change, newQty: seedCatalog[seedType].qty });
+        document.getElementById("seedChange").value = "";
+      }
+    }
+
+    // Render auctions
+    function renderAuctions() {
+      var list = document.getElementById("auctionList");
+      list.innerHTML = "";
+      if (!state.auctions.length) {
+        var empty = document.createElement("div");
+        empty.className = "item muted";
+        empty.textContent = "No auctions";
+        list.appendChild(empty);
+        return;
+      }
+      state.auctions.forEach(function(a){
+        var div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = "<strong>"+a.name+"</strong> — "+a.startingPrice+" "+a.baseCurrency+
+          "<div class='controls' style='margin-top:8px;'><button class='btn secondary' onclick='buyNowWithCaptcha(\""+a.id+"\")'>Buy Now</button></div>";
+        list.appendChild(div);
+      });
+    }
+
+    // Captcha stub (replace with backend verification)
+    async function verifyCaptcha() {
+      // Integrate with your backend to verify grecaptcha token
+      return true;
+    }
+
+    // Buy now with captcha
+    async function buyNowWithCaptcha(id) {
+      var ok = await verifyCaptcha();
+      if (!ok) { toast("Captcha validation failed", "error"); return; }
+      var auc = state.auctions.find(function(x){ return x.id === id; });
+      if (!auc) { toast("Auction not found", "error"); return; }
+      addReceipt("buy_now", { auctionId: id, name: auc.name, price: auc.startingPrice, currency: auc.baseCurrency });
+      toast("Buy Now executed for "+auc.name, "success");
+
+      // Reward Sparklet for drop-party lots
+      if (String(id).startsWith("drop_")) {
+        var reward = parseFloat(document.getElementById("sparkletRewardPerDrop").value || "0.5");
+        addReceipt("drop_party_reward", { auctionId: id, rewardSparklet: reward });
+        toast("Rewarded buyer with "+reward+" Sparklet", "success");
+      }
+    }
+
+    // Drop party: offload all unsold at $1 (USD) for demo
+    function startDropParty() {
+      var unsold = state.auctions.filter(function(a){ return !a.sold; });
+      if (!unsold.length) { toast("No unsold properties", "error"); return; }
+      var dropLots = unsold.map(function(a){
+        return {
+          id: "drop_"+Math.random().toString(36).slice(2),
+          name: a.name + " (Drop Party)",
+          startingPrice: 1,
+          baseCurrency: "USD",
+          sold: false
+        };
+      });
+      state.auctions = dropLots;
+      renderAuctions();
+      document.getElementById("dropPartyStatus").textContent = "Drop Party active: "+dropLots.length+" lots.";
+      addReceipt("drop_party_start", { lots: dropLots.length });
+      toast("Drop Party started", "success");
+    }
+
+    // Seed-to-auction quick lot: combine all seed packs into one USD-valued lot
+    function postSeedLotAuction() {
+      var totals = calculateTotals();
+      // total items
+      var totalItems = 0;
+      Object.values(seedCatalog).forEach(function(s){ totalItems += s.qty; });
+      if (totalItems === 0) { toast("No seed packs to post", "error"); return; }
+
+      var id = "auc_seed_"+Math.random().toString(36).slice(2);
+      var startPrice = Math.max(1, Math.round(totals.grandTotal * 0.85)); // optional discount
+      var auc = {
+        id: id,
+        name: "Seed Lot ("+totalItems+" packs)",
+        startingPrice: startPrice,
+        baseCurrency: "USD",
+        sold: false
+      };
+      state.auctions.push(auc);
+      renderAuctions();
+      addReceipt("seed_lot_post", {
+        auctionId: id,
+        items: totalItems,
+        grandTotalUSD: Number(totals.grandTotal.toFixed(2)),
+        startUSD: startPrice
+      });
+      toast("Posted Seed Lot auction", "success");
+    }
+
+    // Receipts
+    function addReceipt(type, data) {
+      var rec = { id: "rcpt_"+Math.random().toString(36).slice(2), ts: new Date().toISOString(), type: type, data: data };
+      state.receipts.push(rec);
+      renderReceipts();
+    }
+
+    function renderReceipts() {
+      var list = document.getElementById("receiptList");
+      list.innerHTML = "";
+      if (!state.receipts.length) {
+        var empty = document.createElement("div");
+        empty.className = "item muted";
+        empty.textContent = "No receipts yet.";
+        list.appendChild(empty);
+        return;
+      }
+      state.receipts.slice().reverse().forEach(function(r){
+        var div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = "<strong>"+r.type+"</strong> — "+JSON.stringify(r.data)+"<br><span class='muted'>"+new Date(r.ts).toLocaleString()+"</span>";
+        list.appendChild(div);
+      });
+    }
+
+    function exportReceipts() {
+      try {
+        var blob = new Blob([JSON.stringify(state.receipts, null, 2)], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = "auctionSpark_receipts.json"; a.click();
+        URL.revokeObjectURL(url);
+        toast("Receipts exported", "success");
+      } catch(e) {
+        console.error(e);
+        toast("Failed to export receipts", "error");
+      }
+    }
+
+    // Wallet (stub connect)
+    function connectWallet() {
+      state.wallet.connected = true;
+      state.wallet.address = "0xYourAddressHere";
+      document.getElementById("walletDot").className = "dot ok";
+      document.getElementById("walletStatus").textContent = "Connected: 0xYour…Here";
+      toast("Wallet connected", "success");
+      addReceipt("wallet_connect", { address: state.wallet.address });
+    }
+
+    // Globals save (for logging only)
+    function saveGlobals() {
+      var parsed;
+      try { parsed = JSON.parse(document.getElementById("globalVars").value); }
+      catch(e){ toast("Invalid globals JSON", "error"); return; }
+      addReceipt("globals_update", { globals: parsed });
+      toast("Globals saved", "success");
+    }
+
+    // Wire UI events
+    function initUI() {
+      document.getElementById("updateInventoryBtn").addEventListener("click", updateInventory);
+      document.getElementById("startDropParty").addEventListener("click", startDropParty);
+      document.getElementById("seedToAuction").addEventListener("click", postSeedLotAuction);
+      document.getElementById("exportReceipts").addEventListener("click", exportReceipts);
+      document.getElementById("connectBtn").addEventListener("click", connectWallet);
+      document.getElementById("saveGlobals").addEventListener("click", saveGlobals);
+    }
+
+    // Initial render
+    function init() {
+      populateSeedDropdown();
+      renderInventory();
+      renderAuctions();
+      renderReceipts();
+      initUI();
+      toast("AuctionSpark ready", "success");
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>

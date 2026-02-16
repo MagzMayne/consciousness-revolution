@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Upland Bridge — MetaMask Configured</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#04121a;--card:#071726;--muted:#9fb0c8;--accent:#36d6a1;font-family:Inter,system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#02121a,#071627);color:#e6f4fb}
+  .wrap{max-width:980px;margin:16px auto;padding:14px;display:grid;gap:12px}
+  header{display:flex;justify-content:space-between;align-items:center}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
+  button{background:var(--accent);border:none;padding:8px 12px;border-radius:10px;color:#042022;font-weight:600;cursor:pointer}
+  .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--accent)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input,select{padding:10px;border-radius:8px;border:none;background:#061623;color:#dff5f0}
+  .small{font-size:13px;color:var(--muted)}
+  .log{font-family:monospace;background:#041620;border-radius:8px;padding:10px;color:#9cc9c8;max-height:260px;overflow:auto}
+  .leader{display:flex;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.01);margin-bottom:6px}
+  @media(max-width:720px){header{flex-direction:column;align-items:flex-start;gap:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(90deg,#36d6a1,#5b8cff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#021218">UB</div>
+      <div>
+        <div style="font-size:18px;font-weight:700">Upland Bridge — MetaMask</div>
+        <div class="small">Sparklet: 0x0bc37...5A2 | Vault: 0xefc691...3c8d</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div id="status" class="small" style="padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.02)">Not connected</div>
+      <button id="connectBtn">Connect Wallet</button>
+      <button id="wcBtn" class="ghost">WalletConnect (mobile)</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <div style="font-weight:700" id="addr">—</div>
+        <div class="small" id="network">Network: —</div>
+      </div>
+      <div style="text-align:right">
+        <div class="small">Sparklet</div>
+        <div style="font-weight:700;font-size:18px" id="sparkBal">—</div>
+        <div class="small">Decimals: <span id="decimals">—</span></div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:8px">
+      <div class="row">
+        <input id="toAddr" placeholder="Recipient address or contract" style="flex:1" />
+        <input id="toAmt" placeholder="Amount (human)" style="width:160px" />
+      </div>
+      <div class="row">
+        <button id="transferBtn">Transfer</button>
+        <button id="approveBtn" class="ghost">Approve Spender</button>
+        <button id="allowanceBtn" class="ghost">Check Allowance</button>
+        <button id="refreshBtn" class="ghost">Refresh Balance</button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="signMetaBtn">Sign EIP‑712 MetaTx</button>
+        <button id="sendMetaBtn" class="ghost">Send Signed MetaTx to Relayer</button>
+      </div>
+
+      <div class="small">Relayer status: <span id="relayerStatus">Not set</span></div>
+      <div style="display:grid;gap:6px">
+        <label class="small">Config (edit before use)</label>
+        <div class="small">SPARKLET_TOKEN_ADDRESS: <input id="cfgToken" value="0x0bc37BEA9068a86C221B8bd71eA6228260DAD5A2" /></div>
+        <div class="small">RELAYER_BACKEND_URL: <input id="cfgRelayer" value="https://your-relayer.example.com/relay" /></div>
+        <div class="small">FORWARDER_ADDRESS: <input id="cfgForwarder" value="0x0000000000000000000000000000000000000000" /></div>
+        <div class="small">VAULT_ADDRESS: <input id="cfgVault" value="0xefc6910e7624f164dae9d0f799954aa69c943c8d" /></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+    <div>
+      <div style="font-weight:700;margin-bottom:6px">Activity & Logs</div>
+      <div id="logs" class="log">Client logs will appear here.</div>
+    </div>
+    <div>
+      <div style="font-weight:700;margin-bottom:6px">Leaderboard</div>
+      <div id="leaderboard" style="min-height:200px">
+        <div class="leader"><div class="small">No data</div><div class="small">$0</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.9.2/dist/ethers.esm.min.js';
+
+const connectBtn = document.getElementById('connectBtn');
+const wcBtn = document.getElementById('wcBtn');
+const statusEl = document.getElementById('status');
+const addrEl = document.getElementById('addr');
+const networkEl = document.getElementById('network');
+const sparkBalEl = document.getElementById('sparkBal');
+const decimalsEl = document.getElementById('decimals');
+const toAddrEl = document.getElementById('toAddr');
+const toAmtEl = document.getElementById('toAmt');
+const transferBtn = document.getElementById('transferBtn');
+const approveBtn = document.getElementById('approveBtn');
+const allowanceBtn = document.getElementById('allowanceBtn');
+const refreshBtn = document.getElementById('refreshBtn');
+const logsEl = document.getElementById('logs');
+const leaderEl = document.getElementById('leaderboard');
+const signMetaBtn = document.getElementById('signMetaBtn');
+const sendMetaBtn = document.getElementById('sendMetaBtn');
+
+const cfgToken = document.getElementById('cfgToken');
+const cfgRelayer = document.getElementById('cfgRelayer');
+const cfgForwarder = document.getElementById('cfgForwarder');
+const cfgVault = document.getElementById('cfgVault');
+const relayerStatus = document.getElementById('relayerStatus');
+
+let provider, signer, userAddr;
+let tokenContract;
+let tokenDecimals = 18;
+let lastSignedMeta = null;
+
+const ERC20_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function transfer(address,uint256) returns (bool)"
+];
+
+function log(level, msg, meta){
+  const ts = new Date().toLocaleTimeString();
+  const line = `[${ts}] ${level.toUpperCase()} — ${msg}` + (meta ? (' | ' + JSON.stringify(meta)) : '') + '\n';
+  logsEl.textContent = line + logsEl.textContent;
+  try{ navigator.sendBeacon && navigator.sendBeacon('/api/log', JSON.stringify({level,msg,meta,ts:new Date().toISOString()})); }catch(e){}
+}
+
+async function ensureProvider(){
+  if(window.ethereum == null) {
+    log('error','No injected wallet found. Install MetaMask or use WalletConnect');
+    statusEl.textContent = 'No wallet';
+    throw new Error('No wallet');
+  }
+  provider = new ethers.BrowserProvider(window.ethereum, 'any');
+  signer = await provider.getSigner();
+  userAddr = await signer.getAddress();
+  addrEl.textContent = userAddr;
+  const network = await provider.getNetwork();
+  networkEl.textContent = `${network.name} (${network.chainId})`;
+  statusEl.textContent = 'Connected';
+  log('info','Wallet connected', {address:userAddr, chainId:network.chainId});
+}
+
+async function initToken(){
+  const tokenAddr = cfgToken.value.trim();
+  if(!ethers.isAddress(tokenAddr)){
+    log('error','Invalid SPARKLET token address in config', tokenAddr);
+    return;
+  }
+  tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+  try{
+    tokenDecimals = await tokenContract.decimals();
+    decimalsEl.textContent = tokenDecimals;
+    await refreshBalance();
+    log('info','Token contract initialized', {token:tokenAddr, decimals:tokenDecimals});
+  }catch(e){
+    log('error','Failed to initialize token contract', e.message || e);
+  }
+}
+
+async function refreshBalance(){
+  try{
+    const raw = await tokenContract.balanceOf(userAddr);
+    const human = Number(ethers.formatUnits(raw, tokenDecimals));
+    sparkBalEl.textContent = human.toLocaleString();
+    log('info','Balance refreshed', {balance:human});
+  }catch(e){
+    log('error','Failed to refresh balance', e.message || e);
+  }
+}
+
+connectBtn.addEventListener('click', async ()=>{
+  try{
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    await ensureProvider();
+    await initToken();
+  }catch(e){
+    log('error','Connect failed', e.message || e);
+  }
+});
+
+wcBtn.addEventListener('click', ()=>{
+  alert('WalletConnect must be integrated with a provider. This UI currently supports injected wallets (MetaMask).');
+  log('info','WalletConnect clicked (not integrated)');
+});
+
+// Transfer
+transferBtn.addEventListener('click', async ()=>{
+  try{
+    if(!signer) throw new Error('Wallet not connected');
+    const to = toAddrEl.value.trim();
+    const amt = toAmtEl.value.trim();
+    if(!ethers.isAddress(to)) { alert('Invalid recipient address'); return; }
+    if(!amt || Number(amt) <= 0) { alert('Enter amount'); return; }
+    const raw = ethers.parseUnits(amt, tokenDecimals);
+    log('info','Submitting transfer', {to, amt});
+    const tx = await tokenContract.transfer(to, raw);
+    log('info','Transfer tx submitted', {txHash: tx.hash});
+    await tx.wait();
+    log('success','Transfer confirmed', {txHash: tx.hash});
+    await refreshBalance();
+  }catch(e){
+    log('error','Transfer failed', e.message || e);
+  }
+});
+
+// Approve
+approveBtn.addEventListener('click', async ()=>{
+  try{
+    if(!signer) throw new Error('Wallet not connected');
+    const spender = prompt('Enter spender address (contract to approve):');
+    if(!spender || !ethers.isAddress(spender)) { alert('Invalid spender'); return; }
+    const amt = prompt('Amount to approve (human):','1000000');
+    const raw = ethers.parseUnits(amt, tokenDecimals);
+    log('info','Submitting approve', {spender, amt});
+    const tx = await tokenContract.approve(spender, raw);
+    log('info','Approve tx submitted', {txHash: tx.hash});
+    await tx.wait();
+    log('success','Approve confirmed', {txHash: tx.hash});
+  }catch(e){
+    log('error','Approve failed', e.message || e);
+  }
+});
+
+// Check allowance
+allowanceBtn.addEventListener('click', async ()=>{
+  try{
+    const spender = prompt('Enter spender address to check allowance:');
+    if(!spender || !ethers.isAddress(spender)) { alert('Invalid spender'); return; }
+    const allowance = await tokenContract.allowance(userAddr, spender);
+    const human = Number(ethers.formatUnits(allowance, tokenDecimals));
+    alert(`Allowance for ${spender}: ${human}`);
+    log('info','Checked allowance', {spender, allowance:human});
+  }catch(e){
+    log('error','Allowance check failed', e.message || e);
+  }
+});
+
+// Refresh
+refreshBtn.addEventListener('click', async ()=> {
+  try{ await refreshBalance(); } catch(e){ log('error','Refresh failed', e.message || e); }
+});
+
+// EIP-712 Meta-tx signing (MinimalForwarder-style)
+signMetaBtn.addEventListener('click', async ()=>{
+  try{
+    if(!signer) throw new Error('Wallet not connected');
+    const to = toAddrEl.value.trim();
+    const amt = toAmtEl.value.trim();
+    if(!ethers.isAddress(to)) { alert('Invalid recipient'); return; }
+    if(!amt || Number(amt) <= 0) { alert('Enter amount'); return; }
+    const forwarder = cfgForwarder.value.trim();
+    const value = ethers.parseUnits(amt, tokenDecimals).toString();
+    const network = await provider.getNetwork();
+    const domain = {
+      name: 'MinimalForwarder',
+      version: '0.0.1',
+      chainId: network.chainId,
+      verifyingContract: forwarder
+    };
+    const types = {
+      ForwardRequest: [
+        { name: 'from', type: 'address' },
+        { name: 'to', type: 'address' },
+        { name: 'token', type: 'address' },
+        { name: 'value', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' }
+      ]
+    };
+    const nonce = Math.floor(Date.now() / 1000);
+    const deadline = nonce + 3600;
+    const message = {
+      from: userAddr,
+      to,
+      token: cfgToken.value.trim(),
+      value,
+      nonce,
+      deadline
+    };
+    const signature = await signer._signTypedData(domain, types, message);
+    lastSignedMeta = {domain, types, message, signature};
+    log('info','Meta-tx signed (EIP-712)', {message, signature});
+    alert('Meta-tx signed. Click "Send Signed MetaTx to Relayer".');
+  }catch(e){
+    log('error','Meta-tx sign failed', e.message || e);
+  }
+});
+
+// Send signed meta-tx to relayer
+sendMetaBtn.addEventListener('click', async ()=>{
+  try{
+    if(!lastSignedMeta) { alert('No signed meta-tx present. Sign first.'); return; }
+    const relayerUrl = cfgRelayer.value.trim();
+    if(!relayerUrl) { alert('Set RELAYER_BACKEND_URL'); return; }
+    log('info','Posting signed meta-tx to relayer', {relayerUrl});
+    const resp = await fetch(relayerUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({payload: lastSignedMeta.message, domain: lastSignedMeta.domain, types: lastSignedMeta.types, signature: lastSignedMeta.signature, vault: cfgVault.value.trim() })
+    });
+    const j = await resp.json();
+    if(!resp.ok || !j.ok){
+      log('error','Relayer returned error', j);
+      alert('Relayer error: ' + (j.error || JSON.stringify(j)));
+      return;
+    }
+    log('success','Relayer accepted meta-tx', {txHash: j.txHash});
+    alert('Relayer submitted tx: ' + j.txHash);
+    setTimeout(refreshBalance, 4000);
+  }catch(e){
+    log('error','Failed sending meta-tx to relayer', e.message || e);
+  }
+});
+
+// Seed leaderboard placeholder
+function updateLeaderboard(list){
+  leaderEl.innerHTML = '';
+  (list || []).forEach(item=>{
+    const d = document.createElement('div'); d.className='leader';
+    d.innerHTML = `<div><strong>${item.name}</strong><div class="small">${item.meta||''}</div></div><div style="text-align:right"><div style="font-weight:700">$${item.earned.toFixed(2)}</div><div class="small">${(item.upx||0).toLocaleString()} UPX</div></div>`;
+    leaderEl.appendChild(d);
+  });
+}
+updateLeaderboard([{name:'RYTB333',earned:142.5,upx:52803,meta:'Top builder'}]);
+
+window.addEventListener('beforeunload', ()=>{ try{ navigator.sendBeacon('/api/log', JSON.stringify({level:'info',msg:'user_unload',ts:new Date().toISOString()})); }catch(e){} });
+</script>
+</body>
+</html>

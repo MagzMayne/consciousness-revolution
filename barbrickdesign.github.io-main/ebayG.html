@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>eBay Gem Pricing & Automated Lister</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { background:#0c1117; color:#eaf2ff; font-family:sans-serif; margin:0; }
+    .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    h1 { margin:0; font-size:20px; }
+    .panel { background:#121826; border:1px solid #1f2f45; border-radius:12px; margin-bottom:16px; }
+    .panel-header { background:#0e1524; padding:10px 14px; border-bottom:1px solid #1f2f45; }
+    .panel-header h2 { margin:0; font-size:16px; }
+    .panel-body { padding:14px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+    label { font-size:12px; color:#9fb2cc; }
+    input { padding:8px; border-radius:8px; border:1px solid #1f2f45; background:#0e1524; color:#eaf2ff; }
+    button { padding:10px 14px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
+    button.primary { background:#79d2ff; color:#06233a; }
+    button.secondary { background:#87ffa8; color:#062e1d; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { padding:8px; border-bottom:1px solid #1f2f45; font-size:13px; }
+    th { color:#9fb2cc; text-align:left; }
+    tr:hover { background:#0c182b; }
+    .note { font-size:12px; color:#9fb2cc; margin-top:6px; }
+    .card { background:#0e1524; border:1px solid #1f2f45; border-radius:10px; padding:10px; margin-bottom:8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💎 eBay Gem Pricing & Automated Lister</h1>
+    <div>Fetch sold prices → Value stones → Save → Draft listings</div>
+  </header>
+
+  <!-- Input -->
+  <section class="panel">
+    <div class="panel-header"><h2>Gemstone Input</h2></div>
+    <div class="panel-body">
+      <div class="grid">
+        <div><label>Type</label><input id="type" placeholder="Sapphire" /></div>
+        <div><label>Shape</label><input id="shape" placeholder="Oval" /></div>
+        <div><label>Size (mm)</label><input id="size" placeholder="7x5" /></div>
+        <div><label>Carat</label><input id="carat" placeholder="1.25" /></div>
+        <div><label>Treatment</label><input id="treatment" placeholder="Heated" /></div>
+        <div><label>Origin</label><input id="origin" placeholder="Sri Lanka" /></div>
+      </div>
+      <button class="primary" id="get-comps">Get eBay Sold Prices</button>
+    </div>
+  </section>
+
+  <!-- Valuation -->
+  <section class="panel">
+    <div class="panel-header"><h2>Valuation Snapshot</h2></div>
+    <div class="panel-body">
+      <div id="valuation">Run a query to see stats…</div>
+      <table>
+        <thead><tr><th>Title</th><th>Price</th><th>Date</th><th>Link</th></tr></thead>
+        <tbody id="comps-body"><tr><td colspan="4">No comps yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Collection -->
+  <section class="panel">
+    <div class="panel-header"><h2>Collection Library</h2></div>
+    <div class="panel-body">
+      <div id="library"></div>
+      <button class="secondary" id="export">Export CSV</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Fetch sold listings directly from eBay search
+async function getSoldListings(query) {
+  const url = `https://cors.isomorphic-git.org/https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&_sop=13&LH_Sold=1&LH_Complete=1`;
+  const res = await fetch(url);
+  const text = await res.text();
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  const items = [...doc.querySelectorAll(".s-item")].map(el => ({
+    title: el.querySelector(".s-item__title")?.textContent || "",
+    price: el.querySelector(".s-item__price")?.textContent || "",
+    date: el.querySelector(".s-item__ended-date")?.textContent || "",
+    link: el.querySelector(".s-item__link")?.href || ""
+  }));
+  return items.filter(i => i.title && i.price);
+}
+
+function renderComps(items) {
+  const body = $("comps-body");
+  body.innerHTML = "";
+  items.forEach(i => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i.title}</td><td>${i.price}</td><td>${i.date}</td><td><a href="${i.link}" target="_blank">View</a></td>`;
+    body.appendChild(tr);
+  });
+}
+
+function addToLibrary(stone, comps) {
+  const lib = JSON.parse(localStorage.getItem("gemLibrary")||"[]");
+  lib.push({ stone, comps });
+  localStorage.setItem("gemLibrary", JSON.stringify(lib));
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const lib = JSON.parse(localStorage.getItem("gemLibrary")||"[]");
+  const div = $("library");
+  div.innerHTML = "";
+  if(lib.length===0){ div.innerHTML="No stones saved."; return; }
+  lib.forEach((entry, idx) => {
+    const card = document.createElement("div");
+    card.className="card";
+    card.innerHTML = `<b>${entry.stone.type} ${entry.stone.shape} ${entry.stone.size} ${entry.stone.carat}ct</b>
+      <div>${entry.comps.length} comps saved</div>`;
+    div.appendChild(card);
+  });
+}
+
+$("get-comps").addEventListener("click", async ()=>{
+  const stone = {
+    type: $("type").value,
+    shape: $("shape").value,
+    size: $("size").value,
+    carat: $("carat").value,
+    treatment: $("treatment").value,
+    origin: $("origin").value
+  };
+  const query = `${stone.type} ${stone.shape} ${stone.size}mm`;
+  $("valuation").textContent="Loading…";
+  try {
+    const items = await getSoldListings(query);
+    renderComps(items);
+    $("valuation").textContent=`Found ${items.length} comps for ${stone.type}.`;
+    addToLibrary(stone, items);
+  } catch(e) {
+    $("valuation").textContent="Error fetching comps.";
+    console.error(e);
+  }
+});
+
+$("export").addEventListener("click", ()=>{
+  const lib = JSON.parse(localStorage.getItem("gemLibrary")||"[]");
+  const rows = [["Type","Shape","Size","Carat","Treatment","Origin","Comps"]];
+  lib.forEach(e=>{
+    rows.push([e.stone.type,e.stone.shape,e.stone.size,e.stone.carat,e.stone.treatment,e.stone.origin,e.comps.length]);
+  });
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="gemLibrary.csv"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+renderLibrary();
+</script>
+</body>
+</html>

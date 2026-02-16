@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tree Limb Risk QuickScan</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#071018; color:#e6eef6; -webkit-font-smoothing:antialiased; }
+  header { padding:12px 14px; background:#0f1720; border-bottom:1px solid #16202a; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  main { padding:12px; display:flex; flex-direction:column; gap:12px; height:calc(100vh - 64px); box-sizing:border-box; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input[type=file], button, select { padding:10px; border-radius:8px; border:1px solid #1f2b36; background:#071018; color:#e6eef6; font-size:14px; }
+  button.primary { background:#1f6feb; border-color:#1f6feb; font-weight:600; }
+  #canvasWrap { flex:1; background:#0b1220; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; position:relative; }
+  canvas { display:block; max-width:100%; height:auto; }
+  .legend { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .chip { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; background:#071018; border:1px solid #16202a; color:#cfe6ff; font-size:13px; }
+  .sw { width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .sw.low { background:#2ecc71; } .sw.mod { background:#f1c40f; } .sw.high { background:#e67e22; } .sw.ext { background:#e74c3c; }
+  .stats { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .stat { background:#071018; border:1px solid #16202a; padding:8px 10px; border-radius:8px; color:#cfe6ff; font-size:13px; }
+  .spinner { width:18px; height:18px; border-radius:50%; border:3px solid rgba(255,255,255,0.08); border-top-color:#1f6feb; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-left:8px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  footer { padding:8px 12px; font-size:13px; color:#9fb0c8; text-align:center; }
+  @media (max-width:520px) { header h1 { font-size:15px } input[type=file], button { font-size:13px; padding:8px } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Tree Limb Risk QuickScan</h1>
+    <div id="statusSmall" class="small" aria-live="polite">Ready</div>
+  </header>
+
+  <main>
+    <div class="controls">
+      <input id="imgInput" type="file" accept="image/*" capture="environment" />
+      <select id="preset" title="Presets">
+        <option value="contractor">Contractor</option>
+        <option value="field">Field (faster)</option>
+        <option value="debug">Debug (show raw)</option>
+      </select>
+      <button id="exportBtn">Export PNG</button>
+      <div id="spinner" style="display:none" class="spinner" aria-hidden="true"></div>
+    </div>
+
+    <div id="canvasWrap">
+      <canvas id="mainCanvas" role="img" aria-label="Tree overlay canvas"></canvas>
+    </div>
+
+    <div class="legend" aria-hidden>
+      <div class="chip"><span class="sw low"></span> Low</div>
+      <div class="chip"><span class="sw mod"></span> Moderate</div>
+      <div class="chip"><span class="sw high"></span> High</div>
+      <div class="chip"><span class="sw ext"></span> Extreme</div>
+    </div>
+
+    <div class="stats" aria-live="polite">
+      <div class="stat">Tree count: <strong id="treeCount">—</strong></div>
+      <div class="stat">Consolidated limbs: <strong id="consolCount">—</strong></div>
+      <div class="stat">Raw edge points: <strong id="rawCount">—</strong></div>
+    </div>
+  </main>
+
+  <footer>Auto-scan on upload. Tap Export to save a report image. Designed for quick field checks.</footer>
+
+<script>
+/*
+  Auto-scan version
+  - Automatically analyzes the uploaded image (no extra button)
+  - Mobile-first, conservative defaults
+  - Simple, robust pipeline: Sobel edges -> sample points -> trunk detection -> angle buckets -> consolidated rays -> render
+*/
+
+const imgInput = document.getElementById('imgInput');
+const exportBtn = document.getElementById('exportBtn');
+const preset = document.getElementById('preset');
+const spinner = document.getElementById('spinner');
+const statusSmall = document.getElementById('statusSmall');
+
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+
+const treeCountEl = document.getElementById('treeCount');
+const consolCountEl = document.getElementById('consolCount');
+const rawCountEl = document.getElementById('rawCount');
+
+let originalImage = null;
+let rawEdgePoints = [];
+let consolidatedRays = [];
+let treeCenters = [];
+
+// Ensure canvas pixel size matches wrapper
+function setCanvasSize() {
+  const wrap = document.getElementById('canvasWrap');
+  const cw = Math.max(200, wrap.clientWidth);
+  const ch = Math.max(200, wrap.clientHeight);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  canvas.width = Math.floor(cw * dpr);
+  canvas.height = Math.floor(ch * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+// Lightweight Sobel on downscaled canvas
+function sobelEdges(img, workW) {
+  const scale = Math.min(1, workW / img.width);
+  const w = Math.max(160, Math.round(img.width * scale));
+  const h = Math.round(img.height * scale);
+  const off = document.createElement('canvas'); off.width = w; off.height = h;
+  const octx = off.getContext('2d');
+  octx.drawImage(img, 0, 0, w, h);
+  const id = octx.getImageData(0,0,w,h);
+  const data = id.data;
+  const gray = new Uint8ClampedArray(w*h);
+  for (let i=0,j=0;i<data.length;i+=4,j++) gray[j] = (0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2])|0;
+  const out = new Uint8ClampedArray(w*h);
+  for (let y=1;y<h-1;y++){
+    for (let x=1;x<w-1;x++){
+      const i = y*w + x;
+      const gx = -gray[(y-1)*w + (x-1)] - 2*gray[y*w + (x-1)] - gray[(y+1)*w + (x-1)]
+                 + gray[(y-1)*w + (x+1)] + 2*gray[y*w + (x+1)] + gray[(y+1)*w + (x+1)];
+      const gy = -gray[(y-1)*w + (x-1)] - 2*gray[(y-1)*w + x] - gray[(y-1)*w + (x+1)]
+                 + gray[(y+1)*w + (x-1)] + 2*gray[(y+1)*w + x] + gray[(y+1)*w + (x+1)];
+      const mag = Math.hypot(gx, gy);
+      out[i] = mag > 255 ? 255 : mag;
+    }
+  }
+  return { edges: out, w, h, scale };
+}
+
+// Sample strong edge points and map to native coords
+function sampleEdgePoints(edgesObj, threshold=90, maxPoints=4000) {
+  const { edges, w, h, scale } = edgesObj;
+  const pts = [];
+  for (let y=2;y<h-2;y++){
+    for (let x=2;x<w-2;x++){
+      const v = edges[y*w + x];
+      if (v >= threshold) pts.push([ Math.round(x/scale), Math.round(y/scale) ]);
+    }
+  }
+  if (pts.length > maxPoints) {
+    const step = Math.ceil(pts.length / maxPoints);
+    const sampled = [];
+    for (let i=0;i<pts.length;i+=step) sampled.push(pts[i]);
+    return sampled;
+  }
+  return pts;
+}
+
+// Detect trunk centers by scanning bottom third for edge density peaks
+function detectTrunkCenters(edgesObj, imgWidth) {
+  const { edges, w, h } = edgesObj;
+  const bottomY = Math.floor(h * 0.7);
+  const colSum = new Uint32Array(w);
+  for (let x=0;x<w;x++){
+    let s=0;
+    for (let y=bottomY;y<h;y++) s += edges[y*w + x] > 100 ? 1 : 0;
+    colSum[x] = s;
+  }
+  const peaks = [];
+  for (let x=2;x<w-2;x++){
+    if (colSum[x] > colSum[x-1] && colSum[x] >= colSum[x+1] && colSum[x] > 6) peaks.push(x);
+  }
+  const centers = [];
+  for (const p of peaks) {
+    if (!centers.length || p - centers[centers.length-1] > Math.max(20, Math.round(w*0.03))) centers.push(p);
+    else {
+      const last = centers.pop();
+      centers.push(Math.round((last + p)/2));
+    }
+  }
+  const native = centers.map(cx => Math.round(cx / (w / imgWidth)));
+  return native.length ? native : [ Math.round(imgWidth/2) ];
+}
+
+// Build rays by grouping points by nearest trunk and angle buckets
+function buildRaysFromPoints(points, trunks, imgW, imgH, opts) {
+  const centers = trunks.length ? trunks.slice() : [Math.round(imgW/2)];
+  const trunkCenters = centers.map(x => ({ x, y: Math.round(imgH*0.85) }));
+  const raysPerTree = trunkCenters.map(()=>[]);
+  for (const p of points) {
+    let best=0, bd=Infinity;
+    for (let i=0;i<trunkCenters.length;i++){
+      const d = Math.abs(p[0] - trunkCenters[i].x);
+      if (d < bd) { bd = d; best = i; }
+    }
+    raysPerTree[best].push(p);
+  }
+  const consolidated = [];
+  const bins = opts.angleBins || 36;
+  for (let t=0;t<raysPerTree.length;t++){
+    const pts = raysPerTree[t];
+    if (!pts.length) continue;
+    const base = trunkCenters[t];
+    const buckets = Array.from({length:bins}, ()=>[]);
+    for (const p of pts) {
+      const ang = Math.atan2(p[1]-base.y, p[0]-base.x);
+      let bin = Math.floor(((ang + Math.PI) / (2*Math.PI)) * bins);
+      if (bin < 0) bin = 0; if (bin >= bins) bin = bins-1;
+      buckets[bin].push(p);
+    }
+    for (let b=0;b<bins;b++){
+      const bucket = buckets[b];
+      if (!bucket.length) continue;
+      let far = bucket[0], maxd = 0;
+      for (const p of bucket){
+        const d = Math.hypot(p[0]-base.x, p[1]-base.y);
+        if (d > maxd) { maxd = d; far = p; }
+      }
+      const length = Math.hypot(far[0]-base.x, far[1]-base.y);
+      const angleDeg = Math.abs((Math.atan2(far[1]-base.y, far[0]-base.x) * 180/Math.PI));
+      const lenNorm = Math.min(1, length / (Math.max(imgW,imgH) * 0.5));
+      const angleFactor = angleDeg > 90 ? 1 : (1 - Math.abs(90 - angleDeg)/90);
+      const score = 0.5*lenNorm + 0.5*angleFactor;
+      let risk = 'low';
+      if (score > 0.7) risk = 'extreme';
+      else if (score > 0.55) risk = 'high';
+      else if (score > 0.35) risk = 'moderate';
+      consolidated.push({ treeIndex: t, start: [base.x, base.y], end: [far[0], far[1]], length: Math.round(length), angleDeg: Math.round(angleDeg), risk });
+    }
+  }
+  return consolidated;
+}
+
+// Render image + overlay
+function render(image, rays, opts={showRaw:false}) {
+  setCanvasSize();
+  const wrap = document.getElementById('canvasWrap');
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  const sx = cw / image.width, sy = ch / image.height;
+  const s = Math.min(sx, sy);
+  const dx = (cw - image.width * s)/2, dy = (ch - image.height * s)/2;
+  ctx.clearRect(0,0,canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(dx, dy);
+  ctx.scale(s, s);
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  if (opts.showRaw && rawEdgePoints && rawEdgePoints.length) {
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = '#9fb0c8';
+    ctx.lineWidth = 1;
+    for (const p of rawEdgePoints) { ctx.beginPath(); ctx.moveTo(p[0]-1,p[1]); ctx.lineTo(p[0]+1,p[1]); ctx.stroke(); }
+    ctx.globalAlpha = 1.0;
+  }
+  ctx.lineWidth = 2.6;
+  for (let i=0;i<rays.length;i++){
+    const r = rays[i];
+    ctx.strokeStyle = (r.risk==='low')? '#2ecc71' : (r.risk==='moderate'? '#f1c40f' : (r.risk==='high'? '#e67e22' : '#e74c3c'));
+    ctx.beginPath(); ctx.moveTo(r.start[0], r.start[1]); ctx.lineTo(r.end[0], r.end[1]); ctx.stroke();
+    ctx.fillStyle = '#e6eef6'; ctx.font = '12px system-ui'; ctx.fillText(`#${i}`, r.end[0]+6, r.end[1]+6);
+  }
+  ctx.restore();
+}
+
+// Main analyze flow (auto-run on upload)
+async function analyzeImageAuto(img, opts) {
+  try {
+    spinner.style.display = 'inline-block';
+    statusSmall.textContent = 'Scanning image…';
+    await new Promise(r => setTimeout(r, 60)); // allow UI update
+    const workW = (opts.preset === 'field') ? 600 : 900;
+    const edgesObj = sobelEdges(img, workW);
+    rawEdgePoints = sampleEdgePoints(edgesObj, opts.edgeThresh || 90, opts.maxPoints || 4000);
+    rawCountEl.textContent = rawEdgePoints.length;
+    treeCenters = detectTrunkCenters(edgesObj, img.width);
+    const rays = buildRaysFromPoints(rawEdgePoints, treeCenters, img.width, img.height, { angleBins: opts.angleBins || 36 });
+    const minLen = opts.minLength || 40;
+    consolidatedRays = rays.filter(r => r.length >= minLen);
+    treeCountEl.textContent = treeCenters.length;
+    consolCountEl.textContent = consolidatedRays.length;
+    render(img, consolidatedRays, { showRaw: opts.showRaw });
+    statusSmall.textContent = 'Scan complete';
+  } catch (err) {
+    console.error(err);
+    statusSmall.textContent = 'Scan failed';
+    alert('Analysis failed — try a clearer photo or the Field preset.');
+  } finally {
+    spinner.style.display = 'none';
+  }
+}
+
+// Export PNG at native resolution
+function exportPNG() {
+  if (!originalImage || !consolidatedRays.length) { alert('Analyze first'); return; }
+  const out = document.createElement('canvas'); out.width = originalImage.width; out.height = originalImage.height;
+  const octx = out.getContext('2d');
+  octx.drawImage(originalImage, 0, 0, out.width, out.height);
+  octx.lineWidth = Math.max(1.6, 2.6 * (out.width / canvas.clientWidth));
+  for (const r of consolidatedRays) {
+    octx.strokeStyle = (r.risk==='low')? '#2ecc71' : (r.risk==='moderate'? '#f1c40f' : (r.risk==='high'? '#e67e22' : '#e74c3c'));
+    octx.beginPath(); octx.moveTo(r.start[0], r.start[1]); octx.lineTo(r.end[0], r.end[1]); octx.stroke();
+    octx.fillStyle = '#ffffff'; octx.font = `${Math.max(10, out.width/220)}px system-ui`; octx.fillText(`#${consolidatedRays.indexOf(r)}`, r.end[0]+6, r.end[1]+6);
+  }
+  octx.fillStyle = 'rgba(0,0,0,0.45)'; octx.fillRect(12,12,Math.min(640,out.width-24),64);
+  octx.fillStyle = '#e6eef6'; octx.font = `${Math.max(14,out.width/160)}px system-ui`; octx.fillText('Tree Limb Risk QuickScan', 22,36);
+  octx.font = `${Math.max(12,out.width/220)}px system-ui`; octx.fillText(`Trees: ${treeCenters.length}  Limbs: ${consolidatedRays.length}`, 22,56);
+  out.toBlob(blob => { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`tree-limb-${Date.now()}.png`; a.click(); URL.revokeObjectURL(a.href); }, 'image/png');
+}
+
+/* Auto-run on upload */
+imgInput.addEventListener('change', (ev) => {
+  const f = ev.target.files?.[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    originalImage = img;
+    setCanvasSize();
+    render(img, [], { showRaw:false });
+    treeCountEl.textContent = '—'; consolCountEl.textContent = '—'; rawCountEl.textContent = '—';
+    // auto analyze with preset
+    const p = preset.value || 'contractor';
+    const opts = { showRaw:false, edgeThresh:90, minLength:40, angleBins:36, maxPoints:4000, preset:p };
+    if (p === 'field') { opts.edgeThresh = 100; opts.minLength = 60; opts.angleBins = 28; opts.maxPoints = 2500; }
+    if (p === 'debug') { opts.showRaw = true; opts.edgeThresh = 70; opts.minLength = 8; opts.angleBins = 48; opts.maxPoints = 8000; }
+    analyzeImageAuto(img, opts);
+  };
+  img.onerror = () => { alert('Failed to load image'); };
+  img.src = URL.createObjectURL(f);
+});
+
+/* Export button */
+exportBtn.addEventListener('click', exportPNG);
+
+/* Resize handling */
+window.addEventListener('resize', () => { setCanvasSize(); if (originalImage) render(originalImage, consolidatedRays, { showRaw: preset.value === 'debug' }); });
+setCanvasSize();
+</script>
+</body>
+</html>

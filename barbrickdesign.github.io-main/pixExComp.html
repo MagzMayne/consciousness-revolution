@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Mapper Tool (Compressed)</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #0a0f1c;
+    color: #e6f7ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  canvas {
+    border: 1px solid #2bd8ff;
+    margin-top: 12px;
+    max-width: 90vw;
+  }
+  #status {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #9fdfff;
+  }
+  textarea {
+    width: 90%;
+    height: 300px;
+    margin-top: 12px;
+    font-family: monospace;
+    background: #051423;
+    color: #9fdfff;
+    border: 1px solid #2bd8ff;
+    padding: 8px;
+    overflow: auto;
+  }
+  button {
+    background: #103045;
+    color: #d8f6ff;
+    border: 1px solid #2bd8ff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+  <h1>Pixel Mapper Tool (Compressed)</h1>
+  <input type="file" id="upload" accept="image/*">
+  <canvas id="canvas"></canvas>
+  <button id="extract">Extract & Compress</button>
+  <div id="status">No extraction yet.</div>
+  <textarea id="output" placeholder="Full compressed HTML will appear here..."></textarea>
+
+<script>
+const upload = document.getElementById('upload');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const output = document.getElementById('output');
+let img = new Image();
+
+upload.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      status.textContent = `Image loaded: ${img.width} × ${img.height} (${img.width * img.height} pixels)`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('extract').addEventListener('click', () => {
+  if (!img.src) {
+    status.textContent = "No image loaded.";
+    return;
+  }
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const totalPixels = w * h;
+
+  status.textContent = `Extracting & compressing...`;
+
+  // Convert RGBA array to binary string
+  let binary = "";
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  const base64Data = btoa(binary);
+
+  status.textContent = `Done! Extracted ${totalPixels} pixels.`;
+
+  // Generate full HTML with base64 embedded
+  const openScript = "<" + "script>";
+  const closeScript = "</" + "script>";
+
+  const rendererJS =
+`${openScript}
+const width = ${w}, height = ${h};
+const base64Data = "${base64Data}";
+function base64ToUint8(base64) {
+  const binary = atob(base64);
+  const len = binary.length;
+  const bytes = new Uint8ClampedArray(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+window.onload = () => {
+  const pixelData = base64ToUint8(base64Data);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const imgData = new ImageData(pixelData, width, height);
+  ctx.putImageData(imgData, 0, 0);
+};
+${closeScript}`;
+
+  const html =
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Embedded Pixel Image (Compressed)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body { margin:0; background:#000; display:grid; place-items:center; height:100vh; }
+</style>
+</head>
+<body>
+${rendererJS}
+</body>
+</html>`;
+
+  output.value = html;
+  status.textContent = "Full compressed HTML generated. Copy from textarea.";
+});
+</script>
+</body>
+</html>

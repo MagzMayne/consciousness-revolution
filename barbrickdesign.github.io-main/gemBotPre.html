@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Gem Preview — WebGL + Fallback</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{--bg:#07101b;--panel:#0f1724;--accent:#00aaff;--text:#eaf3ff;--muted:#98a6c6;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Inter;}
+  .wrap{display:flex;flex-direction:column;height:100vh;}
+  header{padding:12px 14px;background:var(--panel);display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  #viewerWrap{flex:1;display:flex;min-height:0}
+  #viewer, #canvasFallback{flex:1;border-radius:8px;margin:12px;background:#07121b;display:flex;align-items:center;justify-content:center;min-height:320px}
+  .controls{display:flex;gap:8px;align-items:center}
+  select,button{padding:8px 10px;border-radius:8px;border:1px solid #142034;background:#0e1420;color:var(--text)}
+  button.primary{background:var(--accent);color:#001019;border:none}
+  .notice{max-width:760px;padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--muted);font-size:13px}
+  footer{padding:10px 14px;color:var(--muted);font-size:13px}
+  .hidden{display:none}
+  a.link{color:var(--accent);text-decoration:underline}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div style="font-weight:700">Gem Preview — WebGL + Fallback</div>
+      <div class="controls" style="margin-left:auto">
+        <select id="shapeSelect">
+          <option value="round">Round</option>
+          <option value="oval">Oval</option>
+          <option value="emerald">Emerald</option>
+          <option value="pear">Pear</option>
+          <option value="marquise">Marquise</option>
+          <option value="heart">Heart</option>
+        </select>
+        <button id="renderBtn" class="primary">Render</button>
+        <button id="wireBtn">Wireframe</button>
+        <button id="solidBtn">Solid</button>
+      </div>
+    </header>
+
+    <div id="viewerWrap">
+      <div id="viewer" class="hidden"></div>
+      <canvas id="canvasFallback" class="hidden"></canvas>
+    </div>
+
+    <div id="notice" class="notice hidden"></div>
+
+    <footer>If your browser supports WebGL the 3D preview will appear. Otherwise a fast 2D fallback is displayed with troubleshooting tips.</footer>
+  </div>
+
+  <script>
+  // Detect WebGL availability
+  function detectWebGL() {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return false;
+      // test compile a tiny shader to be stricter
+      const v = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(v, 'attribute vec2 p; void main(){gl_Position=vec4(p,0.0,1.0);}');
+      gl.compileShader(v);
+      const ok = gl.getShaderParameter(v, gl.COMPILE_STATUS);
+      gl.deleteShader(v);
+      return !!ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  const isWebGL = detectWebGL();
+  const viewer = document.getElementById('viewer');
+  const canvasFallback = document.getElementById('canvasFallback');
+  const notice = document.getElementById('notice');
+  const renderBtn = document.getElementById('renderBtn');
+  const shapeSelect = document.getElementById('shapeSelect');
+  const wireBtn = document.getElementById('wireBtn');
+  const solidBtn = document.getElementById('solidBtn');
+
+  // Common UI state
+  let wireframe = true;
+
+  // If WebGL available, load Three.js and render; otherwise show fallback
+  if (isWebGL) {
+    showViewerWebGL();
+  } else {
+    showCanvasFallback();
+    showNoticeForMobile();
+  }
+
+  function showNoticeForMobile() {
+    notice.classList.remove('hidden');
+    notice.innerHTML = `
+      WebGL is not available in this browser or context, so a 2D fallback is shown.
+      Common reasons on mobile: private browsing / some in-app webviews / low-power mode / restricted WebGL in the browser.
+      Steps to try:
+      <ul>
+        <li>Open this page in Safari or Chrome (not inside another app) and disable Private/Incognito mode.</li>
+        <li>In iOS Settings → Safari → Advanced → Experimental Features, ensure "WebGL 2.0" and "WebGL" are enabled (if visible).</li>
+        <li>Enable device hardware acceleration in browser settings or update iOS to the latest version.</li>
+        <li>Try a desktop browser to confirm full WebGL behavior.</li>
+      </ul>
+      If you want, I can provide a server-side renderer that returns PNG previews when WebGL isn't available on-device.
+    `;
+  }
+
+  // -------------------------
+  // Canvas fallback renderer
+  // -------------------------
+  function showCanvasFallback(){
+    viewer.classList.add('hidden');
+    canvasFallback.classList.remove('hidden');
+    notice.classList.remove('hidden');
+    // draw initial shape
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    drawFallback(shapeSelect.value);
+  }
+
+  function resizeCanvas(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const rect = canvasFallback.getBoundingClientRect();
+    canvasFallback.width = Math.floor(rect.width * dpr);
+    canvasFallback.height = Math.floor(rect.height * dpr);
+    canvasFallback.style.width = rect.width + 'px';
+    canvasFallback.style.height = rect.height + 'px';
+    drawFallback(shapeSelect.value);
+  }
+
+  function drawFallback(shape){
+    const ctx = canvasFallback.getContext('2d');
+    if(!ctx) return;
+    const W = canvasFallback.width, H = canvasFallback.height;
+    ctx.clearRect(0,0,W,H);
+    // simple background vignette
+    const g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#07121b'); g.addColorStop(1,'#041019');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // center and scale
+    const cx = W/2, cy = H/2;
+    const size = Math.min(W,H) * 0.42;
+
+    // draw silhouette + "facets" lines to approximate 3D
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, 1);
+    ctx.lineWidth = Math.max(2, Math.round(size*0.008));
+    ctx.strokeStyle = '#00aaff';
+
+    // silhouette path generators
+    ctx.beginPath();
+    if (shape === 'round') {
+      ctx.ellipse(0,0, size*0.5, size*0.5, 0, 0, Math.PI*2);
+    } else if (shape === 'oval') {
+      ctx.ellipse(0,0, size*0.6, size*0.45, 0, 0, Math.PI*2);
+    } else if (shape === 'emerald') {
+      ctx.rect(-size*0.5, -size*0.35, size, size*0.7);
+    } else if (shape === 'pear') {
+      ctx.moveTo(0,-size*0.5);
+      ctx.quadraticCurveTo(size*0.45,-size*0.05, 0,size*0.5);
+      ctx.quadraticCurveTo(-size*0.45,-size*0.05, 0,-size*0.5);
+    } else if (shape === 'marquise') {
+      ctx.moveTo(-size*0.6,0);
+      ctx.quadraticCurveTo(0,-size*0.5, size*0.6,0);
+      ctx.quadraticCurveTo(0,size*0.5, -size*0.6,0);
+    } else if (shape === 'heart') {
+      const s = size*0.5;
+      ctx.moveTo(0,s*0.6);
+      ctx.bezierCurveTo(-s, s*0.3, -s, -s*0.2, 0, -s*0.35);
+      ctx.bezierCurveTo(s, -s*0.2, s, s*0.3, 0, s*0.6);
+    }
+    ctx.closePath();
+    // fill subtle glass
+    ctx.fillStyle = 'rgba(136,209,255,0.06)';
+    ctx.fill();
+    ctx.stroke();
+
+    // internal facet-like lines (radial)
+    ctx.strokeStyle = 'rgba(0,170,255,0.55)';
+    ctx.lineWidth = Math.max(1, Math.round(size*0.004));
+    const rings = 6;
+    for (let r=1; r<=rings; r++){
+      ctx.beginPath();
+      const rr = (size*0.5) * (r/(rings+1));
+      ctx.ellipse(0,0, rr*(shape==='emerald'?0.9:1), rr*(shape==='emerald'?0.45:1), 0, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    // highlight top facet
+    ctx.beginPath();
+    ctx.moveTo(0,-size*0.18);
+    ctx.lineTo(-size*0.12, -size*0.02);
+    ctx.lineTo(0,size*0.12);
+    ctx.lineTo(size*0.12,-size*0.02);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.stroke();
+
+    ctx.restore();
+
+    // caption
+    ctx.fillStyle = '#98a6c6';
+    ctx.font = `${Math.max(12, Math.round(size*0.06))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(shape.charAt(0).toUpperCase() + shape.slice(1), cx, H - 28);
+  }
+
+  // -------------------------
+  // WebGL path (Three.js) - loaded only when available
+  // -------------------------
+  function showViewerWebGL(){
+    canvasFallback.classList.add('hidden');
+    notice.classList.add('hidden');
+    viewer.classList.remove('hidden');
+
+    // dynamically load Three.js (CDN) and init scene
+    loadScript('https://unpkg.com/three@0.160.0/build/three.min.js')
+      .then(() => loadScript('https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js'))
+      .then(initThree)
+      .catch(err => {
+        // if load fails, fallback to canvas
+        showCanvasFallback();
+        notice.classList.remove('hidden');
+        notice.innerText = 'Failed to load WebGL renderer. Falling back to 2D preview.';
+      });
+  }
+
+  function loadScript(src){
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // Three.js scene variables (local to this function)
+  let scene3, camera3, renderer3, controls3, gemGroup3;
+
+  function initThree(){
+    // create renderer
+    const rect = viewer.getBoundingClientRect();
+    renderer3 = new THREE.WebGLRenderer({ antialias:true });
+    renderer3.setPixelRatio(window.devicePixelRatio || 1);
+    renderer3.setSize(Math.max(300, rect.width), Math.max(300, rect.height));
+    viewer.appendChild(renderer3.domElement);
+
+    scene3 = new THREE.Scene();
+    scene3.background = new THREE.Color(0x07121b);
+
+    camera3 = new THREE.PerspectiveCamera(50, rect.width / Math.max(rect.height, 300), 0.01, 100);
+    camera3.position.set(1.0, 0.7, 1.3);
+
+    controls3 = new THREE.OrbitControls(camera3, renderer3.domElement);
+    controls3.enableDamping = true;
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x22334a, 0.6);
+    scene3.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(2,3,2);
+    scene3.add(dir);
+
+    const grid = new THREE.GridHelper(2, 20, 0x1c2540, 0x1c2540);
+    grid.position.y = -0.001;
+    scene3.add(grid);
+
+    // initial render
+    animateThree();
+    addGemToThree(shapeSelect.value);
+
+    // wire/solid buttons
+    renderBtn.addEventListener('click', () => addGemToThree(shapeSelect.value));
+    wireBtn.addEventListener('click', () => setWireframeThree(true));
+    solidBtn.addEventListener('click', () => setWireframeThree(false));
+    window.addEventListener('resize', resizeThree);
+  }
+
+  function resizeThree(){
+    if (!renderer3 || !camera3) return;
+    const rect = viewer.getBoundingClientRect();
+    camera3.aspect = rect.width / Math.max(rect.height, 300);
+    camera3.updateProjectionMatrix();
+    renderer3.setSize(Math.max(300, rect.width), Math.max(300, rect.height));
+  }
+
+  function animateThree(){
+    requestAnimationFrame(animateThree);
+    if (controls3) controls3.update();
+    if (renderer3 && scene3 && camera3) renderer3.render(scene3, camera3);
+  }
+
+  function addGemToThree(shape){
+    // dispose previous
+    if (gemGroup3) {
+      gemGroup3.traverse(o => {
+        if (o.isMesh) {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) {
+            if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+            else o.material.dispose();
+          }
+        }
+      });
+      scene3.remove(gemGroup3);
+      gemGroup3 = null;
+    }
+
+    // create approximate geometry
+    const geom = buildThreeGeometry(shape);
+    geom.computeVertexNormals();
+
+    const solidMat = new THREE.MeshPhysicalMaterial({
+      color: 0x88d1ff, metalness: 0.0, roughness: 0.05, transmission: 0.9, thickness: 0.5, ior: 1.7
+    });
+    const solid = new THREE.Mesh(geom, solidMat);
+    solid.name = 'solid';
+
+    const edges = new THREE.EdgesGeometry(geom);
+    const lines = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00aaff }));
+    lines.name = 'edges';
+
+    gemGroup3 = new THREE.Group();
+    gemGroup3.add(solid);
+    gemGroup3.add(lines);
+    gemGroup3.position.set(0, 0.12, 0);
+    gemGroup3.rotation.x = -Math.PI * 0.08;
+    scene3.add(gemGroup3);
+
+    setWireframeThree(true);
+    fitCameraToObjectThree(gemGroup3);
+  }
+
+  function setWireframeThree(on){
+    if (!gemGroup3) return;
+    const edges = gemGroup3.getObjectByName('edges');
+    const solid = gemGroup3.getObjectByName('solid');
+    if (edges) edges.visible = on;
+    if (solid) solid.visible = !on;
+  }
+
+  function buildThreeGeometry(shape){
+    const scale = 0.08;
+    const length = 8 * scale, width = 6 * scale, height = 4 * scale;
+    switch (shape){
+      case 'round': return new THREE.CylinderGeometry(width/2, width/2, height, 64);
+      case 'oval': { const g = new THREE.CylinderGeometry(width/2, width/2, height, 64); g.scale(1,1, (length/width)||1); return g; }
+      case 'emerald': return new THREE.BoxGeometry(length, height, width);
+      case 'pear': return new THREE.ConeGeometry(Math.max(width/2.2, 0.001), height, 64);
+      case 'marquise': { const r = Math.max(width/4,0.02); return new THREE.CapsuleGeometry(r, Math.max(length-2*r,0.01), 8, 16); }
+      case 'heart': { const g = new THREE.SphereGeometry(width/2.2, 48, 32); g.scale(1.2,1,1.1); return g; }
+      default: return new THREE.BoxGeometry(length, height, width);
+    }
+  }
+
+  function fitCameraToObjectThree(object){
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera3.fov * (Math.PI/180);
+    const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov/2)) * 1.6;
+    camera3.position.set(center.x, center.y + maxDim*0.3, center.z + cameraZ);
+    camera3.lookAt(center);
+    controls3.target.copy(center);
+    controls3.update();
+  }
+
+  // wire/solid events for canvas fallback as well
+  renderBtn.addEventListener('click', () => {
+    if (!isWebGL) drawFallback(shapeSelect.value);
+  });
+  wireBtn.addEventListener('click', () => {
+    if (!isWebGL) {
+      wireframe = true;
+      drawFallback(shapeSelect.value);
+    }
+  });
+  solidBtn.addEventListener('click', () => {
+    if (!isWebGL) {
+      wireframe = false;
+      drawFallback(shapeSelect.value);
+    }
+  });
+
+  // initial UI wiring
+  shapeSelect.addEventListener('change', () => {
+    if (isWebGL && gemGroup3) addGemToThree(shapeSelect.value);
+    else drawFallback(shapeSelect.value);
+  });
+  </script>
+</body>
+</html>

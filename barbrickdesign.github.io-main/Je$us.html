@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JeEeZues — Self-contained Trinity Pool (Clickable, Color-coordinated Bubbles)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="JeEeZues: single-file, self-healing, auto-evaluating Trinity pool with project fetching, clickable bubbles, and color coordination." />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121821;
+      --accent: #53ffe5;
+      --accent2: #ffd166;
+      --text: #eaf2ff;
+      --muted: #a5b1c2;
+      --red: #ff6b6b;
+      --green: #4caf50;
+      --blue: #4aa8ff;
+      --purple: #a66bff;
+      --pink: #ff7bd8;
+      --teal: #21d4b5;
+      --orange: #ff8c42;
+      --yellow: #ffe066;
+    }
+    * { box-sizing: border-box }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial }
+    a { color: var(--accent) }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 16px }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; margin-bottom: 12px }
+    .brand { display: flex; align-items: center; gap: 12px }
+    .brand .logo {
+      font-family: monospace; color: var(--accent); white-space: pre; line-height: 1;
+      background: linear-gradient(135deg, rgba(83,255,229,0.1), rgba(255,209,102,0.08));
+      padding: 8px; border-radius: 8px; border: 1px solid rgba(83,255,229,0.2);
+    }
+    .badge { font-size: 12px; color: var(--muted) }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap }
+    button, .btn {
+      background: var(--panel); color: var(--text); border: 1px solid rgba(83,255,229,0.3);
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform 0.06s ease, background 0.2s
+    }
+    button:hover { transform: translateY(-1px); background: #18212e }
+    button:disabled { opacity: 0.6; cursor: not-allowed }
+    input[type="file"], input[type="text"] {
+      background: var(--panel); color: var(--text); border: 1px solid rgba(83,255,229,0.3);
+      padding: 8px 12px; border-radius: 8px; width: 100%
+    }
+    .grid { display: grid; gap: 12px; grid-template-columns: 1.6fr 1fr }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr } }
+    section {
+      background: var(--panel); border: 1px solid rgba(83,255,229,0.2); border-radius: 12px; padding: 12px
+    }
+    section h2 { margin: 0 0 8px 0; font-size: 18px; color: var(--accent) }
+    .row { display: grid; gap: 8px; grid-template-columns: 1fr 1fr }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr } }
+    .muted { color: var(--muted) }
+    .pill { border: 1px dashed rgba(83,255,229,0.3); padding: 8px; border-radius: 10px; background: rgba(10,16,22,0.6) }
+    .status { display: flex; gap: 8px; flex-wrap: wrap }
+    .status .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(83,255,229,0.3) }
+    .tag.ok { color: var(--green); border-color: rgba(76,175,80,0.4) }
+    .tag.fail { color: var(--red); border-color: rgba(255,107,107,0.4) }
+    .tag.warn { color: var(--accent2); border-color: rgba(255,209,102,0.4) }
+
+    #viz { background: #0e141c; border-radius: 10px; min-height: 380px; position: relative; overflow: hidden }
+    .bubble { position: absolute; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); color: var(--text); font-size: 12px; padding: 4px 8px; cursor: pointer; user-select: none }
+    .bubble:hover { filter: brightness(1.15) }
+    .bubble .label { pointer-events: none }
+    .legend { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px }
+    .legend .leg { display:flex; align-items:center; gap:6px; font-size:12px; color: var(--muted) }
+    .leg .swatch { width:12px; height:12px; border-radius:3px; border:1px solid rgba(255,255,255,0.2) }
+
+    #log { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; background: #0a0f15; color: var(--text); height: 260px; overflow: auto; border-radius: 8px; border: 1px solid rgba(83,255,229,0.2); padding: 8px }
+    .line { white-space: pre-wrap; border-bottom: 1px dashed rgba(83,255,229,0.08); padding: 4px 0 }
+    .line .ts { color: var(--muted); margin-right: 8px }
+
+    #debugPanel { display: grid; gap: 8px; grid-template-columns: 1fr 1fr 1fr }
+    @media (max-width: 980px) { #debugPanel { grid-template-columns: 1fr 1fr } }
+    @media (max-width: 640px) { #debugPanel { grid-template-columns: 1fr } }
+    .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px; align-items: baseline; font-size: 12px }
+    .kv div:first-child { color: var(--muted) }
+    .hr { height: 1px; background: rgba(83,255,229,0.2); margin: 8px 0 }
+
+    .toast {
+      position: fixed; right: 12px; bottom: 12px; background: #10161f; color: var(--text);
+      border: 1px solid rgba(83,255,229,0.3); border-radius: 12px; padding: 10px 12px; box-shadow: 0 6px 30px rgba(0,0,0,0.4);
+      max-width: 340px; z-index: 9999; font-size: 13px
+    }
+    .toast .title { color: var(--accent); font-weight: 600; margin-bottom: 6px }
+    .toast.ok .title { color: var(--green) }
+    .toast.warn .title { color: var(--accent2) }
+    .toast.fail .title { color: var(--red) }
+    .hidden { display: none !important }
+
+    /* Modal for project details */
+    .modal {
+      position: fixed; inset: 0; display: none; place-items: center; z-index: 9998;
+      background: rgba(0,0,0,0.6);
+    }
+    .modal.show { display: grid }
+    .modal .card {
+      width: min(720px, 92vw);
+      background: var(--panel);
+      border: 1px solid rgba(83,255,229,0.3);
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--text);
+    }
+    .modal .card h3 { margin: 0 0 6px; color: var(--accent) }
+    .modal .card .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px }
+    @media (max-width: 640px){ .modal .card .grid { grid-template-columns: 1fr } }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace }
+    .btnRow { display:flex; gap:8px; justify-content:flex-end; margin-top:10px }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">
+JeEeZues ● Trinity Pool (Clickable, Color-coordinated)
+┌──────────────────────────────────────────────┐
+│ Self-healing • Auto-evaluating • Client-only │
+│ Fetch projects • Bubbles clickable per user  │
+└──────────────────────────────────────────────┘
+        </div>
+        <div>
+          <div>Universal indexing, fetching, bonding, and compensation — single deployable HTML.</div>
+          <div class="badge">Embodied runtime: heals, evaluates, fetches, and syncs itself at the edge.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btnHeal">Run self-healing</button>
+        <button id="btnEval">Run auto-evaluation</button>
+        <button id="btnReset">Reset runtime</button>
+        <button id="btnExport">Export audit</button>
+      </div>
+    </header>
+
+    <section>
+      <h2>Wallet and session</h2>
+      <div class="row">
+        <div>
+          <div class="pill">
+            <div class="muted">Wallet address or alias</div>
+            <input id="walletInput" type="text" placeholder="0x... or GitHub username" />
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px">
+              <button id="btnAttachWallet">Attach wallet</button>
+              <button id="btnDetachWallet">Detach</button>
+              <button id="btnFetchProjects">Fetch projects</button>
+            </div>
+            <div class="status" style="margin-top:8px">
+              <div id="tagWallet" class="tag warn">wallet: none</div>
+              <div id="tagTrust" class="tag warn">trust: unknown</div>
+              <div id="tagUptime" class="tag ok">uptime: 0.00%</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="pill">
+            <div class="muted">Manual contributions</div>
+            <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center">
+              <input id="repoUrl" type="text" placeholder="GitHub repo URL (or any .zip link)" />
+              <button id="btnIndexRepo">Index</button>
+            </div>
+            <div style="margin-top:8px; display:grid; gap:8px; grid-template-columns: 1fr auto; align-items:center">
+              <input id="zipUpload" type="file" accept=".zip" />
+              <button id="btnIngestZip">Ingest ZIP</button>
+            </div>
+            <div class="status" style="margin-top:8px">
+              <div id="tagIndex" class="tag warn">index: 0</div>
+              <div id="tagBond" class="tag warn">bond: 0</div>
+              <div id="tagComp" class="tag warn">comp: 0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid" style="margin-top:12px">
+      <section>
+        <h2>Visualization bubble map</h2>
+        <div id="viz" aria-label="Creator/project bubble visualization"></div>
+        <div class="legend" id="legend"></div>
+        <div class="muted" style="margin-top:6px">
+          Bubble colors:
+          - Owner palette (unique per wallet/alias),
+          - Source hue (URL vs ZIP vs Fetched), with clickable details.
+        </div>
+      </section>
+
+      <section>
+        <h2>Audit trail</h2>
+        <div id="log" aria-live="polite"></div>
+        <div class="muted" style="margin-top:6px">Events are timestamped and stored in localStorage for export.</div>
+      </section>
+    </div>
+
+    <section style="margin-top:12px">
+      <h2>Debug and healing state</h2>
+      <div id="debugPanel">
+        <div class="kv"><div>runtime:</div><div id="kvRuntime">init</div></div>
+        <div class="kv"><div>version:</div><div id="kvVersion">1.2.0-jeeezues</div></div>
+        <div class="kv"><div>device:</div><div id="kvDevice">detecting…</div></div>
+        <div class="kv"><div>deps:</div><div id="kvDeps">verifying…</div></div>
+        <div class="kv"><div>listeners:</div><div id="kvListeners">checking…</div></div>
+        <div class="kv"><div>quarantine:</div><div id="kvQuarantine">idle</div></div>
+        <div class="kv"><div>last heal:</div><div id="kvLastHeal">none</div></div>
+        <div class="kv"><div>last eval:</div><div id="kvLastEval">none</div></div>
+        <div class="kv"><div>heartbeat:</div><div id="kvHeartbeat">idle</div></div>
+      </div>
+      <div class="hr"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button id="btnTestButtons">Audit UI buttons</button>
+        <button id="btnStress">Stress test loop</button>
+        <button id="btnQuarantine">Simulate quarantine</button>
+        <button id="btnRepairSelf">Repair healing loop</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden">
+    <div class="title">Runtime</div>
+    <div class="msg">Ready</div>
+  </div>
+
+  <!-- Modal for project details -->
+  <div id="modal" class="modal">
+    <div class="card">
+      <h3 id="modalTitle">Project details</h3>
+      <div class="grid">
+        <div>
+          <div class="muted">Owner</div>
+          <div class="mono" id="modalOwner">—</div>
+        </div>
+        <div>
+          <div class="muted">Source</div>
+          <div class="mono" id="modalSource">—</div>
+        </div>
+        <div>
+          <div class="muted">Identifier</div>
+          <div class="mono" id="modalId">—</div>
+        </div>
+        <div>
+          <div class="muted">Weight • Trust</div>
+          <div class="mono" id="modalWeightTrust">—</div>
+        </div>
+        <div style="grid-column:1/-1">
+          <div class="muted">Link</div>
+          <a id="modalLink" href="#" target="_blank" rel="noopener">Open</a>
+        </div>
+      </div>
+      <div class="btnRow">
+        <button id="btnModalClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /************************************************************
+     * JeEeZues — Single-file, clickable, color-coordinated bubbles
+     * - Self-healing and auto-evaluation
+     * - Fetch projects (GitHub username or repo URL)
+     * - Owner color palette + source hue overlay
+     * - Clickable bubbles with modal details
+     ************************************************************/
+
+    (function ModuleRegistry(){
+      const REG = {};
+      window.__require = (name) => {
+        if (!REG[name]) throw new Error('module not found: ' + name);
+        return REG[name].exports;
+      };
+      window.__register = (name, factory) => {
+        if (REG[name]) return REG[name].exports;
+        const mod = { exports: {} };
+        REG[name] = mod;
+        factory(mod, mod.exports);
+        return mod.exports;
+      };
+    })();
+
+    __register('utils', (module, exports) => {
+      const ts = () => new Date().toISOString();
+      const escapeHtml = (s) => String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+      const hashString = (s) => { let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i); h|=0;} return 'h'+Math.abs(h).toString(16); };
+      const clamp = (x,min,max)=>Math.max(min,Math.min(max,x));
+      const now = () => Date.now();
+      const rnd = (min=0,max=1)=>min+Math.random()*(max-min);
+      const hue = (str) => {
+        // Deterministic hue from string
+        let h = 0;
+        for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) % 360;
+        return h;
+      };
+      const colorForOwner = (owner) => {
+        const h = hue(owner || 'anonymous');
+        return `hsl(${h}, 64%, 58%)`;
+      };
+      const overlayForSource = (source) => {
+        if (source === 'zip') return 'rgba(255, 255, 255, 0.20)';
+        if (source === 'url') return 'rgba(0, 0, 0, 0.12)';
+        if (source === 'fetch') return 'rgba(255, 255, 255, 0.10)';
+        return 'rgba(255,255,255,0.15)';
+      };
+      exports.ts = ts;
+      exports.escapeHtml = escapeHtml;
+      exports.hashString = hashString;
+      exports.clamp = clamp;
+      exports.now = now;
+      exports.rnd = rnd;
+      exports.colorForOwner = colorForOwner;
+      exports.overlayForSource = overlayForSource;
+    });
+
+    __register('storage', (module, exports) => {
+      const saveJson = (key, obj) => { try { localStorage.setItem(key, JSON.stringify(obj)); return true; } catch(e){ console.warn('save failed', key, e); return false; } };
+      const loadJson = (key, fallback) => { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch(e){ console.warn('load failed', key, e); return fallback; } };
+      exports.saveJson = saveJson;
+      exports.loadJson = loadJson;
+      exports.KEY_AUDIT = 'jeeezues.audit';
+      exports.KEY_STATE = 'jeeezues.state';
+    });
+
+    __register('ui', (module, exports) => {
+      const toast = (DOM, title, msg, level='ok') => {
+        if (!DOM.toast) return;
+        DOM.toast.className = 'toast ' + level;
+        DOM.toast.querySelector('.title').textContent = title;
+        DOM.toast.querySelector('.msg').textContent = msg;
+        DOM.toast.classList.remove('hidden');
+        setTimeout(() => DOM.toast.classList.add('hidden'), 2600);
+      };
+      const showModal = (DOM, data) => {
+        if (!DOM.modal) return;
+        DOM.modal.classList.add('show');
+        DOM.modalTitle.textContent = data.name || data.id || 'Project';
+        DOM.modalOwner.textContent = data.ownerWallet || data.owner || 'anonymous';
+        DOM.modalSource.textContent = data.source || 'unknown';
+        DOM.modalId.textContent = data.id || data.hash || '—';
+        DOM.modalWeightTrust.textContent = `w=${(data.weight ?? 0).toFixed(2)} • t=${(data.trust ?? 0).toFixed(2)}`;
+        if (data.url) {
+          DOM.modalLink.textContent = data.url;
+          DOM.modalLink.href = data.url;
+        } else {
+          DOM.modalLink.textContent = '#';
+          DOM.modalLink.href = '#';
+        }
+      };
+      const hideModal = (DOM) => {
+        if (!DOM.modal) return;
+        DOM.modal.classList.remove('show');
+      };
+      const updateLegend = (DOM, owners) => {
+        if (!DOM.legend) return;
+        DOM.legend.innerHTML = '';
+        owners.slice(0, 10).forEach(o => {
+          const d = document.createElement('div');
+          d.className = 'leg';
+          const s = document.createElement('div');
+          s.className = 'swatch';
+          s.style.background = __require('utils').colorForOwner(o);
+          d.appendChild(s);
+          const t = document.createElement('span');
+          t.textContent = (o || 'anonymous').slice(0, 14);
+          d.appendChild(t);
+          DOM.legend.appendChild(d);
+        });
+      };
+      exports.toast = toast;
+      exports.showModal = showModal;
+      exports.hideModal = hideModal;
+      exports.updateLegend = updateLegend;
+    });
+
+    __register('fetcher', (module, exports) => {
+      const U = __require('utils');
+      const fetchGitHubUserRepos = async (username) => {
+        // Public GitHub API; subject to rate limits; client-only
+        const url = `https://api.github.com/users/${encodeURIComponent(username)}/repos`;
+        const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+        if (!resp.ok) throw new Error('GitHub fetch failed: ' + resp.status);
+        const repos = await resp.json();
+        // Normalize
+        return repos.map(r => ({
+          id: 'fetch:' + U.hashString(r.full_name),
+          source: 'fetch',
+          name: r.name,
+          url: r.html_url,
+          ownerWallet: username,
+          ts: U.ts(),
+          size: r.size * 1024, // KB to bytes
+          hash: U.hashString(r.html_url + U.ts()),
+        }));
+      };
+      const parseRepoUrl = (url) => {
+        try {
+          const u = new URL(url);
+          // Expect /user/repo
+          const parts = u.pathname.split('/').filter(Boolean);
+          if (u.hostname.includes('github.com') && parts.length >= 2) {
+            return { user: parts[0], repo: parts[1] };
+          }
+        } catch {}
+        return null;
+      };
+      exports.fetchGitHubUserRepos = fetchGitHubUserRepos;
+      exports.parseRepoUrl = parseRepoUrl;
+    });
+
+    __register('app', (module, exports) => {
+      const U = __require('utils');
+      const S = __require('storage');
+      const UI = __require('ui');
+      const F = __require('fetcher');
+
+      const STATE = S.loadJson(S.KEY_STATE, {
+        version: '1.2.0-jeeezues',
+        device: { ua: navigator.userAgent, type: 'unknown' },
+        session: { wallet: null, trust: 0.0, uptimeStart: U.now(), uptimePct: 0.0, alias: null },
+        deps: { core: true, external: [] },
+        healing: { lastRun: null, runs: 0, selfOk: true },
+        evaluation: { lastRun: null, runs: 0 },
+        heartbeat: { lastBeat: null, missCount: 0, intervalMs: 5000 },
+        listeners: {},
+        quarantine: { status: 'idle', items: [] },
+        pool: { indexed: [], bonded: [], payouts: [] },
+        audit: { events: [] },
+      });
+
+      const DOM = {
+        btnHeal: null, btnEval: null, btnReset: null, btnExport: null,
+        walletInput: null, btnAttachWallet: null, btnDetachWallet: null, btnFetchProjects: null,
+        tagWallet: null, tagTrust: null, tagUptime: null,
+        repoUrl: null, zipUpload: null, btnIndexRepo: null, btnIngestZip: null,
+        tagIndex: null, tagBond: null, tagComp: null,
+        viz: null, legend: null, log: null,
+        debug: {
+          kvRuntime: null, kvVersion: null, kvDevice: null, kvDeps: null,
+          kvListeners: null, kvQuarantine: null, kvLastHeal: null, kvLastEval: null, kvHeartbeat: null
+        },
+        btnTestButtons: null, btnStress: null, btnQuarantine: null, btnRepairSelf: null,
+        toast: null,
+        modal: null, modalTitle: null, modalOwner: null, modalSource: null, modalId: null, modalWeightTrust: null, modalLink: null,
+        btnModalClose: null
+      };
+
+      /* ---------- Audit ---------- */
+      const log = (type, msg, meta={}) => {
+        const entry = { t: U.ts(), type, msg, meta };
+        STATE.audit.events.push(entry);
+        S.saveJson(S.KEY_AUDIT, STATE.audit.events);
+        S.saveJson(S.KEY_STATE, STATE);
+        if (DOM.log) {
+          const div = document.createElement('div');
+          div.className = 'line';
+          div.innerHTML = `<span class="ts">${entry.t}</span><span>${type.toUpperCase()} — ${U.escapeHtml(msg)}</span>`;
+          DOM.log.prepend(div);
+        }
+        const fn = type === 'error' ? 'error' : (type === 'warn' ? 'warn' : 'log');
+        console[fn](`[${entry.t}] ${type}: ${msg}`, meta);
+      };
+
+      /* ---------- Counts & debug ---------- */
+      const updateCounts = () => {
+        if (DOM.tagIndex) {
+          DOM.tagIndex.textContent = `index: ${STATE.pool.indexed.length}`;
+          DOM.tagIndex.className = 'tag ' + (STATE.pool.indexed.length > 0 ? 'ok' : 'warn');
+        }
+        if (DOM.tagBond) {
+          DOM.tagBond.textContent = `bond: ${STATE.pool.bonded.length}`;
+          DOM.tagBond.className = 'tag ' + (STATE.pool.bonded.length > 0 ? 'ok' : 'warn');
+        }
+        if (DOM.tagComp) {
+          const payoutCount = STATE.pool.payouts.reduce((n, p) => n + (p.payouts?.length || 0), 0);
+          DOM.tagComp.textContent = `comp: ${payoutCount}`;
+          DOM.tagComp.className = 'tag ' + (payoutCount > 0 ? 'ok' : 'warn');
+        }
+        updateStatusTags();
+        updateDebug();
+      };
+
+      const updateStatusTags = () => {
+        if (DOM.tagWallet) {
+          const alias = STATE.session.alias ? ` (${STATE.session.alias})` : '';
+          DOM.tagWallet.textContent = `wallet: ${STATE.session.wallet ? STATE.session.wallet.slice(0, 8) + '…' + alias : 'none'}`;
+          DOM.tagWallet.className = 'tag ' + (STATE.session.wallet || STATE.session.alias ? 'ok' : 'warn');
+        }
+        if (DOM.tagTrust) {
+          const t = STATE.session.trust;
+          DOM.tagTrust.textContent = `trust: ${t.toFixed(2)}`;
+          DOM.tagTrust.className = 'tag ' + (t >= 0.7 ? 'ok' : t > 0.3 ? 'warn' : 'fail');
+        }
+        if (DOM.tagUptime) {
+          const healthy = STATE.healing.lastRun && (U.now() - STATE.healing.lastRun < 8000);
+          STATE.session.uptimePct = U.clamp(STATE.session.uptimePct + (healthy ? 0.6 : 0.15), 0, 100);
+          DOM.tagUptime.textContent = `uptime: ${STATE.session.uptimePct.toFixed(2)}%`;
+          DOM.tagUptime.className = 'tag ' + (STATE.session.uptimePct > 90 ? 'ok' : STATE.session.uptimePct > 50 ? 'warn' : 'fail');
+        }
+      };
+
+      const updateDebug = () => {
+        if (DOM.debug.kvRuntime) DOM.debug.kvRuntime.textContent = STATE.healing.selfOk ? 'healthy' : 'degraded';
+        if (DOM.debug.kvVersion) DOM.debug.kvVersion.textContent = STATE.version;
+        if (DOM.debug.kvDevice) DOM.debug.kvDevice.textContent = `${STATE.device.type} (${STATE.device.ua.slice(0, 40)}…)`;
+        if (DOM.debug.kvDeps) DOM.debug.kvDeps.textContent = STATE.deps.core ? 'core ok' : 'core missing';
+        if (DOM.debug.kvListeners) DOM.debug.kvListeners.textContent = Object.keys(STATE.listeners).length + ' attached';
+        if (DOM.debug.kvQuarantine) DOM.debug.kvQuarantine.textContent = `${STATE.quarantine.status} (${STATE.quarantine.items.length})`;
+        if (DOM.debug.kvLastHeal) DOM.debug.kvLastHeal.textContent = STATE.healing.lastRun ? new Date(STATE.healing.lastRun).toLocaleTimeString() : 'none';
+        if (DOM.debug.kvLastEval) DOM.debug.kvLastEval.textContent = STATE.evaluation.lastRun ? new Date(STATE.evaluation.lastRun).toLocaleTimeString() : 'none';
+        if (DOM.debug.kvHeartbeat) DOM.debug.kvHeartbeat.textContent = `beat: ${STATE.heartbeat.lastBeat ? new Date(STATE.heartbeat.lastBeat).toLocaleTimeString() : 'none'} | misses: ${STATE.heartbeat.missCount}`;
+      };
+
+      /* ---------- Device & deps ---------- */
+      const detectDevice = () => {
+        const ua = navigator.userAgent.toLowerCase();
+        const isMobile = /iphone|android|ipad|ipod/.test(ua);
+        STATE.device.type = isMobile ? 'mobile' : 'desktop';
+        log('info', `device detected: ${STATE.device.type}`);
+      };
+      const verifyDeps = () => {
+        const essentials = [ 'localStorage', 'addEventListener', 'querySelector', 'FileReader', 'Blob', 'URL', 'fetch' ];
+        const missing = essentials.filter(k => !(k in window));
+        STATE.deps.core = missing.length === 0;
+        STATE.deps.external = [];
+        if (STATE.deps.core) log('info', 'core deps present');
+        else log('error', 'missing core deps: ' + missing.join(', '));
+      };
+
+      /* ---------- Quarantine ---------- */
+      const quarantine = (item, reason='unknown') => {
+        STATE.quarantine.items.push({ t: U.ts(), item, reason });
+        STATE.quarantine.status = 'active';
+        log('warn', `quarantined item: ${reason}`, { item });
+        UI.toast(DOM, 'Quarantine', reason, 'warn');
+      };
+
+      /* ---------- Event auditor ---------- */
+      const on = (name, el, evt, handler) => {
+        if (!el) return false;
+        const key = `${name}:${evt}`;
+        if (!STATE.listeners[key]) {
+          el.addEventListener(evt, handler);
+          STATE.listeners[key] = true;
+          return true;
+        }
+        return false;
+      };
+
+      /* ---------- Wallet & alias ---------- */
+      const attachWallet = (val) => {
+        const v = (val || '').trim();
+        if (!v) { log('error', 'attachWallet: empty'); UI.toast(DOM, 'Wallet', 'No address/alias provided', 'fail'); return; }
+        // Heuristic: if looks like 0x..., treat as wallet; else alias (GitHub)
+        if (/^0x[a-fA-F0-9]{6,}$/.test(v)) {
+          STATE.session.wallet = v;
+          STATE.session.alias = null;
+        } else {
+          STATE.session.alias = v;
+          if (!STATE.session.wallet) STATE.session.wallet = 'anonymous-' + U.hashString(v).slice(0,6);
+        }
+        // Initial trust
+        const ageScore = Math.random() * 0.5 + 0.25;
+        const integrityScore = 0.25 + Math.random() * 0.5;
+        STATE.session.trust = U.clamp((ageScore + integrityScore) / 2, 0, 1);
+        log('info', 'wallet/alias attached', { wallet: STATE.session.wallet, alias: STATE.session.alias, trust: STATE.session.trust });
+        UI.toast(DOM, 'Session', 'Attached and scored', 'ok');
+        updateCounts();
+      };
+
+      const detachWallet = () => {
+        STATE.session.wallet = null;
+        STATE.session.alias = null;
+        STATE.session.trust = 0.0;
+        log('info', 'wallet/alias detached');
+        UI.toast(DOM, 'Session', 'Detached', 'warn');
+        updateCounts();
+      };
+
+      /* ---------- Fetch projects ---------- */
+      const fetchProjects = async () => {
+        const alias = STATE.session.alias || DOM.walletInput.value.trim();
+        if (!alias) { UI.toast(DOM, 'Fetch', 'Provide a GitHub username', 'warn'); return; }
+        try {
+          const repos = await F.fetchGitHubUserRepos(alias);
+          // Add to indexed if not already present
+          let added = 0;
+          repos.forEach(r => {
+            if (!STATE.pool.indexed.find(i => i.id === r.id)) {
+              STATE.pool.indexed.push(r);
+              addBubble(r);
+              added++;
+            }
+          });
+          log('info', 'fetched projects', { alias, added, totalIndexed: STATE.pool.indexed.length });
+          UI.toast(DOM, 'Fetch', `Fetched ${added} repo(s)`, 'ok');
+          updateLegend(DOM);
+          updateCounts();
+        } catch (e) {
+          log('error', 'fetch projects failed', { alias, err: String(e) });
+          UI.toast(DOM, 'Fetch', 'GitHub fetch failed', 'fail');
+        }
+      };
+
+      /* ---------- Manual indexing ---------- */
+      const indexRepo = async (url) => {
+        const clean = (url || '').trim();
+        if (!clean) { log('error', 'indexRepo: empty url'); UI.toast(DOM, 'Index', 'Provide a repo or zip URL', 'fail'); return; }
+        if (/javascript:\s*|<script/i.test(clean)) {
+          quarantine({ url: clean }, 'malicious url detected');
+          updateCounts();
+          return;
+        }
+        // If it's a GitHub repo URL, prefer normalized parse
+        const parsed = F.parseRepoUrl(clean);
+        const entry = {
+          id: 'repo:' + U.hashString(clean),
+          source: 'url', url: clean,
+          name: parsed ? parsed.repo : (clean.split('/').pop() || 'repo'),
+          ownerWallet: STATE.session.alias || STATE.session.wallet || 'anonymous',
+          ts: U.ts(),
+          files: [],
+          hash: U.hashString(clean + U.ts())
+        };
+        STATE.pool.indexed.push(entry);
+        log('info', 'indexed repo', entry);
+        addBubble(entry);
+        updateLegend(DOM);
+        updateCounts();
+        UI.toast(DOM, 'Index', 'Repo indexed', 'ok');
+      };
+
+      const ingestZip = async (file) => {
+        if (!file) { log('error', 'ingestZip: no file'); UI.toast(DOM, 'ZIP', 'Select a .zip file', 'fail'); return; }
+        if (!file.name.toLowerCase().endsWith('.zip')) {
+          quarantine({ name: file.name }, 'non-zip file uploaded');
+          updateCounts();
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const entry = {
+            id: 'zip:' + U.hashString(file.name + file.size),
+            source: 'zip', name: file.name, size: file.size,
+            ownerWallet: STATE.session.alias || STATE.session.wallet || 'anonymous',
+            ts: U.ts(),
+            hash: U.hashString(file.name + file.size + U.ts()),
+          };
+          STATE.pool.indexed.push(entry);
+          log('info', 'ingested zip', entry);
+          addBubble(entry);
+          updateLegend(DOM);
+          updateCounts();
+          UI.toast(DOM, 'ZIP', 'ZIP ingested', 'ok');
+        };
+        reader.onerror = () => { log('error', 'zip read failed', { name: file.name }); UI.toast(DOM, 'ZIP', 'Read failed', 'fail'); };
+        reader.readAsArrayBuffer(file);
+      };
+
+      /* ---------- Bonding & compensation ---------- */
+      const weightFor = (entry) => {
+        if (entry.source === 'zip') return U.clamp(0.6 + (entry.size ? Math.log10(entry.size + 10) / 10 : 0.1), 0.2, 1.0);
+        if (entry.source === 'fetch') return 0.5;
+        return 0.4;
+      };
+
+      const bondAllIndexed = () => {
+        const toBond = STATE.pool.indexed.filter(i => !STATE.pool.bonded.find(b => b.id === i.id));
+        toBond.forEach(i => {
+          const bond = {
+            id: i.id, ts: U.ts(),
+            weight: weightFor(i),
+            trust: STATE.session.trust,
+            ownerWallet: i.ownerWallet || STATE.session.wallet || 'anonymous',
+            name: i.name, url: i.url, source: i.source
+          };
+          STATE.pool.bonded.push(bond);
+        });
+        const count = toBond.length;
+        if (count > 0) {
+          log('info', `bonded ${count} items`, { totalBonded: STATE.pool.bonded.length });
+          UI.toast(DOM, 'Bonding', `Bonded ${count}`, 'ok');
+        }
+        updateCounts();
+      };
+
+      const simulateCompensation = () => {
+        if (STATE.pool.bonded.length === 0) { updateCounts(); return; }
+        const totalWeight = STATE.pool.bonded.reduce((s, b) => s + b.weight, 0);
+        const payouts = STATE.pool.bonded.map(b => {
+          const share = b.weight / totalWeight;
+          const trustBoost = 0.5 + (b.trust * 0.5);
+          return {
+            id: b.id,
+            wallet: b.ownerWallet,
+            amount: +(1000 * share * trustBoost).toFixed(2),
+            ts: U.ts()
+          };
+        });
+        STATE.pool.payouts.push({ ts: U.ts(), payouts });
+        log('info', 'compensation distributed', { count: payouts.length });
+        UI.toast(DOM, 'Compensation', 'Distributed', 'ok');
+        updateCounts();
+      };
+
+      /* ---------- Visualization ---------- */
+      const addBubble = (entry) => {
+        if (!DOM.viz) return;
+        const node = document.createElement('div');
+        node.className = 'bubble';
+        const size = 26 + Math.floor(Math.random() * 52);
+        node.style.width = size + 'px';
+        node.style.height = size + 'px';
+        node.style.lineHeight = size + 'px';
+
+        // Color scheme: base from owner, overlay by source
+        const base = U.colorForOwner(entry.ownerWallet || STATE.session.alias || STATE.session.wallet || 'anonymous');
+        node.style.background = base;
+        node.style.boxShadow = `0 0 0 2px ${U.overlayForSource(entry.source)}`;
+        node.style.borderColor = 'rgba(255,255,255,0.25)';
+
+        // Content label
+        node.innerHTML = `<span class="label">${(entry.name || (entry.source === 'zip' ? 'ZIP' : 'URL')).slice(0,10)}</span>`;
+
+        // Position pseudo-randomly within container
+        const rect = DOM.viz.getBoundingClientRect();
+        const x = Math.floor(Math.random() * Math.max(10, rect.width - size - 10));
+        const y = Math.floor(Math.random() * Math.max(10, rect.height - size - 10));
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+
+        // Click handling: show details modal
+        node.addEventListener('click', () => {
+          const bonded = STATE.pool.bonded.find(b => b.id === entry.id);
+          const data = bonded || {
+            id: entry.id,
+            source: entry.source,
+            name: entry.name,
+            ownerWallet: entry.ownerWallet || STATE.session.alias || STATE.session.wallet,
+            weight: weightFor(entry),
+            trust: STATE.session.trust,
+            url: entry.url
+          };
+          UI.showModal(DOM, data);
+        });
+
+        DOM.viz.appendChild(node);
+      };
+
+      const updateLegend = (DOMRef=DOM) => {
+        const owners = Array.from(new Set(STATE.pool.indexed.map(i => i.ownerWallet || STATE.session.alias || STATE.session.wallet || 'anonymous')));
+        UI.updateLegend(DOMRef, owners);
+      };
+
+      /* ---------- Healing ---------- */
+      const expectedListeners = [
+        'btnHeal:click','btnEval:click','btnReset:click','btnExport:click',
+        'btnAttachWallet:click','btnDetachWallet:click','btnFetchProjects:click',
+        'btnIndexRepo:click','btnIngestZip:click',
+        'btnTestButtons:click','btnStress:click','btnQuarantine:click','btnRepairSelf:click',
+        'walletInput:change','repoUrl:change','zipUpload:change','btnModalClose:click'
+      ];
+
+      const applyDevicePatches = () => {
+        if (STATE.device.type === 'mobile') {
+          const buttons = document.querySelectorAll('button');
+          buttons.forEach(b => {
+            if (!b.__touchPatched) {
+              b.addEventListener('touchend', (e) => { e.preventDefault(); b.click(); }, { passive: false });
+              b.__touchPatched = true;
+            }
+          });
+        }
+      };
+
+      const attachAllListeners = () => {
+        on('btnHeal', DOM.btnHeal, 'click', heal);
+        on('btnEval', DOM.btnEval, 'click', evaluate);
+        on('btnReset', DOM.btnReset, 'click', resetRuntime);
+        on('btnExport', DOM.btnExport, 'click', exportAudit);
+
+        on('btnAttachWallet', DOM.btnAttachWallet, 'click', () => attachWallet(DOM.walletInput.value));
+        on('btnDetachWallet', DOM.btnDetachWallet, 'click', detachWallet);
+        on('btnFetchProjects', DOM.btnFetchProjects, 'click', fetchProjects);
+
+        on('btnIndexRepo', DOM.btnIndexRepo, 'click', () => indexRepo(DOM.repoUrl.value));
+        on('btnIngestZip', DOM.btnIngestZip, 'click', () => ingestZip(DOM.zipUpload.files[0]));
+
+        on('walletInput', DOM.walletInput, 'change', () => attachWallet(DOM.walletInput.value));
+        on('repoUrl', DOM.repoUrl, 'change', () => indexRepo(DOM.repoUrl.value));
+        on('zipUpload', DOM.zipUpload, 'change', () => ingestZip(DOM.zipUpload.files[0]));
+
+        on('btnTestButtons', DOM.btnTestButtons, 'click', () => {
+          const expected = [
+            DOM.btnHeal, DOM.btnEval, DOM.btnReset, DOM.btnExport,
+            DOM.btnAttachWallet, DOM.btnDetachWallet, DOM.btnFetchProjects,
+            DOM.btnIndexRepo, DOM.btnIngestZip,
+            DOM.btnTestButtons, DOM.btnStress, DOM.btnQuarantine, DOM.btnRepairSelf
+          ];
+          const missing = expected.filter(x => !x || !x.isConnected);
+          if (missing.length) { log('error', 'missing buttons found', { count: missing.length }); UI.toast(DOM, 'Audit', 'Buttons missing', 'fail'); }
+          else { log('info', 'button audit passed'); UI.toast(DOM, 'Audit', 'All buttons OK', 'ok'); }
+          updateCounts();
+        });
+
+        on('btnStress', DOM.btnStress, 'click', () => {
+          for (let i = 0; i < 5; i++) heal();
+          log('info', 'stress test finished', { heals: 5 });
+          UI.toast(DOM, 'Stress', 'Loop exercised', 'ok');
+        });
+
+        on('btnQuarantine', DOM.btnQuarantine, 'click', () => {
+          quarantine({ sample: 'payload-' + Math.random().toString(16).slice(2) }, 'manual trigger');
+          updateCounts();
+        });
+
+        on('btnRepairSelf', DOM.btnRepairSelf, 'click', () => {
+          if (!STATE.healing.selfOk) {
+            log('warn', 'repairing healing loop');
+            STATE.healing.selfOk = true;
+            heal();
+            UI.toast(DOM, 'Repair', 'Healing loop restored', 'ok');
+          } else {
+            UI.toast(DOM, 'Repair', 'Healing loop already healthy', 'warn');
+          }
+        });
+
+        on('btnModalClose', DOM.btnModalClose, 'click', () => UI.hideModal(DOM));
+      };
+
+      const heal = () => {
+        STATE.healing.runs++;
+        STATE.healing.lastRun = U.now();
+        STATE.healing.selfOk = true;
+
+        verifyDeps();
+        if (!STATE.deps.core) STATE.healing.selfOk = false;
+
+        attachAllListeners();
+        applyDevicePatches();
+
+        if (!DOM.viz || !DOM.viz.isConnected) {
+          STATE.healing.selfOk = false;
+          log('error', 'viz missing from DOM');
+        } else if (DOM.viz.children.length === 0 && STATE.pool.indexed.length > 0) {
+          log('warn', 'viz empty, repopulating bubbles');
+          STATE.pool.indexed.forEach(addBubble);
+        }
+
+        if (STATE.quarantine.status === 'active' && STATE.quarantine.items.length > 10) {
+          STATE.quarantine.items = STATE.quarantine.items.slice(-10);
+          log('warn', 'quarantine trimmed to last 10 items');
+        }
+
+        const missing = expectedListeners.filter(k => !STATE.listeners[k]);
+        if (missing.length) {
+          missing.forEach(k => log('warn', 'missing listener: ' + k));
+          attachAllListeners();
+        }
+
+        updateCounts();
+        UI.toast(DOM, 'Healing', STATE.healing.selfOk ? 'Healthy' : 'Degraded', STATE.healing.selfOk ? 'ok' : 'warn');
+        log('info', 'healing run complete', { run: STATE.healing.runs, selfOk: STATE.healing.selfOk });
+      };
+
+      /* ---------- Auto-evaluation ---------- */
+      const evaluateButtons = () => {
+        const map = [
+          DOM.btnHeal, DOM.btnEval, DOM.btnReset, DOM.btnExport,
+          DOM.btnAttachWallet, DOM.btnDetachWallet, DOM.btnFetchProjects,
+          DOM.btnIndexRepo, DOM.btnIngestZip,
+          DOM.btnTestButtons, DOM.btnStress, DOM.btnQuarantine, DOM.btnRepairSelf, DOM.btnModalClose
+        ];
+        const missing = map.filter(x => !x || !x.isConnected);
+        if (missing.length) log('error', 'evaluation: buttons missing', { count: missing.length });
+        else log('info', 'evaluation: all buttons present');
+        return missing.length === 0;
+      };
+
+      const evaluateTrustAndUptime = () => {
+        if (STATE.session.wallet || STATE.session.alias) {
+          const uptimeSec = (U.now() - STATE.session.uptimeStart) / 1000;
+          const uptimeFactor = U.clamp(uptimeSec / 600, 0, 0.4);
+          const repairFactor = U.clamp(STATE.healing.runs / 100, 0, 0.3);
+          const base = U.clamp(0.3 + uptimeFactor + repairFactor, 0, 1);
+          const decay = STATE.quarantine.status === 'active' ? 0.08 : 0.0;
+          STATE.session.trust = U.clamp(base - decay, 0, 1);
+        }
+      };
+
+      const evaluateIndexBondComp = () => {
+        if (STATE.pool.indexed.length > STATE.pool.bonded.length) bondAllIndexed();
+        const lastPayoutTs = STATE.pool.payouts.length ? new Date(STATE.pool.payouts[STATE.pool.payouts.length - 1].ts).getTime() : 0;
+        if (STATE.pool.bonded.length > 0 && (U.now() - lastPayoutTs) > 20000) simulateCompensation();
+      };
+
+      const evaluateHeartbeat = () => {
+        const delta = STATE.healing.lastRun ? (U.now() - STATE.healing.lastRun) : Infinity;
+        STATE.heartbeat.lastBeat = U.now();
+        const expected = STATE.heartbeat.intervalMs * 2.5;
+        if (delta > expected) {
+          STATE.heartbeat.missCount++;
+          log('warn', 'heartbeat miss detected', { delta, missCount: STATE.heartbeat.missCount });
+          heal();
+        }
+      };
+
+      const evaluate = () => {
+        STATE.evaluation.runs++;
+        STATE.evaluation.lastRun = U.now();
+        const buttonsOk = evaluateButtons();
+        evaluateTrustAndUptime();
+        evaluateIndexBondComp();
+        evaluateHeartbeat();
+        updateCounts();
+        UI.toast(DOM, 'Evaluation', 'Auto-eval complete', 'ok');
+        log('info', 'evaluation run complete', { run: STATE.evaluation.runs, buttonsOk });
+      };
+
+      /* ---------- Export & reset ---------- */
+      const exportAudit = () => {
+        try {
+          const blob = new Blob([JSON.stringify(STATE.audit.events, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `jeeezues_audit_${Date.now()}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          log('info', 'audit exported');
+          UI.toast(DOM, 'Export', 'Audit JSON downloaded', 'ok');
+        } catch (e) {
+          log('error', 'export failed', e);
+          UI.toast(DOM, 'Export', 'Failed', 'fail');
+        }
+      };
+
+      const resetRuntime = () => {
+        try {
+          STATE.session.uptimeStart = U.now();
+          STATE.session.uptimePct = 0.0;
+          STATE.pool.indexed = [];
+          STATE.pool.bonded = [];
+          STATE.pool.payouts = [];
+          STATE.quarantine.status = 'idle';
+          STATE.quarantine.items = [];
+          if (DOM.viz) DOM.viz.innerHTML = '';
+          if (DOM.log) DOM.log.innerHTML = '';
+          STATE.audit.events = [];
+          S.saveJson(S.KEY_AUDIT, STATE.audit.events);
+          S.saveJson(S.KEY_STATE, STATE);
+          log('info', 'runtime reset');
+          UI.toast(DOM, 'Runtime', 'Reset complete', 'ok');
+          updateCounts();
+        } catch (e) {
+          log('error', 'reset failed', e);
+          UI.toast(DOM, 'Runtime', 'Reset failed', 'fail');
+        }
+      };
+
+      /* ---------- DOM bootstrap ---------- */
+      const bindDom = () => {
+        DOM.btnHeal = document.getElementById('btnHeal');
+        DOM.btnEval = document.getElementById('btnEval');
+        DOM.btnReset = document.getElementById('btnReset');
+        DOM.btnExport = document.getElementById('btnExport');
+
+        DOM.walletInput = document.getElementById('walletInput');
+        DOM.btnAttachWallet = document.getElementById('btnAttachWallet');
+        DOM.btnDetachWallet = document.getElementById('btnDetachWallet');
+        DOM.btnFetchProjects = document.getElementById('btnFetchProjects');
+
+        DOM.tagWallet = document.getElementById('tagWallet');
+        DOM.tagTrust = document.getElementById('tagTrust');
+        DOM.tagUptime = document.getElementById('tagUptime');
+
+        DOM.repoUrl = document.getElementById('repoUrl');
+        DOM.zipUpload = document.getElementById('zipUpload');
+        DOM.btnIndexRepo = document.getElementById('btnIndexRepo');
+        DOM.btnIngestZip = document.getElementById('btnIngestZip');
+
+        DOM.tagIndex = document.getElementById('tagIndex');
+        DOM.tagBond = document.getElementById('tagBond');
+        DOM.tagComp = document.getElementById('tagComp');
+
+        DOM.viz = document.getElementById('viz');
+        DOM.legend = document.getElementById('legend');
+        DOM.log = document.getElementById('log');
+
+        DOM.debug.kvRuntime = document.getElementById('kvRuntime');
+        DOM.debug.kvVersion = document.getElementById('kvVersion');
+        DOM.debug.kvDevice = document.getElementById('kvDevice');
+        DOM.debug.kvDeps = document.getElementById('kvDeps');
+        DOM.debug.kvListeners = document.getElementById('kvListeners');
+        DOM.debug.kvQuarantine = document.getElementById('kvQuarantine');
+        DOM.debug.kvLastHeal = document.getElementById('kvLastHeal');
+        DOM.debug.kvLastEval = document.getElementById('kvLastEval');
+        DOM.debug.kvHeartbeat = document.getElementById('kvHeartbeat');
+
+        DOM.btnTestButtons = document.getElementById('btnTestButtons');
+        DOM.btnStress = document.getElementById('btnStress');
+        DOM.btnQuarantine = document.getElementById('btnQuarantine');
+        DOM.btnRepairSelf = document.getElementById('btnRepairSelf');
+
+        DOM.toast = document.getElementById('toast');
+
+        DOM.modal = document.getElementById('modal');
+        DOM.modalTitle = document.getElementById('modalTitle');
+        DOM.modalOwner = document.getElementById('modalOwner');
+        DOM.modalSource = document.getElementById('modalSource');
+        DOM.modalId = document.getElementById('modalId');
+        DOM.modalWeightTrust = document.getElementById('modalWeightTrust');
+        DOM.modalLink = document.getElementById('modalLink');
+        DOM.btnModalClose = document.getElementById('btnModalClose');
+      };
+
+      /* ---------- Auto operations ---------- */
+      const autoOps = () => {
+        setInterval(() => {
+          STATE.heartbeat.lastBeat = U.now();
+          heal();
+          evaluate();
+          if (STATE.healing.runs % 3 === 0) bondAllIndexed();
+          if (STATE.healing.runs % 5 === 0) simulateCompensation();
+        }, STATE.heartbeat.intervalMs);
+      };
+
+      const init = () => {
+        bindDom();
+        const oldAudit = S.loadJson(S.KEY_AUDIT, []);
+        if (Array.isArray(oldAudit) && oldAudit.length && !STATE.audit.events.length) {
+          STATE.audit.events = oldAudit;
+          log('info', 'rehydrated audit from storage', { count: oldAudit.length });
+        }
+        detectDevice();
+        heal();
+        evaluate();
+        updateLegend(DOM);
+        autoOps();
+        log('info', 'JeEeZues initialized', { version: STATE.version });
+      };
+
+      exports.init = init;
+      exports.state = STATE;
+    });
+
+    (function guardedInit() {
+      try {
+        document.addEventListener('DOMContentLoaded', () => {
+          const App = __require('app');
+          App.init();
+        });
+      } catch (e) {
+        console.error('Initialization error', e);
+        setTimeout(() => {
+          try { const App = __require('app'); App.init(); } catch (e2) { console.error('Second init failed', e2); }
+        }, 100);
+      }
+    })();
+  </script>
+</body>
+</html>

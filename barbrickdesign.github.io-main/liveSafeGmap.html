@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Safety Map — Classifier + Sync</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{--bg:#031321;--muted:#9fb0be;--accent:#06b6d4;--danger:#ef4444}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+.header{display:flex;gap:12px;align-items:center;padding:12px}
+h1{font-size:16px;margin:0}
+.container{max-width:1100px;margin:10px auto;padding:12px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.03)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+button.warn{background:var(--danger);color:#fff}
+label{font-size:13px;color:var(--muted)}
+.small{font-size:13px;padding:6px 8px}
+#map{height:56vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+#log{max-height:160px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+canvas{width:100%;height:110px;border-radius:8px;background:#02121b}
+.popupRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.playBtn{background:#0b1220;border:1px solid rgba(255,255,255,0.04);color:#cfeffc;padding:6px 8px;border-radius:8px}
+.inputfile{color:transparent}
+.col{display:flex;flex-direction:column;gap:8px}
+.right{margin-left:auto}
+.smallNote{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="header">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Live Safety Map — Classifier + Sync</h1>
+    <div class="smallNote">Detect impulsive sounds, save snippets, classify likely source, and sync to public or private maps</div>
+  </div>
+</div>
+
+<main class="container">
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Capture & Detection</div>
+      <div class="smallNote">Enable mic, start logging; events save audio snippets for review</div>
+    </div>
+
+    <div class="controls" style="margin-top:8px">
+      <button id="btnEnable" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="0.2" max="4" step="0.1" value="1" />
+      <label>Privacy radius (m)</label>
+      <input id="privacyRadius" type="number" value="150" min="50" max="2000" style="width:110px" />
+    </div>
+
+    <div style="margin-top:10px;display:flex;gap:12px;align-items:flex-start">
+      <canvas id="viz"></canvas>
+      <div style="width:360px">
+        <div style="font-weight:700">Classifier</div>
+        <div class="smallNote">Use built-in heuristics, upload labeled reference audio, or import a model JSON (public dataset)</div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+          <input id="refFiles" type="file" accept="audio/*" multiple class="inputfile"/>
+          <select id="labelSelect" class="small">
+            <option value="gunshot">gunshot</option>
+            <option value="firework">firework</option>
+            <option value="door">door-slam</option>
+            <option value="dumpster">dumpster</option>
+            <option value="construction">construction</option>
+            <option value="other">other</option>
+          </select>
+          <button id="btnAddRef" class="small">Add</button>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+          <label>Import model JSON</label>
+          <input id="modelUrl" type="text" placeholder="https://..." style="flex:1;padding:6px;border-radius:8px;background:#02121b;color:#e6f7f9;border:1px solid rgba(255,255,255,0.03)"/>
+          <button id="btnImportModel" class="small">Import</button>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+          <button id="btnTrain" class="small">Train k-NN</button>
+          <label>k</label><input id="knnK" type="number" min="1" max="25" value="5" style="width:60px"/>
+          <div class="right"><span id="datasetSummary" class="smallNote"></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Map & Safe Zones</div>
+      <div class="smallNote">Map centers while logging; red markers store audio and classification</div>
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px;">
+      <button id="btnPublicSync" class="small">Sync Public</button>
+      <button id="btnPrivateSync" class="small">Sync Private</button>
+      <input id="serverUrl" type="text" placeholder="https://api.yourdomain.com" style="flex:1;padding:6px;border-radius:8px;background:#02121b;color:#e6f7f9;border:1px solid rgba(255,255,255,0.03)"/>
+      <div class="right smallNote">Public: anonymized feed; Private: encrypted for shared group</div>
+    </div>
+
+    <div id="map" style="margin-top:8px"></div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Event Log & Review</div>
+      <div class="smallNote">Click red marker to play snippet and see classification probabilities</div>
+    </div>
+    <div id="log" style="margin-top:8px" aria-live="polite"></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Single-file app implementing:
+   - realtime detection & audio snippet capture (pre + post)
+   - in-browser trainable k-NN classifier from uploaded reference audio
+   - lightweight heuristic probabilities using spectral features + echo strength
+   - private/public sync buttons that POST event payloads to server endpoints
+   - map centered on user while logging; red markers with popups (playback + classification)
+   - careful privacy: plotted location randomized within privacy radius
+   - CSV export included
+   Notes: server endpoints must be implemented separately; client encrypts payload for private sync using per-device AES-GCM key (exportable for backup).
+*/
+
+/* ----------------- DOM ----------------- */
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const sensEl = document.getElementById('sens');
+const privacyRadiusEl = document.getElementById('privacyRadius');
+const viz = document.getElementById('viz');
+const logEl = document.getElementById('log');
+const btnAddRef = document.getElementById('btnAddRef');
+const refFiles = document.getElementById('refFiles');
+const labelSelect = document.getElementById('labelSelect');
+const btnTrain = document.getElementById('btnTrain');
+const datasetSummary = document.getElementById('datasetSummary');
+const knnK = document.getElementById('knnK');
+const btnImportModel = document.getElementById('btnImportModel');
+const modelUrl = document.getElementById('modelUrl');
+const btnPublicSync = document.getElementById('btnPublicSync');
+const btnPrivateSync = document.getElementById('btnPrivateSync');
+const serverUrlInput = document.getElementById('serverUrl');
+
+const canvasCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvasCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+/* ----------------- Map ----------------- */
+const map = L.map('map', { zoomControl:true }).setView([20,0], 3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const shotLayer = L.layerGroup().addTo(map);
+let userMarker = null;
+let safeCircle = null;
+let watchId = null;
+let currentPos = null;
+
+function ensureUserMarker(lat, lon){
+  if(!userMarker) userMarker = L.circleMarker([lat, lon], { radius:6, color:'#16a34a', fillColor:'#16a34a', fillOpacity:1 }).addTo(map);
+  else userMarker.setLatLng([lat, lon]);
+}
+function ensureSafeCircle(lat, lon, radius){
+  const r = Math.max(80, radius);
+  if(!safeCircle) safeCircle = L.circle([lat, lon], { radius: r, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12 }).addTo(map);
+  else { safeCircle.setLatLng([lat, lon]); safeCircle.setRadius(r); }
+}
+function startLocationWatch(){
+  if(!navigator.geolocation) return;
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    currentPos = {lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy};
+    ensureUserMarker(currentPos.lat, currentPos.lon);
+    ensureSafeCircle(currentPos.lat, currentPos.lon, parseFloat(privacyRadiusEl.value || 150));
+    map.setView([currentPos.lat, currentPos.lon], 13, {animate:false});
+  }, err=>console.warn(err), { enableHighAccuracy:false, maximumAge:3000, timeout:5000 });
+}
+function stopLocationWatch(){ if(watchId) navigator.geolocation.clearWatch(watchId); watchId = null; }
+
+/* ----------------- Audio capture & snippets ----------------- */
+let audioCtx = null, micStream = null, sourceNode = null, scriptNode = null, mediaRecorder = null;
+let running = false;
+let circularBuffer = null, circularWriteIdx = 0, circularLength = 0, sampleRate = 48000;
+const preEventSec = 1.2, postEventSec = 1.4;
+let mediaChunks = [], lastEventAt = 0, refractoryMs = 700;
+let events = []; // store event records in memory
+
+async function enableMicrophone(){
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({ audio:{channelCount:1, echoCancellation:true, noiseSuppression:true} });
+    btnStart.disabled = false;
+    logNotice('Microphone enabled');
+  }catch(e){
+    logNotice('Microphone permission denied');
+    console.error(e);
+  }
+}
+btnEnable.addEventListener('click', enableMicrophone);
+
+function setupAudioNodes(){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  sampleRate = audioCtx.sampleRate || 48000;
+  circularLength = Math.ceil(preEventSec * sampleRate);
+  circularBuffer = new Float32Array(circularLength);
+  circularWriteIdx = 0;
+  sourceNode = audioCtx.createMediaStreamSource(micStream);
+  scriptNode = audioCtx.createScriptProcessor(2048,1,1);
+  scriptNode.onaudioprocess = (ev)=>{
+    if(!running) return;
+    const input = ev.inputBuffer.getChannelData(0);
+    // write to circular buffer
+    for(let i=0;i<input.length;i++){ circularBuffer[circularWriteIdx] = input[i]; circularWriteIdx = (circularWriteIdx + 1) % circularLength; }
+    drawWaveform(input);
+    // detection
+    const amp = rms(input);
+    const threshold = 0.12 * parseFloat(sensEl.value || 1);
+    const now = performance.now();
+    if(amp > threshold && (now - lastEventAt) > refractoryMs){
+      lastEventAt = now;
+      handleDetection(amp, input);
+    }
+  };
+  sourceNode.connect(scriptNode);
+  scriptNode.connect(audioCtx.destination);
+  mediaRecorder = new MediaRecorder(micStream);
+  mediaRecorder.ondataavailable = ev => { if(ev.data && ev.data.size>0) mediaChunks.push(ev.data); };
+  mediaChunks = [];
+  mediaRecorder.start();
+}
+
+async function startLogging(){
+  if(!micStream) { logNotice('Enable microphone first'); return; }
+  setupAudioNodes();
+  running = true;
+  startLocationWatch();
+  btnStart.disabled = true; btnStop.disabled = false; btnExport.disabled = false;
+  logNotice('Logging active');
+}
+
+function stopLogging(){
+  running = false;
+  try{ if(scriptNode) scriptNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioCtx) audioCtx.close(); }catch(e){}
+  if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop();
+  stopLocationWatch();
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  logNotice('Stopped');
+}
+btnStart.addEventListener('click', startLogging);
+btnStop.addEventListener('click', stopLogging);
+
+/* handle detection: assemble pre-buffer WAV + post recording blob, extract features, classify, create event, add to map/log */
+async function handleDetection(amp, recentBuf){
+  logNotice('Impulse detected');
+  // copy pre buffer in order
+  const pre = new Float32Array(circularLength);
+  let p = circularWriteIdx;
+  for(let i=0;i<circularLength;i++){ pre[i] = circularBuffer[p]; p = (p+1) % circularLength; }
+  // wait a short time to collect post-event audio
+  await new Promise(res => setTimeout(res, Math.round(postEventSec*1000)));
+  // request data from mediaRecorder
+  if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.requestData();
+  const preWav = float32ToWavBlob(pre, sampleRate);
+  const postBlob = new Blob(mediaChunks, { type: mediaChunks.length ? mediaChunks[0].type : 'audio/webm' });
+  mediaChunks = []; // clear
+  // features
+  const dominantHz = zeroCrossFreq(pre, sampleRate);
+  const echoLagMs = estimateEchoLag(pre, sampleRate);
+  // heuristic probability from built-in knowledge (rules + feature thresholds)
+  const probs = heuristicClassifier(dominantHz, amp, echoLagMs);
+  // if trained classifier exists, combine (we implement simple weighted average)
+  const trained = predictTrainedClassifier({dominantHz, amp, echoLagMs});
+  const final = combineProbabilities(probs, trained);
+  // distance estimate
+  const measuredDbfs = 20*Math.log10(rms(pre)+1e-12);
+  const calibOffset = 120;
+  const measuredSPL = measuredDbfs + calibOffset;
+  const sourceDbAt1m = parseFloat(document.getElementById('splCal')?.value || 140);
+  let distanceM = Math.pow(10, (sourceDbAt1m - measuredSPL)/20);
+  if(!isFinite(distanceM) || distanceM<0) distanceM = null;
+  // location plotting within privacy radius
+  const privacyRadius = Math.max(50, Math.min(parseFloat(privacyRadiusEl.value||150),2000));
+  let lat, lon;
+  if(currentPos){
+    const angle = Math.random()*Math.PI*2;
+    const r = (Math.random()*0.6 + 0.2) * privacyRadius;
+    const dLat = (r * Math.cos(angle))/111320;
+    const dLon = (r * Math.sin(angle))/(111320 * Math.cos(currentPos.lat * Math.PI/180));
+    lat = currentPos.lat + dLat; lon = currentPos.lon + dLon;
+  } else {
+    const c = map.getCenter(); lat = c.lat; lon = c.lng;
+  }
+  // create event
+  const id = uid();
+  const timestamp = new Date().toISOString();
+  const event = { id, timestamp, lat, lon, amplitude: amp, dominantHz, echoLagMs, distanceM, privacyRadius, probs: final, preWav, postBlob };
+  events.unshift(event);
+  addEventToMap(event);
+  addEventToLog(event);
+}
+
+/* ----------------- Simple heuristic classifier using knowledge-base heuristics -----------------
+   These heuristics encode common audio priors:
+   - Gunshots: very impulsive (high short-term RMS), strong low-frequency energy and short echo signature; muzzle blasts have low-frequency content and sharp transient
+   - Fireworks: impulsive but often higher frequency, multiple successive pops, longer decay and spectral energy at higher bands
+   - Door-slam / dumpster: impulsive but usually lower amplitude, limited spectral content and rich low-frequency resonance; echo patterns differ
+   - Construction: repeated mechanical hits, tonal components and repeating patterns
+   The heuristic returns normalized probabilities for a fixed set of classes.
+*/
+function heuristicClassifier(dominantHz, amp, echoLagMs){
+  // classes order: gunshot, firework, door-slam, dumpster, construction, other
+  const classes = ['gunshot','firework','door-slam','dumpster','construction','other'];
+  const scores = {gunshot:0,firework:0, 'door-slam':0, dumpster:0, construction:0, other:0};
+  // amplitude weight
+  if(amp > 0.20) scores.gunshot += 2;
+  if(amp > 0.12) scores.firework += 1;
+  // dominant frequency tendencies
+  if(dominantHz < 800) { scores.gunshot += 1; scores.dumpster += 0.8; }
+  if(dominantHz >= 800 && dominantHz < 3000) { scores.firework += 1.4; scores.door-slam += 0.6; }
+  if(dominantHz >= 3000) { scores.firework += 1.6; scores.other += 0.8; }
+  // echo/lag: gun muzzle often has short early reflections; door/dumpster have longer resonance
+  if(echoLagMs > 1.5) { scores.dumpster += 1.2; scores['door-slam'] += 1.0; }
+  else if(echoLagMs > 0.3 && echoLagMs <= 1.5) { scores.gunshot += 1.2; scores.firework += 0.8; }
+  // general priors
+  scores.other += 0.5;
+  // normalize into probabilities
+  const vals = Object.values(scores).map(v=>Math.max(0,v));
+  const sum = vals.reduce((a,b)=>a+b,0) || 1;
+  const probs = {};
+  let i=0;
+  for(const k of classes){ probs[k] = Math.round((scores[k]/sum)*1000)/1000; i++; }
+  return probs;
+}
+
+/* ----------------- Trainable k-NN classifier (very small) ----------------- */
+let dataset = []; // {label, features}
+let classifier = null; // {k, data}
+btnAddRef.addEventListener('click', async ()=>{
+  const files = refFiles.files;
+  if(!files || files.length===0) return alert('Select audio files first');
+  const label = labelSelect.value;
+  logNotice('Processing reference audio...');
+  for(const f of files){
+    try{
+      const ab = await f.arrayBuffer();
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+      const mix = decoded.numberOfChannels>1 ? mixdown(decoded) : decoded.getChannelData(0);
+      const feats = await extractFeatures(mix, decoded.sampleRate);
+      dataset.push({label, features:feats});
+    }catch(e){ console.error('ref add error', e); }
+  }
+  updateDatasetSummary();
+});
+function updateDatasetSummary(){ const counts = {}; for(const d of dataset) counts[d.label]=(counts[d.label]||0)+1; datasetSummary.textContent = 'Dataset: ' + Object.entries(counts).map(([k,v])=>k+':'+v).join(', '); }
+btnTrain.addEventListener('click', ()=>{ if(dataset.length===0) return alert('No reference data'); classifier = {k: Math.max(1,parseInt(knnK.value||5,10)), data: dataset}; logNotice('k-NN trained (k=' + classifier.k + ')'); });
+
+/* Import model JSON (assumes model JSON contains dataset or classifier) */
+btnImportModel.addEventListener('click', async ()=>{
+  const url = modelUrl.value.trim();
+  if(!url) return alert('Enter model JSON URL');
+  try{
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('Fetch failed ' + r.status);
+    const json = await r.json();
+    if(Array.isArray(json.dataset)){
+      // accept dataset array of {label, features}
+      dataset = dataset.concat(json.dataset);
+      updateDatasetSummary();
+      logNotice('Imported dataset from URL');
+    } else if(json.classifier){ classifier = json.classifier; logNotice('Imported classifier'); }
+    else alert('Unrecognized model JSON format');
+  }catch(e){ console.error(e); alert('Import failed: ' + e.message); }
+});
+
+/* trained classifier prediction */
+function predictTrainedClassifier(feat){
+  if(!classifier || !classifier.data || classifier.data.length===0) return null;
+  const distarr = classifier.data.map(d => ({label:d.label, dist: euclideanDistance(featureToArray(d.features), featureToArray(feat))}));
+  distarr.sort((a,b)=>a.dist-b.dist);
+  const k = Math.min(classifier.k, distarr.length);
+  const votes = {};
+  for(let i=0;i<k;i++) votes[distarr[i].label] = (votes[distarr[i].label]||0) + 1;
+  // convert votes to probability-like normalized scores
+  const total = Object.values(votes).reduce((a,b)=>a+b,0) || 1;
+  const probs = {};
+  for(const l of Object.keys(votes)) probs[l] = Math.round((votes[l]/total)*1000)/1000;
+  return probs;
+}
+function featureToArray(f){
+  // features: dominantHz, amp, echoLagMs
+  return [f.dominantHz||0, f.amp||f.energy||0, f.echoLagMs||0];
+}
+function euclideanDistance(a,b){ let s=0; const L=Math.max(a.length,b.length); for(let i=0;i<L;i++){ const x=a[i]||0, y=b[i]||0; s+=(x-y)*(x-y); } return Math.sqrt(s); }
+
+/* combine heuristic + trained: weighted average */
+function combineProbabilities(heur, trained){
+  const classes = ['gunshot','firework','door-slam','dumpster','construction','other'];
+  const out = {};
+  for(const c of classes){
+    const h = heur[c] || 0;
+    const t = trained && trained[c] ? trained[c] : 0;
+    // weight heuristic 0.6, trained 0.4 (tunable)
+    out[c] = Math.round(((0.6*h) + (0.4*t)) * 1000)/1000;
+  }
+  // normalize
+  const sum = Object.values(out).reduce((a,b)=>a+b,0) || 1;
+  for(const k in out) out[k] = Math.round((out[k]/sum)*1000)/1000;
+  return out;
+}
+
+/* ----------------- Feature extraction helpers ----------------- */
+async function extractFeatures(float32Audio, sr){
+  // compute simple features: energy (RMS), zero-crossing freq (dominant), autocorrelation echo lag
+  const energy = rms(float32Audio);
+  const dominantHz = zeroCrossFreq(float32Audio, sr);
+  const echo = estimateEchoLag(float32Audio, sr);
+  return {dominantHz, energy, echoLagMs: echo};
+}
+function rms(arr){ let s=0; for(let i=0;i<arr.length;i++){ s+=arr[i]*arr[i]; } return Math.sqrt(s/arr.length); }
+function zeroCrossFreq(buf, sr){ let crossings=0; for(let i=1;i<buf.length;i++) if(buf[i-1]<=0 && buf[i]>0) crossings++; const seconds = buf.length/sr; return (crossings/seconds)/2 || 0; }
+function estimateEchoLag(buf, sr){
+  const minLag = Math.floor(0.0005 * sr), maxLag = Math.min(Math.floor(0.02*sr), Math.floor(buf.length/2));
+  let best = {lag:0,val:0};
+  for(let lag=minLag; lag<=maxLag; lag++){
+    let s=0;
+    for(let i=0;i<buf.length-lag;i++) s+=buf[i]*buf[i+lag];
+    if(s>best.val){ best.val=s; best.lag=lag; }
+  }
+  return best.lag ? (best.lag/sr*1000) : 0;
+}
+function mixdown(decoded){ const L = decoded.length, ch = decoded.numberOfChannels; const out = new Float32Array(L); for(let c=0;c<ch;c++){ const d = decoded.getChannelData(c); for(let i=0;i<L;i++) out[i]+=d[i]/ch; } return out; }
+
+/* ----------------- WAV builder (Float32 -> WAV) ----------------- */
+function float32ToWavBlob(float32Array, sampleRate){
+  const len = float32Array.length;
+  const buffer = new ArrayBuffer(44 + len * 2);
+  const view = new DataView(buffer);
+  function writeString(view, offset, string){ for(let i=0;i<string.length;i++) view.setUint8(offset+i, string.charCodeAt(i)); }
+  writeString(view,0,'RIFF'); view.setUint32(4,36 + len*2,true); writeString(view,8,'WAVE');
+  writeString(view,12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  writeString(view,36,'data'); view.setUint32(40,len*2,true);
+  let offset = 44;
+  for(let i=0;i<len;i++){ let s = Math.max(-1,Math.min(1,float32Array[i])); view.setInt16(offset, s<0? s*0x8000 : s*0x7FFF, true); offset+=2; }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+/* ----------------- Map & UI event helpers ----------------- */
+function addEventToMap(e){
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1 }).addTo(shotLayer);
+  const bubble = L.circle([e.lat,e.lon], { radius: e.privacyRadius, color:'#ef4444', fillColor:'rgba(239,68,68,0.12)', weight:2, fillOpacity:0.12 }).addTo(shotLayer);
+  const popup = document.createElement('div'); popup.className='popupRow';
+  popup.innerHTML = `<div style="font-weight:700">Detected</div><div style="font-size:13px;color:#9fb0be">${e.timestamp}</div>`;
+  const playBtn = document.createElement('button'); playBtn.className='playBtn'; playBtn.textContent='Play';
+  popup.appendChild(playBtn);
+  const probDiv = document.createElement('div'); probDiv.style.fontSize='13px'; probDiv.style.color='#9fb0be';
+  probDiv.innerHTML = formatProbs(e.probs);
+  popup.appendChild(probDiv);
+  playBtn.addEventListener('click', async ()=>{
+    playBtn.disabled=true; playBtn.textContent='Playing...';
+    try{
+      const preUrl = URL.createObjectURL(e.preWav);
+      const a1 = new Audio(preUrl); await a1.play(); a1.onended = async ()=>{ URL.revokeObjectURL(preUrl); if(e.postBlob && e.postBlob.size>0){ const postUrl = URL.createObjectURL(e.postBlob); const a2 = new Audio(postUrl); await a2.play(); a2.onended=()=>{ URL.revokeObjectURL(postUrl); playBtn.disabled=false; playBtn.textContent='Play'; }; } else { playBtn.disabled=false; playBtn.textContent='Play'; } };
+    }catch(err){ console.error(err); playBtn.disabled=false; playBtn.textContent='Play'; alert('Playback failed'); }
+  });
+  marker.bindPopup(popup);
+  marker.on('click', ()=> marker.openPopup());
+  setTimeout(()=>{ try{ shotLayer.removeLayer(marker); shotLayer.removeLayer(bubble); }catch(e){} }, 10*60*1000);
+}
+function addEventToLog(e){
+  const row = document.createElement('div'); row.style.padding='8px'; row.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+  row.innerHTML = `<div style="font-weight:700">${e.timestamp}</div><div style="color:#9fb0be">Top: ${topLabel(e.probs)} • Dist: ${e.distanceM? e.distanceM.toFixed(1)+' m':'unknown'}</div>`;
+  row.addEventListener('click', ()=> map.setView([e.lat,e.lon], 15, {animate:true}));
+  logEl.prepend(row);
+}
+
+/* format probabilities into HTML list */
+function formatProbs(probs){
+  if(!probs) return '';
+  const entries = Object.entries(probs).sort((a,b)=>b[1]-a[1]);
+  return entries.map(([k,v])=>`${k}: ${(v*100).toFixed(0)}%`).join(' • ');
+}
+function topLabel(probs){ if(!probs) return 'unknown'; return Object.entries(probs).sort((a,b)=>b[1]-a[1])[0][0]; }
+
+/* ----------------- Basic trained-classifier helpers (dataset storage) ----------------- */
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ----------------- Utility DSP used earlier ----------------- */
+function rms(arr){ let s=0; for(let i=0;i<arr.length;i++) s+=arr[i]*arr[i]; return Math.sqrt(s/arr.length); }
+function zeroCrossFreq(buf, sr){ let crossings=0; for(let i=1;i<buf.length;i++) if(buf[i-1]<=0 && buf[i]>0) crossings++; const seconds = buf.length/sr; return (crossings/seconds)/2 || 0; }
+function estimateEchoLag(buf, sr){
+  const minLag = Math.floor(0.0005*sr), maxLag = Math.min(Math.floor(0.02*sr), Math.floor(buf.length/2));
+  let best={lag:0,val:0};
+  for(let lag=minLag; lag<=maxLag; lag++){ let s=0; for(let i=0;i<buf.length-lag;i++) s += buf[i]*buf[i+lag]; if(s>best.val){best.val=s;best.lag=lag;} }
+  return best.lag? (best.lag/sr*1000) : 0;
+}
+function mixdown(decoded){ const L=decoded.length, ch=decoded.numberOfChannels; const out=new Float32Array(L); for(let c=0;c<ch;c++){ const d=decoded.getChannelData(c); for(let i=0;i<L;i++) out[i]+=d[i]/ch; } return out; }
+
+/* ----------------- Playback and WAV conversion ----------------- */
+function float32ToWavBlob(float32Array, sampleRate){
+  const len = float32Array.length;
+  const buffer = new ArrayBuffer(44 + len * 2);
+  const view = new DataView(buffer);
+  function writeString(view, offset, string){ for(let i=0;i<string.length;i++) view.setUint8(offset+i,string.charCodeAt(i)); }
+  writeString(view,0,'RIFF'); view.setUint32(4,36 + len*2,true); writeString(view,8,'WAVE');
+  writeString(view,12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  writeString(view,36,'data'); view.setUint32(40,len*2,true);
+  let offset=44;
+  for(let i=0;i<len;i++){ let s=Math.max(-1,Math.min(1,float32Array[i])); view.setInt16(offset, s<0? s*0x8000 : s*0x7FFF, true); offset+=2; }
+  return new Blob([view], { type:'audio/wav' });
+}
+
+/* ----------------- Export CSV ----------------- */
+btnExport.addEventListener('click', async ()=>{
+  if(events.length===0) return alert('No events');
+  const includeAudio = confirm('Include audio as base64 in CSV? Large files expected. OK to include audio?');
+  const hdr = ['id,timestamp,lat,lon,dominantHz,amplitude,distanceM,privacyRadius,topLabel'];
+  if(includeAudio){ hdr.push('preWavBase64'); hdr.push('postBlobBase64'); }
+  const rows = [];
+  for(const e of events){
+    let preB64='', postB64='';
+    if(includeAudio){ preB64 = await blobToBase64(e.preWav); postB64 = e.postBlob && e.postBlob.size ? await blobToBase64(e.postBlob) : ''; }
+    rows.push([e.id, e.timestamp, e.lat.toFixed(6), e.lon.toFixed(6), Math.round(e.dominantHz), e.amplitude.toFixed(5), e.distanceM? e.distanceM.toFixed(2):'', e.privacyRadius, topLabel(e.probs), preB64, postB64].join(','));
+  }
+  const csv = [hdr.join(',')].concat(rows).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+async function blobToBase64(blob){ return new Promise(res=>{ const fr = new FileReader(); fr.onload = ()=>res(fr.result.split(',')[1]); fr.readAsDataURL(blob); }); }
+
+/* ----------------- Sync: public & private -----------------
+   - Public sync: POST to serverUrl + /uploadPublic with event metadata (no audio or obfuscated)
+   - Private sync: encrypt payload client-side with per-device AES-GCM, POST to serverUrl + /uploadPrivate
+   Note: server endpoints must be implemented. For privacy, private sync wraps AES key with server public key or server KMS.
+*/
+btnPublicSync.addEventListener('click', async ()=>{
+  const url = serverUrlInput.value.replace(/\/+$/,'');
+  if(!url) return alert('Set server URL');
+  if(events.length===0) return alert('No events to sync');
+  try{
+    for(const e of events){
+      const payload = { id:e.id, timestamp:e.timestamp, lat:e.lat, lon:e.lon, privacyRadius:e.privacyRadius, topLabel:topLabel(e.probs), probs:e.probs };
+      await fetch(url + '/uploadPublic', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    alert('Public sync completed');
+  }catch(err){ console.error(err); alert('Public sync failed: ' + err.message); }
+});
+
+btnPrivateSync.addEventListener('click', async ()=>{
+  const url = serverUrlInput.value.replace(/\/+$/,'');
+  if(!url) return alert('Set server URL');
+  if(events.length===0) return alert('No events to sync');
+  try{
+    // create per-device AES-GCM key and export raw for server-wrapping if needed
+    const key = await ensureDeviceKey();
+    for(const e of events){
+      const payload = { id:e.id, timestamp:e.timestamp, privacyRadius:e.privacyRadius, probs:e.probs, metadata:{ lat:e.lat, lon:e.lon, topLabel: topLabel(e.probs) } };
+      const enc = await encryptWithKey(key, payload);
+      const body = { deviceId: localDeviceId(), ciphertext: enc.ciphertext, iv: enc.iv, alg:'AES-GCM' };
+      await fetch(url + '/uploadPrivate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    }
+    alert('Private sync queued');
+  }catch(err){ console.error(err); alert('Private sync failed: ' + err.message); }
+});
+
+/* ----------------- Client-side key helpers (Web Crypto) ----------------- */
+async function ensureDeviceKey(){
+  const name = 'aesKey:' + localDeviceId();
+  const saved = localStorage.getItem(name);
+  if(saved){
+    try{ const raw = base64ToArrayBuffer(saved); return await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt','decrypt']); }catch(e){ console.warn('key reimport failed',e); }
+  }
+  const key = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
+  const raw = await crypto.subtle.exportKey('raw', key);
+  localStorage.setItem(name, arrayBufferToBase64(raw));
+  return key;
+}
+function localDeviceId(){ let id = localStorage.getItem('deviceId'); if(!id){ id = 'dev-'+uid(); localStorage.setItem('deviceId', id); } return id; }
+function arrayBufferToBase64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function base64ToArrayBuffer(b64){ const bin = atob(b64); const arr = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return arr.buffer; }
+async function encryptWithKey(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc);
+  return { ciphertext: arrayBufferToBase64(ct), iv: arrayBufferToBase64(iv.buffer) };
+}
+
+/* ----------------- Trained model utilities for dataset import/export ----------------- */
+btnExportModel && btnExportModel.addEventListener?.('click', ()=>{}); // placeholder
+
+/* ----------------- Small UI & helper functions ----------------- */
+function drawWaveform(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#02121b'; canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.strokeStyle = '#06b6d4'; canvasCtx.beginPath();
+  const step = Math.max(1, Math.floor(buf.length / w));
+  for(let i=0;i<w;i++){ const v = buf[i*step] || 0; const y = (1 - (v + 1)/2) * h; if(i===0) canvasCtx.moveTo(i,y); else canvasCtx.lineTo(i,y); }
+  canvasCtx.stroke();
+}
+function logNotice(s){ const el = document.createElement('div'); el.style.padding='6px'; el.style.borderBottom='1px solid rgba(255,255,255,0.02)'; el.textContent = new Date().toLocaleTimeString() + ' — ' + s; logEl.prepend(el); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+
+/* ----------------- Reference audio feature extraction (for training) ----------------- */
+async function extractFeatures(float32Audio, sr){ return { dominantHz: zeroCrossFreq(float32Audio, sr), energy: rms(float32Audio), echoLagMs: estimateEchoLag(float32Audio, sr) }; }
+async function processReferenceFile(file){
+  const ab = await file.arrayBuffer();
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+  const mix = decoded.numberOfChannels>1 ? mixdown(decoded) : decoded.getChannelData(0);
+  const feats = await extractFeatures(mix, decoded.sampleRate);
+  return feats;
+}
+
+/* refFiles are 'hidden' input; attach change event to show filenames and allow add */
+refFiles.addEventListener('change', ()=>{ /* file selection shown via OS */ });
+
+/* handler for Add ref button */
+btnAddRef.addEventListener('click', async ()=>{
+  const files = refFiles.files;
+  if(!files || files.length===0) return alert('Select files using the file input control first');
+  const label = labelSelect.value;
+  for(const f of files){
+    try{
+      const feats = await processReferenceFile(f);
+      dataset.push({ label, features: feats });
+    }catch(e){ console.error('ref processing failed', e); }
+  }
+  updateDatasetSummary();
+  logNotice('Added reference audio (' + files.length + ') as ' + label);
+});
+
+/* ----------------- trivial trained prediction pipeline implemented earlier ----------------- */
+function predictTrainedClassifier(feat){
+  if(!classifier || !classifier.data) return null;
+  const dist = classifier.data.map(d => ({ label: d.label, dist: euclideanDistance([d.features.dominantHz, d.features.energy, d.features.echoLagMs], [feat.dominantHz, feat.energy||feat.amp||0, feat.echoLagMs]) }));
+  dist.sort((a,b)=>a.dist-b.dist);
+  const k = Math.min(classifier.k, dist.length);
+  const votes = {};
+  for(let i=0;i<k;i++) votes[dist[i].label] = (votes[dist[i].label]||0)+1;
+  const total = Object.values(votes).reduce((a,b)=>a+b,0) || 1;
+  const probs = {}; for(const l in votes) probs[l] = Math.round((votes[l]/total)*1000)/1000;
+  return probs;
+}
+
+/* ----------------- utility math ----------------- */
+function euclideanDistance(a,b){ let s=0; const L = Math.max(a.length,b.length); for(let i=0;i<L;i++){ const x=a[i]||0,y=b[i]||0; s+=(x-y)*(x-y); } return Math.sqrt(s); }
+
+/* ----------------- start/initialize ----------------- */
+(function init(){
+  // prefill server URL from localStorage
+  const sv = localStorage.getItem('serverUrl'); if(sv) serverUrlInput.value = sv;
+  serverUrlInput.addEventListener('change', ()=>localStorage.setItem('serverUrl', serverUrlInput.value));
+  updateDatasetSummary();
+  // try coarse geolocation
+  if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p=> map.setView([p.coords.latitude, p.coords.longitude], 13), ()=>{}, {maximumAge:60000, timeout:3000});
+})();
+</script>
+</body>
+</html>

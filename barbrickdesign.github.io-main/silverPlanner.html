@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Silver Flip Planner — Projected Roadmap (Stable)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* Clean, non-sticky layout */
+  body { font-family: system-ui, sans-serif; margin: 1rem; background:#0b0f14; color:#e7edf7; }
+  h1 { font-size: 1.25rem; margin-bottom: 0.75rem; }
+  .card { background:#141a22; border:1px solid #2a3340; border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  label { display:block; margin:0.5rem 0 0.25rem; font-weight:600; color:#90a4b8; }
+  input, button { width:100%; padding:0.6rem; border-radius:8px; border:1px solid #2a3340; background:#0f141b; color:#e7edf7; }
+  button { background:#17202b; font-weight:700; margin-top:0.5rem; }
+  .muted { color:#90a4b8; }
+  .pos { color:#7effa1; font-weight:700; }
+  .neg { color:#ff6b7a; font-weight:700; }
+
+  /* Tables scroll horizontally on small screens */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; margin-top: 0.5rem; font-size: 0.9rem; }
+  th, td { border:1px solid #2a3340; padding:0.5rem; text-align:right; white-space:nowrap; }
+  th { background:#17202b; color:#90a4b8; }
+  td:first-child, th:first-child { text-align:left; }
+
+  /* Charts */
+  canvas { width:100% !important; max-height:300px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Silver Flip Planner</h1>
+  <p class="muted">Project the entire roadmap from your current bankroll. No sticky headers, fully responsive, with two charts.</p>
+  <label for="bankroll">Current bankroll ($)</label>
+  <input id="bankroll" type="number" value="300" />
+  <label for="target">Annual profit goal ($)</label>
+  <input id="target" type="number" value="20000" />
+  <label for="spotOz">Spot price ($/oz)</label>
+  <input id="spotOz" type="number" value="58.00" />
+  <label for="resaleOz">Resale price ($/oz)</label>
+  <input id="resaleOz" type="number" value="65.00" />
+  <label for="buyPct">Buy ceiling (% of spot per pure gram)</label>
+  <input id="buyPct" type="number" value="75" />
+  <label for="processPerG">Processing ($/g pure)</label>
+  <input id="processPerG" type="number" value="0.10" />
+  <label for="feePct">Fees (% of revenue)</label>
+  <input id="feePct" type="number" value="15" />
+  <label for="turnoverDays">Turnover days per flip</label>
+  <input id="turnoverDays" type="number" value="7" />
+  <button id="runBtn">Run roadmap</button>
+  <div id="summary" class="muted"></div>
+</div>
+
+<div class="card">
+  <h2>Guided step (next flip)</h2>
+  <div id="guidedStep"></div>
+</div>
+
+<div class="card">
+  <h2>Projected roadmap (full path)</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Flip</th>
+          <th>Bankroll start</th>
+          <th>Target listing g (.925)</th>
+          <th>Max bid</th>
+          <th>Processing</th>
+          <th>Revenue (after fees)</th>
+          <th>Profit</th>
+          <th>Bankroll end</th>
+          <th>Day</th>
+        </tr>
+      </thead>
+      <tbody id="roadmapBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Growth graph (bankroll vs days)</h2>
+  <canvas id="growthChart"></canvas>
+</div>
+
+<div class="card">
+  <h2>Cumulative profit graph (vs goal)</h2>
+  <canvas id="profitChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  const gramsPerOz = 31.1035;
+  const purity = 0.925;
+
+  function fmt(n, dp=2){ return Number(n||0).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+
+  // Core simulation: projects forward from current bankroll using discipline inputs
+  function simulate(bankroll0, targetProfit, spotOz, resaleOz, buyPct, processPerG, feePct, turnoverDays){
+    const spotPerG = spotOz / gramsPerOz;
+    const resalePerG = resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * (buyPct / 100);
+    const revenuePerGAfterFees = resalePerG * (1 - feePct / 100);
+    const costPerG = buyCeilPerG + processPerG;
+    const profitPerG = revenuePerGAfterFees - costPerG;
+
+    if (profitPerG <= 0 || costPerG <= 0) {
+      return { rows: [], reached: false, cumulative: 0, bankrollEnd: bankroll0 };
+    }
+
+    let rows = [];
+    let day = 0;
+    let flip = 0;
+    let bankroll = bankroll0;
+    let cumulativeProfit = 0;
+
+    // Cap flips to keep table reasonable, extendable if needed
+    const maxFlips = 200;
+    const maxDays = 365;
+
+    while (day < maxDays && flip < maxFlips && cumulativeProfit < targetProfit && bankroll < targetProfit) {
+      flip++;
+      const pureGrams = bankroll / costPerG;
+      const listingGrams = pureGrams / purity;
+      const maxBid = pureGrams * buyCeilPerG;
+      const processingBudget = pureGrams * processPerG;
+      const revenue = pureGrams * revenuePerGAfterFees;
+      const profit = revenue - (maxBid + processingBudget);
+
+      cumulativeProfit += profit;
+      bankroll += profit;
+      day += turnoverDays;
+
+      rows.push({
+        flip,
+        bankrollStart: bankroll - profit,
+        listingGrams,
+        maxBid,
+        processingBudget,
+        revenue,
+        profit,
+        bankrollEnd: bankroll,
+        day
+      });
+    }
+
+    const reached = (cumulativeProfit >= targetProfit) || (bankroll >= targetProfit);
+    return { rows, reached, cumulative: cumulativeProfit, bankrollEnd: bankroll };
+  }
+
+  let chart1 = null, chart2 = null;
+
+  function render(){
+    const b = parseFloat(document.getElementById('bankroll').value);
+    const t = parseFloat(document.getElementById('target').value);
+    const s = parseFloat(document.getElementById('spotOz').value);
+    const r = parseFloat(document.getElementById('resaleOz').value);
+    const bp = parseFloat(document.getElementById('buyPct').value);
+    const p = parseFloat(document.getElementById('processPerG').value);
+    const f = parseFloat(document.getElementById('feePct').value);
+    const d = parseFloat(document.getElementById('turnoverDays').value);
+
+    const sim = simulate(b, t, s, r, bp, p, f, d);
+
+    // Summary
+    const summaryEl = document.getElementById('summary');
+    if (sim.rows.length === 0) {
+      summaryEl.innerHTML = '<span class="neg">Unit economics are negative. Raise resale, lower buy %, or reduce processing/fees.</span>';
+    } else {
+      summaryEl.innerHTML = sim.reached
+        ? `<span class="pos">Target reachable. Flips: ${sim.rows.length}. Bankroll end: $${fmt(sim.bankrollEnd)}. Cumulative profit: $${fmt(sim.cumulative)}.</span>`
+        : `<span class="muted">Target not reached in 365 days. Flips: ${sim.rows.length}. Bankroll end: $${fmt(sim.bankrollEnd)}. Cumulative profit: $${fmt(sim.cumulative)}.</span>`;
+    }
+
+    // Guided step
+    const guidedEl = document.getElementById('guidedStep');
+    if (sim.rows.length) {
+      const n = sim.rows[0];
+      guidedEl.innerHTML = `
+        <p>
+          <strong>Flip ${n.flip}</strong> (Day ${n.day - d} → ${n.day})<br>
+          Target listing grams: ${fmt(n.listingGrams)} g (.925) ≈ pure ${fmt(n.listingGrams * purity)} g<br>
+          Max bid: $${fmt(n.maxBid)} &nbsp; | &nbsp; Processing budget: $${fmt(n.processingBudget)}<br>
+          Expected revenue (after fees): $${fmt(n.revenue)} &nbsp; | &nbsp; Expected profit: <span class="${n.profit>=0?'pos':'neg'}">$${fmt(n.profit)}</span>
+        </p>
+      `;
+    } else {
+      guidedEl.innerHTML = '<p class="muted">No next step — adjust inputs to get positive profit per gram.</p>';
+    }
+
+    // Roadmap table
+    const tbody = document.getElementById('roadmapBody');
+    tbody.innerHTML = sim.rows.map(r => `
+      <tr>
+        <td>${r.flip}</td>
+        <td>$${fmt(r.bankrollStart)}</td>
+        <td>${fmt(r.listingGrams)}</td>
+        <td>$${fmt(r.maxBid)}</td>
+        <td>$${fmt(r.processingBudget)}</td>
+        <td>$${fmt(r.revenue)}</td>
+        <td class="${r.profit>=0?'pos':'neg'}">$${fmt(r.profit)}</td>
+        <td>$${fmt(r.bankrollEnd)}</td>
+        <td>${r.day}</td>
+      </tr>
+    `).join('');
+
+    // Charts
+    const labels = sim.rows.map(r => r.day);
+    const bankrollData = sim.rows.map(r => r.bankrollEnd);
+    const cumulativeData = sim.rows.reduce((acc, r, i) => {
+      const prev = i ? acc[i-1] : 0;
+      acc.push(prev + r.profit);
+      return acc;
+    }, []);
+
+    const ctx1 = document.getElementById('growthChart').getContext('2d');
+    const ctx2 = document.getElementById('profitChart').getContext('2d');
+    if (chart1) chart1.destroy();
+    if (chart2) chart2.destroy();
+
+    chart1 = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Bankroll', data: bankrollData, borderColor: '#4bd5ff', fill: false },
+          { label: 'Target', data: labels.map(() => t), borderColor: '#ff6b7a', borderDash: [5,5], fill: false }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#e7edf7' } } },
+        scales: { x: { ticks: { color: '#e7edf7' } }, y: { ticks: { color: '#e7edf7' } } }
+      }
+    });
+
+    chart2 = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Cumulative profit', data: cumulativeData, borderColor: '#7effa1', fill: false },
+          { label: 'Target', data: labels.map(() => t), borderColor: '#ff6b7a', borderDash: [5,5], fill: false }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#e7edf7' } } },
+        scales: { x: { ticks: { color: '#e7edf7' } }, y: { ticks: { color: '#e7edf7' } } }
+      }
+    });
+  }
+
+  // Bind and initialize
+  document.getElementById('runBtn').addEventListener('click', render);
+  // Auto-run on load with defaults so you immediately see the roadmap
+  window.addEventListener('load', render);
+})();
+</script>
+</body>
+</html>
