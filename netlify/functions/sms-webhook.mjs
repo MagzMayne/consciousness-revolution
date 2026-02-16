@@ -1,14 +1,22 @@
 // SMS Webhook - Receives inbound Twilio SMS and routes to Cyclotron
 // POST from Twilio: Form data with From, Body, MessageSid
 // Stores bugs in Supabase and can trigger notifications
+// Updated: 2026-02-16 - Added zero trust security controls
 
 import { createClient } from "@supabase/supabase-js";
+import {
+    getSecureCORSHeaders,
+    anonymizeIP,
+    secureLog,
+    sanitizeString
+} from './utils/security.mjs';
 
-// Supabase config
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://lgibygzcbvrrykfaxvbg.supabase.co";
+// Supabase config - Use environment variables only, never hardcode
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Known team phone numbers (for priority routing)
+// Note: In production, store these in environment variables or database
 const TEAM_NUMBERS = {
   "+15094968855": { name: "Commander", priority: "critical" },
   "+14256289888": { name: "Maggie", priority: "high" },
@@ -18,10 +26,12 @@ const TEAM_NUMBERS = {
 };
 
 export const handler = async (event, context) => {
+  const origin = event.headers.origin || event.headers.Origin || '';
+
   // TwiML response header
   const headers = {
     "Content-Type": "text/xml",
-    "Access-Control-Allow-Origin": "*"
+    ...getSecureCORSHeaders(origin)
   };
 
   // Handle GET (webhook verification)
@@ -57,8 +67,11 @@ export const handler = async (event, context) => {
       };
     }
 
+    // Sanitize message body to prevent injection attacks
+    const sanitizedBody = sanitizeString(body, 1000);
+
     // Detect message type
-    const lowerBody = body.toLowerCase();
+    const lowerBody = sanitizedBody.toLowerCase();
     let messageType = "general";
     let priority = "normal";
 
@@ -82,22 +95,24 @@ export const handler = async (event, context) => {
       }
     }
 
-    // Build record
+    // Build record - anonymize phone number for storage
+    const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
     const record = {
-      from_number: from,
-      message: body,
+      from_number: from, // Keep phone number for routing, but ensure RLS protects it
+      message: sanitizedBody,
       message_sid: messageSid,
       message_type: messageType,
       priority: priority,
       has_media: numMedia > 0,
       sender_name: teamMember?.name || "Unknown",
       processed: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      ip_address: anonymizeIP(clientIP)
     };
 
     // Store in Supabase if available
     let stored = false;
-    if (SUPABASE_KEY) {
+    if (SUPABASE_URL && SUPABASE_KEY) {
       try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const { data, error } = await supabase
@@ -107,10 +122,10 @@ export const handler = async (event, context) => {
         if (!error) {
           stored = true;
         } else {
-          console.error("Supabase error:", error);
+          secureLog("Supabase error", { error: error.message });
         }
       } catch (e) {
-        console.error("Supabase connection error:", e.message);
+        secureLog("Supabase connection error", { error: e.message });
       }
     }
 
@@ -128,13 +143,13 @@ export const handler = async (event, context) => {
       responseMessage = "Message received! Thanks for reaching out.";
     }
 
-    // Log for debugging
-    console.log("SMS received:", {
-      from,
+    // Log for debugging (redacted)
+    secureLog("SMS received", {
+      from: teamMember?.name || "Unknown",
       type: messageType,
       priority,
       stored,
-      preview: body.substring(0, 50)
+      preview: sanitizedBody.substring(0, 50)
     });
 
     // TwiML response
@@ -147,7 +162,7 @@ export const handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error("SMS webhook error:", error);
+    secureLog("SMS webhook error", { error: error.message });
 
     return {
       statusCode: 500,

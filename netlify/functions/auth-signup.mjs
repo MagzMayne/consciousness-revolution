@@ -1,8 +1,19 @@
 // Auth Signup Function
 // Creates new user via Supabase Auth with optional foundation record
 // Created: 2026-01-10
+// Updated: 2026-02-16 - Added zero trust security controls
 
 import { createClient } from '@supabase/supabase-js';
+import {
+    getSecureCORSHeaders,
+    handlePreflight,
+    checkRateLimit,
+    validateInput,
+    anonymizeIP,
+    secureLog,
+    successResponse,
+    errorResponse
+} from './utils/security.mjs';
 
 function getSupabaseAdmin() {
     const url = process.env.SUPABASE_URL;
@@ -17,90 +28,98 @@ function getSupabaseAdmin() {
 }
 
 export async function handler(event, context) {
-    // CORS headers
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Content-Type': 'application/json'
-    };
+    const origin = event.headers.origin || event.headers.Origin || '';
 
     // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 204, headers };
+        return handlePreflight(origin);
     }
 
     // Only accept POST
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ error: 'Method not allowed' })
-        };
+        return errorResponse('Method not allowed', origin, 405);
+    }
+
+    // Rate limiting - 5 signup attempts per hour per IP
+    const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
+    const rateLimitCheck = checkRateLimit(`signup_${anonymizeIP(clientIP)}`, 5, 3600000);
+    
+    if (!rateLimitCheck.allowed) {
+        secureLog('Signup rate limit exceeded', { ip: anonymizeIP(clientIP) });
+        return errorResponse(
+            'Too many signup attempts. Please try again later.',
+            origin,
+            429
+        );
     }
 
     try {
         const { email, password, full_name } = JSON.parse(event.body || '{}');
 
-        // Validate required fields
-        if (!email || !password) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Email and password required' })
-            };
-        }
+        // Input validation using security utility
+        const validation = validateInput({ email, password, full_name }, {
+            email: {
+                type: 'email',
+                required: true
+            },
+            password: {
+                type: 'string',
+                required: true,
+                minLength: 8,
+                maxLength: 128,
+                validator: (pwd) => {
+                    // Require at least one number and one letter
+                    if (!/\d/.test(pwd) || !/[a-zA-Z]/.test(pwd)) {
+                        return 'Password must contain at least one letter and one number';
+                    }
+                    return null;
+                }
+            },
+            full_name: {
+                type: 'string',
+                required: false,
+                maxLength: 100
+            }
+        });
 
-        // Validate password strength
-        if (password.length < 8) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Password must be at least 8 characters' })
-            };
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'Invalid email format' })
-            };
+        if (!validation.valid) {
+            return errorResponse(validation.errors.join(', '), origin, 400);
         }
 
         const supabase = getSupabaseAdmin();
 
         // Create user via Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: email.toLowerCase().trim(),
-            password,
+            email: validation.sanitized.email,
+            password: validation.sanitized.password,
             email_confirm: true, // Auto-confirm for beta
             user_metadata: {
-                full_name: full_name || '',
+                full_name: validation.sanitized.full_name || '',
                 signup_source: 'beta_form',
                 signup_date: new Date().toISOString()
             }
         });
 
         if (authError) {
-            console.error('Auth error:', authError.message);
+            secureLog('Auth error during signup', { 
+                error: authError.message,
+                email: validation.sanitized.email 
+            });
 
             // Handle specific errors
             if (authError.message.includes('already registered')) {
-                return {
-                    statusCode: 409,
-                    headers,
-                    body: JSON.stringify({ error: 'Email already registered. Please login instead.' })
-                };
+                return errorResponse(
+                    'Email already registered. Please login instead.',
+                    origin,
+                    409
+                );
             }
 
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: authError.message || 'Signup failed' })
-            };
+            return errorResponse(
+                authError.message || 'Signup failed',
+                origin,
+                400
+            );
         }
 
         // Create foundation record for the user
@@ -109,8 +128,8 @@ export async function handler(event, context) {
                 .from('user_foundations')
                 .insert({
                     user_id: authData.user.id,
-                    email: email.toLowerCase().trim(),
-                    full_name: full_name || '',
+                    email: validation.sanitized.email,
+                    full_name: validation.sanitized.full_name || '',
                     consciousness_level: 0.5,
                     manipulation_immunity: 0.3,
                     truth_recognition: 0.3,
@@ -120,7 +139,7 @@ export async function handler(event, context) {
                 });
 
             if (foundationError) {
-                console.warn('Foundation creation warning:', foundationError.message);
+                secureLog('Foundation creation warning', { error: foundationError.message });
                 // Non-blocking - foundation can be created later
             }
 
@@ -134,29 +153,41 @@ export async function handler(event, context) {
                 });
 
             if (networkError) {
-                console.warn('Network status creation warning:', networkError.message);
+                secureLog('Network status creation warning', { error: networkError.message });
             }
+
+            // Log successful signup in audit log
+            await supabase.from('audit_log').insert({
+                foundation_id: authData.user.id,
+                event_type: 'user_signup',
+                event_category: 'auth',
+                action: 'create',
+                ip_address: clientIP,
+                metadata: {
+                    signup_source: 'beta_form',
+                    tier: 'beta'
+                }
+            }).catch(err => {
+                // Non-blocking if audit log fails
+                secureLog('Audit log warning', { error: err.message });
+            });
         }
 
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                message: 'Account created successfully!',
-                user: {
-                    id: authData.user.id,
-                    email: authData.user.email
-                }
-            })
-        };
+        secureLog('Successful signup', { 
+            userId: authData.user.id,
+            email: validation.sanitized.email
+        });
+
+        return successResponse({
+            message: 'Account created successfully!',
+            user: {
+                id: authData.user.id,
+                email: authData.user.email
+            }
+        }, origin, 200);
 
     } catch (error) {
-        console.error('Signup error:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Server error. Please try again.' })
-        };
+        secureLog('Signup error', { error: error.message });
+        return errorResponse('Server error. Please try again.', origin, 500);
     }
 }
