@@ -121,29 +121,73 @@
      * Discover all HTML pages in the repository
      */
     async function discoverPages() {
+        console.log('🔍 Starting page discovery...');
+        
         try {
             // Fetch the site map or parse navigation
             const response = await fetch('/SITE_MAP.md');
+            console.log(`📡 SITE_MAP.md fetch status: ${response.status}`);
+            
             if (response.ok) {
                 const text = await response.text();
-                // Parse markdown links
-                const links = text.match(/\[.*?\]\((.*?\.html)\)/g);
-                if (links) {
+                console.log(`📝 SITE_MAP.md loaded (${text.length} chars)`);
+                
+                // Parse markdown links - improved regex to capture all HTML links
+                // Matches both [text](file.html) and [text](/path/to/file.html)
+                const linkRegex = /\[.*?\]\(([^\)]*\.html[^\)]*)\)/g;
+                const links = text.match(linkRegex);
+                
+                if (links && links.length > 0) {
+                    console.log(`🔗 Found ${links.length} markdown links`);
+                    
                     brain.allPages = links.map(link => {
-                        const match = link.match(/\((.*?)\)/);
-                        return match ? match[1] : null;
+                        // Extract URL from markdown link [text](url)
+                        const match = link.match(/\(([^\)]+)\)/);
+                        if (match) {
+                            let url = match[1].trim();
+                            // Remove any anchor links
+                            url = url.split('#')[0];
+                            // Remove any query parameters
+                            url = url.split('?')[0];
+                            return url;
+                        }
+                        return null;
                     }).filter(Boolean);
+                    
+                    // Remove duplicates
+                    brain.allPages = [...new Set(brain.allPages)];
+                    
+                    console.log(`✅ Parsed ${brain.allPages.length} unique pages from SITE_MAP.md`);
+                } else {
+                    console.warn('⚠️ No HTML links found in SITE_MAP.md');
                 }
+            } else {
+                console.error(`❌ Failed to fetch SITE_MAP.md: ${response.status} ${response.statusText}`);
             }
         } catch (e) {
-            // Fallback: scan for links on current page
-            scanPageForLinks();
+            console.error('❌ Error fetching SITE_MAP.md:', e);
         }
 
         // Always scan current page for additional links
+        console.log('🔍 Scanning current page for additional links...');
         scanPageForLinks();
         
-        console.log(`📄 Discovered ${brain.allPages.length} pages`);
+        // Ensure we have at least some pages
+        if (brain.allPages.length === 0) {
+            console.warn('⚠️ No pages discovered! Adding fallback pages...');
+            // Add common pages as fallback
+            brain.allPages = [
+                '/index.html',
+                '/araya-chat.html',
+                '/START_HERE.html',
+                '/login.html',
+                '/signup.html',
+                '/consciousness-tools.html',
+                '/seven-domains.html'
+            ];
+        }
+        
+        console.log(`📄 Total discovered: ${brain.allPages.length} pages`);
     }
 
     /**
@@ -170,14 +214,20 @@
         
         // Update user profile
         brain.userProfile.totalVisits++;
-        brain.userProfile.explorationScore = 
-            (brain.visitedPages.size / brain.allPages.length) * 100;
+        
+        // Calculate exploration score (avoid division by zero)
+        if (brain.allPages.length > 0) {
+            brain.userProfile.explorationScore = 
+                (brain.visitedPages.size / brain.allPages.length) * 100;
+        } else {
+            brain.userProfile.explorationScore = 0;
+        }
         
         // Save memory
         saveMemory();
         
         console.log(`📍 Page visit tracked: ${currentPath}`);
-        console.log(`🎯 Exploration: ${brain.userProfile.explorationScore.toFixed(1)}%`);
+        console.log(`🎯 Exploration: ${brain.visitedPages.size} of ${brain.allPages.length} pages (${brain.userProfile.explorationScore.toFixed(1)}%)`);
     }
 
     /**
@@ -2506,9 +2556,11 @@
      */
     function saveMemory() {
         try {
+            const visitedPagesArray = Array.from(brain.visitedPages);
+            
             localStorage.setItem(
                 STORAGE_KEYS.visitedPages, 
-                JSON.stringify(Array.from(brain.visitedPages))
+                JSON.stringify(visitedPagesArray)
             );
             localStorage.setItem(
                 STORAGE_KEYS.userProfile, 
@@ -2521,8 +2573,12 @@
                     currentTourStep: brain.currentTourStep
                 })
             );
+            
+            console.log(`💾 Memory saved: ${visitedPagesArray.length} visited pages, ${brain.userProfile.totalVisits} total visits`);
         } catch (e) {
-            console.warn('Failed to save robot memory:', e);
+            console.error('❌ Failed to save robot memory:', e);
+            console.error('   Visited pages:', brain.visitedPages.size);
+            console.error('   Storage available:', typeof localStorage !== 'undefined');
         }
     }
 
@@ -2531,18 +2587,26 @@
      */
     function loadMemory() {
         try {
+            console.log('🔄 Loading robot memory...');
+            
             // Load visited pages
             const visitedPages = localStorage.getItem(STORAGE_KEYS.visitedPages);
             if (visitedPages) {
-                brain.visitedPages = new Set(JSON.parse(visitedPages));
+                const parsed = JSON.parse(visitedPages);
+                brain.visitedPages = new Set(parsed);
+                console.log(`   ✓ Loaded ${brain.visitedPages.size} visited pages`);
+            } else {
+                console.log('   ℹ️ No visited pages in memory (first visit)');
             }
             
             // Load user profile
             const userProfile = localStorage.getItem(STORAGE_KEYS.userProfile);
             if (userProfile) {
                 brain.userProfile = { ...brain.userProfile, ...JSON.parse(userProfile) };
+                console.log(`   ✓ Loaded user profile (${brain.userProfile.totalVisits} visits)`);
             } else {
                 brain.userProfile.firstVisit = Date.now();
+                console.log('   ℹ️ No user profile found, created new profile');
             }
             
             // Load tour progress
@@ -2551,9 +2615,26 @@
                 const progress = JSON.parse(tourProgress);
                 brain.tourMode = progress.tourMode || false;
                 brain.currentTourStep = progress.currentTourStep || 0;
+                console.log(`   ✓ Loaded tour progress (mode: ${brain.tourMode}, step: ${brain.currentTourStep})`);
             }
+            
+            console.log('✅ Memory loaded successfully');
         } catch (e) {
-            console.warn('Failed to load robot memory:', e);
+            console.error('❌ Failed to load robot memory:', e);
+            console.error('   This may indicate corrupted localStorage data');
+            
+            // Reset to defaults on error
+            brain.visitedPages = new Set();
+            brain.userProfile = {
+                firstVisit: Date.now(),
+                totalVisits: 0,
+                explorationScore: 0,
+                preferences: {}
+            };
+            brain.tourMode = false;
+            brain.currentTourStep = 0;
+            
+            console.log('   ℹ️ Reset to default state');
         }
     }
 
