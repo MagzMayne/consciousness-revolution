@@ -13,6 +13,90 @@ function getSupabase() {
     return null;
 }
 
+// Update ARAYA subscription status in user profile
+async function updateArayaSubscriptionStatus(email, status, subscriptionId = null, customerId = null) {
+    const supabase = getSupabase();
+    if (!supabase || !email) {
+        console.log('Cannot update ARAYA status - missing Supabase or email');
+        return null;
+    }
+
+    try {
+        // First check if profile exists
+        const { data: existingProfile } = await supabase
+            .from('araya_profiles')
+            .select('id, email')
+            .eq('email', email.toLowerCase())
+            .single();
+
+        const updateData = {
+            subscription_status: status,
+            subscription_updated_at: new Date().toISOString()
+        };
+
+        if (subscriptionId) {
+            updateData.stripe_subscription_id = subscriptionId;
+        }
+        if (customerId) {
+            updateData.stripe_customer_id = customerId;
+        }
+
+        if (existingProfile) {
+            // Update existing profile
+            const { data, error } = await supabase
+                .from('araya_profiles')
+                .update(updateData)
+                .eq('email', email.toLowerCase())
+                .select();
+
+            if (error) throw error;
+            console.log('Updated ARAYA profile subscription status:', email, status);
+            return data;
+        } else {
+            // Create new profile with subscription
+            const { data, error } = await supabase
+                .from('araya_profiles')
+                .insert({
+                    email: email.toLowerCase(),
+                    ...updateData,
+                    created_at: new Date().toISOString()
+                })
+                .select();
+
+            if (error) throw error;
+            console.log('Created ARAYA profile with subscription:', email, status);
+            return data;
+        }
+    } catch (error) {
+        console.error('Failed to update ARAYA subscription status:', error);
+        return null;
+    }
+}
+
+// ARAYA product ID for subscription matching
+const ARAYA_PRODUCT_ID = 'prod_TjA91iP5kaKFrV';
+
+// Check if subscription contains ARAYA product
+function subscriptionContainsAraya(subscription) {
+    if (!subscription.items?.data) return false;
+    return subscription.items.data.some(item =>
+        item.price?.product === ARAYA_PRODUCT_ID ||
+        item.plan?.product === ARAYA_PRODUCT_ID
+    );
+}
+
+// Get customer email from Stripe customer ID
+async function getCustomerEmail(customerId) {
+    if (!customerId) return null;
+    try {
+        const customer = await stripe.customers.retrieve(customerId);
+        return customer.email;
+    } catch (error) {
+        console.error('Failed to retrieve customer:', error);
+        return null;
+    }
+}
+
 // Record contribution to network (non-blocking)
 async function recordContribution(foundationId, type, metadata = {}) {
     if (!foundationId) return null;
@@ -137,18 +221,60 @@ export async function handler(event, context) {
         case 'customer.subscription.created': {
             const subscription = stripeEvent.data.object;
             console.log('Subscription created:', subscription.id);
+
+            // Check if this is an ARAYA subscription
+            if (subscriptionContainsAraya(subscription)) {
+                const email = await getCustomerEmail(subscription.customer);
+                if (email) {
+                    await updateArayaSubscriptionStatus(
+                        email,
+                        subscription.status, // 'active', 'trialing', etc.
+                        subscription.id,
+                        subscription.customer
+                    );
+                    console.log('ARAYA subscription activated for:', email);
+                }
+            }
             break;
         }
 
         case 'customer.subscription.updated': {
             const subscription = stripeEvent.data.object;
             console.log('Subscription updated:', subscription.id, 'Status:', subscription.status);
+
+            // Sync ARAYA subscription status changes
+            if (subscriptionContainsAraya(subscription)) {
+                const email = await getCustomerEmail(subscription.customer);
+                if (email) {
+                    await updateArayaSubscriptionStatus(
+                        email,
+                        subscription.status, // 'active', 'past_due', 'canceled', etc.
+                        subscription.id,
+                        subscription.customer
+                    );
+                    console.log('ARAYA subscription status synced:', email, subscription.status);
+                }
+            }
             break;
         }
 
         case 'customer.subscription.deleted': {
             const subscription = stripeEvent.data.object;
             console.log('Subscription cancelled:', subscription.id);
+
+            // Mark ARAYA subscription as canceled
+            if (subscriptionContainsAraya(subscription)) {
+                const email = await getCustomerEmail(subscription.customer);
+                if (email) {
+                    await updateArayaSubscriptionStatus(
+                        email,
+                        'canceled',
+                        subscription.id,
+                        subscription.customer
+                    );
+                    console.log('ARAYA subscription canceled for:', email);
+                }
+            }
             break;
         }
 
