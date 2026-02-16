@@ -2418,6 +2418,118 @@
     }
     
     /**
+     * Page descriptions map for enhanced link descriptions
+     * Maps page paths to detailed descriptions of what users can do there
+     */
+    const pageDescriptions = {
+        // Consciousness Tools & Pattern Detection
+        'consciousness-tools.html': 'where you can find powerful tools to detect manipulation patterns, train your awareness, analyze conversations, check reality vs. deception, and elevate your consciousness with interactive games and assessments',
+        'CONSCIOUSNESS_TRAINER.html': 'where you can play an interactive game to train your pattern recognition skills and level up your consciousness through practice scenarios',
+        'REALITY_CHECK.html': 'where you can instantly analyze any message, ad, or claim for truth vs. deception with actionable tips and evidence-based validation',
+        'MANIPULATION_IMMUNITY_TRACKER.html': 'where you can train and track your manipulation immunity score, practice defense scenarios, build streaks, and achieve true immunity',
+        'PATTERN_LIBRARY.html': 'where you can browse and learn all manipulation patterns with detailed examples, real-world scenarios, and effective counters',
+        'CONVERSATION_ANALYZER.html': 'where you can analyze one-on-one conversations for manipulation patterns, power dynamics, and get suggested responses to protect yourself',
+        'INFLUENCE_DETECTOR.html': 'where you can detect psychological influence tactics in ads, marketing, sales pitches, and mass communications',
+        'GASLIGHTING_DETECTOR.html': 'where you can identify gaslighting patterns in conversations and relationships with detailed analysis and protection strategies',
+        'LOVE_BOMBING_DETECTOR.html': 'where you can recognize excessive flattery and rapid intimacy building tactics used to manipulate emotions',
+        'GOAL_ALIGNMENT_CHECK.html': 'where you can verify your goals align with consciousness principles and check your motivation and reality factors',
+        'BELIEF_CHECKER.html': 'where you can examine if your beliefs are evidence-based or assumption-based and build epistemic hygiene',
+        'TIMELINE_PROJECTOR.html': 'where you can visualize decision outcomes and see best case, worst case, and most likely futures for any choice',
+        'DECISION_MATRIX.html': 'where you can use a weighted comparison tool for objective decision making and compare options against criteria',
+        'DAILY_CONSCIOUSNESS_CHECK.html': 'where you can do a quick daily assessment to track your consciousness state, build streaks, and monitor progress',
+        
+        // Seven Domains System
+        'SEVEN_DOMAINS_DASHBOARD.html': 'where you can access your command center for all seven consciousness domains (Command, Creation, Connection, Peace, Abundance, Wisdom, Purpose) and monitor your entire life',
+        'seven-domains.html': 'where you can learn about the Seven Domains framework that helps you organize and optimize every aspect of your life across Command, Creation, Connection, Peace, Abundance, Wisdom, and Purpose',
+        
+        // ARAYA AI System
+        'araya-chat.html': 'where you can talk to ARAYA, your AI consciousness companion with real-time Pattern Theory analysis who can provide insights on any situation',
+        'ARAYA_CONSCIOUS_CHAT.html': 'where you can have deeper conversations with ARAYA and get consciousness-focused guidance and support',
+        
+        // Government & Grants
+        'government-grants-portal.html': 'where you can search and apply for government grants, track opportunities, and access funding for your projects with AI-powered matching',
+        'gov-transparency-hub.html': 'where you can access and visualize government contract data from SAM.GOV, search contracts, awards, and opportunities with advanced filtering',
+        
+        // Development & Tools
+        'developer-value-platform.html': 'where developers can track contributions, calculate compensation, and manage rewards across multiple projects',
+        'universal-dev-tracker.html': 'where you can track developer contributions, calculate compensation, and manage rewards with GitHub integration',
+        
+        // Blockchain & Crypto
+        'BankSky.html': 'where you can access a complete mobile-first DeFi platform with MetaMask, Phantom, and WalletConnect integration for Solana and Ethereum transactions',
+        'wallet-clearance.html': 'where you can manage your cryptocurrency wallets and perform secure blockchain transactions',
+        
+        // AI & Machine Learning
+        'ai-vehicle-dashboard.html': 'where you can access AI-powered vehicle safety systems and monitoring tools',
+        'gembot-academy.html': 'where you can learn about gemstone cutting, evaluation, and trading through interactive lessons and AI guidance',
+        
+        // Testing & Admin
+        'test-r3d3.html': 'where you can test R3-D3 robot features and functionality in a development environment',
+        'r3d3-admin-panel.html': 'where administrators can configure R3-D3 settings, manage permissions, and monitor system health',
+        
+        // Home & Navigation
+        'index.html': 'which is the main hub where you can explore 500+ projects including consciousness tools, blockchain apps, AI systems, games, and utilities',
+        'start.html': 'where you can begin your journey and get oriented with the platform',
+        'WELCOME.html': 'where you can learn about the platform and get started with your consciousness revolution',
+        
+        // About & Info
+        'about.html': 'where you can learn about the Consciousness Revolution platform, its mission, and the team behind it',
+        'README.html': 'where you can read the full documentation and learn how everything works',
+        
+        // Command & Control Centers
+        'command-bar.html': 'where you can use slash commands for quick Pattern Theory operations and power user access to all tools',
+        'COMMAND_HQ.html': 'where you can access your central command center for managing all platform operations',
+        'dashboard.html': 'where you can see your personalized dashboard with metrics, notifications, and quick access to your most-used features',
+        
+        // Advanced Research
+        'GLYPH_TEST.html': 'where you can explore the GLYPH 12D+ system with base-60 math, pattern analysis, 6D coordinates, and quantum oscillator mapping',
+        'GLYPH_ARCHITECTURE_VISUAL.html': 'where you can see a visual blueprint of the 5-layer GLYPH system architecture'
+    };
+    
+    /**
+     * Helper to normalize page name from href
+     */
+    function normalizePageName(href) {
+        return href.replace('.html', '').replace('/', '').replace(/-/g, ' ');
+    }
+    
+    /**
+     * Get page description from href
+     */
+    function getPageDescription(href) {
+        // Normalize the href
+        const normalizedHref = href.replace(/^\//, ''); // Remove leading slash
+        
+        // Check direct match
+        if (pageDescriptions[normalizedHref]) {
+            return pageDescriptions[normalizedHref];
+        }
+        
+        // Check without .html extension
+        const withoutExtension = normalizedHref.replace('.html', '');
+        for (const [key, value] of Object.entries(pageDescriptions)) {
+            if (key.replace('.html', '') === withoutExtension) {
+                return value;
+            }
+        }
+        
+        // Check if href contains any key patterns
+        const lowerHref = normalizedHref.toLowerCase();
+        if (lowerHref.includes('consciousness') || lowerHref.includes('pattern')) {
+            return 'where you can access consciousness development and pattern recognition tools';
+        } else if (lowerHref.includes('araya') || lowerHref.includes('chat') || lowerHref.includes('ai')) {
+            return 'where you can interact with AI systems and get intelligent assistance';
+        } else if (lowerHref.includes('dashboard') || lowerHref.includes('command')) {
+            return 'where you can manage and monitor your activities with centralized controls';
+        } else if (lowerHref.includes('grant') || lowerHref.includes('government')) {
+            return 'where you can explore government funding and grant opportunities';
+        } else if (lowerHref.includes('tool') || lowerHref.includes('utility')) {
+            return 'where you can access helpful tools and utilities';
+        }
+        
+        return null; // No specific description found
+    }
+    
+    /**
      * Describe an element in detail
      */
     function describeElementDetailed(element) {
@@ -2442,8 +2554,16 @@
                 const domain = new URL(href).hostname;
                 return `🌐 This is the "${displayText}" link. It's an external link that takes you to ${domain}. This opens in a new tab so you won't lose your place here!`;
             } else {
-                const pageName = href.replace('.html', '').replace('/', '').replace(/-/g, ' ');
-                return `🔗 This is the "${displayText}" navigation link. Clicking it will take you to the ${pageName} page, which is one of the ${brain.allPages.length}+ pages on this platform!`;
+                // Get detailed page description if available
+                const pageDesc = getPageDescription(href);
+                const pageName = normalizePageName(href);
+                
+                if (pageDesc) {
+                    return `🔗 Here we have the "${displayText}" link. This will take you to the ${pageName} page ${pageDesc}.`;
+                } else {
+                    // Fallback to generic description
+                    return `🔗 This is the "${displayText}" navigation link. Clicking it will take you to the ${pageName} page, which is one of the ${brain.allPages.length}+ pages on this platform!`;
+                }
             }
         } 
         
