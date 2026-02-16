@@ -467,7 +467,6 @@
             case 'ai-vision':
                 activateAIVisionMode();
                 break;
-                break;
         }
     }
     
