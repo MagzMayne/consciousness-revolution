@@ -1,63 +1,49 @@
 ---
 layout: default
-title: Barbrick Design - Web Projects Hub
-description: A collection of 537 interactive web projects you can use right in your browser - v2.6.0
+title: Consciousness Revolution - Journey Through 7 Sacred Chambers
+description: A transformative platform for consciousness development and pattern recognition
 ---
 
-# 🤖 Barbrick Design - Web Projects Hub
+# ✨ Consciousness Revolution - 7 Sacred Chambers
 
-## 🆕 Latest Integration (February 2026)
+## 🌟 Welcome to the Consciousness Revolution
 
-Successfully integrated **321 HTML files** and extensive infrastructure from [barbrickdesign.github.io](https://barbrickdesign.github.io), adding **$65,000 in value**!
-
-### ⭐ New Major Features
-- 🏦 **[BankSky](BankSky.html)** - Mobile-first Web3 DeFi platform ($15K value)
-- 💰 **[Crypto Recovery Tool](crypto-recovery-universal.html)** - Universal multi-chain recovery ($20K value)
-- 🏛️ **[Government Transparency Hub](gov-transparency-hub.html)** - SAM.GOV integration ($10K value)
-- 👨‍💻 **[Universal Developer Tracker](universal-dev-tracker.html)** - Contribution tracking ($12K value)
-- 🌲 **[Tree Limb Risk Analyzer](treeLimbRiskAnalyzer.html)** - AI-powered safety ($8K value)
-
-📖 **[View Full Integration Details →](BARBRICK_INTEGRATION_SUMMARY.md)**
+A transformative platform designed to guide you through the **7 Sacred Chambers** of consciousness development, with tools for pattern recognition, manipulation detection, and personal growth.
 
 ---
 
-> **⚖️ COPYRIGHT NOTICE ⚖️**
-> 
-> **© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.**
-> 
-> **This repository is protected by copyright law. Unauthorized use is prohibited.**
-> 
 > **Created by Ryan Barbrick** | **AI Assistant: Merlin AI**
 > 
-> 📧 Contact: BarbrickDesign@gmail.com | 🔗 GitHub: [@barbrickdesign](https://github.com/barbrickdesign)
+> 📧 Contact: BarbrickDesign@gmail.com
 > 
-> 📄 [**LICENSE**](LICENSE) | [**COPYRIGHT**](COPYRIGHT) | [**IP NOTICE**](INTELLECTUAL_PROPERTY_NOTICE.md) | [**USAGE TERMS**](USAGE_TERMS.md)
+> 🌐 Visit: [conciousnessrevolution.io](https://conciousnessrevolution.io)
 
 ---
 
 ## 🎯 What is This?
 
-**A collection of 537 interactive web projects** you can use right in your browser!
+**The Consciousness Revolution** is a comprehensive platform that combines consciousness development with practical tools from the Barbrick Design ecosystem. This site provides:
 
-### 📊 Project Status (v2.6.0)
-- ✅ **290 working** projects (fully functional) - *+5 from barbrickdesign*
-- ⚠️ **145 partial** projects (core features work)
-- 🔧 **36 broken** projects (under repair)
-- 🧪 **63 untested** projects (awaiting validation)
-- **Overall completion: 79%**
+### The 7 Sacred Chambers (Domains)
+1. 🎯 **Command** - Decision-making, clarity, and structure
+2. 🎨 **Creation** - Building projects, developing skills  
+3. 🤝 **Connection** - Relationships and communication
+4. 🕊️ **Peace** - Boundaries, security, and protection
+5. 💰 **Abundance** - Financial growth and business
+6. 📚 **Wisdom** - Learning and critical thinking
+7. 🙏 **Purpose** - Meaning and meditation
 
-### 💰 Repository Value (v2.6.0)
-- 💎 **Total Value: $3.29M** - Combined worth of all projects *(+$65K)*
-- 📊 **Average per Project: $6.1K** - Mean project value
-- 🎯 **Median Value: $5.5K** - Typical project worth
-- 📈 **Auto-Tracking: Enabled** - Updates automatically when projects are added
+### 🔍 Pattern Recognition Tools
+- Manipulation detection (gaslighting, love bombing, etc.)
+- Relationship pattern analysis
+- Emotional awareness tools
+- Decision-making frameworks
 
-*Last analyzed: February 16, 2026*
-
-### Categories Include (with Value):
-- 💰 **Blockchain & Crypto** (179 projects) - $1.37M total value - Digital currencies and blockchain
-- 🎨 **3D Graphics** (50 projects) - $347K total value - Interactive 3D experiences
-- 🔒 **Security & Safety** (43 projects) - $296K total value - Protection and monitoring systems
+### 💻 Barbrick Design Programs (Enhancement Tools)
+Access to 500+ interactive web tools and projects from the Barbrick Design ecosystem:
+- 💰 **Blockchain & Crypto Tools** - Digital currencies and blockchain utilities
+- 🎨 **3D Graphics** - Interactive 3D experiences
+- 🔒 **Security & Safety** - Protection and monitoring systems
 - 🎯 **Miscellaneous** (113 projects) - $296K total value - Various utilities and tools
 - 🎮 **Games** (35 projects) - $205K total value - Fun interactive games and virtual worlds
 - 📊 **Dashboards** (36 projects) - $162K total value - Management and monitoring interfaces
@@ -71,66 +57,69 @@ Successfully integrated **321 HTML files** and extensive infrastructure from [ba
 ---
 
 ## 🏆 Top Valued Projects
+- 🏛️ **Government & Transparency** - SAM.GOV integration and tracking
+- 🤖 **AI & ML Tools** - Autonomous agents and intelligence
+- 🎮 **Interactive Games** - Educational and entertainment
 
-Here are our highest-value applications based on complexity, functionality, and development effort:
-
-| Rank | Project | Category | Value | Status |
-|------|---------|----------|-------|--------|
-| 🥇 | [Shell Detector](shellDetector.html) | AI & ML | $15.4K | ✅ Working |
-| 🥇 | [AI Grid Link](aiGridLink.html) | AI & ML | $15.4K | ✅ Working |
-| 🥈 | [Merlin Hive](zMerlinHive.html) | AI & ML | $13.0K | ✅ Working |
-| 🥈 | [Merlin AI Demo](MERLIN_AI_TEST_DEMO.html) | AI & ML | $13.0K | ✅ Working |
-| 🥉 | [Contract Crowdfunding](contract-crowdfunding.html) | Government | $12.9K | ✅ Working |
-| 4 | [RentAI](rentAi.html) | AI & ML | $12.6K | ✅ Working |
-| 5 | [Project Hub](project-hub.html) | Blockchain | $12.3K | ✅ Working |
-| 6 | [Your Voice NFT](yourVoice.html) | Blockchain | $12.3K | ✅ Working |
-| 7 | [Dev Tracker](universal-dev-tracker-complete.html) | Blockchain | $12.3K | ✅ Working |
-| 8 | [Tucson 2026](tucson2026.html) | Blockchain | $12.3K | ✅ Working |
-
-**Total Value of Top 10:** $129,800
-
-*Value automatically calculated based on completion, complexity, and functionality. Updates when projects are added or modified.*
-
----
-
-## 💎 Featured Project: Merlin's Gem Bot
-
-**🤖 Automated Gemstone Faceting Machine**
-
-Merlin's Gem Bot is our revolutionary automated faceting machine that makes precision gem cutting accessible to everyone. Whether you're a hobbyist, small business, or professional gemcutter, our system provides CNC-level precision at an affordable price.
-
-### 🌟 Key Features:
-- 🎯 **Micron-Level Precision** - Computer-controlled positioning
-- 🖥️ **Web Control Interface** - Control from any device
-- 💰 **Cost-Effective** - Fraction of traditional machine costs
-- 🔄 **Repeatable Results** - Save and reproduce patterns
-- 📹 **Video Tutorials** - Complete how-to documentation
-
-### 🚀 Get Started:
-- **[💎 Gem Bot Hub](merlins-gem-bot-hub.html)** - Your gateway to everything Gem Bot
-- **[📚 Official Documentation](https://barbrickdesign.wixsite.com/merlins-gem-bot)** - Complete guides & tutorials
-- **[🎮 Web Control Interface](GemBot_Web_Control_DualMode.html)** - Control your machine
-- **[🎥 Video Tutorials](https://barbrickdesign.wixsite.com/merlins-gem-bot)** - Watch & learn
+📖 **[View All Barbrick Tools →](BARBRICK_INTEGRATION_SUMMARY.md)**
 
 ---
 
 ## 🚀 Quick Start
 
-**New here?** Start with these guides:
+**New to Consciousness Revolution?** Begin your journey:
 
-1. **[Getting Started Guide](GETTING_STARTED_SIMPLE)** - Simple introduction for everyone
-2. **[Tech Terms Glossary](GLOSSARY)** - Confused by tech words? We explain them simply!
-3. **[Main Hub](index.html)** - Browse all 529 projects
-4. **[💎 Merlin's Gem Bot Hub](merlins-gem-bot-hub.html)** - Automated gemstone faceting
-5. **[Earning Opportunities](MONETIZATION)** - Learn how to make money with grants
-6. 🤖 **[GroqAI Orchestrator Guide](GROQ_ORCHESTRATOR_GUIDE.md)** - Learn about our AI integration
+1. **[Main Portal](index.html)** - Enter the 7 Sacred Chambers
+2. **[Consciousness Tools](consciousness-tools.html)** - Pattern recognition and awareness tools
+3. **[Seven Domains Dashboard](SEVEN_DOMAINS_DASHBOARD.html)** - Explore each domain
+4. **[Pattern Recognition Course](pattern-recognition-course.html)** - Learn to identify manipulation patterns
 
-### 🤖 AI & Autonomous Systems
+### 🔍 Featured Consciousness Tools
 
-### GroqAI Orchestration
-This repository uses **GroqAI** as the primary AI orchestrator for all projects:
-- **Free Tier**: 14,400 requests per day (no API key required!)
-- **Fast Models**: Llama 3.3 70B, Mixtral 8x7B, and more
+**Manipulation Pattern Detectors:**
+- 🎭 **[Gaslighting Detector](GASLIGHTING_DETECTOR.html)** - Identify reality distortion
+- 💕 **[Love Bombing Detector](LOVE_BOMBING_DETECTOR.html)** - Spot excessive affection tactics
+- 🔄 **[Future Faking Detector](FUTURE_FAKING_DETECTOR.html)** - Detect false promises
+- 🚧 **[Boundary Violation Tracker](BOUNDARY_VIOLATION_TRACKER.html)** - Monitor boundary crossings
+- 🎯 **[Manipulation Immunity Tracker](MANIPULATION_IMMUNITY_TRACKER.html)** - Build resistance
+
+**Self-Awareness Tools:**
+- 🧘 **[Daily Consciousness Check](DAILY_CONSCIOUSNESS_CHECK.html)** - Daily mindfulness practice
+- ⚖️ **[Values Alignment Check](VALUES_ALIGNMENT_CHECK.html)** - Ensure authentic living
+- 💭 **[Self Talk Analyzer](SELF_TALK_ANALYZER.html)** - Examine internal dialogue
+- 🎯 **[Decision Matrix](DECISION_MATRIX.html)** - Make aligned choices
+
+---
+
+## 💻 Access Barbrick Design Enhancement Tools
+
+The Consciousness Revolution platform includes access to 500+ tools from the Barbrick Design ecosystem to enhance your journey:
+
+### 🌟 Top Enhancement Tools
+
+| Project | Category | Purpose | Status |
+|---------|----------|---------|--------|
+| [Shell Detector](shellDetector.html) | AI & ML | Advanced pattern recognition | ✅ Working |
+| [AI Grid Link](aiGridLink.html) | AI & ML | Network intelligence | ✅ Working |
+| [Merlin Hive](zMerlinHive.html) | AI & ML | Autonomous agent system | ✅ Working |
+| [Government Transparency Hub](gov-transparency-hub.html) | Government | Contract tracking | ✅ Working |
+| [Universal Dev Tracker](universal-dev-tracker.html) | Blockchain | Contribution tracking | ✅ Working |
+
+### 💎 Special Project: Merlin's Gem Bot
+
+**🤖 Automated Gemstone Faceting Machine** - A CNC-level precision gem cutting system
+
+- **[💎 Gem Bot Hub](merlins-gem-bot-hub.html)** - Gateway to automated faceting
+- **[🎮 Web Control](GemBot_Web_Control_DualMode.html)** - Control interface
+- **[📚 Documentation](https://barbrickdesign.wixsite.com/merlins-gem-bot)** - Complete guides
+
+---
+
+## 🤖 AI & Autonomous Systems
+
+This platform uses **GroqAI** as the primary AI orchestrator:
+- **Free Tier**: 14,400 requests per day (no API key required)
+- **Fast Models**: Llama 3.3 70B, Mixtral 8x7B
 - **Auto-configured**: Works out of the box
 - **Fallback Support**: Automatic switching to alternative providers
 - **Test Suite**: [test-groq-orchestrator.html](test-groq-orchestrator.html)
