@@ -14,7 +14,7 @@
     const CONFIG = {
         robotSize: 80, // Base size in pixels
         moveSpeed: 0.5, // Pixels per frame (normal walking)
-        flySpeed: 5.0, // Pixels per frame (fast flying during tours)
+        flySpeed: 5.0, // Pixels per frame (10x faster - fast flying during tours)
         animationSpeed: 0.05,
         boundaryPadding: 50,
         stateUpdateInterval: 1000, // Save state every second

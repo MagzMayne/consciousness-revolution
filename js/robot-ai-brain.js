@@ -2398,7 +2398,8 @@
         // Only follow if robot is not busy and not in fly mode
         if (window.RobotAssistant) {
             const state = window.RobotAssistant.getState();
-            // Don't follow if robot is walking, has a target, or is in fly mode
+            // Triple check: idle (not animating) AND no target (not moving) AND not in fly mode
+            // All three checks needed: robot can briefly be idle with target, or have target without being idle
             if (state.animationState === 'idle' && !state.target && !state.isFlyMode) {
                 window.RobotAssistant.moveTo(x - 40, y - 40, false); // Normal speed, not fly mode
             }
