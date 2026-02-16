@@ -1,0 +1,107 @@
+--- araya-chat.mjs.ORIGINAL
++++ araya-chat.mjs.FIXED
+@@ -1697,7 +1697,8 @@
+         if (hasImages) {
+-            // Images require Claude Vision API
++            // Images: Claude Vision (primary) → OpenAI Vision (fallback) → Error
+             try {
++                console.log(`Processing ${imageAttachments.length} image(s) with Claude Vision`);
+                 response = await callClaudeVision(fullMessage, imageAttachments);
++                console.log('Claude Vision success');
+
+@@ -1715,17 +1716,27 @@
+                 }
+             } catch (claudeError) {
+-                console.error('Claude Vision error:', claudeError);
++                console.error('❌ Claude Vision FAILED:', claudeError.message);
++                console.error('Claude error details:', {
++                    name: claudeError.name,
++                    message: claudeError.message,
++                    stack: claudeError.stack?.substring(0, 500)
++                });
++
+-                // Fallback to OpenAI if Claude fails
++                // Fallback to OpenAI Vision (gpt-4o-mini supports vision)
+                 try {
++                    console.log('🔄 Attempting OpenAI Vision fallback...');
+                     const contentParts = [];
+-                    if (fullMessage) contentParts.push({ type: 'text', text: fullMessage || 'What do you see in this image?' });
++
++                    // Add text prompt
++                    contentParts.push({
++                        type: 'text',
++                        text: fullMessage || 'What do you see in this image? Describe it in detail.'
++                    });
++
++                    // Add images using OpenAI's format
+                     for (const img of imageAttachments) {
+-                        contentParts.push({ type: 'image_url', image_url: { url: img.data } });
++                        contentParts.push({
++                            type: 'image_url',
++                            image_url: {
++                                url: img.data,
++                                detail: 'high'
++                            }
++                        });
+                     }
++
+                     messages.push({ role: 'user', content: contentParts });
+-                    response = await callAI(messages, false);
+-                    apiMode = 'openai_fallback';
++                    response = await callAI(messages, false); // false = use OpenAI
++                    apiMode = 'openai_vision_fallback';
++                    console.log('✅ OpenAI Vision fallback SUCCESS');
++
++                    // Still store the image with OpenAI's description
++                    if (user_id && response) {
++                        for (const img of imageAttachments) {
++                            const imageId = await storeImageToSupabase(
++                                user_id,
++                                img.data,
++                                response,
++                                img.type || 'image/png'
++                            );
++                            if (imageId) storedImageIds.push(imageId);
++                        }
++                        if (storedImageIds.length > 0) {
++                            console.log(`Stored ${storedImageIds.length} image(s) via OpenAI fallback`);
++                        }
++                    }
+                 } catch (openaiError) {
+-                    console.error('OpenAI fallback also failed:', openaiError);
+-                    response = "I can see you sent an image but I'm having trouble processing it right now. Can you describe what you'd like me to look at?";
+-                    apiMode = 'fallback';
++                    console.error('❌ OpenAI Vision fallback FAILED:', openaiError.message);
++                    console.error('OpenAI error details:', {
++                        name: openaiError.name,
++                        message: openaiError.message,
++                        stack: openaiError.stack?.substring(0, 500)
++                    });
++
++                    // Both APIs failed - give helpful error
++                    response = `I can see you sent ${imageAttachments.length} image(s) but both my vision systems are having trouble right now.
++
++🔴 Error details:
++- Claude Vision: ${claudeError.message}
++- OpenAI Vision: ${openaiError.message}
++
++Can you try:
++1. Describing what you'd like me to look at
++2. Uploading a smaller image
++3. Trying again in a moment
++
++The issue has been logged and will be investigated.`;
++                    apiMode = 'vision_failure';
++
++                    // Log to Supabase bugs table for investigation
++                    try {
++                        await storeBugReport(user_id || 'anonymous',
++                            `Image processing failure: Claude (${claudeError.message}), OpenAI (${openaiError.message})`,
++                            { claudeError: claudeError.message, openaiError: openaiError.message }
++                        );
++                    } catch (bugLogError) {
++                        console.error('Could not log bug:', bugLogError);
++                    }
+                 }
+             }
+         }
