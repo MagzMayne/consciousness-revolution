@@ -342,6 +342,21 @@
                 transition: all 0.2s;
             ">📚 Knowledge Base</button>
             
+            <button class="robot-menu-btn" data-action="ai-vision" style="
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 8px;
+                background: linear-gradient(135deg, #00f0ff, #9370db);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+                box-shadow: 0 4px 12px rgba(0, 240, 255, 0.3);
+            ">🎯 AI Vision Mode</button>
+            
             <button class="robot-menu-btn" data-action="settings" style="
                 width: 100%;
                 padding: 10px;
@@ -448,6 +463,10 @@
                 break;
             case 'demo-all':
                 demonstrateAllFeatures();
+                break;
+            case 'ai-vision':
+                activateAIVisionMode();
+                break;
                 break;
         }
     }
@@ -2540,6 +2559,266 @@
     }
 
     /**
+     * Capture screenshot of current page
+     */
+    async function captureScreenshot() {
+        try {
+            // Use html2canvas if available, otherwise fallback to canvas API
+            if (typeof html2canvas !== 'undefined') {
+                const canvas = await html2canvas(document.body, {
+                    allowTaint: true,
+                    useCORS: true,
+                    logging: false,
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    windowWidth: window.innerWidth,
+                    windowHeight: window.innerHeight
+                });
+                return canvas.toDataURL('image/png');
+            } else {
+                // Fallback: create a simple canvas snapshot
+                const canvas = document.createElement('canvas');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw simple representation
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.fillText('Page: ' + document.title, 20, 40);
+                
+                return canvas.toDataURL('image/png');
+            }
+        } catch (error) {
+            console.error('Failed to capture screenshot:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Call Gemini API for screen analysis
+     */
+    async function analyzeWithGemini(screenshot, action = 'analyze') {
+        try {
+            const pageContext = {
+                url: window.location.href,
+                title: document.title,
+                pathname: window.location.pathname
+            };
+
+            const response = await fetch('/.netlify/functions/gemini-screen-control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: action,
+                    screenshot: screenshot,
+                    pageContext: pageContext
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Analysis failed');
+            }
+
+            return data.analysis;
+            
+        } catch (error) {
+            console.error('Gemini API error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Display AI Vision analysis results
+     */
+    function displayAIAnalysis(analysis) {
+        // Create overlay for displaying results
+        const overlay = document.createElement('div');
+        overlay.id = 'ai-vision-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 600px;
+            max-height: 80vh;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.95), rgba(147, 112, 219, 0.95));
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            overflow-y: auto;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        `;
+
+        let content = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin: 0 0 10px 0; font-size: 24px;">🎯 AI Vision Analysis</h2>
+                <p style="margin: 0; opacity: 0.9; font-size: 14px;">Powered by Google Gemini</p>
+            </div>
+        `;
+
+        // Summary
+        if (analysis.summary) {
+            content += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 10px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">📋 Summary</h3>
+                    <p style="margin: 0; line-height: 1.6;">${analysis.summary}</p>
+                </div>
+            `;
+        }
+
+        // Elements detected
+        if (analysis.elements && analysis.elements.length > 0) {
+            content += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 10px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">🔍 Detected Elements</h3>
+                    <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+            `;
+            
+            analysis.elements.forEach(el => {
+                const icon = getElementIcon(el.type);
+                const confidence = el.confidence ? ` (${Math.round(el.confidence * 100)}%)` : '';
+                content += `<li>${icon} <strong>${el.type}</strong>: ${el.description}${confidence}</li>`;
+            });
+            
+            content += `</ul></div>`;
+        }
+
+        // Suggestions
+        if (analysis.suggestions && analysis.suggestions.length > 0) {
+            content += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 10px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">💡 Suggestions</h3>
+                    <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+            `;
+            
+            analysis.suggestions.forEach(suggestion => {
+                content += `<li>${suggestion}</li>`;
+            });
+            
+            content += `</ul></div>`;
+        }
+
+        // Insights
+        if (analysis.insights && analysis.insights.length > 0) {
+            content += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 10px;">
+                    <h3 style="margin: 0 0 10px 0; font-size: 18px;">🧠 AI Insights</h3>
+            `;
+            
+            analysis.insights.forEach(insight => {
+                content += `<p style="margin: 10px 0; line-height: 1.6;">${insight}</p>`;
+            });
+            
+            content += `</div>`;
+        }
+
+        // Close button
+        content += `
+            <button id="close-ai-vision" style="
+                width: 100%;
+                padding: 12px;
+                background: white;
+                color: #9370db;
+                border: none;
+                border-radius: 10px;
+                font-weight: bold;
+                cursor: pointer;
+                font-size: 16px;
+                transition: all 0.2s;
+            ">Close</button>
+        `;
+
+        overlay.innerHTML = content;
+        document.body.appendChild(overlay);
+
+        // Add close handler
+        document.getElementById('close-ai-vision').addEventListener('click', () => {
+            overlay.remove();
+        });
+
+        // Close on background click
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+            }
+        });
+    }
+
+    /**
+     * Get icon for element type
+     */
+    function getElementIcon(type) {
+        const icons = {
+            'button': '🔘',
+            'link': '🔗',
+            'input': '📝',
+            'form': '📋',
+            'heading': '📑',
+            'image': '🖼️',
+            'navigation': '🧭',
+            'menu': '📱'
+        };
+        return icons[type.toLowerCase()] || '⚙️';
+    }
+
+    /**
+     * Activate AI Vision Mode
+     */
+    async function activateAIVisionMode() {
+        try {
+            speak('🎯 Activating AI Vision Mode... Let me analyze this page with my enhanced vision!');
+            
+            // Wait a moment for the speech bubble
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Show loading indicator
+            speak('📸 Capturing screen... Please wait...');
+            
+            // Capture screenshot
+            const screenshot = await captureScreenshot();
+            
+            speak('🧠 Analyzing with Google Gemini AI... This may take a few seconds...');
+            
+            // Analyze with Gemini
+            const analysis = await analyzeWithGemini(screenshot, 'analyze');
+            
+            // Display results
+            displayAIAnalysis(analysis);
+            
+            speak('✨ AI Vision analysis complete! Check out what I found.');
+            
+        } catch (error) {
+            console.error('AI Vision Mode error:', error);
+            
+            let errorMessage = '❌ AI Vision Mode encountered an error. ';
+            
+            if (error.message.includes('html2canvas')) {
+                errorMessage += 'Screen capture library not available. Using fallback mode.';
+            } else if (error.message.includes('not configured')) {
+                errorMessage += 'Gemini API not configured. Please add GEMINI_API_KEY to environment.';
+            } else {
+                errorMessage += error.message || 'Please try again later.';
+            }
+            
+            speak(errorMessage);
+        }
+    }
+
+    /**
      * Public API
      */
     window.RobotAI = {
@@ -2566,6 +2845,7 @@
         exploreAnotherPage,
         endTour,
         demonstrateAllFeatures, // NEW: Show all features demo
+        activateAIVisionMode, // NEW: AI Vision Mode with Gemini
         brain
     };
 
