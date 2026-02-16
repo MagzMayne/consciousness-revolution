@@ -938,6 +938,24 @@ async function fetchBrainContext(query, limit = 3) {
     }
 }
 
+// Helper: Get next reset time (midnight UTC)
+function getNextResetTime() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    return tomorrow.toISOString();
+}
+
+// Helper: Check if date is today (UTC)
+function isToday(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    return date.getUTCFullYear() === now.getUTCFullYear() &&
+           date.getUTCMonth() === now.getUTCMonth() &&
+           date.getUTCDate() === now.getUTCDate();
+}
+
 // Memory helper - fetch from Supabase (now returns profileId too)
 async function fetchMemory(userId) {
     if (!SUPABASE_URL || !SUPABASE_KEY || !userId) {
@@ -980,15 +998,19 @@ async function fetchMemory(userId) {
             }
         }
 
+        // Count today's interactions for usage limits
+        const dailyCount = messages?.filter(m => isToday(m.created_at)).length || 0;
+
         return {
             profile,
             profileId,
             messages: messages?.reverse() || [],
-            total_interactions: messages?.length || 0
+            total_interactions: messages?.length || 0,
+            daily_interactions: dailyCount
         };
     } catch (error) {
         console.error('Memory fetch error:', error);
-        return { profile: null, profileId: null, messages: [], total_interactions: 0 };
+        return { profile: null, profileId: null, messages: [], total_interactions: 0, daily_interactions: 0 };
     }
 }
 
