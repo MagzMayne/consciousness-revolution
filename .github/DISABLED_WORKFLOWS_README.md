@@ -51,6 +51,21 @@ These workflows were consistently failing or creating unnecessary overhead:
 **Impact**: Duplicate functionality
 **Solution**: Disabled along with auto-review-pr
 
+### 10. autonomous-monitoring.yml
+**Issue**: Runs every hour PLUS on every push and PR to main/master
+**Impact**: Causes rate limiting with GitHub API, wastes resources with excessive runs
+**Solution**: Disabled - manual testing or less frequent scheduled checks are sufficient
+
+### 11. pr-merge-readiness-check.yml
+**Issue**: Runs every 6 hours to check all PRs and create issues
+**Impact**: Creates noise with frequent reports, contributes to rate limiting
+**Solution**: Disabled - GitHub's built-in PR checks are sufficient
+
+### 12. auto-sync-branches.yml
+**Issue**: Runs every 4 hours to sync branches
+**Impact**: Frequent syncing can cause conflicts and rate limiting
+**Solution**: Disabled - manual syncing or less frequent syncing is more appropriate
+
 ## Re-enabling a Workflow
 
 If you need to re-enable any of these workflows:
