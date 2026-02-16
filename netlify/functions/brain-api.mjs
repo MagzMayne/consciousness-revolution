@@ -104,7 +104,7 @@ function scoreAtom(atom, query) {
 // CORS headers
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json'
 };
@@ -118,6 +118,18 @@ export async function handler(event) {
     // Parse action from path or query
     const path = event.path.replace('/.netlify/functions/brain-api', '').replace('/api/brain-api', '');
     const action = path.split('/')[1] || event.queryStringParameters?.action || 'status';
+
+    // Authentication for write operations (CRITICAL SECURITY FIX)
+    if (action === 'log' || action === 'sync') {
+        const authKey = event.headers['x-api-key'];
+        if (authKey !== process.env.BRAIN_API_KEY) {
+            return {
+                statusCode: 401,
+                headers: corsHeaders,
+                body: JSON.stringify({ error: 'Unauthorized - valid x-api-key required for write operations' })
+            };
+        }
+    }
 
     try {
         // Validate Supabase configuration

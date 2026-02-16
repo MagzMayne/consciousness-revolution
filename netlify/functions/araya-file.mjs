@@ -10,7 +10,7 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'master';
 // CORS headers
 const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-file-key',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
 };
@@ -259,6 +259,18 @@ export async function handler(event, context) {
 
     try {
         const { action, path, content, edits, message } = JSON.parse(event.body);
+
+        // Authentication for write operations (CRITICAL SECURITY FIX)
+        if (action === 'write' || action === 'edit') {
+            const authKey = event.headers['x-file-key'];
+            if (authKey !== process.env.FILE_API_KEY) {
+                return {
+                    statusCode: 401,
+                    headers,
+                    body: JSON.stringify({ error: 'Unauthorized - valid x-file-key required for write operations' })
+                };
+            }
+        }
 
         if (!action) {
             return {
