@@ -2486,11 +2486,18 @@
     };
     
     /**
+     * Helper to normalize page name from href
+     */
+    function normalizePageName(href) {
+        return href.replace('.html', '').replace('/', '').replace(/-/g, ' ');
+    }
+    
+    /**
      * Get page description from href
      */
     function getPageDescription(href) {
         // Normalize the href
-        let normalizedHref = href.replace(/^\//, ''); // Remove leading slash
+        const normalizedHref = href.replace(/^\//, ''); // Remove leading slash
         
         // Check direct match
         if (pageDescriptions[normalizedHref]) {
@@ -2549,12 +2556,12 @@
             } else {
                 // Get detailed page description if available
                 const pageDesc = getPageDescription(href);
+                const pageName = normalizePageName(href);
                 
                 if (pageDesc) {
-                    return `🔗 Here we have the "${displayText}" link. This will take you to the ${href.replace('.html', '').replace('/', '').replace(/-/g, ' ')} page ${pageDesc}.`;
+                    return `🔗 Here we have the "${displayText}" link. This will take you to the ${pageName} page ${pageDesc}.`;
                 } else {
                     // Fallback to generic description
-                    const pageName = href.replace('.html', '').replace('/', '').replace(/-/g, ' ');
                     return `🔗 This is the "${displayText}" navigation link. Clicking it will take you to the ${pageName} page, which is one of the ${brain.allPages.length}+ pages on this platform!`;
                 }
             }
