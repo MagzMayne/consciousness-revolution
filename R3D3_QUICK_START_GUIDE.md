@@ -161,6 +161,55 @@ Click "Fix Issues" to auto-fix what I can!
 - Supabase database
 - Node.js v18+ runtime
 
+### 🎯 AI Vision Mode ⭐ NEW
+
+**What it does**: Uses Google Gemini AI to analyze the current page with advanced computer vision.
+
+**How to use**:
+1. Click R3-D3 → Select "AI Vision Mode"
+2. Wait for screenshot capture (automatic)
+3. Wait for AI analysis (3-5 seconds)
+4. Review comprehensive analysis results
+
+**What you'll see**:
+- **Page Summary**: AI's understanding of the page purpose and content
+- **Detected Elements**: All interactive elements with confidence scores
+- **Smart Suggestions**: AI-powered recommendations for actions
+- **AI Insights**: Deep analysis of page structure and usability
+
+**Example analysis**:
+```
+📋 Summary:
+This appears to be a dashboard page with navigation, 
+metrics widgets, and action buttons for user management.
+
+🔍 Detected Elements:
+- 🔘 button: "Save Settings" (85%)
+- 🔗 link: "User Profile" (90%)
+- 📝 input: Email address field (95%)
+
+💡 Suggestions:
+- Complete the user profile form
+- Review dashboard metrics
+- Check notification settings
+
+🧠 AI Insights:
+The page follows a standard dashboard layout with 
+clear information hierarchy and accessible controls.
+```
+
+**Technical details**:
+- Powered by Google Gemini 2.0 Flash model
+- Screenshot-based visual analysis
+- Privacy-first: no screenshots stored
+- Works on any page type
+- Fallback mode if screenshot library unavailable
+
+**Requirements**:
+- GEMINI_API_KEY must be configured in environment
+- html2canvas library (loaded automatically)
+- Modern browser with canvas support
+
 ### ⚙️ Settings
 
 **What it does**: Customize R3-D3's behavior and personality.
@@ -220,6 +269,9 @@ window.RobotAI.showKnowledgeBase();
 
 // Show settings
 window.RobotAI.showSettings();
+
+// Activate AI Vision Mode (NEW)
+window.RobotAI.activateAIVisionMode();
 ```
 
 #### Configuration
@@ -306,6 +358,12 @@ Help R3-D3 provide better tours:
 - Try adding a broken link to test
 - Check developer console
 
+**AI Vision Mode not working?**
+- Verify GEMINI_API_KEY is configured in environment
+- Check browser console for error messages
+- Ensure page has loaded completely
+- Try refreshing and running again
+
 ---
 
 ## Example Workflows
@@ -336,6 +394,16 @@ Help R3-D3 provide better tours:
 5. Follow R3-D3's guidance
 6. Reference Knowledge Base as needed
 
+### Workflow 4: AI-Powered Page Analysis (NEW)
+
+1. Navigate to any page
+2. Click R3-D3 → "AI Vision Mode"
+3. Wait for Gemini AI analysis (3-5 seconds)
+4. Review AI's understanding of the page
+5. Check detected elements and suggestions
+6. Use insights to improve page design
+7. Share findings with your team
+
 ---
 
 ## Keyboard Shortcuts
@@ -353,6 +421,13 @@ RobotAI.provideDeveloperHelp();
 
 ## What's Next?
 
+### Latest Features (v2.1)
+
+- ✅ **AI Vision Mode**: Google Gemini-powered page analysis with computer vision
+- ✅ **Screenshot Capture**: Automatic page capture for AI analysis
+- ✅ **Smart Element Detection**: AI-powered identification with confidence scores
+- ✅ **Contextual Insights**: Intelligent suggestions based on page content
+
 ### Coming Soon (Planned Features)
 
 - 🎤 **Voice Interaction**: Speak to R3-D3 instead of typing
@@ -360,6 +435,7 @@ RobotAI.provideDeveloperHelp();
 - 🤝 **Multi-Robot Coordination**: Multiple R3-D3 instances working together
 - 📊 **Usage Analytics**: Track what help is most useful
 - 🔒 **Security Scanning**: Automated vulnerability detection
+- 🎯 **AI-Guided Actions**: Let Gemini suggest and execute page interactions
 
 ### How to Contribute
 
@@ -395,6 +471,7 @@ R3-D3 is your all-knowing AI curator, ready to help you navigate, learn, and bui
 
 ---
 
-**Version**: 2.0 - Interactive Enhanced Edition  
-**Last Updated**: February 15, 2026  
+**Version**: 2.1 - AI Vision Enhanced Edition  
+**Last Updated**: February 16, 2026  
+**New in 2.1**: Google Gemini AI Vision Mode for intelligent page analysis  
 **Happy Exploring!** 🚀
