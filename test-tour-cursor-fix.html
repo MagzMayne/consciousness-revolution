@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3-D3 Tour Cursor Following & Fly Mode Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 300vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00f0ff;
+            margin: 40px 0;
+            font-size: 2.5rem;
+        }
+
+        .test-info {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-info h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .test-info ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .section {
+            background: rgba(0, 240, 255, 0.05);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            min-height: 200px;
+        }
+
+        .section h2 {
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .section p {
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00f0ff, #9370db);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00f0ff;
+            z-index: 900;
+            max-width: 300px;
+        }
+
+        .test-controls h3 {
+            color: #00f0ff;
+            margin-bottom: 15px;
+        }
+
+        .status {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .status-item {
+            margin: 5px 0;
+            padding: 3px;
+            border-left: 2px solid #00f0ff;
+            padding-left: 8px;
+        }
+
+        .pass {
+            color: #00ff00;
+        }
+
+        .fail {
+            color: #ff0000;
+        }
+
+        .info {
+            color: #ffd700;
+        }
+
+        a {
+            color: #00f0ff;
+            text-decoration: none;
+            padding: 5px 10px;
+            display: inline-block;
+            border: 1px solid #00f0ff;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        a:hover {
+            background: rgba(0, 240, 255, 0.2);
+        }
+
+        .cursor-tracker {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid red;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor-tracker" id="cursorTracker"></div>
+    
+    <div class="container">
+        <h1>🤖 R3-D3 Cursor Following & Fly Mode Test</h1>
+
+        <div class="test-info">
+            <h2>🧪 Test Objectives</h2>
+            <ul>
+                <li><strong>Cursor Following Issue:</strong> Robot should NOT follow cursor during tour when clicking "Continue" or other buttons</li>
+                <li><strong>Fly Mode:</strong> Robot should move FAST (10x speed) during tour, not slowly walk</li>
+                <li><strong>Tour Progression:</strong> Tour should proceed to next element without going to clicked position</li>
+            </ul>
+            <h3 style="margin-top: 15px;">How to Test:</h3>
+            <ol>
+                <li>Click "Start Tour" button</li>
+                <li>Watch R3-D3 FLY to first element (should be fast!)</li>
+                <li>When speech bubble appears, move mouse away then click "Continue"</li>
+                <li>R3-D3 should fly to NEXT element, NOT to where you clicked</li>
+                <li>Repeat for all elements in tour</li>
+                <li>After tour ends, verify cursor following works normally</li>
+            </ol>
+        </div>
+
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <button onclick="testStartTour()">Start Tour</button>
+            <button onclick="testEndTour()">End Tour</button>
+            <button onclick="testRobotState()">Check State</button>
+            <button onclick="testCursorFollow()">Toggle Cursor Tracking</button>
+            <button onclick="clearStatus()">Clear Log</button>
+            <div class="status" id="status">
+                <div class="status-item info">Ready to test...</div>
+            </div>
+        </div>
+
+        <div class="section" id="section1">
+            <h2>Section 1: Top Content</h2>
+            <p>This is the first section. R3-D3 should FLY here quickly, not walk slowly.</p>
+            <button onclick="alert('Button 1 clicked!')">Test Button 1</button>
+            <button onclick="alert('Button 2 clicked!')">Test Button 2</button>
+            <a href="#section2">Link to Section 2</a>
+        </div>
+
+        <div class="section" id="section2">
+            <h2>Section 2: Middle Content</h2>
+            <p>Testing fly mode speed and cursor independence. When you click Continue in the tour bubble, R3-D3 should NOT go to your click location.</p>
+            <button onclick="alert('Action performed!')">Perform Action</button>
+            <button onclick="alert('Submit clicked!')">Submit Form</button>
+            <a href="#section3">Link to Section 3</a>
+        </div>
+
+        <div class="section" id="section3">
+            <h2>Section 3: More Features</h2>
+            <p>During tour, try moving mouse around while clicking Continue. Robot should ignore cursor position.</p>
+            <button onclick="alert('Feature activated!')">Activate Feature</button>
+            <button onclick="alert('Settings opened!')">Open Settings</button>
+            <a href="#section4">Link to Section 4</a>
+        </div>
+
+        <div class="section" id="section4">
+            <h2>Section 4: Lower Content</h2>
+            <p>R3-D3 should maintain fast fly speed throughout entire tour.</p>
+            <button onclick="alert('Test complete!')">Complete Test</button>
+            <button onclick="alert('Reset clicked!')">Reset</button>
+            <a href="#section5">Link to Section 5</a>
+        </div>
+
+        <div class="section" id="section5">
+            <h2>Section 5: Bottom Content</h2>
+            <p>Final section to verify consistent behavior throughout tour.</p>
+            <button onclick="alert('Finish!')">Finish Tour</button>
+            <a href="#section1">Back to Top</a>
+        </div>
+
+        <div class="section" id="section6">
+            <h2>Section 6: Post-Tour Test</h2>
+            <p>After tour ends, cursor following should resume. Move mouse around to verify R3-D3 follows cursor again.</p>
+            <button onclick="alert('Post-tour test')">Post-Tour Button</button>
+        </div>
+    </div>
+
+    <!-- Load Robot Assistant -->
+    <script src="/js/robot-assistant-loader.js"></script>
+
+    <script>
+        let cursorTrackingEnabled = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let lastRobotX = 0;
+        let lastRobotY = 0;
+
+        function addStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            const item = document.createElement('div');
+            item.className = `status-item ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            item.textContent = `[${timestamp}] ${message}`;
+            status.appendChild(item);
+            status.scrollTop = status.scrollHeight;
+        }
+
+        function clearStatus() {
+            document.getElementById('status').innerHTML = '<div class="status-item info">Log cleared...</div>';
+        }
+
+        function testStartTour() {
+            addStatus('Starting tour...', 'info');
+            if (window.RobotAI) {
+                // Check initial state
+                if (window.RobotAssistant) {
+                    const state = window.RobotAssistant.getState();
+                    addStatus(`Initial position: (${Math.round(state.position.x)}, ${Math.round(state.position.y)})`, 'info');
+                    addStatus(`Fly mode: ${state.isFlyMode}, Speed: ${state.currentSpeed}`, 'info');
+                }
+                
+                window.RobotAI.startTour();
+                addStatus('Tour started! Watch for FAST movement...', 'pass');
+                
+                // Check state after tour starts
+                setTimeout(() => {
+                    if (window.RobotAssistant) {
+                        const state = window.RobotAssistant.getState();
+                        addStatus(`Tour mode: ${window.RobotAI.brain?.tourMode}`, 'info');
+                        addStatus(`Animation: ${state.animationState}`, 'info');
+                        if (state.isFlyMode) {
+                            addStatus('✓ Fly mode ENABLED', 'pass');
+                        } else {
+                            addStatus('✗ Fly mode NOT enabled', 'fail');
+                        }
+                    }
+                }, 1000);
+            } else {
+                addStatus('ERROR: RobotAI not loaded', 'fail');
+            }
+        }
+
+        function testEndTour() {
+            if (window.RobotAI && window.RobotAI.endTour) {
+                window.RobotAI.endTour();
+                addStatus('Tour ended manually', 'info');
+            }
+        }
+
+        function testRobotState() {
+            if (window.RobotAssistant) {
+                const state = window.RobotAssistant.getState();
+                const brain = window.RobotAI?.brain;
+                
+                addStatus('=== Current State ===', 'info');
+                addStatus(`Position: (${Math.round(state.position.x)}, ${Math.round(state.position.y)})`, 'info');
+                addStatus(`Animation: ${state.animationState}`, 'info');
+                addStatus(`Fly mode: ${state.isFlyMode}`, state.isFlyMode ? 'pass' : 'info');
+                addStatus(`Current speed: ${state.currentSpeed}`, 'info');
+                addStatus(`Has target: ${!!state.target}`, 'info');
+                addStatus(`Tour mode: ${brain?.tourMode}`, brain?.tourMode ? 'pass' : 'info');
+                
+                if (state.target) {
+                    addStatus(`Target: (${Math.round(state.target.x)}, ${Math.round(state.target.y)})`, 'info');
+                }
+            } else {
+                addStatus('ERROR: RobotAssistant not loaded', 'fail');
+            }
+        }
+
+        function testCursorFollow() {
+            cursorTrackingEnabled = !cursorTrackingEnabled;
+            const tracker = document.getElementById('cursorTracker');
+            tracker.style.display = cursorTrackingEnabled ? 'block' : 'none';
+            
+            if (cursorTrackingEnabled) {
+                addStatus('Cursor tracking ENABLED - red dot shows cursor', 'pass');
+                addStatus('If robot follows red dot during tour, test FAILED', 'fail');
+            } else {
+                addStatus('Cursor tracking DISABLED', 'info');
+            }
+        }
+
+        // Track mouse movement
+        document.addEventListener('mousemove', (e) => {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            
+            if (cursorTrackingEnabled) {
+                const tracker = document.getElementById('cursorTracker');
+                tracker.style.left = e.clientX + 'px';
+                tracker.style.top = e.clientY + 'px';
+            }
+        });
+
+        // Monitor robot movement during tour
+        setInterval(() => {
+            if (window.RobotAssistant) {
+                const state = window.RobotAssistant.getState();
+                const brain = window.RobotAI?.brain;
+                
+                // Check if robot moved and we're in tour mode
+                if (brain?.tourMode && state.target) {
+                    const robotMovedToX = Math.round(state.target.x);
+                    const robotMovedToY = Math.round(state.target.y);
+                    
+                    // Check if robot is moving toward cursor instead of tour element
+                    if (cursorTrackingEnabled) {
+                        const cursorY = window.innerHeight - lastMouseY;
+                        const distToCursor = Math.sqrt(
+                            Math.pow(robotMovedToX - lastMouseX, 2) + 
+                            Math.pow(robotMovedToY - cursorY, 2)
+                        );
+                        
+                        if (distToCursor < 100 && lastMouseX > 0) {
+                            addStatus('⚠️ ISSUE: Robot moving toward cursor!', 'fail');
+                            addStatus(`Cursor: (${lastMouseX}, ${Math.round(cursorY)})`, 'fail');
+                            addStatus(`Robot target: (${robotMovedToX}, ${robotMovedToY})`, 'fail');
+                        }
+                    }
+                }
+                
+                // Store last position
+                lastRobotX = state.position.x;
+                lastRobotY = state.position.y;
+            }
+        }, 500);
+
+        // Auto-check when robot is loaded
+        setTimeout(() => {
+            if (window.RobotAI && window.RobotAssistant) {
+                addStatus('✓ Robot loaded successfully', 'pass');
+                const state = window.RobotAssistant.getState();
+                addStatus(`Initial speed: ${state.currentSpeed} (should be 0.5)`, 'info');
+                addStatus(`Config fly speed: ${window.RobotAssistant.config?.flySpeed} (should be 5.0)`, 'info');
+            } else {
+                addStatus('⚠️ Waiting for robot...', 'fail');
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
