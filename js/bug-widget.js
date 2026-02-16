@@ -13,7 +13,7 @@
     btn.title = 'Request Feature / Give Feedback';
     btn.style.cssText = `
         position: fixed;
-        bottom: 100px;
+        bottom: 180px;
         right: 20px;
         width: 50px;
         height: 50px;
@@ -22,10 +22,28 @@
         border: 2px solid #64c8ff;
         font-size: 24px;
         cursor: pointer;
-        z-index: 999;
+        z-index: 998;
         transition: all 0.3s;
         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        pointer-events: auto;
     `;
+    
+    // Add responsive positioning for mobile
+    const updatePosition = () => {
+        if (window.innerWidth <= 768) {
+            btn.style.bottom = '160px';
+            btn.style.right = '15px';
+            btn.style.width = '45px';
+            btn.style.height = '45px';
+        } else {
+            btn.style.bottom = '180px';
+            btn.style.right = '20px';
+            btn.style.width = '50px';
+            btn.style.height = '50px';
+        }
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
     btn.onmouseover = () => btn.style.transform = 'scale(1.1)';
     btn.onmouseout = () => btn.style.transform = 'scale(1)';
     btn.onclick = openBugModal;
