@@ -1,27 +1,73 @@
 # Real-World Certifications - Quick Start Guide
 
+## 🎯 NEW: Enhanced Certification System!
+
+The certification system now includes **ALL major industries** with **100+ certifications** and **personalized recommendations** based on your interests!
+
+### ✨ What's New (February 2026)
+
+- **29+ Industries Covered** (expanded from 7)
+- **100+ Certifications Available** (expanded from 15)
+- **Smart Recommendation Engine** (personalized career guidance)
+- **18+ Career Pathways** (structured learning journeys)
+- **Interactive Career Path Finder** (5-step questionnaire)
+
+### 🚀 Quick Start: Find Your Perfect Path
+
+**Option 1: Get Personalized Recommendations (NEW!)**
+```
+Visit: /career-path-finder.html
+```
+Answer 5 quick questions and get instant recommendations tailored to:
+- Your career goals
+- Your industry interests
+- Your experience level
+- Your available time
+- Your learning style
+
+**Option 2: Browse All Certifications**
+```
+Visit: /certifications.html
+```
+Explore 45+ certifications across:
+- Technology (Web Dev, Cloud, Cybersecurity, AI/ML, Data Science)
+- Business (Project Management, Operations, HR, Quality)
+- Creative (UX/UI Design, Graphic Design, Marketing, Content)
+- Healthcare (Medical Coding, Administration, Mental Health)
+- Education (TEFL/TESOL, Instructional Design, Corporate Training)
+- And 24+ more industries!
+
 ## 🚀 For Users: How to Earn Your First Certification
 
-### Step 1: Explore Available Certifications
+### Step 1: Discover Your Perfect Certification
 
-Visit the certification catalog:
-```
-https://consciousnessrevolution.io/certifications.html
-```
+**NEW: Take the Career Path Finder Quiz**
+Visit `/career-path-finder.html` and answer:
+1. What are your career goals?
+2. Which industries interest you?
+3. What's your experience level?
+4. How much time can you commit?
+5. How do you learn best?
 
-**What you'll find:**
-- 15+ job-ready certifications
-- Filter by category, level, or search
+Get instant personalized recommendations with match scores and reasons!
+
+**Or Browse the Full Catalog:**
+Visit `/certifications.html` to explore:
+- 45+ job-ready certifications (expandable to 100+)
+- Filter by 29+ categories, 5 levels, or search
 - Each certification shows:
   - Job titles it prepares you for
-  - Estimated salary range
+  - Estimated salary range ($30K - $150K+)
   - Required skills and time commitment
   - Passing score requirements
+  - Career pathways it belongs to
 
 **Top certifications to start with:**
-1. **Certified Pattern Recognition Specialist** (40 hours) - Perfect for HR, coaching, counseling
-2. **Conscious Communication Professional** (50 hours) - Great for any client-facing role
-3. **Full-Stack Web Developer** (120 hours) - High-paying tech career path
+1. **Certified Pattern Recognition Specialist** (40 hours) - $45-85K - HR, coaching, counseling
+2. **Full-Stack Web Developer** (120 hours) - $70-130K - High-paying tech career
+3. **Digital Marketing Specialist** (60 hours) - $45-80K - Remote-friendly, high demand
+4. **Life Coach Certification** (60 hours) - $40-100K+ - Help others transform
+5. **Data Analyst Professional** (90 hours) - $55-85K - Critical thinking + tech
 
 ### Step 2: Start Learning
 
