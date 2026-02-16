@@ -30,16 +30,27 @@
     
     // Add responsive positioning for mobile
     const updatePosition = () => {
-        if (window.innerWidth <= 768) {
+        if (window.innerWidth <= 480) {
+            // Mobile (very small screens)
+            btn.style.bottom = '145px';
+            btn.style.right = '10px';
+            btn.style.width = '42px';
+            btn.style.height = '42px';
+            btn.style.fontSize = '20px';
+        } else if (window.innerWidth <= 768) {
+            // Tablet
             btn.style.bottom = '160px';
             btn.style.right = '15px';
             btn.style.width = '45px';
             btn.style.height = '45px';
+            btn.style.fontSize = '24px';
         } else {
+            // Desktop
             btn.style.bottom = '180px';
             btn.style.right = '20px';
             btn.style.width = '50px';
             btn.style.height = '50px';
+            btn.style.fontSize = '24px';
         }
     };
     updatePosition();
