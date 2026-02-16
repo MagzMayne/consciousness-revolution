@@ -781,19 +781,19 @@ npm start
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 1167 | **Interactive**: 1081
+**Total Projects**: 1168 | **Interactive**: 1081
 
 **Status Breakdown**:
 - ✅ **946 working** (81% - fully functional)
 - ⚠️ **50 partial** (4% - core features work)
 - 🔧 **42 broken** (4% - under repair)
-- 🧪 **129 untested** (11% - awaiting validation)
+- 🧪 **130 untested** (11% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 789 | 🌐 3d-experience: 83 | 📊 dashboard: 75 | 🤖 ai-tool: 65 | 🎮 game: 63
+**Top Categories**: ✨ web-app: 790 | 🌐 3d-experience: 83 | 📊 dashboard: 75 | 🤖 ai-tool: 65 | 🎮 game: 63
 
 **Top Technologies**: PayPal (426), Web Storage (323), Solana Web3 (194), Canvas (189), Web3 (138)
 
-*Last scanned: Feb 16, 2026, 4:35 PM*
+*Last scanned: Feb 16, 2026, 5:57 PM*
 
 ---
 
@@ -805,14 +805,14 @@ npm start
 2. ✨✅ **[User-Owned AI Voice Tool](yourVoice.html)** - Interactive web-app application `PayPal` *(Feb 16, 2026)*
 3. 🤖✅ **[Worm Agent 3D Visualization](worm-agent-visualization.html)** - Interactive ai-tool application `Three.js`, `Canvas`, `WebGL` *(Feb 16, 2026)*
 4. 🤖✅ **[Worm Agent System Dashboard](worm-agent-dashboard.html)** - Interactive ai-tool application `Canvas` *(Feb 16, 2026)*
-5. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Feb 16, 2026)*
-6. ✨⚠️ **[Workshop - Build Things](workshop.html)** - Interactive web-app application *(Feb 16, 2026)*
-7. ✨✅ **[WORKSPACE - Dashboard Hub](workspace.html)** - Interactive web-app application *(Feb 16, 2026)*
+5. ✨⚠️ **[Workshop - Build Things](workshop.html)** - Interactive web-app application *(Feb 16, 2026)*
+6. ✨✅ **[WORKSPACE - Dashboard Hub](workspace.html)** - Interactive web-app application *(Feb 16, 2026)*
+7. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Feb 16, 2026)*
 8. ✨✅ **[Magical Wishing Well](wishingWell.html)** - Interactive web-app application `Three.js`, `PayPal`, `WebGL` *(Feb 16, 2026)*
 9. 🌐✅ **[Gem Warehouse](warehouse.html)** - Interactive 3d-experience application `Three.js`, `Web Storage` *(Feb 16, 2026)*
 10. 🛠️✅ **[Warehouse Scanner - Visual Demo](warehouse-scanner-visual-demo.html)** - Interactive utility application *(Feb 16, 2026)*
 
-*Last updated: Feb 16, 2026, 4:35 PM*
+*Last updated: Feb 16, 2026, 5:57 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
