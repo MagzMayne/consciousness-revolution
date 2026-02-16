@@ -97,7 +97,7 @@ For those who want to go deeper, this platform includes access to a collection o
 | [AI Grid Link](aiGridLink.html) | AI & ML | Network intelligence | ✅ Working |
 | [Merlin Hive](zMerlinHive.html) | AI & ML | Autonomous agent system | ✅ Working |
 
-📖 **[View Additional Tools →](BARBRICK_INTEGRATION_SUMMARY.md)**
+📖 **[View Additional Tools →](tools/barbrick-enhancements/BARBRICK_INTEGRATION_SUMMARY.md)**
 
 ---
 
