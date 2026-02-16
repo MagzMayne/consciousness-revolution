@@ -79,6 +79,15 @@
             await loadScript('/js/robot-ai-brain.js');
             console.log('✅ Robot AI Brain loaded');
 
+            // Load html2canvas for screenshot capability (optional)
+            console.log('📸 Loading html2canvas...');
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js');
+                console.log('✅ html2canvas loaded');
+            } catch (error) {
+                console.log('⚠️ html2canvas unavailable, AI Vision will use fallback');
+            }
+
             // Load AUL Agent Connector
             console.log('🔌 Loading AUL Agent Connector...');
             await loadScript('/js/robot-aul-connector.js');
