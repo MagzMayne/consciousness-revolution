@@ -1064,13 +1064,30 @@ async function checkAPIHealth() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: '__ping__', user_id: userId, conversationHistory: [] })
         });
+        
         if (r.ok) {
             el.innerHTML = '<span class="dot" style="background:#0f0"></span><span style="color:rgba(0,255,100,0.6)">AI ONLINE</span>';
+        } else if (r.status === 503) {
+            // Service unavailable - likely missing configuration
+            const data = await r.json();
+            el.innerHTML = '<span class="dot" style="background:#f00"></span><span style="color:rgba(255,80,80,0.8)">CONFIG ERROR</span>';
+            
+            // Show detailed error to user
+            if (data.missingConfig) {
+                addMessage(
+                    `⚠️ <strong>Configuration Error</strong><br><br>` +
+                    `Araya Chat is not fully configured. Missing: <code>${data.missingConfig.join(', ')}</code><br><br>` +
+                    `Please contact the site administrator to set up the required environment variables.<br><br>` +
+                    `<a href="${data.configGuide || 'ARAYA_DEPLOYMENT_GUIDE.md'}" target="_blank" style="color: var(--neon-cyan);">View Setup Guide →</a>`,
+                    'araya'
+                );
+            }
         } else {
             el.innerHTML = '<span class="dot" style="background:#f80"></span><span style="color:rgba(255,180,0,0.5)">OFFLINE MODE</span>';
         }
     } catch(e) {
         el.innerHTML = '<span class="dot" style="background:#f80"></span><span style="color:rgba(255,180,0,0.5)">OFFLINE MODE</span>';
+        console.error('Health check failed:', e);
     }
     try {
         const r2 = await fetch(FILE_API, {
@@ -1322,7 +1339,16 @@ async function callArayaAPI(msg, msgAttachments) {
         body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    if (!res.ok) {
+        // Handle configuration errors specifically
+        if (res.status === 503) {
+            const errorData = await res.json();
+            if (errorData.response) {
+                return errorData.response; // Return the formatted error message
+            }
+        }
+        throw new Error(`API returned ${res.status}`);
+    }
 
     const data = await res.json();
 

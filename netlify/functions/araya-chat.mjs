@@ -1245,6 +1245,31 @@ export async function handler(event, context) {
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ENVIRONMENT VALIDATION - Check for required API keys
+    // ═══════════════════════════════════════════════════════════════
+    const missingVars = [];
+    if (!DEEPSEEK_API_KEY) missingVars.push('DEEPSEEK_API_KEY');
+    if (!SUPABASE_URL) missingVars.push('SUPABASE_URL');
+    if (!SUPABASE_KEY) missingVars.push('SUPABASE_KEY');
+
+    if (missingVars.length > 0) {
+        console.error('[CONFIG ERROR] Missing required environment variables:', missingVars);
+        return {
+            statusCode: 503,
+            headers: { 
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                error: 'Service configuration incomplete',
+                response: `I'm currently unavailable due to missing configuration. Please contact the administrator.\n\n**Technical details:**\nMissing environment variables: ${missingVars.join(', ')}\n\nSee ARAYA_DEPLOYMENT_GUIDE.md for setup instructions.`,
+                missingConfig: missingVars,
+                configGuide: 'https://github.com/overkor-tek/consciousness-revolution/blob/master/ARAYA_DEPLOYMENT_GUIDE.md'
+            })
+        };
+    }
+
     try {
         const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
 
