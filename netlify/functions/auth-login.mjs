@@ -118,15 +118,16 @@ export async function handler(event, context) {
         }
 
         // Create/update session tracking
-        // Store only a session identifier, not the actual access token
-        const sessionId = crypto.createHash('sha256')
-            .update(data.session.access_token + Date.now())
+        // Generate cryptographically secure session ID
+        const sessionId = crypto.createHmac('sha256', process.env.ANONYMIZATION_SALT || 'session-salt')
+            .update(data.session.access_token)
+            .update(crypto.randomBytes(32).toString('hex'))
             .digest('hex')
             .substring(0, 32);
         
         await supabase.from('user_sessions').insert({
             foundation_id: data.user.id,
-            session_token: sessionId, // Session ID, not access token
+            session_token: sessionId, // Secure session ID
             device_type: event.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
             ip_address: clientIP, // Will be anonymized by trigger
             user_agent: event.headers['user-agent'],

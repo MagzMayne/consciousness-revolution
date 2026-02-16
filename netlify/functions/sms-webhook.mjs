@@ -8,7 +8,8 @@ import {
     getSecureCORSHeaders,
     anonymizeIP,
     secureLog,
-    sanitizeString
+    sanitizeString,
+    pseudonymize
 } from './utils/security.mjs';
 
 // Supabase config - Use environment variables only, never hardcode
