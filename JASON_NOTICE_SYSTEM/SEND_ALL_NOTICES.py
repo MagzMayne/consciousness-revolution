@@ -7,6 +7,8 @@ Created: December 27, 2025
 from protonmail import ProtonMail
 import time
 import json
+import os
+import sys
 from datetime import datetime
 
 # RECIPIENTS
@@ -212,8 +214,17 @@ def send_all_notices(dry_run=True):
     print("=" * 60)
 
     try:
+        # Get credentials from environment variables
+        proton_email = os.environ.get('PROTON_EMAIL', 'darrickpreble@protonmail.com')
+        proton_password = os.environ.get('PROTON_PASSWORD')
+        
+        if not proton_password:
+            print("ERROR: PROTON_PASSWORD environment variable not set!")
+            print("Please set: export PROTON_PASSWORD='your_password'")
+            sys.exit(1)
+        
         pm = ProtonMail()
-        pm.login('darrickpreble@protonmail.com', 'Kill50780630#')
+        pm.login(proton_email, proton_password)
         print("Logged in successfully!")
 
         for i, email in enumerate(ALL_EMAILS, 1):
@@ -243,7 +254,7 @@ def send_all_notices(dry_run=True):
                     print("  -> Refreshing session...")
                     try:
                         pm = ProtonMail()
-                        pm.login('darrickpreble@protonmail.com', 'Kill50780630#')
+                        pm.login(proton_email, proton_password)
                     except:
                         pass
 

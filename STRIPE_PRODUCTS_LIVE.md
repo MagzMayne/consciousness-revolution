@@ -142,7 +142,7 @@ https://checkout.stripe.com/c/pay/cs_test_... (generate in dashboard)
 
 **Access:** https://dashboard.stripe.com
 **Login:** darrickpreble@proton.me
-**Password:** Kill50780630#
+**Password:** [Use password manager - contact Commander for access]
 
 **Quick Links:**
 - Products: https://dashboard.stripe.com/products
