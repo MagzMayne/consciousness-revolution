@@ -1866,9 +1866,13 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
             { role: 'system', content: systemPrompt }
         ];
 
-        // Add conversation history (last 10)
-        const recentHistory = conversationHistory.slice(-10);
-        messages.push(...recentHistory);
+        // Add conversation history - prefer frontend, fallback to server memory
+        let recentHistory = conversationHistory.slice(-10);
+        if (recentHistory.length < 2 && memory && memory.messages && memory.messages.length > 0) {
+        console.log('[MEMORY FALLBACK] Frontend history empty, using server-stored messages');
+        recentHistory = memory.messages.slice(-10);
+    }
+    messages.push(...recentHistory);
 
         // Build current message - handle attachments (images, text files)
         console.log('[ATTACHMENTS] Raw attachments received:', {
