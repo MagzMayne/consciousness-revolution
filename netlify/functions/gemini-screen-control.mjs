@@ -257,7 +257,7 @@ export async function handler(event, context) {
     try {
         // Parse request body
         const requestData = JSON.parse(event.body || '{}');
-        const { action = 'analyze', screenshot, pageContext } = requestData;
+        const { action = 'analyze', screenshot, pageContext, userApiKey } = requestData;
 
         // Validate required fields
         if (!screenshot) {
@@ -271,16 +271,31 @@ export async function handler(event, context) {
             };
         }
 
-        // Get Gemini API key from environment
-        const apiKey = process.env.GEMINI_API_KEY;
+        // Get Gemini API key - check user-provided key first, then environment
+        let apiKey = userApiKey || process.env.GEMINI_API_KEY;
+        
         if (!apiKey) {
-            console.error('GEMINI_API_KEY not configured');
+            console.error('GEMINI_API_KEY not configured and no user key provided');
             return {
                 statusCode: 500,
                 headers: CORS_HEADERS,
                 body: JSON.stringify({ 
                     error: 'Gemini API not configured',
-                    message: 'Please configure GEMINI_API_KEY in environment variables'
+                    message: 'Please configure GEMINI_API_KEY in environment variables or provide your own API key',
+                    needsApiKey: true
+                })
+            };
+        }
+
+        // Validate API key format (basic check)
+        if (!apiKey.startsWith('AIza') || apiKey.length < 30) {
+            console.error('Invalid API key format');
+            return {
+                statusCode: 400,
+                headers: CORS_HEADERS,
+                body: JSON.stringify({ 
+                    error: 'Invalid API key',
+                    message: 'The provided API key appears to be invalid. Please check your key and try again.'
                 })
             };
         }
@@ -295,7 +310,7 @@ export async function handler(event, context) {
         const prompt = generatePrompt(action, pageContext);
 
         // Call Gemini Vision API
-        console.log(`Calling Gemini API for action: ${action}`);
+        console.log(`Calling Gemini API for action: ${action}, using ${userApiKey ? 'user-provided' : 'environment'} API key`);
         const geminiResponse = await callGeminiVision(imageData, prompt, apiKey);
 
         // Parse and structure the response
@@ -317,19 +332,46 @@ export async function handler(event, context) {
         };
 
     } catch (error) {
-        console.error('Error in gemini-screen-control:', error);
+        console.error('Error in gemini-screen-control:', {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
+
+        // Determine error type for better user feedback
+        let statusCode = 500;
+        let errorMessage = 'Failed to analyze screenshot';
+        let userMessage = error.message;
+
+        if (error.message.includes('API error') || error.message.includes('400')) {
+            statusCode = 400;
+            errorMessage = 'Invalid API request';
+            userMessage = 'The API request was invalid. Please check your API key and try again.';
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+            statusCode = 401;
+            errorMessage = 'API authentication failed';
+            userMessage = 'Your API key is invalid or has expired. Please check your key and try again.';
+        } else if (error.message.includes('429')) {
+            statusCode = 429;
+            errorMessage = 'Rate limit exceeded';
+            userMessage = 'Too many requests. Please wait a moment and try again.';
+        } else if (error.message.includes('quota') || error.message.includes('limit')) {
+            statusCode = 429;
+            errorMessage = 'API quota exceeded';
+            userMessage = 'Your API quota has been exceeded. Please check your Google Cloud console.';
+        }
 
         // Return error response
         return {
-            statusCode: 500,
+            statusCode: statusCode,
             headers: {
                 'Content-Type': 'application/json',
                 ...CORS_HEADERS
             },
             body: JSON.stringify({
                 success: false,
-                error: 'Failed to analyze screenshot',
-                message: error.message,
+                error: errorMessage,
+                message: userMessage,
                 timestamp: new Date().toISOString()
             })
         };

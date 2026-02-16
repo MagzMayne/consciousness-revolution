@@ -2558,38 +2558,122 @@
     }
 
     /**
+     * Check if html2canvas plugin is available
+     */
+    function isHtml2canvasAvailable() {
+        return typeof html2canvas !== 'undefined';
+    }
+
+    /**
+     * Prompt user to load html2canvas plugin
+     */
+    async function promptForHtml2canvasPlugin() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10001;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                border: 2px solid rgba(0, 240, 255, 0.5);
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 500px;
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+
+            content.innerHTML = `
+                <h2 style="color: #00f0ff; margin-bottom: 15px;">📸 Screen Capture Plugin Required</h2>
+                <p style="margin-bottom: 20px; line-height: 1.6;">
+                    AI Vision Mode requires the html2canvas plugin for high-quality screen capture.
+                    Would you like to load it now?
+                </p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="cancel-plugin-btn" style="
+                        padding: 10px 20px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        color: white;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="load-plugin-btn" style="
+                        padding: 10px 20px;
+                        background: linear-gradient(135deg, #00f0ff, #9370db);
+                        border: none;
+                        color: white;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">Load Plugin</button>
+                </div>
+            `;
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            document.getElementById('cancel-plugin-btn').onclick = () => {
+                document.body.removeChild(modal);
+                resolve(false);
+            };
+
+            document.getElementById('load-plugin-btn').onclick = async () => {
+                // Load html2canvas from CDN
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = () => {
+                    document.body.removeChild(modal);
+                    resolve(true);
+                };
+                script.onerror = () => {
+                    alert('Failed to load html2canvas plugin. Please check your internet connection.');
+                    document.body.removeChild(modal);
+                    resolve(false);
+                };
+                document.head.appendChild(script);
+            };
+        });
+    }
+
+    /**
      * Capture screenshot of current page
      */
     async function captureScreenshot() {
         try {
-            // Use html2canvas if available, otherwise fallback to canvas API
-            if (typeof html2canvas !== 'undefined') {
-                const canvas = await html2canvas(document.body, {
-                    allowTaint: true,
-                    useCORS: true,
-                    logging: false,
-                    width: window.innerWidth,
-                    height: window.innerHeight,
-                    windowWidth: window.innerWidth,
-                    windowHeight: window.innerHeight
-                });
-                return canvas.toDataURL('image/png');
-            } else {
-                // Fallback: create a simple canvas snapshot
-                const canvas = document.createElement('canvas');
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                const ctx = canvas.getContext('2d');
-                
-                // Draw simple representation
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '16px Arial';
-                ctx.fillText('Page: ' + document.title, 20, 40);
-                
-                return canvas.toDataURL('image/png');
+            // Check if html2canvas is available
+            if (!isHtml2canvasAvailable()) {
+                speak('📸 Screen capture plugin not detected...');
+                const loaded = await promptForHtml2canvasPlugin();
+                if (!loaded) {
+                    throw new Error('html2canvas plugin required for AI Vision Mode');
+                }
+                // Wait a moment for plugin to initialize
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
+
+            // Use html2canvas for screenshot
+            const canvas = await html2canvas(document.body, {
+                allowTaint: true,
+                useCORS: true,
+                logging: false,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight
+            });
+            return canvas.toDataURL('image/png');
         } catch (error) {
             console.error('Failed to capture screenshot:', error);
             throw error;
@@ -2597,9 +2681,197 @@
     }
 
     /**
+     * Get stored Gemini API key from localStorage
+     */
+    function getStoredApiKey() {
+        try {
+            return localStorage.getItem('gemini_api_key') || null;
+        } catch (e) {
+            console.warn('Failed to get stored API key:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Store Gemini API key in localStorage
+     */
+    function storeApiKey(apiKey) {
+        try {
+            if (apiKey && apiKey.trim()) {
+                localStorage.setItem('gemini_api_key', apiKey.trim());
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error('Failed to store API key:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Clear stored API key
+     */
+    function clearStoredApiKey() {
+        try {
+            localStorage.removeItem('gemini_api_key');
+        } catch (e) {
+            console.warn('Failed to clear API key:', e);
+        }
+    }
+
+    /**
+     * Prompt user to enter Gemini API key
+     */
+    async function promptForApiKey() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10001;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                border: 2px solid rgba(0, 240, 255, 0.5);
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 600px;
+                color: white;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            `;
+
+            const storedKey = getStoredApiKey();
+            const hasStoredKey = storedKey && storedKey.length > 0;
+
+            content.innerHTML = `
+                <h2 style="color: #00f0ff; margin-bottom: 15px;">🔑 Gemini API Key Required</h2>
+                <p style="margin-bottom: 20px; line-height: 1.6;">
+                    AI Vision Mode requires a Google Gemini API key. 
+                    ${hasStoredKey ? 'You have a stored API key, or you can enter a new one.' : 'Please enter your API key to continue.'}
+                </p>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 14px;">
+                        API Key:
+                    </label>
+                    <input 
+                        type="password" 
+                        id="api-key-input" 
+                        placeholder="${hasStoredKey ? '********** (using stored key)' : 'Enter your Gemini API key'}" 
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 1px solid rgba(0, 240, 255, 0.3);
+                            background: rgba(0, 0, 0, 0.3);
+                            color: white;
+                            border-radius: 5px;
+                            font-family: monospace;
+                        "
+                    />
+                    <div style="margin-top: 10px; font-size: 12px; opacity: 0.7;">
+                        ${hasStoredKey ? 'Leave blank to use stored key or enter a new one' : 'Get your free API key at: <a href="https://ai.google.dev/" target="_blank" style="color: #00f0ff;">ai.google.dev</a>'}
+                    </div>
+                    ${hasStoredKey ? `
+                        <label style="display: block; margin-top: 10px; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" id="clear-stored-key" style="margin-right: 5px;"/>
+                            Clear stored API key
+                        </label>
+                    ` : `
+                        <label style="display: block; margin-top: 10px; font-size: 14px; cursor: pointer;">
+                            <input type="checkbox" id="remember-key" checked style="margin-right: 5px;"/>
+                            Remember this API key
+                        </label>
+                    `}
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button id="cancel-api-btn" style="
+                        padding: 10px 20px;
+                        background: rgba(255, 255, 255, 0.1);
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                        color: white;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    ">Cancel</button>
+                    <button id="submit-api-btn" style="
+                        padding: 10px 20px;
+                        background: linear-gradient(135deg, #00f0ff, #9370db);
+                        border: none;
+                        color: white;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">Continue</button>
+                </div>
+            `;
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            const apiKeyInput = document.getElementById('api-key-input');
+            const cancelBtn = document.getElementById('cancel-api-btn');
+            const submitBtn = document.getElementById('submit-api-btn');
+
+            cancelBtn.onclick = () => {
+                document.body.removeChild(modal);
+                resolve(null);
+            };
+
+            submitBtn.onclick = () => {
+                const enteredKey = apiKeyInput.value.trim();
+                const clearStored = document.getElementById('clear-stored-key');
+                
+                if (clearStored && clearStored.checked) {
+                    clearStoredApiKey();
+                    document.body.removeChild(modal);
+                    resolve(null);
+                    return;
+                }
+
+                // Use entered key or stored key
+                let apiKey = null;
+                if (enteredKey) {
+                    apiKey = enteredKey;
+                    const rememberKey = document.getElementById('remember-key');
+                    if (!rememberKey || rememberKey.checked) {
+                        storeApiKey(apiKey);
+                    }
+                } else if (hasStoredKey) {
+                    apiKey = storedKey;
+                }
+
+                if (!apiKey) {
+                    alert('Please enter an API key or use your stored key.');
+                    return;
+                }
+
+                document.body.removeChild(modal);
+                resolve(apiKey);
+            };
+
+            // Allow Enter key to submit
+            apiKeyInput.onkeypress = (e) => {
+                if (e.key === 'Enter') {
+                    submitBtn.click();
+                }
+            };
+
+            // Focus on input
+            setTimeout(() => apiKeyInput.focus(), 100);
+        });
+    }
+
+    /**
      * Call Gemini API for screen analysis
      */
-    async function analyzeWithGemini(screenshot, action = 'analyze') {
+    async function analyzeWithGemini(screenshot, action = 'analyze', userApiKey = null) {
         try {
             const pageContext = {
                 url: window.location.href,
@@ -2607,20 +2879,28 @@
                 pathname: window.location.pathname
             };
 
+            const requestBody = {
+                action: action,
+                screenshot: screenshot,
+                pageContext: pageContext
+            };
+
+            // Include user API key if provided
+            if (userApiKey) {
+                requestBody.userApiKey = userApiKey;
+            }
+
             const response = await fetch('/.netlify/functions/gemini-screen-control', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    action: action,
-                    screenshot: screenshot,
-                    pageContext: pageContext
-                })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `API request failed: ${response.status}`);
             }
 
             const data = await response.json();
@@ -2633,7 +2913,45 @@
             
         } catch (error) {
             console.error('Gemini API error:', error);
+            // Log error for security/debugging
+            logAIVisionError('analyzeWithGemini', error.message, {
+                action,
+                hasUserApiKey: !!userApiKey,
+                timestamp: new Date().toISOString()
+            });
             throw error;
+        }
+    }
+
+    /**
+     * Log AI Vision errors for debugging and security monitoring
+     */
+    function logAIVisionError(context, errorMessage, details = {}) {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            context: context,
+            error: errorMessage,
+            details: details,
+            page: {
+                url: window.location.href,
+                title: document.title
+            }
+        };
+
+        // Log to console
+        console.error('[AI Vision Error]', logEntry);
+
+        // Store in localStorage for debugging (keep last 10 errors)
+        try {
+            const errorLog = JSON.parse(localStorage.getItem('ai_vision_error_log') || '[]');
+            errorLog.unshift(logEntry);
+            // Keep only last 10 errors
+            if (errorLog.length > 10) {
+                errorLog.length = 10;
+            }
+            localStorage.setItem('ai_vision_error_log', JSON.stringify(errorLog));
+        } catch (e) {
+            console.warn('Failed to store error log:', e);
         }
     }
 
@@ -2778,6 +3096,8 @@
      * Activate AI Vision Mode
      */
     async function activateAIVisionMode() {
+        let userApiKey = null;
+        
         try {
             speak('🎯 Activating AI Vision Mode... Let me analyze this page with my enhanced vision!');
             
@@ -2787,28 +3107,66 @@
             // Show loading indicator
             speak('📸 Capturing screen... Please wait...');
             
-            // Capture screenshot
+            // Capture screenshot (will prompt for plugin if needed)
             const screenshot = await captureScreenshot();
             
-            speak('🧠 Analyzing with Google Gemini AI... This may take a few seconds...');
+            // Check if we need API key - try without first
+            speak('🔑 Checking API configuration...');
             
-            // Analyze with Gemini
-            const analysis = await analyzeWithGemini(screenshot, 'analyze');
-            
-            // Display results
-            displayAIAnalysis(analysis);
-            
-            speak('✨ AI Vision analysis complete! Check out what I found.');
+            // Try initial request to see if backend has API key
+            try {
+                speak('🧠 Analyzing with Google Gemini AI... This may take a few seconds...');
+                const analysis = await analyzeWithGemini(screenshot, 'analyze');
+                
+                // Success! Display results
+                displayAIAnalysis(analysis);
+                speak('✨ AI Vision analysis complete! Check out what I found.');
+                return;
+                
+            } catch (apiError) {
+                // Check if error is due to missing API key
+                if (apiError.message.includes('not configured') || apiError.message.includes('API key')) {
+                    speak('🔑 API key needed. Let me help you configure it...');
+                    
+                    // Prompt user for API key
+                    userApiKey = await promptForApiKey();
+                    
+                    if (!userApiKey) {
+                        speak('❌ AI Vision Mode cancelled. You can configure your API key anytime!');
+                        return;
+                    }
+                    
+                    // Retry with user-provided API key
+                    speak('🧠 Analyzing with Google Gemini AI using your API key...');
+                    const analysis = await analyzeWithGemini(screenshot, 'analyze', userApiKey);
+                    
+                    // Display results
+                    displayAIAnalysis(analysis);
+                    speak('✨ AI Vision analysis complete! Your API key has been saved for future use.');
+                    
+                } else {
+                    // Different error, re-throw
+                    throw apiError;
+                }
+            }
             
         } catch (error) {
             console.error('AI Vision Mode error:', error);
             
+            // Log error for security/debugging
+            logAIVisionError('activateAIVisionMode', error.message, {
+                hasUserApiKey: !!userApiKey,
+                errorType: error.name
+            });
+            
             let errorMessage = '❌ AI Vision Mode encountered an error. ';
             
-            if (error.message.includes('html2canvas')) {
-                errorMessage += 'Screen capture library not available. Using fallback mode.';
-            } else if (error.message.includes('not configured')) {
-                errorMessage += 'Gemini API not configured. Please add GEMINI_API_KEY to environment.';
+            if (error.message.includes('html2canvas') || error.message.includes('plugin')) {
+                errorMessage += 'Screen capture plugin is required. Please try again and load the plugin when prompted.';
+            } else if (error.message.includes('not configured') || error.message.includes('API key')) {
+                errorMessage += 'API key is required. You can get a free key at ai.google.dev';
+            } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                errorMessage += 'Network error. Please check your internet connection and try again.';
             } else {
                 errorMessage += error.message || 'Please try again later.';
             }
@@ -2845,6 +3203,23 @@
         endTour,
         demonstrateAllFeatures, // NEW: Show all features demo
         activateAIVisionMode, // NEW: AI Vision Mode with Gemini
+        // AI Vision utilities
+        getAIVisionErrorLog: () => {
+            try {
+                return JSON.parse(localStorage.getItem('ai_vision_error_log') || '[]');
+            } catch (e) {
+                return [];
+            }
+        },
+        clearAIVisionErrorLog: () => {
+            try {
+                localStorage.removeItem('ai_vision_error_log');
+                console.log('AI Vision error log cleared');
+            } catch (e) {
+                console.error('Failed to clear error log:', e);
+            }
+        },
+        clearStoredApiKey: clearStoredApiKey,
         brain
     };
 
