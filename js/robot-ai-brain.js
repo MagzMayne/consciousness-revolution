@@ -57,7 +57,9 @@
             firstVisit: null,
             totalVisits: 0,
             explorationScore: 0,
-            preferences: {}
+            preferences: {},
+            userName: null, // User's preferred name
+            lastVisit: null // Last visit timestamp
         },
         tourMode: false,
         currentTourStep: 0,
@@ -214,6 +216,7 @@
         
         // Update user profile
         brain.userProfile.totalVisits++;
+        brain.userProfile.lastVisit = Date.now(); // Track last visit time
         
         // Calculate exploration score (avoid division by zero)
         if (brain.allPages.length > 0) {
@@ -598,8 +601,13 @@
         // Show end tour button
         showEndTourButton();
         
-        // Resume the interactive tour
-        speak(`✨ I'm continuing the tour on this page! Let me show you what's here...`, 4000);
+        // Personalized resumption message
+        const userName = brain.userProfile.userName;
+        const resumeMessage = userName
+            ? `✨ Hi ${userName}! I'm continuing the tour on this page. Let me show you what's here...`
+            : `✨ I'm continuing the tour on this page! Let me show you what's here...`;
+        
+        speak(resumeMessage, 4000);
         
         setTimeout(() => {
             performInteractiveTour();
@@ -806,9 +814,131 @@
     }
 
     /**
+     * Greet user based on their profile
+     */
+    function greetUser() {
+        const isFirstVisit = !brain.userProfile.firstVisit || brain.userProfile.totalVisits === 1;
+        const userName = brain.userProfile.userName;
+        const visitCount = brain.userProfile.totalVisits;
+        const explorationScore = brain.userProfile.explorationScore;
+        const pagesVisited = brain.visitedPages.size;
+        const totalPages = brain.allPages.length;
+        
+        let greeting = '';
+        
+        if (isFirstVisit) {
+            greeting = `👋 Hello! I'm R3-D3, your personal tour guide! Welcome to the Consciousness Revolution platform with ${totalPages}+ interactive projects, tools, and AI systems!`;
+        } else if (userName) {
+            greeting = `👋 Welcome back, ${userName}! Great to see you again! You've visited ${pagesVisited} pages so far (${explorationScore.toFixed(0)}% explored).`;
+        } else {
+            greeting = `👋 Welcome back! This is visit #${visitCount}. You've explored ${pagesVisited} of ${totalPages} pages (${explorationScore.toFixed(0)}%).`;
+        }
+        
+        // If user doesn't have a name, offer to ask for it
+        if (!userName && visitCount >= 2) {
+            greeting += ` Would you like me to remember your name for future visits?`;
+            setTimeout(() => {
+                offerToRememberName();
+            }, 8000);
+        }
+        
+        speak(greeting, 10000);
+    }
+    
+    /**
+     * Offer to remember user's name
+     */
+    function offerToRememberName() {
+        const offer = `
+            <div style="padding: 5px 0;">
+                I'd love to personalize your experience! What should I call you?
+                <div style="margin-top: 12px;">
+                    <input type="text" id="user-name-input" placeholder="Enter your name" style="
+                        width: 100%;
+                        padding: 10px;
+                        border: 2px solid rgba(255, 255, 255, 0.3);
+                        border-radius: 8px;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: white;
+                        font-size: 14px;
+                        margin-bottom: 10px;
+                    "/>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="window.RobotAI.saveUserName()" style="
+                        flex: 1 1 120px;
+                        background: white;
+                        color: #9370db;
+                        border: none;
+                        padding: 12px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        font-size: 14px;
+                    ">Save Name 💾</button>
+                    <button onclick="window.RobotAI.dismissNameOffer()" style="
+                        flex: 1 1 120px;
+                        background: rgba(255,255,255,0.3);
+                        color: white;
+                        border: none;
+                        padding: 12px 16px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 14px;
+                    ">Maybe Later</button>
+                </div>
+            </div>
+        `;
+        
+        speak(offer, 30000, false);
+        speechBubble.style.pointerEvents = 'auto';
+        
+        // Focus the input field after a brief delay
+        setTimeout(() => {
+            const input = document.getElementById('user-name-input');
+            if (input) {
+                input.focus();
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        saveUserName();
+                    }
+                });
+            }
+        }, 100);
+    }
+    
+    /**
+     * Save user's name to profile
+     */
+    function saveUserName() {
+        const input = document.getElementById('user-name-input');
+        const name = input?.value?.trim();
+        
+        if (name && name.length > 0) {
+            brain.userProfile.userName = name;
+            saveMemory();
+            hideSpeechBubble();
+            speak(`✨ Great to meet you, ${name}! I'll remember that for next time!`, 5000);
+        } else {
+            speak(`Please enter your name first!`, 3000);
+        }
+    }
+    
+    /**
+     * Dismiss the name offer
+     */
+    function dismissNameOffer() {
+        hideSpeechBubble();
+        speak(`No problem! You can always tell me your name later by clicking on me and choosing "Settings".`, 5000);
+    }
+
+    /**
      * Check if user needs a tour offer
      */
     function checkForTourOffer() {
+        // First, greet the user based on their history
+        setTimeout(() => greetUser(), 1000);
+        
         // Get unvisited pages
         const unvisitedPages = brain.allPages.filter(
             page => !brain.visitedPages.has(page)
@@ -828,7 +958,7 @@
             (unvisitedPages.length > 0 && timeSinceInteraction > 86400000);
         
         if (shouldOfferTour) {
-            setTimeout(() => offerTour(unvisitedPages), 3000);
+            setTimeout(() => offerTour(unvisitedPages), 12000); // Wait for greeting to finish
         }
     }
 
@@ -1944,7 +2074,13 @@
         hideSpeechBubble();
         
         setTimeout(() => {
-            speak(`🚀 Let's start the tour! I'll show you around and explain everything.`, 4000);
+            // Personalized greeting for tour start
+            const userName = brain.userProfile.userName;
+            const greeting = userName 
+                ? `🚀 Alright ${userName}, let's start the tour! I'll walk around and explain everything I find on this page.`
+                : `🚀 Let's start the tour! I'll walk around and explain everything I find on this page.`;
+            
+            speak(greeting, 4000);
             
             setTimeout(() => {
                 performInteractiveTour();
@@ -2300,13 +2436,14 @@
         const lowerClass = className.toLowerCase();
         const lowerId = id.toLowerCase();
         
-        // Check for link elements
+        // Check for link elements with enhanced descriptions
         if (tagName === 'a' && href) {
             if (href.startsWith('http')) {
-                return `🌐 Here we have the "${displayText}" link. This takes you to an external website: ${href}`;
+                const domain = new URL(href).hostname;
+                return `🌐 This is the "${displayText}" link. It's an external link that takes you to ${domain}. This opens in a new tab so you won't lose your place here!`;
             } else {
-                const pageName = href.replace('.html', '').replace('/', '').replace('-', ' ');
-                return `🔗 Here we have the "${displayText}" link. This will take you to the ${pageName} page`;
+                const pageName = href.replace('.html', '').replace('/', '').replace(/-/g, ' ');
+                return `🔗 This is the "${displayText}" navigation link. Clicking it will take you to the ${pageName} page, which is one of the ${brain.allPages.length}+ pages on this platform!`;
             }
         } 
         
@@ -2314,86 +2451,86 @@
         if (tagName === 'button' || element.role === 'button') {
             // ARAYA chat-related buttons
             if (lowerText.includes('araya') || lowerClass.includes('araya') || lowerId.includes('araya')) {
-                return `💬 This is the "${displayText}" button. Click it to open the ARAYA chat interface with our advanced AI assistant`;
+                return `💬 This is the "${displayText}" button. It opens ARAYA, our advanced AI chat assistant that can help you navigate the platform, answer questions, and provide personalized guidance!`;
             }
             
             // Chat or messaging buttons
             if (lowerText.includes('chat') || lowerClass.includes('chat') || lowerId.includes('chat')) {
-                return `💬 This is the "${displayText}" button. It opens a chat or messaging interface`;
+                return `💬 This is the "${displayText}" button. Clicking it will open a chat or messaging interface where you can communicate in real-time!`;
             }
             
             // Login/authentication buttons
             if (lowerText.includes('login') || lowerText.includes('log in') || lowerText.includes('sign in')) {
-                return `🔐 This is the "${displayText}" button. Click it to log into your account`;
+                return `🔐 This is the "${displayText}" button. Use it to log into your account and access personalized features and settings!`;
             }
             
             // Signup/registration buttons
             if (lowerText.includes('signup') || lowerText.includes('sign up') || lowerText.includes('register') || lowerText.includes('create account')) {
-                return `✨ This is the "${displayText}" button. Click it to create a new account and join the community`;
+                return `✨ This is the "${displayText}" button. Click here to create your free account and join our community of consciousness explorers!`;
             }
             
             // Logout buttons
             if (lowerText.includes('logout') || lowerText.includes('log out') || lowerText.includes('sign out')) {
-                return `🚪 This is the "${displayText}" button. Click it to log out of your account`;
+                return `🚪 This is the "${displayText}" button. Use this when you're done to securely log out of your account.`;
             }
             
             // Submit buttons
             if (lowerText.includes('submit') || type === 'submit') {
-                return `✅ This is the "${displayText}" button. It submits the current form with your entered information`;
+                return `✅ This is the "${displayText}" button. It will submit the current form with all the information you've entered. Make sure everything looks good before clicking!`;
             }
             
             // Start/Begin buttons
             if (lowerText.includes('start') || lowerText.includes('begin') || lowerText.includes('launch')) {
-                return `🚀 This is the "${displayText}" button. Click it to start or launch this feature`;
+                return `🚀 This is the "${displayText}" button. Click it to start or launch this feature. Get ready for an exciting experience!`;
             }
             
             // Continue/Next buttons
             if (lowerText.includes('continue') || lowerText.includes('next') || lowerText.includes('proceed')) {
-                return `➡️ This is the "${displayText}" button. Click it to continue to the next step`;
+                return `➡️ This is the "${displayText}" button. Use it to move forward to the next step or section of the process.`;
             }
             
             // Save buttons
             if (lowerText.includes('save')) {
-                return `💾 This is the "${displayText}" button. Click it to save your changes`;
+                return `💾 This is the "${displayText}" button. Click it to save your changes. Don't forget to save your work!`;
             }
             
             // Cancel/Close buttons
             if (lowerText.includes('cancel') || lowerText.includes('close') || lowerText.includes('dismiss')) {
-                return `❌ This is the "${displayText}" button. Click it to cancel or close this dialog`;
+                return `❌ This is the "${displayText}" button. Use it to cancel the current action or close this dialog without saving changes.`;
             }
             
             // Download buttons
             if (lowerText.includes('download')) {
-                return `📥 This is the "${displayText}" button. Click it to download the file or content`;
+                return `📥 This is the "${displayText}" button. Click it to download the file or content to your device. The file will be saved in your downloads folder!`;
             }
             
             // Upload buttons
             if (lowerText.includes('upload') || lowerText.includes('choose file')) {
-                return `📤 This is the "${displayText}" button. Click it to upload or select a file`;
+                return `📤 This is the "${displayText}" button. Click it to select and upload a file from your device. You can browse your computer to find the right file!`;
             }
             
             // Menu/Navigation buttons
             if (lowerText.includes('menu') || lowerClass.includes('menu') || lowerClass.includes('nav')) {
-                return `🍔 This is the "${displayText}" button. Click it to open the navigation menu`;
+                return `🍔 This is the "${displayText}" navigation button. Click it to open the menu and access different sections of the site. Perfect for exploring!`;
             }
             
             // Search buttons
             if (lowerText.includes('search') || type === 'search') {
-                return `🔍 This is the "${displayText}" button. Click it to search or submit your search query`;
+                return `🔍 This is the "${displayText}" button. Click it to search or submit your search query. Great for finding specific content!`;
             }
             
             // Tour/Help buttons
             if (lowerText.includes('tour') || lowerText.includes('help') || lowerText.includes('guide')) {
-                return `❓ This is the "${displayText}" button. Click it to get help or start a guided tour`;
+                return `❓ This is the "${displayText}" button. Click it to get help or start a guided tour. I can help with that too!`;
             }
             
             // Settings buttons
             if (lowerText.includes('settings') || lowerText.includes('preferences') || lowerText.includes('config')) {
-                return `⚙️ This is the "${displayText}" button. Click it to adjust settings or preferences`;
+                return `⚙️ This is the "${displayText}" button. Click it to adjust settings, customize preferences, or configure the application to work best for you!`;
             }
             
             // Generic button with more detail
-            return `🔘 This is the "${displayText}" button. Click it to perform this action`;
+            return `🔘 This is the "${displayText}" action button. Click it to ${lowerText || 'perform this action'}!`;
         } 
         
         // Input fields
@@ -3284,6 +3421,11 @@
         endTour,
         demonstrateAllFeatures, // NEW: Show all features demo
         activateAIVisionMode, // NEW: AI Vision Mode with Gemini
+        // User memory functions
+        saveUserName,
+        dismissNameOffer,
+        getUserName: () => brain.userProfile.userName,
+        greetUser,
         // AI Vision utilities
         getAIVisionErrorLog: () => {
             try {
