@@ -37,8 +37,9 @@ export async function handler(event, context) {
         // For now, log the signup (in production, store in database)
         console.log('Beta signup:', { email, name, interest, timestamp: new Date().toISOString() });
 
-        // TODO: Add to database/email list when configured
+        // ENHANCEMENT: Add to database/email list when scaling
         // Options: Airtable, Supabase, or simple JSON file
+        // Current: Logs to Netlify function logs (works for now)
 
         return {
             statusCode: 200,

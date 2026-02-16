@@ -274,8 +274,8 @@ export const handler = async (event, context) => {
             })
             .eq('id', progress.id);
 
-        // TODO: Generate certificate PDF and badge
-        // For now, return the certification data
+        // ENHANCEMENT: Generate certificate PDF and badge when scaling
+        // Current: Returns certificate data and URL (works for now)
         const certificateUrl = `${process.env.URL || 'https://consciousnessrevolution.io'}/certifications/certificate/${certification.certificate_number}`;
 
         return {

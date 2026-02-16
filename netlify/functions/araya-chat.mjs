@@ -1284,6 +1284,35 @@ export async function handler(event, context) {
             fetchBrainContext(message, brainLimit)
         ]);
 
+        // ═══════════════════════════════════════════════════════════════
+        // USAGE LIMITS - Free users get 20 messages/day, paid users unlimited
+        // ═══════════════════════════════════════════════════════════════
+        const FREE_DAILY_LIMIT = 20;
+        const dailyInteractions = memory.daily_interactions || 0;
+        const isPaidUser = memory.profile?.subscription_status === 'active' ||
+                           memory.profile?.subscription_status === 'trialing' ||
+                           memory.profile?.is_beta_tester === true;
+
+        if (dailyInteractions >= FREE_DAILY_LIMIT && !isPaidUser) {
+            console.log(`[USAGE LIMIT] User ${user_id} hit daily limit: ${dailyInteractions}/${FREE_DAILY_LIMIT}`);
+            return {
+                statusCode: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    response: `You've reached your free daily limit of ${FREE_DAILY_LIMIT} messages! 🌟\n\nI'd love to keep talking with you. Unlock unlimited ARAYA conversations for just $20/month.\n\n[✨ Upgrade to Unlimited](https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf)\n\nYour conversations and memory are safe - I'll remember everything when you return tomorrow or upgrade!`,
+                    limitReached: true,
+                    dailyLimit: FREE_DAILY_LIMIT,
+                    currentUsage: dailyInteractions,
+                    upgradeUrl: 'https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf',
+                    resetsAt: getNextResetTime(),
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
+
         // NAME EXTRACTION - Check if user is telling us their name
         let nameExtracted = null;
         const detectedName = extractName(message);

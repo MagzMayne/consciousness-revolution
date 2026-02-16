@@ -299,10 +299,14 @@ class WidgetSystem {
         }
     }
 
-    // Configure widget (placeholder)
+    // Configure widget
     configureWidget(id) {
-        console.log(`Configure widget: ${id}`);
-        // TODO: Show configuration modal
+        const config = prompt(`Configure widget "${id}":\nEnter refresh interval in seconds (0 = no auto-refresh):`, '30');
+        if (config !== null) {
+            const interval = parseInt(config) || 0;
+            localStorage.setItem(`widget-${id}-interval`, interval);
+            console.log(`Widget ${id} configured: refresh every ${interval}s`);
+        }
     }
 
     // Auto-refresh widget

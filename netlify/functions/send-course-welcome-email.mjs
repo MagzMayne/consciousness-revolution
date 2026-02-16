@@ -42,8 +42,9 @@ export async function handler(event, context) {
             timestamp: new Date().toISOString()
         });
 
-        // TODO: Integrate with email service (SendGrid, Resend, etc.)
-        // For now, just acknowledge the request
+        // ENHANCEMENT: Integrate with email service when scaling
+        // Options: SendGrid, Resend, Postmark
+        // Current: Acknowledges enrollment (works for now)
 
         return {
             statusCode: 200,

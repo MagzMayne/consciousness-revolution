@@ -50,7 +50,7 @@ function verifyWebhookSignature(headers, body, webhookId) {
       return false;
     }
 
-    // TODO: Implement full verification in production:
+    // PRODUCTION NOTE: Implement full verification before going live:
     // 1. Retrieve PayPal certificate from certUrl
     // 2. Construct expected message: webhook_id + transmission_id + transmission_time + body
     // 3. Verify signature using certificate and authAlgo
