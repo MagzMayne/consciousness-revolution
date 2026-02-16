@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: textToStl.html
+Declaration ID: IP-5835BA36-MLL2902F
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prompt-to-3D STL & NFT Mint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Three.js for 3D STL viewing - Using local files -->
+  <script src="/js/vendor/three.min.js"></script>
+  <script src="/js/vendor/OrbitControls.js"></script>
+  <script src="/js/vendor/STLLoader.js"></script>
+
+  <!-- Google Identity Services (replace with your client ID) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #05060a;
+      color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header, footer {
+      padding: 1rem 2rem;
+      background: #0b0d14;
+      border-bottom: 1px solid #202331;
+    }
+    footer {
+      border-top: 1px solid #202331;
+      border-bottom: none;
+      margin-top: auto;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+    main {
+      padding: 1.5rem 2rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr);
+      gap: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      background: #111827;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      gap: 0.4rem;
+    }
+    .pill span {
+      color: #22c55e;
+    }
+    .card {
+      background: #0b0d14;
+      border-radius: 0.75rem;
+      border: 1px solid #1f2937;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+      color: #d1d5db;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      border-radius: 0.5rem;
+      border: 1px solid #374151;
+      background: #020617;
+      color: #f9fafb;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 80px;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 1px #6366f1;
+    }
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.55rem 1.2rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    button.primary {
+      background: linear-gradient(135deg, #6366f1, #22c55e);
+      color: #f9fafb;
+      box-shadow: 0 12px 30px rgba(79,70,229,0.45);
+    }
+    button.primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    button.secondary {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #374151;
+    }
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 35px rgba(0,0,0,0.45);
+    }
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    .row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      background: #111827;
+      color: #9ca3af;
+      border: 1px solid #1f2937;
+    }
+    #viewer-container {
+      width: 100%;
+      height: 420px;
+      border-radius: 0.75rem;
+      overflow: hidden;
+      background: radial-gradient(circle at top, #111827, #020617);
+      border: 1px solid #1f2937;
+      position: relative;
+    }
+    #viewer {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #status {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 0.5rem;
+      min-height: 1.2rem;
+      white-space: pre-line;
+    }
+    .tagline {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-top: 0.35rem;
+    }
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #e5e7eb;
+    }
+    .small {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+    .divider {
+      height: 1px;
+      background: #111827;
+      margin: 0.75rem 0;
+    }
+    .pill-user {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid #1f2937;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .pill-user span {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+    a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      header, main, footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+    }
+  </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <header>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <div class="pill">
+          <span>●</span> Text → 3D → STL → NFT
+        </div>
+        <h1>Barbrick Design · Text to 3D STL</h1>
+        <p class="tagline">
+          Convert text into 3D printable STL files. Enter any text and see it rendered as a 3D model, ready for download and printing.
+        </p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;">
+        <div id="google-signin"></div>
+        <div id="user-pill" class="pill-user" style="display:none;">
+          Signed in as <span id="user-email"></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: Prompt + Flow Controls -->
+    <section class="card">
+      <div class="section-title">1. Enter your text</div>
+      <label for="prompt">Text to convert to 3D</label>
+      <textarea id="prompt" placeholder="Example: 'HELLO WORLD' or 'Create 3D text saying HELLO' or 'I want 3D letters ABC123'"></textarea>
+
+      <div class="row">
+        <button id="generate-btn" class="primary">
+          <span>Generate 3D Model</span>
+        </button>
+        <span class="badge">Auto: text → image → STL</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-title">2. Donation & minting</div>
+      <p class="small">
+        Once your STL is ready and valued, we’ll calculate a minimum donation. After PayPal confirmation to
+        <strong>BarbrickDesign@gmail.com</strong>, we’ll:
+      </p>
+      <ul class="small" style="margin-top:0.25rem;padding-left:1.1rem;">
+        <li>Unlock STL download</li>
+        <li>Trigger NFT mint via Pump.fun (animated render of your 3D)</li>
+        <li>Associate your wallet so you can capture upside from your idea</li>
+      </ul>
+
+      <div class="row">
+        <button id="donate-btn" class="secondary" disabled>
+          <span>Donate & Mint</span>
+        </button>
+        <span id="donation-info" class="small">Waiting for model valuation…</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-title">3. Download STL</div>
+      <div class="row">
+        <button id="download-btn" class="secondary" disabled>
+          <span>Download STL</span>
+        </button>
+        <span class="small">Download unlocks after verified donation.</span>
+      </div>
+
+      <div id="status"></div>
+    </section>
+
+    <!-- RIGHT: 3D Viewer -->
+    <section class="card">
+      <div class="section-title">Live 3D Preview</div>
+      <p class="small">
+        Rotate, zoom, and inspect your STL before you commit to minting. This is the exact geometry we’ll
+        animate for your NFT.
+      </p>
+      <div id="viewer-container">
+        <canvas id="viewer"></canvas>
+      </div>
+      <p class="small" style="margin-top:0.5rem;">
+        Tip: Use mouse drag to orbit, scroll to zoom, right-click to pan.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+      <span>© <span id="year"></span> Barbrick Design · Experimental builder-first pipeline.</span>
+      <span class="small">
+        Backend endpoints: /api/generate-image · /api/image-to-stl · /api/value-model · /api/paypal-webhook · /api/mint-nft
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    // --- GLOBAL STATE ---
+    let authUser = null;
+    let scene, camera, renderer, controls;
+    let currentSTLBlob = null;
+    let currentSTLUrl = null;
+    let donationRequired = null;
+    let donationVerified = false;
+    let currentModelId = null; // ID from your backend for this creation
+
+    const statusEl = document.getElementById('status');
+    const generateBtn = document.getElementById('generate-btn');
+    const donateBtn = document.getElementById('donate-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    const donationInfoEl = document.getElementById('donation-info');
+    const userPill = document.getElementById('user-pill');
+    const userEmailEl = document.getElementById('user-email');
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // --- GOOGLE LOGIN (replace client_id with your own) ---
+    window.addEventListener('DOMContentLoaded', function () {
+      // Get Google Client ID from localStorage or use demo mode
+      const getGoogleClientId = () => {
+        const storedId = localStorage.getItem('GOOGLE_CLIENT_ID');
+        if (storedId && storedId !== 'YOUR_GOOGLE_CLIENT_ID' && storedId.trim().length > 0) {
+          return storedId;
+        }
+        if (window.GOOGLE_CLIENT_ID && window.GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID') {
+          return window.GOOGLE_CLIENT_ID;
+        }
+        return null;
+      };
+
+      const clientId = getGoogleClientId();
+
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        if (clientId) {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse
+          });
+          google.accounts.id.renderButton(
+            document.getElementById("google-signin"),
+            { theme: "outline", size: "medium" }
+          );
+        } else {
+          // Google Sign-In not configured - demo mode
+          setStatus("Demo mode: Google authentication not configured. To enable: localStorage.setItem('GOOGLE_CLIENT_ID', 'your-client-id')");
+          authUser = { email: "demo@example.com", demo: true };
+          console.warn('⚠️ Google OAuth not configured. Running in demo mode.');
+        }
+      } else {
+        // Google Sign-In not available - allow demo mode
+        setStatus("Demo mode: Google Sign-In unavailable. You can still test the 3D viewer.");
+        authUser = { email: "demo@example.com", demo: true };
+      }
+      initThreeViewer();
+      animate();
+    });
+
+    function handleGoogleCredentialResponse(response) {
+      // Send token to backend to verify & create session
+      // Example: POST /api/auth/google with { credential: response.credential }
+      fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("Auth endpoint not available");
+        return res.json();
+      })
+      .then(data => {
+        authUser = data.user || null;
+        if (authUser && authUser.email) {
+          userEmailEl.textContent = authUser.email;
+          userPill.style.display = "inline-flex";
+        }
+        setStatus("Signed in. You can now generate and mint.");
+      })
+      .catch(err => {
+        console.error(err);
+        // Fallback to demo mode
+        authUser = { email: "demo@example.com", demo: true };
+        setStatus("Demo mode: Backend unavailable. You can test the 3D viewer with sample STL files.");
+      });
+    }
+
+    // --- STATUS HELPER ---
+    function setStatus(msg) {
+      statusEl.textContent = msg || "";
+    }
+
+    // --- THREE.JS VIEWER SETUP ---
+    function initThreeViewer() {
+      const container = document.getElementById('viewer-container');
+      const canvas = document.getElementById('viewer');
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setClearColor(0x020617, 1);
+
+      scene = new THREE.Scene();
+
+      const aspect = container.clientWidth / container.clientHeight;
+      camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
+      camera.position.set(0, 40, 80);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+
+      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111827, 0.8);
+      scene.add(hemiLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      dirLight.position.set(40, 60, 30);
+      scene.add(dirLight);
+
+      const grid = new THREE.GridHelper(120, 24, 0x1f2937, 0x111827);
+      grid.position.y = -10;
+      scene.add(grid);
+
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('viewer-container');
+      if (!container || !camera || !renderer) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (controls) controls.update();
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+    }
+
+    function clearCurrentModelFromScene() {
+      const removable = [];
+      scene.traverse(obj => {
+        if (obj.isMesh) removable.push(obj);
+      });
+      removable.forEach(obj => scene.remove(obj));
+    }
+
+    function loadSTLIntoViewer(stlBlob) {
+      if (currentSTLUrl) {
+        URL.revokeObjectURL(currentSTLUrl);
+      }
+      currentSTLBlob = stlBlob;
+      currentSTLUrl = URL.createObjectURL(stlBlob);
+
+      // Check if STLLoader is available
+      if (typeof STLLoader === 'undefined') {
+        setStatus("Error: STLLoader not loaded. Please refresh the page.");
+        return;
+      }
+
+      const loader = new STLLoader();
+      loader.load(currentSTLUrl, geometry => {
+        clearCurrentModelFromScene();
+
+        const material = new THREE.MeshStandardMaterial({
+          color: 0x60a5fa,
+          metalness: 0.35,
+          roughness: 0.25
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        geometry.computeBoundingBox();
+        const bbox = geometry.boundingBox;
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+
+        mesh.position.sub(center);
+        mesh.position.y -= bbox.min.y;
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scaleFactor = 40 / maxDim;
+        mesh.scale.setScalar(scaleFactor);
+
+        scene.add(mesh);
+
+        controls.target.set(0, size.y * scaleFactor * 0.5, 0);
+        controls.update();
+
+        setStatus("3D model loaded. Inspect before minting.");
+      }, undefined, (error) => {
+        console.error('Error loading STL:', error);
+        setStatus("Error loading STL file. Please try again.");
+      });
+    }
+
+    // --- MAIN FLOW: PROMPT → IMAGE → STL ---
+    generateBtn.addEventListener('click', async () => {
+      if (!authUser) {
+        setStatus("Please sign in with Google before generating.");
+        return;
+      }
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) {
+        setStatus("Enter a prompt describing your 3D idea.");
+        return;
+      }
+
+      generateBtn.disabled = true;
+      setStatus("Generating image from prompt…");
+
+      try {
+        // Check if backend is available
+        const backendAvailable = await checkBackendAvailability();
+        
+        if (!backendAvailable || authUser.demo) {
+          // Demo mode: Create 3D text from prompt
+          setStatus("Backend unavailable. Generating 3D text model from your prompt...");
+          await loadDemoSTL();
+          donationRequired = 5.00;
+          donationInfoEl.textContent = `Demo mode: Minimum donation would be $${donationRequired.toFixed(2)}`;
+          donateBtn.disabled = false;
+          setStatus("3D text model generated! This demonstrates text-to-3D conversion. With backend API, this would be AI-generated.");
+          generateBtn.disabled = false;
+          return;
+        }
+
+        // 1. TEXT → IMAGE (your backend calls your preferred image model)
+        // POST /api/generate-image { prompt }
+        const imgRes = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt })
+        });
+        if (!imgRes.ok) throw new Error("Image generation failed.");
+        const imgData = await imgRes.json();
+        const imageUrl = imgData.imageUrl; // URL or data URI from your backend
+        currentModelId = imgData.modelId;  // track this creation
+
+        setStatus("Image generated. Converting image → STL…");
+
+        // 2. IMAGE → STL (your backend can wrap imagetostl.com or similar)
+        // POST /api/image-to-stl { imageUrl, modelId }
+        const stlRes = await fetch("/api/image-to-stl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl, modelId: currentModelId })
+        });
+        if (!stlRes.ok) throw new Error("Image-to-STL conversion failed.");
+        const stlArrayBuffer = await stlRes.arrayBuffer();
+        const stlBlob = new Blob([stlArrayBuffer], { type: "model/stl" });
+
+        loadSTLIntoViewer(stlBlob);
+
+        // 3. VALUE MODEL & DONATION CALC
+        setStatus("Valuing model and calculating minimum donation…");
+        const valRes = await fetch("/api/value-model", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ modelId: currentModelId })
+        });
+        if (!valRes.ok) throw new Error("Model valuation failed.");
+        const valData = await valRes.json();
+        donationRequired = valData.minDonation; // e.g. in USD
+        donationInfoEl.textContent = `Minimum donation: $${donationRequired.toFixed(2)} (PayPal → BarbrickDesign@gmail.com)`;
+        donateBtn.disabled = false;
+        downloadBtn.disabled = true;
+        donationVerified = false;
+
+        setStatus("Model ready. Review the 3D preview, then donate to unlock download & mint.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Something went wrong in the generation pipeline. Please try again.");
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+
+    // Check if backend API is available
+    async function checkBackendAvailability() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch("/api/health", { 
+          method: "GET",
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response.ok;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // Generate 3D text model from user prompt
+    async function loadDemoSTL() {
+      try {
+        // Check if THREE is loaded
+        if (typeof THREE === 'undefined') {
+          throw new Error("Three.js library not loaded. Please check script paths.");
+        }
+        
+        // Extract text from the prompt
+        const prompt = document.getElementById('prompt').value.trim();
+        let textToRender = "DEMO";
+        
+        if (prompt) {
+          // Extract meaningful text from the prompt
+          // Look for quoted text first
+          const quotedMatch = prompt.match(/["']([^"']+)["']/);
+          if (quotedMatch) {
+            textToRender = quotedMatch[1];
+          } else {
+            // Extract first few words (max 15 chars for readability)
+            const words = prompt.split(/\s+/).filter(w => w.length > 0);
+            textToRender = words.slice(0, 3).join(' ').substring(0, 15).toUpperCase();
+          }
+        }
+        
+        // Create 3D text geometry using extruded shapes
+        const geometry = create3DTextGeometry(textToRender);
+        
+        // Convert geometry to STL format
+        const stlString = geometryToSTL(geometry);
+        const stlBlob = new Blob([stlString], { type: "model/stl" });
+        currentModelId = "demo_" + Date.now();
+        loadSTLIntoViewer(stlBlob);
+      } catch (error) {
+        console.error("Error creating demo STL:", error);
+        setStatus("Error creating demo model: " + error.message);
+        throw error;
+      }
+    }
+    
+    // Create 3D text geometry with actual letter shapes
+    function create3DTextGeometry(text) {
+      const geometry = new THREE.BufferGeometry();
+      const vertices = [];
+      const indices = [];
+      
+      const chars = text.toUpperCase().split('');
+      const charWidth = 10;
+      const charHeight = 14;
+      const depth = 4;
+      const spacing = 2;
+      
+      let xOffset = -(chars.length * (charWidth + spacing)) / 2;
+      
+      chars.forEach((char, charIndex) => {
+        // Get the shape data for this character
+        const letterShape = getLetterShape(char);
+        if (!letterShape) {
+          xOffset += charWidth + spacing;
+          return; // Skip unsupported characters
+        }
+        
+        const startIndex = vertices.length / 3;
+        
+        // Extrude the 2D shape into 3D
+        letterShape.forEach(segment => {
+          const segStartIndex = vertices.length / 3;
+          
+          // Add vertices for front and back faces
+          segment.forEach(point => {
+            // Front face (at depth z)
+            vertices.push(xOffset + point[0], point[1], depth);
+            // Back face (at z = 0)
+            vertices.push(xOffset + point[0], point[1], 0);
+          });
+          
+          // Create triangles for the front and back faces
+          for (let i = 0; i < segment.length - 2; i++) {
+            // Front face
+            indices.push(
+              segStartIndex + i * 2,
+              segStartIndex + (i + 1) * 2,
+              segStartIndex + (i + 2) * 2
+            );
+            // Back face (reversed winding)
+            indices.push(
+              segStartIndex + i * 2 + 1,
+              segStartIndex + (i + 2) * 2 + 1,
+              segStartIndex + (i + 1) * 2 + 1
+            );
+          }
+          
+          // Create side faces
+          for (let i = 0; i < segment.length - 1; i++) {
+            const i0 = segStartIndex + i * 2;
+            const i1 = segStartIndex + i * 2 + 1;
+            const i2 = segStartIndex + (i + 1) * 2;
+            const i3 = segStartIndex + (i + 1) * 2 + 1;
+            
+            indices.push(i0, i2, i3);
+            indices.push(i0, i3, i1);
+          }
+        });
+        
+        xOffset += charWidth + spacing;
+      });
+      
+      if (vertices.length === 0) {
+        // Fallback: create a simple box if no characters were rendered
+        createBoxGeometry(vertices, indices, 0, 0, charWidth, charHeight, depth);
+      }
+      
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      
+      return geometry;
+    }
+    
+    // Get 2D shape data for a letter (simplified font)
+    function getLetterShape(char) {
+      const shapes = {
+        'A': [
+          [[0, 0], [4, 14], [8, 0], [6, 0], [5, 7], [3, 7], [2, 0], [0, 0]],
+          [[3, 8], [5, 8], [4.5, 10], [3.5, 10], [3, 8]]
+        ],
+        'B': [
+          [[0, 0], [0, 14], [6, 14], [7, 12], [7, 10], [6, 8], [6, 6], [7, 4], [7, 2], [6, 0], [0, 0]],
+          [[2, 2], [5, 2], [5, 6], [2, 6], [2, 2]],
+          [[2, 8], [5, 8], [5, 12], [2, 12], [2, 8]]
+        ],
+        'C': [
+          [[8, 2], [2, 2], [0, 4], [0, 10], [2, 12], [8, 12], [8, 10], [2, 10], [2, 4], [8, 4], [8, 2]]
+        ],
+        'D': [
+          [[0, 0], [0, 14], [6, 14], [8, 12], [8, 2], [6, 0], [0, 0]],
+          [[2, 2], [5, 2], [6, 3], [6, 11], [5, 12], [2, 12], [2, 2]]
+        ],
+        'E': [
+          [[8, 0], [0, 0], [0, 14], [8, 14], [8, 12], [2, 12], [2, 8], [6, 8], [6, 6], [2, 6], [2, 2], [8, 2], [8, 0]]
+        ],
+        'F': [
+          [[0, 0], [0, 14], [8, 14], [8, 12], [2, 12], [2, 8], [6, 8], [6, 6], [2, 6], [2, 0], [0, 0]]
+        ],
+        'G': [
+          [[8, 12], [2, 12], [0, 10], [0, 4], [2, 2], [6, 2], [8, 4], [8, 7], [5, 7], [5, 5], [8, 5], [8, 2], [6, 0], [2, 0], [0, 2], [0, 12], [2, 14], [8, 14], [8, 12]]
+        ],
+        'H': [
+          [[0, 0], [0, 14], [2, 14], [2, 8], [6, 8], [6, 14], [8, 14], [8, 0], [6, 0], [6, 6], [2, 6], [2, 0], [0, 0]]
+        ],
+        'I': [
+          [[2, 0], [2, 14], [6, 14], [6, 0], [2, 0]]
+        ],
+        'J': [
+          [[6, 14], [8, 14], [8, 2], [6, 0], [2, 0], [0, 2], [0, 4], [2, 4], [2, 2], [6, 2], [6, 14]]
+        ],
+        'K': [
+          [[0, 0], [0, 14], [2, 14], [2, 8], [5, 8], [8, 14], [10, 14], [6, 7], [10, 0], [8, 0], [5, 6], [2, 6], [2, 0], [0, 0]]
+        ],
+        'L': [
+          [[0, 14], [2, 14], [2, 2], [8, 2], [8, 0], [0, 0], [0, 14]]
+        ],
+        'M': [
+          [[0, 0], [0, 14], [2, 14], [4, 8], [6, 14], [8, 14], [8, 0], [6, 0], [6, 10], [4, 6], [2, 10], [2, 0], [0, 0]]
+        ],
+        'N': [
+          [[0, 0], [0, 14], [2, 14], [6, 4], [6, 14], [8, 14], [8, 0], [6, 0], [2, 10], [2, 0], [0, 0]]
+        ],
+        'O': [
+          [[2, 0], [0, 2], [0, 12], [2, 14], [6, 14], [8, 12], [8, 2], [6, 0], [2, 0]],
+          [[2, 2], [6, 2], [6, 12], [2, 12], [2, 2]]
+        ],
+        'P': [
+          [[0, 0], [0, 14], [6, 14], [8, 12], [8, 8], [6, 6], [2, 6], [2, 0], [0, 0]],
+          [[2, 8], [5, 8], [6, 9], [6, 11], [5, 12], [2, 12], [2, 8]]
+        ],
+        'Q': [
+          [[2, 0], [0, 2], [0, 12], [2, 14], [6, 14], [8, 12], [8, 6], [10, 0], [8, 0], [7, 4], [6, 4], [6, 2], [2, 2], [2, 12], [6, 12], [6, 6], [2, 6], [2, 2]]
+        ],
+        'R': [
+          [[0, 0], [0, 14], [6, 14], [8, 12], [8, 8], [6, 6], [8, 0], [6, 0], [4, 6], [2, 6], [2, 0], [0, 0]],
+          [[2, 8], [5, 8], [6, 9], [6, 11], [5, 12], [2, 12], [2, 8]]
+        ],
+        'S': [
+          [[8, 12], [2, 12], [0, 10], [0, 8], [2, 6], [6, 6], [8, 4], [8, 2], [6, 0], [2, 0], [0, 2], [0, 4], [2, 4], [2, 2], [6, 2], [6, 4], [4, 6], [2, 6], [2, 8], [6, 8], [8, 10], [8, 14], [2, 14], [0, 12], [0, 10], [2, 10], [2, 12], [6, 12], [8, 12]]
+        ],
+        'T': [
+          [[0, 12], [0, 14], [8, 14], [8, 12], [5, 12], [5, 0], [3, 0], [3, 12], [0, 12]]
+        ],
+        'U': [
+          [[0, 14], [2, 14], [2, 2], [6, 2], [6, 14], [8, 14], [8, 2], [6, 0], [2, 0], [0, 2], [0, 14]]
+        ],
+        'V': [
+          [[0, 14], [2, 14], [4, 2], [6, 14], [8, 14], [5, 0], [3, 0], [0, 14]]
+        ],
+        'W': [
+          [[0, 14], [2, 14], [2, 4], [4, 8], [6, 4], [6, 14], [8, 14], [8, 0], [6, 0], [5, 6], [4, 2], [3, 6], [2, 0], [0, 0], [0, 14]]
+        ],
+        'X': [
+          [[0, 14], [2, 14], [4, 8], [6, 14], [8, 14], [5, 7], [8, 0], [6, 0], [4, 6], [2, 0], [0, 0], [3, 7], [0, 14]]
+        ],
+        'Y': [
+          [[0, 14], [2, 14], [4, 8], [4, 0], [4, 0], [4, 8], [6, 14], [8, 14], [5, 6], [5, 0], [3, 0], [3, 6], [0, 14]]
+        ],
+        'Z': [
+          [[0, 14], [8, 14], [8, 12], [2, 2], [8, 2], [8, 0], [0, 0], [0, 2], [6, 12], [0, 12], [0, 14]]
+        ],
+        ' ': null, // Space - no shape
+        '0': [
+          [[2, 0], [0, 2], [0, 12], [2, 14], [6, 14], [8, 12], [8, 2], [6, 0], [2, 0]],
+          [[2, 2], [6, 2], [6, 12], [2, 12], [2, 2]]
+        ],
+        '1': [
+          [[2, 12], [4, 14], [4, 0], [6, 0], [6, 14], [4, 14], [2, 12]]
+        ],
+        '2': [
+          [[0, 12], [2, 14], [6, 14], [8, 12], [8, 8], [0, 0], [0, 2], [6, 8], [6, 12], [2, 12], [0, 10], [0, 12]]
+        ],
+        '3': [
+          [[0, 12], [2, 14], [6, 14], [8, 12], [8, 8], [6, 6], [6, 6], [8, 4], [8, 2], [6, 0], [2, 0], [0, 2], [2, 2], [6, 2], [6, 6], [2, 6], [2, 8], [6, 8], [6, 12], [2, 12], [0, 12]]
+        ],
+        '4': [
+          [[6, 14], [6, 6], [0, 6], [0, 8], [4, 8], [4, 14], [2, 14], [2, 10], [0, 10], [0, 4], [6, 4], [6, 0], [8, 0], [8, 14], [6, 14]]
+        ],
+        '5': [
+          [[8, 14], [0, 14], [0, 8], [6, 8], [8, 6], [8, 2], [6, 0], [2, 0], [0, 2], [0, 4], [2, 4], [2, 2], [6, 2], [6, 6], [2, 6], [2, 12], [8, 12], [8, 14]]
+        ],
+        '6': [
+          [[6, 14], [2, 14], [0, 12], [0, 2], [2, 0], [6, 0], [8, 2], [8, 6], [6, 8], [2, 8], [2, 2], [6, 2], [6, 6], [2, 6], [2, 12], [6, 12], [6, 14]]
+        ],
+        '7': [
+          [[0, 14], [8, 14], [8, 12], [4, 0], [2, 0], [6, 12], [0, 12], [0, 14]]
+        ],
+        '8': [
+          [[2, 0], [0, 2], [0, 4], [2, 6], [6, 6], [8, 4], [8, 2], [6, 0], [2, 0]],
+          [[2, 8], [0, 10], [0, 12], [2, 14], [6, 14], [8, 12], [8, 10], [6, 8], [2, 8]],
+          [[2, 2], [6, 2], [6, 4], [2, 4], [2, 2]],
+          [[2, 10], [6, 10], [6, 12], [2, 12], [2, 10]]
+        ],
+        '9': [
+          [[2, 0], [6, 0], [8, 2], [8, 12], [6, 14], [2, 14], [0, 12], [0, 8], [2, 6], [6, 6], [6, 12], [2, 12], [2, 8], [6, 8], [6, 2], [2, 2], [2, 0]]
+        ],
+        '!': [
+          [[3, 6], [3, 14], [5, 14], [5, 6], [3, 6]],
+          [[3, 0], [3, 4], [5, 4], [5, 0], [3, 0]]
+        ],
+        '?': [
+          [[0, 10], [2, 14], [6, 14], [8, 12], [8, 8], [4, 6], [4, 4], [4, 6], [6, 8], [6, 12], [2, 12], [0, 10]],
+          [[3, 0], [3, 2], [5, 2], [5, 0], [3, 0]]
+        ],
+        '.': [
+          [[3, 0], [3, 2], [5, 2], [5, 0], [3, 0]]
+        ],
+        ',': [
+          [[3, -2], [3, 2], [5, 2], [5, 0], [4, -2], [3, -2]]
+        ],
+        '-': [
+          [[0, 6], [0, 8], [8, 8], [8, 6], [0, 6]]
+        ],
+        '+': [
+          [[3, 0], [3, 5], [0, 5], [0, 9], [3, 9], [3, 14], [5, 14], [5, 9], [8, 9], [8, 5], [5, 5], [5, 0], [3, 0]]
+        ],
+        '=': [
+          [[0, 4], [0, 6], [8, 6], [8, 4], [0, 4]],
+          [[0, 8], [0, 10], [8, 10], [8, 8], [0, 8]]
+        ],
+        '#': [
+          [[2, 0], [2, 14], [4, 14], [4, 0], [2, 0]],
+          [[6, 0], [6, 14], [8, 14], [8, 0], [6, 0]],
+          [[0, 4], [0, 6], [10, 6], [10, 4], [0, 4]],
+          [[0, 8], [0, 10], [10, 10], [10, 8], [0, 8]]
+        ],
+        '$': [
+          [[8, 12], [2, 12], [0, 10], [0, 8], [2, 6], [6, 6], [8, 4], [8, 2], [6, 0], [2, 0], [0, 2], [2, 2], [6, 2], [6, 4], [4, 6], [2, 6], [2, 8], [6, 8], [8, 10], [8, 14], [2, 14], [0, 12]],
+          [[3, -1], [3, 15], [5, 15], [5, -1], [3, -1]]
+        ],
+      };
+      
+      return shapes[char] || null;
+    }
+    
+    // Create a simple box geometry (fallback)
+    function createBoxGeometry(vertices, indices, x, y, width, height, depth) {
+      const startIndex = vertices.length / 3;
+      
+      // Front face
+      vertices.push(x, y, depth, x + width, y, depth, x + width, y + height, depth, x, y + height, depth);
+      // Back face
+      vertices.push(x, y, 0, x + width, y, 0, x + width, y + height, 0, x, y + height, 0);
+      
+      // Front
+      indices.push(startIndex, startIndex + 1, startIndex + 2, startIndex, startIndex + 2, startIndex + 3);
+      // Back
+      indices.push(startIndex + 4, startIndex + 6, startIndex + 5, startIndex + 4, startIndex + 7, startIndex + 6);
+      // Left
+      indices.push(startIndex, startIndex + 3, startIndex + 7, startIndex, startIndex + 7, startIndex + 4);
+      // Right
+      indices.push(startIndex + 1, startIndex + 5, startIndex + 6, startIndex + 1, startIndex + 6, startIndex + 2);
+      // Top
+      indices.push(startIndex + 3, startIndex + 2, startIndex + 6, startIndex + 3, startIndex + 6, startIndex + 7);
+      // Bottom
+      indices.push(startIndex, startIndex + 4, startIndex + 5, startIndex, startIndex + 5, startIndex + 1);
+    }
+
+    // Convert Three.js geometry to STL format (ASCII)
+    function geometryToSTL(geometry) {
+      // Ensure we have a non-indexed geometry
+      let geo = geometry;
+      if (geo.index !== null) {
+        geo = geo.toNonIndexed();
+      }
+      
+      if (!geo.attributes || !geo.attributes.position) {
+        throw new Error("Geometry must have position attribute");
+      }
+      
+      const vertices = geo.attributes.position.array;
+      let stl = 'solid model\n';
+      
+      for (let i = 0; i < vertices.length; i += 9) {
+        const v1 = [vertices[i], vertices[i+1], vertices[i+2]];
+        const v2 = [vertices[i+3], vertices[i+4], vertices[i+5]];
+        const v3 = [vertices[i+6], vertices[i+7], vertices[i+8]];
+        
+        // Calculate normal
+        const u = [v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2]];
+        const v = [v3[0]-v1[0], v3[1]-v1[1], v3[2]-v1[2]];
+        const normal = [
+          u[1]*v[2] - u[2]*v[1],
+          u[2]*v[0] - u[0]*v[2],
+          u[0]*v[1] - u[1]*v[0]
+        ];
+        
+        stl += `  facet normal ${normal[0]} ${normal[1]} ${normal[2]}\n`;
+        stl += `    outer loop\n`;
+        stl += `      vertex ${v1[0]} ${v1[1]} ${v1[2]}\n`;
+        stl += `      vertex ${v2[0]} ${v2[1]} ${v2[2]}\n`;
+        stl += `      vertex ${v3[0]} ${v3[1]} ${v3[2]}\n`;
+        stl += `    endloop\n`;
+        stl += `  endfacet\n`;
+      }
+      
+      stl += 'endsolid model\n';
+      return stl;
+    }
+
+    // --- DONATION & NFT MINT FLOW ---
+    donateBtn.addEventListener('click', async () => {
+      if (!authUser) {
+        setStatus("Please sign in with Google before donating.");
+        return;
+      }
+      if (!currentModelId || donationRequired == null) {
+        setStatus("No model ready for donation yet.");
+        return;
+      }
+
+      // Demo mode: simulate donation
+      if (authUser.demo) {
+        setStatus("Demo mode: Simulating donation verification...");
+        await new Promise(r => setTimeout(r, 2000));
+        donationVerified = true;
+        downloadBtn.disabled = false;
+        donationInfoEl.textContent = `Demo: Donation verified ($${donationRequired.toFixed(2)}). In production, this would trigger PayPal and NFT minting.`;
+        setStatus("Demo complete. You can now download the STL file.");
+        return;
+      }
+
+      // You can either:
+      // 1) Open a PayPal Checkout window here, or
+      // 2) Instruct user to send manual donation and rely on webhook verification.
+      //
+      // This example assumes you open a PayPal Checkout page hosted by your backend:
+      // GET /api/paypal/checkout?modelId=... returns a redirect URL.
+      setStatus("Preparing PayPal donation session…");
+
+      try {
+        const checkoutRes = await fetch(`/api/paypal/checkout?modelId=${encodeURIComponent(currentModelId)}`);
+        if (!checkoutRes.ok) throw new Error("Failed to create PayPal session.");
+        const checkoutData = await checkoutRes.json();
+        const paypalUrl = checkoutData.url;
+        setStatus("Redirecting to PayPal in a new tab…");
+        window.open(paypalUrl, "_blank");
+
+        // After PayPal completes, your backend PayPal webhook should:
+        // - Verify payment to BarbrickDesign@gmail.com
+        // - Confirm amount >= donationRequired
+        // - Mark modelId as "donationVerified"
+        //
+        // Here we poll a simple endpoint until backend confirms.
+        await pollDonationVerification(currentModelId);
+        donationVerified = true;
+        downloadBtn.disabled = false;
+        setStatus("Donation verified. STL download unlocked. Minting NFT…");
+
+        // Trigger NFT mint via Pump.fun (backend handles wallet, animation render, etc.)
+        // POST /api/mint-nft { modelId }
+        const mintRes = await fetch("/api/mint-nft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ modelId: currentModelId })
+        });
+        if (!mintRes.ok) throw new Error("NFT minting failed.");
+        const mintData = await mintRes.json();
+        const nftUrl = mintData.nftUrl; // e.g. link to Pump.fun or marketplace
+
+        setStatus(`NFT minted successfully. View: ${nftUrl}`);
+      } catch (err) {
+        console.error(err);
+        setStatus("Donation or minting flow failed. Check payment and try again.");
+      }
+    });
+
+    async function pollDonationVerification(modelId) {
+      // Simple polling loop; you can replace with WebSocket or SSE.
+      const maxAttempts = 20;
+      const delayMs = 4000;
+      for (let i = 0; i < maxAttempts; i++) {
+        setStatus(`Waiting for PayPal confirmation… (check ${i + 1}/${maxAttempts})`);
+        const res = await fetch(`/api/donation-status?modelId=${encodeURIComponent(modelId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verified) {
+            donationInfoEl.textContent = `Donation verified: $${data.amount.toFixed(2)}. Thank you.`;
+            return;
+          }
+        }
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+      throw new Error("Donation verification timed out.");
+    }
+
+    // --- STL DOWNLOAD ---
+    downloadBtn.addEventListener('click', () => {
+      if (!donationVerified && !authUser.demo) {
+        setStatus("You must complete and verify donation before downloading.");
+        return;
+      }
+      if (!currentSTLBlob) {
+        setStatus("No STL available to download.");
+        return;
+      }
+      const url = currentSTLUrl || URL.createObjectURL(currentSTLBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `barbrick_prompted_model_${currentModelId || "creation"}.stl`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setStatus("STL downloaded. Your idea now exists as geometry and an NFT.");
+    });
+  </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

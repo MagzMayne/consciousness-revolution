@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: vortex.html
+Declaration ID: IP-541860EB-MLL2902P
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vortex Room – Interactive 3D Web3 Window</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #050509 0%, #020208 40%, #000000 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .hud {
+      position: fixed;
+      top: 14px;
+      left: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      animation: float-panel 4s ease-in-out infinite;
+    }
+
+    @keyframes float-panel {
+      0%, 100% { transform: translateY(0px) translateX(0px); }
+      25% { transform: translateY(-3px) translateX(2px); }
+      50% { transform: translateY(-6px) translateX(0px); }
+      75% { transform: translateY(-3px) translateX(-2px); }
+    }
+
+    .panel {
+      pointer-events: auto;
+      background: rgba(5, 5, 15, 0.78);
+      border: 1px solid rgba(120, 200, 255, 0.45);
+      box-shadow: 0 0 18px rgba(80, 200, 255, 0.4);
+      border-radius: 10px;
+      padding: 10px 12px;
+      backdrop-filter: blur(14px);
+      transform-style: preserve-3d;
+      transition: transform 0.3s ease;
+    }
+
+    .panel:hover {
+      transform: translateZ(10px) scale(1.02);
+      box-shadow: 0 0 25px rgba(80, 200, 255, 0.6);
+    }
+
+    .panel h1 {
+      margin: 0 0 4px 0;
+      font-size: 13px;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: #9cd6ff;
+    }
+
+    .panel p {
+      margin: 2px 0;
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    .panel code {
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 10px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .wallet-button {
+      margin-top: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(120, 200, 255, 0.7);
+      background: radial-gradient(circle at top left, #193b5c, #050712);
+      color: #e9f6ff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .wallet-button span.dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ff5c7b;
+      box-shadow: 0 0 8px rgba(255, 92, 123, 0.9);
+    }
+
+    .wallet-button.connected span.dot {
+      background: #4dff9b;
+      box-shadow: 0 0 10px rgba(77, 255, 155, 1);
+    }
+
+    .wallet-button:hover {
+      background: radial-gradient(circle at top left, #245282, #050712);
+      transform: translateY(-1px);
+      box-shadow: 0 0 18px rgba(80, 200, 255, 0.6);
+    }
+
+    .wallet-button:active {
+      transform: translateY(0);
+      box-shadow: 0 0 12px rgba(80, 200, 255, 0.4);
+    }
+
+    .status {
+      margin-top: 4px;
+      font-size: 10px;
+      opacity: 0.9;
+      max-width: 260px;
+      word-break: break-all;
+    }
+
+    .status-label {
+      color: #8ca3ff;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      font-size: 9px;
+      opacity: 0.75;
+    }
+
+    .status-text {
+      display: block;
+      margin-top: 2px;
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 9px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: rgba(2, 10, 20, 0.8);
+      border: 1px solid rgba(120, 200, 255, 0.5);
+      color: #c9e2ff;
+      backdrop-filter: blur(10px);
+      pointer-events: none;
+      white-space: nowrap;
+      box-shadow: 0 0 14px rgba(60, 160, 255, 0.45);
+    }
+
+    .hint span.key {
+      padding: 2px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(140, 190, 255, 0.7);
+      background: rgba(0, 0, 0, 0.35);
+      margin: 0 3px;
+      font-size: 9px;
+    }
+
+    .debug-overlay {
+      position: fixed;
+      top: 14px;
+      right: 16px;
+      z-index: 10;
+      max-width: 260px;
+      pointer-events: none;
+      text-align: right;
+      font-size: 10px;
+      color: rgba(180, 210, 255, 0.85);
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+    }
+
+    .debug-overlay .line {
+      opacity: 0.85;
+    }
+
+    .debug-overlay .label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 9px;
+      color: #7ea9ff;
+    }
+
+    /* Click label for cubes */
+    .cube-label {
+      position: fixed;
+      color: #ffffff;
+      font-size: 10px;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      transform: translate(-50%, -140%);
+      white-space: nowrap;
+    }
+
+    /* Page Navigation */
+    .nav-panel {
+      position: fixed;
+      bottom: 60px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: auto;
+      animation: float-nav 5s ease-in-out infinite;
+      animation-delay: 1s;
+    }
+
+    @keyframes float-nav {
+      0%, 100% { transform: translateY(0px) translateX(0px); }
+      33% { transform: translateY(-4px) translateX(-2px); }
+      66% { transform: translateY(-2px) translateX(2px); }
+    }
+
+    .nav-button {
+      padding: 10px 16px;
+      font-size: 11px;
+      border-radius: 8px;
+      border: 2px solid;
+      background: rgba(5, 5, 15, 0.85);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      font-weight: 600;
+      min-width: 140px;
+    }
+
+    .nav-button .color-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px currentColor;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .nav-button.cyan {
+      border-color: #0ff;
+      color: #0ff;
+    }
+
+    .nav-button.magenta {
+      border-color: #f0f;
+      color: #f0f;
+    }
+
+    .nav-button.yellow {
+      border-color: #ff0;
+      color: #ff0;
+    }
+
+    .nav-button.green {
+      border-color: #0f0;
+      color: #0f0;
+    }
+
+    .nav-button:hover {
+      transform: translateX(-5px);
+      box-shadow: 0 0 25px currentColor;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <div class="hud">
+    <div class="panel">
+      <h1>Vortex room</h1>
+      <p>Screen becomes a digital window; the tunnel drawing collapses into a live, reactive perspective grid.</p>
+      <p><code>cam → ray → hit → depth → color</code></p>
+      <button id="walletButton" class="wallet-button">
+        <span class="dot"></span>
+        <span>Connect Wallet</span>
+      </button>
+      <div class="status">
+        <span class="status-label">Wallet</span>
+        <span id="walletStatus" class="status-text">Not connected</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">
+    Move mouse to shift camera · Scroll to zoom · Click cubes to pulse
+  </div>
+
+  <div class="debug-overlay">
+    <div class="label">Camera</div>
+    <div class="line" id="debugCamPos">pos: 0, 0, 0</div>
+    <div class="line" id="debugCamFov">fov: 60°</div>
+  </div>
+
+  <div id="cubeLabel" class="cube-label">NODE • depth sample</div>
+
+  <!-- Page Navigation -->
+  <div class="nav-panel">
+    <button class="nav-button cyan" data-page="index.html">
+      <span class="color-indicator" style="background: #0ff;"></span>
+      <span>Home</span>
+    </button>
+    <button class="nav-button magenta" data-page="projects.html">
+      <span class="color-indicator" style="background: #f0f;"></span>
+      <span>Projects</span>
+    </button>
+    <button class="nav-button yellow" data-page="3Dweb.html">
+      <span class="color-indicator" style="background: #ff0;"></span>
+      <span>3D Web</span>
+    </button>
+    <button class="nav-button green" data-page="index.html">
+      <span class="color-indicator" style="background: #0f0;"></span>
+      <span>Gallery</span>
+    </button>
+  </div>
+
+  <!-- Three.js + Ethers.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r161/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.1/dist/ethers.umd.min.js"></script>
+
+  <script>
+    // =========================
+    // Core Three.js setup
+    // =========================
+    const container = document.getElementById('app');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000208, 0.18); // Enhanced fog for depth
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 1.0);
+    container.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(
+      65, // Increased FOV for better depth perception
+      window.innerWidth / window.innerHeight,
+      0.1,
+      200
+    );
+    camera.position.set(0, 1.4, 8);
+
+    // Subtle color grading
+    const hemi = new THREE.HemisphereLight(0x7fe1ff, 0x020208, 0.6);
+    hemi.position.set(0, 5, 0);
+    scene.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0x88b4ff, 0.7);
+    keyLight.position.set(4, 6, 2);
+    scene.add(keyLight);
+
+    const backLight = new THREE.DirectionalLight(0xff6aa4, 0.5);
+    backLight.position.set(-6, 3, -5);
+    scene.add(backLight);
+
+    // =========================
+    // Vortex tunnel (line rectangles)
+    // Inspired by pencil drawing
+    // Enhanced with pulsing energy flow
+    // =========================
+    function createRectRing(width, height, z, twist, index, total) {
+      const hw = width / 2;
+      const hh = height / 2;
+      const points = [
+        new THREE.Vector3(-hw, -hh, z),
+        new THREE.Vector3(hw, -hh, z),
+
+        new THREE.Vector3(hw, -hh, z),
+        new THREE.Vector3(hw, hh, z),
+
+        new THREE.Vector3(hw, hh, z),
+        new THREE.Vector3(-hw, hh, z),
+
+        new THREE.Vector3(-hw, hh, z),
+        new THREE.Vector3(-hw, -hh, z),
+      ];
+
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      
+      // Dynamic color based on depth for energy flow effect
+      const t = index / total;
+      const hue = 0.55 + 0.15 * Math.sin(t * Math.PI * 2);
+      
+      const mat = new THREE.LineBasicMaterial({
+        color: new THREE.Color().setHSL(hue, 0.85, 0.6),
+        transparent: true,
+        opacity: 0.85,
+        linewidth: 2
+      });
+      const lines = new THREE.LineSegments(geom, mat);
+      lines.rotation.z = twist;
+      lines.userData.baseHue = hue;
+      lines.userData.index = index;
+      lines.userData.pulsePhase = (index / total) * Math.PI * 2;
+      return lines;
+    }
+
+    const vortexGroup = new THREE.Group();
+    scene.add(vortexGroup);
+
+    const vortexRings = [];
+    const ringCount = 28;
+    for (let i = 0; i < ringCount; i++) {
+      const t = i / (ringCount - 1);
+      const width = 10 * (1 - 0.8 * t);
+      const height = 6 * (1 - 0.7 * t);
+      const z = -t * 40;
+      const twist = (Math.sin(t * Math.PI * 1.6) + t * 1.1) * 0.5;
+      const ring = createRectRing(width, height, z, twist, i, ringCount);
+      vortexGroup.add(ring);
+      vortexRings.push(ring);
+    }
+
+    // Dark focal disk at center
+    const centerDiskGeom = new THREE.CircleGeometry(0.8, 64);
+    const centerDiskMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const centerDisk = new THREE.Mesh(centerDiskGeom, centerDiskMat);
+    centerDisk.position.set(0, 0, -40.5);
+    scene.add(centerDisk);
+
+    // =========================
+    // Grid room around everything
+    // Inspired by monitor perspective grid
+    // Enhanced for shadow box depth perception
+    // =========================
+    const roomGroup = new THREE.Group();
+    scene.add(roomGroup);
+
+    function createGridPlane(size, divisions, color, rotation, position) {
+      const grid = new THREE.GridHelper(size, divisions, color, color);
+      grid.material.opacity = 0.25;
+      grid.material.transparent = true;
+      grid.material.depthWrite = false;
+      grid.rotation.set(rotation.x, rotation.y, rotation.z);
+      grid.position.set(position.x, position.y, position.z);
+      return grid;
+    }
+
+    const roomSize = 30;
+    const divisions = 25;
+    const gridColor = 0x4b82ff;
+
+    // Floor
+    roomGroup.add(
+      createGridPlane(
+        roomSize,
+        divisions,
+        gridColor,
+        { x: -Math.PI / 2, y: 0, z: 0 },
+        { x: 0, y: -4, z: 0 }
+      )
+    );
+    // Ceiling
+    roomGroup.add(
+      createGridPlane(
+        roomSize,
+        divisions,
+        gridColor,
+        { x: Math.PI / 2, y: 0, z: 0 },
+        { x: 0, y: 4, z: 0 }
+      )
+    );
+    // Back wall
+    roomGroup.add(
+      createGridPlane(
+        roomSize,
+        divisions,
+        gridColor,
+        { x: 0, y: 0, z: 0 },
+        { x: 0, y: 0, z: -15 }
+      )
+    );
+    // Front wall (dim)
+    const front = createGridPlane(
+      roomSize,
+      divisions,
+      gridColor,
+      { x: 0, y: Math.PI, z: 0 },
+      { x: 0, y: 0, z: 15 }
+    );
+    front.material.opacity = 0.07;
+    roomGroup.add(front);
+    // Left wall
+    roomGroup.add(
+      createGridPlane(
+        roomSize,
+        divisions,
+        gridColor,
+        { x: 0, y: Math.PI / 2, z: 0 },
+        { x: -15, y: 0, z: 0 }
+      )
+    );
+    // Right wall
+    roomGroup.add(
+      createGridPlane(
+        roomSize,
+        divisions,
+        gridColor,
+        { x: 0, y: -Math.PI / 2, z: 0 },
+        { x: 15, y: 0, z: 0 }
+      )
+    );
+
+    // Subtle star-like points near periphery (colorful background specks)
+    const starsGeom = new THREE.BufferGeometry();
+    const starCount = 500;
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 45 + Math.random() * 15;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const x = r * Math.sin(phi) * Math.cos(theta);
+      const y = r * Math.sin(phi) * Math.sin(theta);
+      const z = r * Math.cos(phi);
+      starPositions[i * 3 + 0] = x;
+      starPositions[i * 3 + 1] = y;
+      starPositions[i * 3 + 2] = z;
+
+      const hue = 0.6 + (Math.random() - 0.5) * 0.4; // bluish to magenta
+      const color = new THREE.Color().setHSL(hue, 0.9, 0.7);
+      starColors[i * 3 + 0] = color.r;
+      starColors[i * 3 + 1] = color.g;
+      starColors[i * 3 + 2] = color.b;
+    }
+    starsGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starsGeom.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    const starsMat = new THREE.PointsMaterial({
+      size: 0.06,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const stars = new THREE.Points(starsGeom, starsMat);
+    scene.add(stars);
+
+    // =========================
+    // Central cube cluster (nodes)
+    // =========================
+    const cubeGroup = new THREE.Group();
+    cubeGroup.position.set(0, 0, -8);
+    scene.add(cubeGroup);
+
+    const cubes = [];
+    const baseCubeGeom = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+
+    for (let i = 0; i < 6; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(0.55 + 0.1 * Math.random(), 0.7, 0.55),
+        roughness: 0.2,
+        metalness: 0.6,
+        emissive: 0x0a1230,
+        emissiveIntensity: 0.6,
+      });
+      const cube = new THREE.Mesh(baseCubeGeom, mat);
+      const radius = 1.6 + Math.random() * 0.3;
+      const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.3;
+      cube.position.set(
+        Math.cos(angle) * radius,
+        (Math.random() - 0.5) * 1.4,
+        Math.sin(angle) * radius
+      );
+      cube.userData.baseY = cube.position.y;
+      cube.userData.pulse = 0;
+      cubeGroup.add(cube);
+      cubes.push(cube);
+    }
+
+    // Thin line connections between cubes (like sketched graph edges)
+    // Enhanced with energy flow pulses
+    const cubeLinesGeom = new THREE.BufferGeometry();
+    const cubeLinePositions = new Float32Array(cubes.length * cubes.length * 6);
+    const cubeLineColors = new Float32Array(cubes.length * cubes.length * 6);
+    const cubeLinesMat = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6,
+      linewidth: 2
+    });
+    const cubeLines = new THREE.LineSegments(cubeLinesGeom, cubeLinesMat);
+    cubeGroup.add(cubeLines);
+
+    function updateCubeLines(time = 0) {
+      let idx = 0;
+      let colorIdx = 0;
+      for (let i = 0; i < cubes.length; i++) {
+        for (let j = i + 1; j < cubes.length; j++) {
+          const a = cubes[i].position;
+          const b = cubes[j].position;
+          cubeLinePositions[idx++] = a.x;
+          cubeLinePositions[idx++] = a.y;
+          cubeLinePositions[idx++] = a.z;
+          cubeLinePositions[idx++] = b.x;
+          cubeLinePositions[idx++] = b.y;
+          cubeLinePositions[idx++] = b.z;
+          
+          // Pulsing energy colors
+          const pulsePhase = time * 2 + (i + j) * 0.5;
+          const intensity = 0.5 + 0.5 * Math.sin(pulsePhase);
+          const hue = 0.55 + 0.15 * Math.sin(time * 0.5 + i * 0.3);
+          const color = new THREE.Color().setHSL(hue, 0.8, 0.4 + intensity * 0.3);
+          
+          // Apply color to both vertices of the line
+          cubeLineColors[colorIdx++] = color.r;
+          cubeLineColors[colorIdx++] = color.g;
+          cubeLineColors[colorIdx++] = color.b;
+          cubeLineColors[colorIdx++] = color.r;
+          cubeLineColors[colorIdx++] = color.g;
+          cubeLineColors[colorIdx++] = color.b;
+        }
+      }
+      cubeLinesGeom.setAttribute(
+        'position',
+        new THREE.BufferAttribute(cubeLinePositions.slice(0, idx), 3)
+      );
+      cubeLinesGeom.setAttribute(
+        'color',
+        new THREE.BufferAttribute(cubeLineColors.slice(0, colorIdx), 3)
+      );
+      cubeLinesGeom.computeBoundingSphere();
+    }
+    updateCubeLines();
+
+    // =========================
+    // Elliptical orbit (ellipse notes)
+    // x = a cos t, y = b sin t
+    // =========================
+    const ellipseGroup = new THREE.Group();
+    ellipseGroup.position.set(0, 0.1, -8);
+    scene.add(ellipseGroup);
+
+    const a = 3.4;
+    const b = 1.6;
+    const ellipseSegments = 128;
+    const ellipsePoints = [];
+    for (let i = 0; i <= ellipseSegments; i++) {
+      const t = (i / ellipseSegments) * Math.PI * 2;
+      const x = a * Math.cos(t);
+      const y = b * Math.sin(t);
+      ellipsePoints.push(new THREE.Vector3(x, y, 0));
+    }
+    const ellipseGeom = new THREE.BufferGeometry().setFromPoints(ellipsePoints);
+    const ellipseMat = new THREE.LineBasicMaterial({
+      color: 0xff6aa4,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const ellipse = new THREE.LineLoop(ellipseGeom, ellipseMat);
+    ellipseGroup.add(ellipse);
+
+    // Small orbiting spheres along ellipse (depth samples)
+    const sampleCount = 12;
+    const samples = [];
+    const sampleGeom = new THREE.SphereGeometry(0.08, 16, 16);
+    for (let i = 0; i < sampleCount; i++) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xfff3b3,
+        emissive: 0x402020,
+        emissiveIntensity: 0.5,
+        roughness: 0.4,
+        metalness: 0.4,
+      });
+      const s = new THREE.Mesh(sampleGeom, mat);
+      ellipseGroup.add(s);
+      samples.push(s);
+    }
+
+    // =========================
+    // Camera interaction (mouse as viewer position)
+    // =========================
+    const mouse = new THREE.Vector2(0, 0);
+    let targetYaw = 0;
+    let targetPitch = 0;
+    let camDistance = 8;
+
+    window.addEventListener('mousemove', (event) => {
+      const nx = (event.clientX / window.innerWidth) * 2 - 1;
+      const ny = (event.clientY / window.innerHeight) * 2 - 1;
+      mouse.set(nx, ny);
+      targetYaw = nx * 0.5;     // left / right look
+      targetPitch = ny * 0.25;  // up / down look
+    });
+
+    window.addEventListener('wheel', (event) => {
+      camDistance += event.deltaY * 0.002;
+      camDistance = Math.min(Math.max(camDistance, 4.5), 12);
+    });
+
+    // =========================
+    // Raycaster for cube clicks
+    // =========================
+    const raycaster = new THREE.Raycaster();
+    const cubeLabel = document.getElementById('cubeLabel');
+
+    window.addEventListener('click', (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera({ x, y }, camera);
+      const intersects = raycaster.intersectObjects(cubes, true);
+      if (intersects.length > 0) {
+        const cube = intersects[0].object;
+        cube.userData.pulse = 1.0;
+        cube.material.emissiveIntensity = 1.4;
+
+        // Position label over cube
+        const screenPos = intersects[0].point.clone();
+        screenPos.project(camera);
+        const sx = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+        const sy = (-screenPos.y * 0.5 + 0.5) * window.innerHeight;
+
+        cubeLabel.style.left = sx + 'px';
+        cubeLabel.style.top = sy + 'px';
+        cubeLabel.style.opacity = '1';
+        cubeLabel.style.transform = 'translate(-50%, -160%)';
+        setTimeout(() => {
+          cubeLabel.style.opacity = '0';
+          cubeLabel.style.transform = 'translate(-50%, -140%)';
+        }, 620);
+      }
+    });
+
+    // =========================
+    // Web3: basic wallet connect
+    // =========================
+    const walletBtn = document.getElementById('walletButton');
+    const walletStatus = document.getElementById('walletStatus');
+    let provider = null;
+    let signer = null;
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        walletStatus.textContent = 'No wallet found (install MetaMask or compatible provider).';
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        const addr = accounts[0];
+        walletBtn.classList.add('connected');
+        walletStatus.textContent = `Connected: ${addr.slice(0, 6)}…${addr.slice(-4)}`;
+      } catch (err) {
+        console.error(err);
+        walletStatus.textContent = 'Connection cancelled or failed.';
+      }
+    }
+
+    walletBtn.addEventListener('click', () => {
+      connectWallet();
+    });
+
+    // =========================
+    // Page Navigation with Color Transitions
+    // =========================
+    const navButtons = document.querySelectorAll('.nav-button');
+    let currentNavColor = { r: 0, g: 1, b: 1 }; // Start with cyan
+    
+    navButtons.forEach((button, index) => {
+      button.addEventListener('click', () => {
+        const page = button.getAttribute('data-page');
+        const buttonStyle = window.getComputedStyle(button);
+        const color = buttonStyle.borderColor;
+        
+        // Parse RGB and convert to normalized values
+        const rgb = color.match(/\d+/g).map(v => parseInt(v) / 255);
+        currentNavColor = { r: rgb[0], g: rgb[1], b: rgb[2] };
+        
+        // Trigger warp effect
+        scene.fog.density = 0.35;
+        vortexGroup.rotation.z += 0.5;
+        
+        // Navigate after transition
+        setTimeout(() => {
+          window.location.href = page;
+        }, 600);
+      });
+      
+      // Hover effect changes vortex colors
+      button.addEventListener('mouseenter', () => {
+        const buttonStyle = window.getComputedStyle(button);
+        const color = buttonStyle.borderColor;
+        const rgb = color.match(/\d+/g).map(v => parseInt(v) / 255);
+        currentNavColor = { r: rgb[0], g: rgb[1], b: rgb[2] };
+      });
+    });
+
+    // =========================
+    // Resize handling
+    // =========================
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    const debugCamPos = document.getElementById('debugCamPos');
+    const debugCamFov = document.getElementById('debugCamFov');
+
+    // =========================
+    // Animation loop
+    // =========================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // Camera orbit around vortex center, biased by mouse
+      const lerpFactor = 0.06;
+      const yaw = THREE.MathUtils.lerp(camera.rotation.y, targetYaw, lerpFactor);
+      const pitch = THREE.MathUtils.lerp(camera.rotation.x, targetPitch, lerpFactor);
+
+      const orbitRadius = camDistance;
+      const yawOffset = yaw + Math.sin(t * 0.1) * 0.05;
+      const pitchOffset = THREE.MathUtils.clamp(pitch, -0.55, 0.4);
+
+      const target = new THREE.Vector3(0, 0, -10);
+
+      const x = target.x + orbitRadius * Math.sin(yawOffset) * Math.cos(pitchOffset);
+      const y = target.y + orbitRadius * Math.sin(pitchOffset) + 0.4;
+      const z = target.z + orbitRadius * Math.cos(yawOffset) * Math.cos(pitchOffset);
+
+      camera.position.lerp(new THREE.Vector3(x, y, z), 0.06);
+      camera.lookAt(target);
+
+      // Enhanced vortex rings with pulsing energy flow
+      vortexRings.forEach((ring, i) => {
+        const tt = i / (vortexRings.length - 1);
+        ring.rotation.z += 0.0008 * (1 - tt);
+        
+        // Breathing scale effect
+        const s = 1 + 0.05 * Math.sin(t * 1.3 + tt * 7.0);
+        ring.scale.setScalar(s);
+        
+        // Energy pulse color shift
+        const pulseIntensity = 0.5 + 0.5 * Math.sin(t * 2 + ring.userData.pulsePhase);
+        const hue = ring.userData.baseHue + 0.1 * Math.sin(t * 0.8 + tt * 3);
+        const lightness = 0.5 + 0.2 * pulseIntensity;
+        ring.material.color.setHSL(hue, 0.85, lightness);
+        ring.material.opacity = 0.7 + 0.2 * pulseIntensity;
+      });
+
+      // Room pulse with depth
+      const roomScale = 1 + 0.03 * Math.sin(t * 0.7);
+      roomGroup.scale.set(roomScale, roomScale, roomScale);
+      
+      // Fog density pulse for depth perception
+      scene.fog.density = THREE.MathUtils.lerp(scene.fog.density, 0.18, 0.1);
+
+      // Cube float + pulse
+      cubes.forEach((cube, i) => {
+        const baseY = cube.userData.baseY;
+        cube.position.y = baseY + Math.sin(t * 1.4 + i * 1.5) * 0.15;
+        cube.rotation.x += 0.005 + i * 0.0007;
+        cube.rotation.y -= 0.007 + i * 0.0012;
+
+        if (cube.userData.pulse > 0) {
+          cube.userData.pulse *= 0.92;
+          const scale = 1 + cube.userData.pulse * 0.5;
+          cube.scale.set(scale, scale, scale);
+          cube.material.emissiveIntensity = 0.6 + cube.userData.pulse * 0.8;
+        } else {
+          cube.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+          cube.material.emissiveIntensity = THREE.MathUtils.lerp(
+            cube.material.emissiveIntensity,
+            0.6,
+            0.1
+          );
+        }
+      });
+
+      // Update cube connection lines with energy flow
+      updateCubeLines(t);
+      cubeLines.rotation.y = Math.sin(t * 0.3) * 0.2;
+
+      // Ellipse orbiting samples
+      samples.forEach((s, i) => {
+        const phase = (i / sampleCount) * Math.PI * 2;
+        const tt = t * 0.4 + phase;
+        const ex = a * Math.cos(tt);
+        const ey = b * Math.sin(tt);
+        s.position.set(ex, ey, 0);
+      });
+      ellipseGroup.rotation.z = t * 0.08;
+
+      // Star twinkle
+      stars.rotation.y = t * 0.01;
+      stars.material.opacity = 0.75 + 0.1 * Math.sin(t * 0.9);
+
+      // Debug HUD
+      debugCamPos.textContent = `pos: ${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)}`;
+      debugCamFov.textContent = `fov: ${camera.fov.toFixed(0)}°`;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

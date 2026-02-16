@@ -1,0 +1,116 @@
+name: Auto Update Notifications on Commit
+
+# Automatically updates git metadata in HTML files after each push
+# Addresses recurring issue: forgetting to update timestamps and author info
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.html'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-notifications:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch recent commits only for git log metadata
+          fetch-depth: 10
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check if update script exists
+        id: check-script
+        run: |
+          if [ -f "add-update-notifications.py" ]; then
+            echo "script_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Update notification script found"
+          else
+            echo "script_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Update notification script not found"
+          fi
+
+      - name: Get list of changed HTML files
+        id: changed-files
+        if: steps.check-script.outputs.script_exists == 'true'
+        run: |
+          # Get HTML files changed in the last commit
+          CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD | grep '\.html$' || echo "")
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No HTML files changed"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changed HTML files:"
+            echo "$CHANGED_FILES"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            # Save to file for processing
+            echo "$CHANGED_FILES" > changed_files.txt
+          fi
+
+      - name: Update git metadata in HTML files
+        if: steps.check-script.outputs.script_exists == 'true' && steps.changed-files.outputs.has_changes == 'true'
+        run: |
+          echo "Updating git metadata for changed HTML files..."
+
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              echo "Processing: $file"
+              python3 add-update-notifications.py --file "$file" || echo "Failed to process $file"
+            fi
+          done < changed_files.txt
+
+          # Check if any files were actually modified
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "metadata_updated=true" >> $GITHUB_ENV
+          else
+            echo "metadata_updated=false" >> $GITHUB_ENV
+            echo "No metadata changes needed"
+          fi
+
+      - name: Commit updated metadata
+        if: env.metadata_updated == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Add only the HTML files that were processed
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done < changed_files.txt
+
+          git commit -m "chore: auto-update git metadata in HTML files [skip ci]"
+          git push
+
+          echo "✅ Git metadata updated and pushed"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Update Notification Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-script.outputs.script_exists }}" = "false" ]; then
+            echo "⚠️ Script not found - skipped update" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.changed-files.outputs.has_changes }}" = "false" ]; then
+            echo "ℹ️ No HTML files changed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ env.metadata_updated }}" = "true" ]; then
+            echo "✅ Metadata updated successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No metadata updates needed" >> $GITHUB_STEP_SUMMARY
+          fi

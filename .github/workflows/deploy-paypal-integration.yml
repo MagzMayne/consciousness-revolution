@@ -1,0 +1,185 @@
+name: Deploy PayPal Integration (Legacy)
+
+# NOTE: This workflow is deprecated. Please use the new Safe Deployment workflow:
+# .github/workflows/safe-deployment.yml with deployment_type: paypal-integration
+# This legacy version is kept for backward compatibility.
+
+on:
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no actual changes)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      enable_backup:
+        description: 'Enable backup and rollback protection'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  create-backup:
+    name: Create Pre-Deployment Backup
+    if: github.event.inputs.enable_backup == 'true'
+    uses: ./.github/workflows/backup-rollback.yml
+    with:
+      action: backup
+      files: deploy-paypal-integration.js,src/utils/paypal-integration.js
+      label: paypal-deployment
+      description: Pre-deployment backup for PayPal integration
+
+  deploy-paypal:
+    name: Deploy PayPal Integration
+    needs: [create-backup]
+    if: always() && (needs.create-backup.result == 'success' || needs.create-backup.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_status: ${{ steps.deploy.outcome }}
+    
+    permissions:
+      contents: write  # Required for checkout and push
+      actions: read    # Required for workflow artifacts
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci || npm install
+      
+      - name: Deploy PayPal Integration
+        id: deploy
+        continue-on-error: true
+        env:
+          PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+          PAYPAL_API: ${{ secrets.PAYPAL_API }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          echo "## 🚀 PayPal Integration Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Starting PayPal integration deployment..."
+          echo "Dry run mode: $DRY_RUN"
+          echo "**Dry Run:** $DRY_RUN" >> $GITHUB_STEP_SUMMARY
+          echo "**Backup Enabled:** ${{ github.event.inputs.enable_backup }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          node deploy-paypal-integration.js 2>&1 | tee deployment-output.log
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            
+            echo "### Changed Files" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git status --short >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No file changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.has_changes == 'true' && github.event.inputs.dry_run == 'false'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "Deploy PayPal integration [automated]"
+          git push
+      
+      - name: Upload deployment log
+        uses: actions/upload-artifact@v4
+        with:
+          name: paypal-deployment-log
+          path: |
+            paypal-deployment-log.json
+            deployment-output.log
+          retention-days: 30
+      
+      - name: Summary
+        run: |
+          if [ -f paypal-deployment-log.json ]; then
+            echo "### Statistics" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat paypal-deployment-log.json | jq '.statistics' >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+
+  rollback-on-failure:
+    name: Rollback on Deployment Failure
+    needs: [create-backup, deploy-paypal]
+    if: |
+      always() && 
+      github.event.inputs.enable_backup == 'true' &&
+      needs.create-backup.result == 'success' &&
+      needs.deploy-paypal.outputs.deployment_status == 'failure'
+    uses: ./.github/workflows/backup-rollback.yml
+    with:
+      action: rollback
+      label: paypal-deployment
+
+  notify-failure:
+    name: Notify on Failure
+    needs: [create-backup, deploy-paypal, rollback-on-failure]
+    if: always() && needs.deploy-paypal.outputs.deployment_status == 'failure'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create notification issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const rollbackStatus = '${{ needs.rollback-on-failure.result }}';
+            const backupEnabled = '${{ github.event.inputs.enable_backup }}' === 'true';
+            
+            let issueBody = `## 🚨 PayPal Integration Deployment Failed\n\n`;
+            issueBody += `The automated deployment has failed and requires manual intervention.\n\n`;
+            issueBody += `### Details\n`;
+            issueBody += `- **Timestamp:** ${new Date().toISOString()}\n`;
+            issueBody += `- **Dry Run:** ${{ github.event.inputs.dry_run }}\n`;
+            issueBody += `- **Backup Enabled:** ${backupEnabled}\n`;
+            
+            if (backupEnabled) {
+              issueBody += `- **Rollback Status:** ${rollbackStatus}\n\n`;
+              
+              if (rollbackStatus === 'success') {
+                issueBody += `✅ **System has been rolled back to previous working state.**\n\n`;
+              } else {
+                issueBody += `❌ **Rollback failed - immediate manual intervention required!**\n\n`;
+              }
+            } else {
+              issueBody += `\n⚠️ **Note:** Backup was disabled for this deployment.\n\n`;
+            }
+            
+            issueBody += `### Next Steps\n`;
+            issueBody += `1. Review the workflow logs: [View Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            issueBody += `2. Check deployment logs in the artifacts\n`;
+            issueBody += `3. Fix the identified issues\n`;
+            issueBody += `4. Re-run the deployment with backup enabled\n\n`;
+            issueBody += `---\n*Automated by PayPal Deployment Workflow*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 PayPal Deployment Failed - Manual Intervention Required',
+              body: issueBody,
+              labels: ['deployment', 'failed', 'paypal', 'manual-intervention-required']
+            });

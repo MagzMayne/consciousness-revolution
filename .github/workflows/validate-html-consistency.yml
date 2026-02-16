@@ -1,0 +1,191 @@
+name: Validate HTML Consistency
+
+# Automatically checks for common HTML issues found in agent conversations:
+# - Hardcoded vs dynamic content
+# - Conflicting UI messages
+# - Mock/demo/simulator language
+# - Broken functionality placeholders
+
+on:
+  pull_request:
+    paths:
+      - '**.html'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Specific HTML file to check (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  validate-html:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Get HTML files to check
+        id: get-files
+        run: |
+          if [ -n "${{ inputs.file }}" ]; then
+            # Specific file provided
+            echo "files=${{ inputs.file }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Get changed HTML files in PR
+            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.html$' || echo "")
+            if [ -z "$FILES" ]; then
+              echo "No HTML files changed"
+              echo "has_files=false" >> $GITHUB_OUTPUT
+            else
+              echo "$FILES"
+              echo "files=$FILES" >> $GITHUB_OUTPUT
+              echo "has_files=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run consistency checks
+        if: steps.get-files.outputs.has_files == 'true'
+        id: check
+        run: |
+          ISSUES_FOUND=0
+          WARNINGS_FOUND=0
+
+          echo "## HTML Consistency Check Results" > check_results.md
+          echo "" >> check_results.md
+
+          for file in ${{ steps.get-files.outputs.files }}; do
+            if [ ! -f "$file" ]; then
+              continue
+            fi
+
+            echo "### Checking: \`$file\`" >> check_results.md
+            echo "" >> check_results.md
+
+            # Check 1: Conflicting UI messages
+            # Project-specific: bCert.html uses "Open to All" and "Students Only" access indicators
+            echo "Checking for conflicting messages..."
+            CONFLICTS=$(grep -n -i "open to all\|students only" "$file" | wc -l || echo "0")
+            if [ "$CONFLICTS" -gt 1 ]; then
+              echo "⚠️ **Warning**: Multiple access level indicators found - check for conflicts" >> check_results.md
+              WARNINGS_FOUND=$((WARNINGS_FOUND + 1))
+            fi
+
+            # Check 2: Demo/Simulator language
+            echo "Checking for demo/simulator language..."
+            DEMO_COUNT=$(grep -i -o "demo\|simulator\|simulated\|mock" "$file" | wc -l || echo "0")
+            if [ "$DEMO_COUNT" -gt 0 ]; then
+              echo "⚠️ **Warning**: Found $DEMO_COUNT instances of demo/simulator/mock language" >> check_results.md
+              WARNINGS_FOUND=$((WARNINGS_FOUND + 1))
+
+              # Show some examples
+              grep -n -i "demo\|simulator\|simulated\|mock" "$file" | head -3 | while read line; do
+                echo "  - Line: \`$line\`" >> check_results.md
+              done
+            fi
+
+            # Check 3: Hardcoded user data
+            echo "Checking for hardcoded user data..."
+            HARDCODED=$(grep -i "level [0-9]\+\|xp.*[0-9]{3,}" "$file" | grep -v "localStorage\|userData\|getDefaultUserData" | wc -l || echo "0")
+            if [ "$HARDCODED" -gt 0 ]; then
+              echo "❌ **Issue**: Potential hardcoded user data found" >> check_results.md
+              ISSUES_FOUND=$((ISSUES_FOUND + 1))
+
+              grep -n -i "level [0-9]\+\|xp.*[0-9]{3,}" "$file" | grep -v "localStorage\|userData\|getDefaultUserData" | head -3 | while read line; do
+                echo "  - Line: \`$line\`" >> check_results.md
+              done
+            fi
+
+            # Check 4: Placeholder alerts
+            echo "Checking for placeholder functionality..."
+            PLACEHOLDERS=$(grep -n "alert.*coming soon\|alert.*not.*implemented\|alert.*placeholder" "$file" | wc -l || echo "0")
+            if [ "$PLACEHOLDERS" -gt 0 ]; then
+              echo "⚠️ **Warning**: Found $PLACEHOLDERS placeholder alerts" >> check_results.md
+              WARNINGS_FOUND=$((WARNINGS_FOUND + 1))
+            fi
+
+            # Check 5: Outdated hardcoded timestamps
+            echo "Checking for hardcoded timestamps..."
+            OLD_DATES=$(grep -i "updated.*202[0-9]" "$file" | grep -v "meta name=\"git-commit" | wc -l || echo "0")
+            if [ "$OLD_DATES" -gt 0 ]; then
+              echo "⚠️ **Warning**: Found hardcoded dates - should use dynamic git metadata" >> check_results.md
+              WARNINGS_FOUND=$((WARNINGS_FOUND + 1))
+            fi
+
+            # Check 6: Missing authentication checks
+            echo "Checking for authentication..."
+            HAS_AUTH=$(grep -i "currentUser\|walletAuth\|emailAuth" "$file" | wc -l || echo "0")
+            HAS_PAYMENT=$(grep -i "paypal\|payment\|enroll\|pricing" "$file" | wc -l || echo "0")
+
+            if [ "$HAS_PAYMENT" -gt 0 ] && [ "$HAS_AUTH" -eq 0 ]; then
+              echo "❌ **Issue**: Payment features found but no authentication detected" >> check_results.md
+              ISSUES_FOUND=$((ISSUES_FOUND + 1))
+            fi
+
+            # Check 7: Console.log in production
+            CONSOLE_LOGS=$(grep -n "console\.log" "$file" | wc -l || echo "0")
+            if [ "$CONSOLE_LOGS" -gt 10 ]; then
+              echo "⚠️ **Warning**: $CONSOLE_LOGS console.log statements (consider reducing)" >> check_results.md
+              WARNINGS_FOUND=$((WARNINGS_FOUND + 1))
+            fi
+
+            echo "" >> check_results.md
+          done
+
+          echo "---" >> check_results.md
+          echo "" >> check_results.md
+          echo "**Summary**: $ISSUES_FOUND issues, $WARNINGS_FOUND warnings" >> check_results.md
+
+          echo "issues_found=$ISSUES_FOUND" >> $GITHUB_OUTPUT
+          echo "warnings_found=$WARNINGS_FOUND" >> $GITHUB_OUTPUT
+
+          # Output results
+          cat check_results.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.get-files.outputs.has_files == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('check_results.md', 'utf8');
+            const issuesFound = parseInt('${{ steps.check.outputs.issues_found }}');
+            const warningsFound = parseInt('${{ steps.check.outputs.warnings_found }}');
+
+            let icon = '✅';
+            let status = 'No issues found';
+
+            if (issuesFound > 0) {
+              icon = '❌';
+              status = `${issuesFound} issue(s) found`;
+            } else if (warningsFound > 0) {
+              icon = '⚠️';
+              status = `${warningsFound} warning(s) found`;
+            }
+
+            const body = `${icon} **HTML Consistency Check**\n\n${status}\n\n${results}\n\n---\n*Automated by GitHub Actions - HTML Validation Workflow*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Fail if critical issues found
+        if: steps.check.outputs.issues_found > 0
+        run: |
+          echo "❌ Critical issues found in HTML files"
+          exit 1

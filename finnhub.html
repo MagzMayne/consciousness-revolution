@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: finnhub.html
+Declaration ID: IP-25CD0039-MLL28ZZM
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <title>AI–Semiconductor Live Signals (WebSocket + D3)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- D3.js v7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: #12182a;
+      --accent: #5cc8ff;
+      --text: #e8edf7;
+      --muted: #9aa6bf;
+      --buy: #3bd48b;
+      --hold: #f0c254;
+      --sell: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #0b0f1a 0%, #0e1430 100%);
+      color: var(--text);
+    }
+    header {
+      padding: 20px;
+      border-bottom: 1px solid #1f2742;
+      background: rgba(10,14,30,0.6);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: 0.3px; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .container { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; padding: 16px; }
+    .card { background: var(--panel); border: 1px solid #1f2742; border-radius: 12px; overflow: hidden; }
+    .card header { padding: 12px 16px; border-bottom: 1px solid #1f2742; background: #131a33; position: relative; }
+    .card header h2 { margin: 0; font-size: 16px; }
+    .content { padding: 12px 16px 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--muted); }
+    .field input { padding: 10px; border-radius: 8px; border: 1px solid #273058; background: #0e1430; color: var(--text); outline: none; }
+    .btn-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    button { padding: 10px 12px; border-radius: 10px; border: 1px solid #273058; background: #0e1430; color: var(--text); cursor: pointer; }
+    button.primary { background: #17336b; border-color: #2850a9; }
+    button:hover { filter: brightness(1.1); }
+    .status { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    svg { width: 100%; height: 640px; display: block; }
+    .node circle { stroke: #192042; stroke-width: 1.5px; cursor: pointer; }
+    .node text { font-size: 11px; pointer-events: none; fill: #cdd7f1; }
+    .link { stroke: #31406d; stroke-opacity: 0.6; }
+    .legend { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid #1f2742; background: #0f1533; font-size: 12px; }
+    .legend .swatch { width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #1f2742; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    .pill { padding: 4px 8px; border-radius: 999px; font-size: 12px; display: inline-block; }
+    .pill.buy { background: rgba(59,212,139,0.15); color: var(--buy); border: 1px solid rgba(59,212,139,0.3); }
+    .pill.hold { background: rgba(240,194,84,0.12); color: var(--hold); border: 1px solid rgba(240,194,84,0.28); }
+    .pill.sell { background: rgba(255,107,107,0.12); color: var(--sell); border: 1px solid rgba(255,107,107,0.28); }
+    .note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .footer { padding: 16px; text-align: center; font-size: 12px; color: var(--muted); }
+    @media (max-width: 1100px) { .container { grid-template-columns: 1fr; } svg { height: 520px; } }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <header>
+    <h1>AI–Semiconductor Live Signals</h1>
+    <div class="sub">Real-time WebSocket prices + momentum/sentiment signals, visualized on a dependency graph.</div>
+  </header>
+
+  <div class="container">
+    <!-- Left: Network Graph -->
+    <div class="card">
+      <header><h2>Network graph</h2></header>
+      <div class="content"><svg id="graph"></svg></div>
+      <div class="legend">
+        <div><span class="swatch" style="background: var(--buy);"></span> BUY</div>
+        <div><span class="swatch" style="background: var(--hold);"></span> HOLD</div>
+        <div><span class="swatch" style="background: var(--sell);"></span> SELL</div>
+        <div style="margin-left:auto; color: var(--muted);">Node size = relative scale; links = dependency/flows</div>
+      </div>
+    </div>
+
+    <!-- Right: Controls and Signals -->
+    <div class="card">
+      <header><h2>Data, signals, and actions</h2></header>
+      <div class="content">
+        <div class="grid">
+          <div class="field">
+            <label>Finnhub API token (real-time WebSocket)</label>
+            <input id="finnhubKey" type="password" placeholder="Paste your Finnhub token" />
+          </div>
+          <div class="field">
+            <label>NewsAPI key (optional sentiment)</label>
+            <input id="newsKey" type="password" placeholder="Optional — for headline sentiment" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="connectBtn">Connect live feed</button>
+          <button id="disconnectBtn">Disconnect</button>
+          <button id="sentimentBtn">Fetch headlines</button>
+          <button id="exportBtn">Export signals CSV</button>
+        </div>
+        <div class="status" id="status">Idle. Enter your Finnhub token, then Connect.</div>
+
+        <table id="signalsTable">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Short momentum</th>
+              <th>Headline sentiment</th>
+              <th>Signal</th>
+              <th>Updated</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="note">
+          Signals blend short-term momentum (live ticks) and optional headline sentiment. Educational prototype — not financial advice.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built with D3.js + Finnhub WebSocket. Extend with risk management and brokerage integration before live trading.
+  </div>
+
+  <script>
+    // -----------------------------------
+    // Configuration
+    // -----------------------------------
+    const WATCHLIST = [
+      { ticker: "NVDA", name: "Nvidia" },
+      { ticker: "MSFT", name: "Microsoft" },
+      { ticker: "AMD",  name: "AMD" },
+      { ticker: "ORCL", name: "Oracle" },
+      { ticker: "INTC", name: "Intel" }
+    ];
+
+    const NODES = [
+      { id: "Nvidia", ticker: "NVDA", size: 80, group: "GPU" },
+      { id: "OpenAI", ticker: null, size: 60, group: "AI" },
+      { id: "Microsoft", ticker: "MSFT", size: 70, group: "Cloud" },
+      { id: "Oracle", ticker: "ORCL", size: 55, group: "Cloud" },
+      { id: "AMD", ticker: "AMD", size: 65, group: "GPU" },
+      { id: "Intel", ticker: "INTC", size: 50, group: "CPU" },
+      { id: "CoreWeave", ticker: null, size: 40, group: "Cloud" },
+      { id: "xAI", ticker: null, size: 35, group: "AI" },
+      { id: "Mistral", ticker: null, size: 35, group: "AI" },
+      { id: "Figure AI", ticker: null, size: 32, group: "AI" },
+      { id: "Anysphere", ticker: null, size: 28, group: "AI" },
+      { id: "Harvey", ticker: null, size: 28, group: "AI" }
+    ];
+    const LINKS = [
+      { source: "Nvidia", target: "OpenAI" },
+      { source: "Nvidia", target: "Oracle" },
+      { source: "Nvidia", target: "AMD" },
+      { source: "Nvidia", target: "CoreWeave" },
+      { source: "Nvidia", target: "xAI" },
+      { source: "Nvidia", target: "Mistral" },
+      { source: "Nvidia", target: "Figure AI" },
+      { source: "Microsoft", target: "OpenAI" },
+      { source: "Oracle", target: "OpenAI" },
+      { source: "Intel", target: "CoreWeave" },
+      { source: "OpenAI", target: "Harvey" },
+      { source: "OpenAI", target: "Anysphere" }
+    ];
+
+    // -----------------------------------
+    // State
+    // -----------------------------------
+    let ws = null;
+    let connected = false;
+    const priceBuffers = {}; // ticker -> [{t, p}]
+    const latestPrice = {};  // ticker -> number
+    const sentimentScores = {}; // ticker -> number
+    let lastRows = [];
+
+    // -----------------------------------
+    // Sentiment helpers
+    // -----------------------------------
+    const POS_WORDS = ["growth","beat","record","surge","strong","improve","optimism","expansion","win","high","gain","rise","positive","bullish","up","demand","deal","partnership","profit"];
+    const NEG_WORDS = ["fall","miss","loss","decline","weak","downgrade","concern","risk","delay","shortage","down","negative","bearish","cut","slow","lawsuit","probe","ban","restriction"];
+
+    function simpleSentiment(text) {
+      const t = (text || "").toLowerCase();
+      let score = 0;
+      POS_WORDS.forEach(w => { if (t.includes(w)) score += 1; });
+      NEG_WORDS.forEach(w => { if (t.includes(w)) score -= 1; });
+      return score;
+    }
+
+    async function fetchNewsHeadlines(query, newsKey) {
+      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=10&apiKey=${newsKey}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (!json.articles) throw new Error("NewsAPI response missing articles");
+      return json.articles.map(a => a.title).filter(Boolean);
+    }
+
+    // -----------------------------------
+    // Momentum and signal logic
+    // -----------------------------------
+    function pushPrice(ticker, price) {
+      if (!priceBuffers[ticker]) priceBuffers[ticker] = [];
+      priceBuffers[ticker].unshift({ t: Date.now(), p: price });
+      // keep last ~300 ticks (adjust as needed)
+      priceBuffers[ticker] = priceBuffers[ticker].slice(0, 300);
+      latestPrice[ticker] = price;
+    }
+
+    function momentumPercent(ticker, horizonN = 60) {
+      const buf = priceBuffers[ticker] || [];
+      if (buf.length < horizonN + 1) return 0;
+      const latest = buf[0].p;
+      const prev = buf[horizonN].p;
+      if (!prev) return 0;
+      return ((latest - prev) / prev) * 100;
+    }
+
+    function compositeSignal(momPct, sentScore) {
+      // Normalize sentiment to -1..+1
+      const sNorm = Math.max(-5, Math.min(5, sentScore)) / 5;
+      // Weight short-term momentum more heavily; sentiment as tie-breaker
+      const composite = 0.75 * (momPct / 2.0) + 0.25 * sNorm; // scaling momentum
+      if (composite > 1.0) return "BUY";
+      if (composite < -0.8) return "SELL";
+      return "HOLD";
+    }
+
+    function pillClass(sig) {
+      if (sig === "BUY") return "pill buy";
+      if (sig === "SELL") return "pill sell";
+      return "pill hold";
+    }
+
+    function colorBySignal(sig) {
+      if (sig === "BUY") return "rgba(59, 212, 139, 0.9)";
+      if (sig === "SELL") return "rgba(255, 107, 107, 0.9)";
+      return "rgba(240, 194, 84, 0.9)"; // HOLD
+    }
+
+    // -----------------------------------
+    // UI helpers
+    // -----------------------------------
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function updateSignalsTable(rows) {
+      const tbody = document.querySelector("#signalsTable tbody");
+      tbody.innerHTML = "";
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.ticker}</td>
+          <td>${r.name}</td>
+          <td>${r.price != null ? r.price.toFixed(2) : "-"}</td>
+          <td>${r.momentumPct != null ? r.momentumPct.toFixed(2) + "%" : "-"}</td>
+          <td>${r.sentimentScore != null ? r.sentimentScore.toFixed(2) : "-"}</td>
+          <td><span class="${pillClass(r.signal)}">${r.signal}</span></td>
+          <td>${new Date().toLocaleTimeString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportCSV(rows) {
+      const headers = ["ticker","name","price","momentumPct","sentimentScore","signal","timestamp"];
+      const now = new Date().toISOString();
+      const lines = [headers.join(",")];
+      rows.forEach(r => {
+        lines.push([r.ticker, r.name, r.price ?? "", r.momentumPct ?? "", r.sentimentScore ?? "", r.signal, now].join(","));
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `signals_${now}.csv`;
+      a.click();
+    }
+
+    // -----------------------------------
+    // Graph rendering with D3
+    // -----------------------------------
+    const svg = d3.select("#graph");
+    const width = svg.node().clientWidth;
+    const height = svg.node().clientHeight;
+
+    const link = svg.append("g")
+      .attr("stroke", "#31406d").attr("stroke-opacity", 0.6)
+      .selectAll("line").data(LINKS).join("line")
+      .attr("class", "link").attr("stroke-width", 1.5);
+
+    const node = svg.append("g")
+      .selectAll("g").data(NODES).join("g")
+      .attr("class", "node").call(drag(simulation()));
+
+    node.append("circle")
+      .attr("r", d => d.size/2)
+      .attr("fill", d => colorBySignal("HOLD"));
+
+    node.append("text")
+      .attr("text-anchor", "middle")
+      .attr("dy", d => d.size/2 + 12)
+      .text(d => d.id);
+
+    function simulation() {
+      const sim = d3.forceSimulation(NODES)
+        .force("link", d3.forceLink(LINKS).id(d => d.id).distance(130))
+        .force("charge", d3.forceManyBody().strength(-220))
+        .force("center", d3.forceCenter(width/2, height/2))
+        .force("collision", d3.forceCollide().radius(d => d.size/2 + 18))
+        .on("tick", ticked);
+      return sim;
+    }
+    function ticked() {
+      link.attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+      svg.selectAll(".node").attr("transform", d => `translate(${d.x},${d.y})`);
+    }
+    function drag(sim) {
+      function dragstarted(event, d) {
+        if (!event.active) sim.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      }
+      function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+      function dragended(event, d) {
+        if (!event.active) sim.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      }
+      return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
+    }
+
+    function applyGraphSignals(rows) {
+      const map = new Map(rows.map(r => [r.ticker, r.signal]));
+      svg.selectAll(".node circle")
+        .attr("fill", d => {
+          const sig = d.ticker ? map.get(d.ticker) || "HOLD" : "HOLD";
+          return colorBySignal(sig);
+        });
+    }
+
+    // -----------------------------------
+    // Live data: Finnhub WebSocket
+    // -----------------------------------
+    function connectFinnhub(token) {
+      if (ws) try { ws.close(); } catch(e){}
+      const url = `wss://ws.finnhub.io?token=${encodeURIComponent(token)}`;
+      ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        connected = true;
+        setStatus("Connected. Subscribing to tickers...");
+        // subscribe each ticker
+        WATCHLIST.forEach(item => {
+          ws.send(JSON.stringify({ type: "subscribe", symbol: item.ticker }));
+        });
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // Message type 'trade' contains array of trades: {p: price, s: symbol, t: timestamp}
+          if (data.type === "trade" && Array.isArray(data.data)) {
+            data.data.forEach(tr => {
+              const ticker = tr.s;
+              const price = tr.p;
+              pushPrice(ticker, price);
+            });
+          } else if (data.type === "ping") {
+            // keepalive
+          }
+        } catch (e) {
+          console.error("Parse error:", e);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        setStatus("WebSocket error. Check token or network.");
+      };
+
+      ws.onclose = () => {
+        connected = false;
+        setStatus("Disconnected.");
+      };
+    }
+
+    function disconnectFinnhub() {
+      if (ws) {
+        ws.close();
+        ws = null;
+        connected = false;
+        setStatus("Disconnected by user.");
+      }
+    }
+
+    // -----------------------------------
+    // Sentiment fetch orchestration (optional)
+    // -----------------------------------
+    async function runSentiment() {
+      const key = document.getElementById("newsKey").value.trim();
+      if (!key) { setStatus("No NewsAPI key provided."); return; }
+      setStatus("Fetching headlines for sentiment...");
+      for (const item of WATCHLIST) {
+        try {
+          const titles = await fetchNewsHeadlines(item.name, key);
+          const score = titles.map(simpleSentiment).reduce((a,b)=>a+b,0) / Math.max(1, titles.length);
+          sentimentScores[item.ticker] = score;
+        } catch (e) {
+          console.error(e);
+          sentimentScores[item.ticker] = 0;
+        }
+      }
+      setStatus("Sentiment updated.");
+    }
+
+    // -----------------------------------
+    // Signals update loop (1s cadence)
+    // -----------------------------------
+    function updateLoop() {
+      const rows = WATCHLIST.map(item => {
+        const price = latestPrice[item.ticker] ?? null;
+        // Use ~60-tick horizon for short momentum, adjust based on feed frequency
+        const mom = momentumPercent(item.ticker, 60);
+        const sent = sentimentScores[item.ticker] ?? 0;
+        const sig = compositeSignal(mom, sent);
+        return {
+          ticker: item.ticker,
+          name: item.name,
+          price,
+          momentumPct: mom,
+          sentimentScore: sent,
+          signal: sig
+        };
+      });
+      lastRows = rows;
+      updateSignalsTable(rows);
+      applyGraphSignals(rows);
+    }
+    setInterval(updateLoop, 1000);
+
+    // -----------------------------------
+    // Controls
+    // -----------------------------------
+    document.getElementById("connectBtn").addEventListener("click", () => {
+      const token = document.getElementById("finnhubKey").value.trim();
+      if (!token) { setStatus("Please enter your Finnhub token."); return; }
+      connectFinnhub(token);
+    });
+    document.getElementById("disconnectBtn").addEventListener("click", disconnectFinnhub);
+    document.getElementById("sentimentBtn").addEventListener("click", runSentiment);
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      if (!lastRows.length) { setStatus("No signals to export yet."); return; }
+      exportCSV(lastRows);
+      setStatus("Exported CSV.");
+    });
+
+    // -----------------------------------
+    // Demo prefill (optional fallback if user wants to see motion without token)
+    // -----------------------------------
+    (function demoFallback(){
+      // Generate synthetic ticks every 200ms so UI moves before connecting
+      WATCHLIST.forEach(item => {
+        latestPrice[item.ticker] = Math.random() * 300 + 50;
+      });
+      setInterval(() => {
+        WATCHLIST.forEach(item => {
+          const last = latestPrice[item.ticker];
+          const next = last + (Math.random() - 0.5) * 0.6; // small random walk
+          pushPrice(item.ticker, Math.max(1, next));
+        });
+      }, 200);
+      setStatus("Demo ticks running. Connect with Finnhub token for real-time market data.");
+    })();
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

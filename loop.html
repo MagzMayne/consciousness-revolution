@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: loop.html
+Declaration ID: IP-492D00B5-MLL2900P
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <title>Stuck in a Loop — Infinite Spiral</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <style>
+    :root {
+      --bg: #08111f;
+      --glow1: #00fff0;
+      --glow2: #63ff73;
+      --glow3: #ff3dfc;
+      --glow4: #00a2ff;
+      --text: #e6f7ff;
+      --accent: #11ffee;
+      --danger: #ff2965;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: radial-gradient(1200px 600px at 50% 100%, #001123 0%, var(--bg) 50%, #000814 100%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* Neon grid backdrop */
+    .grid {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to right, rgba(0, 255, 240, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 255, 240, 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      filter: drop-shadow(0 0 12px rgba(0,255,240,0.2));
+      opacity: 0.35;
+    }
+
+    /* HUD */
+    .hud {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      top: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .panel {
+      backdrop-filter: blur(6px);
+      background: linear-gradient(180deg, rgba(0, 20, 40, 0.72), rgba(0, 6, 18, 0.52));
+      border: 1px solid rgba(0, 255, 240, 0.15);
+      border-radius: 12px;
+      padding: 8px 10px;
+      box-shadow: 0 0 24px rgba(0, 255, 240, 0.08), inset 0 0 12px rgba(0, 255, 240, 0.06);
+      pointer-events: auto;
+    }
+    .title {
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      text-shadow: 0 0 8px rgba(0, 255, 240, 0.6), 0 0 22px rgba(0, 162, 255, 0.6);
+    }
+    .statline { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      border-radius: 999px; padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text);
+      background: rgba(0, 30, 60, 0.35);
+      box-shadow: inset 0 0 16px rgba(0,255,240,0.08), 0 0 10px rgba(0, 162, 255, 0.12);
+      font-size: 14px;
+    }
+    .chip .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 10px currentColor, 0 0 20px currentColor; }
+    .chip.speed .dot { background: var(--glow4); color: var(--glow4); }
+    .chip.loop .dot { background: var(--glow1); color: var(--glow1); }
+    .chip.score .dot { background: var(--glow2); color: var(--glow2); }
+    .chip.alert .dot { background: var(--danger); color: var(--danger); }
+
+    .controls { display: grid; gap: 6px; color: #cdeaf3; font-size: 13px; }
+    .kbd {
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.22);
+      border-bottom-color: rgba(255,255,255,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+      padding: 2px 7px; border-radius: 6px; color: #bfe8ff;
+      box-shadow: inset 0 -1px 0 rgba(255,255,255,0.25), 0 0 14px rgba(0,255,240,0.15);
+      margin-right: 6px;
+    }
+
+    /* Stage and canvas */
+    .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    canvas {
+      width: min(100vw, 100vh);
+      height: min(100vw, 100vh);
+      max-width: 100vmin;
+      max-height: 100vmin;
+      border-radius: 16px;
+      box-shadow: 0 0 40px rgba(0, 255, 240, 0.18), inset 0 0 30px rgba(0, 255, 240, 0.12);
+      background: radial-gradient(800px 800px at 50% 50%, #001b33 0%, #000f1f 50%, #000b16 100%);
+      touch-action: none;
+    }
+
+    /* Touch controls */
+    .touch-controls {
+      position: fixed; bottom: 14px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 14px; z-index: 5;
+    }
+    .btn {
+      width: 64px; height: 64px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: radial-gradient(circle at 30% 30%, #00fff0, #003a44);
+      box-shadow: 0 0 18px #00fff0;
+      color: #e6feff; font-weight: 700; font-size: 16px;
+      text-shadow: 0 0 6px #000; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn.burst {
+      width: 84px; height: 84px;
+      background: radial-gradient(circle at 30% 30%, #ff3dfc, #350028);
+      box-shadow: 0 0 26px #ff3dfc; font-size: 18px;
+    }
+
+    /* Share button */
+    .sharebar {
+      position: fixed; top: 10px; right: 10px; z-index: 6;
+      display: flex; gap: 8px;
+    }
+    .sharebtn {
+      border: 1px solid rgba(255,255,255,0.15);
+      background: linear-gradient(180deg, rgba(0,255,240,0.28), rgba(0, 100, 120, 0.4));
+      color: #e6feff; font-weight: 700; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+      box-shadow: 0 0 14px rgba(0,255,240,0.25);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sharebtn:active { transform: translateY(1px); }
+
+    /* Banner tips (non-blocking) */
+    .banner {
+      position: fixed; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(180deg, rgba(0, 18, 36, 0.6), rgba(0, 10, 22, 0.45));
+      border: 1px solid rgba(0, 255, 240, 0.2);
+      box-shadow: 0 0 26px rgba(0,255,240,0.15), inset 0 0 16px rgba(0,255,240,0.12);
+      border-radius: 14px; padding: 12px 14px; width: 80%;
+      max-width: 70ch; text-align: center; z-index: 1;
+      pointer-events: none; opacity: 0.0; transition: opacity 260ms ease;
+    }
+    .banner.show { opacity: 0.75; }
+    .banner h2 { margin: 0 0 6px; color: var(--accent); text-shadow: 0 0 10px rgba(0,255,240,0.6), 0 0 24px rgba(0,162,255,0.5); }
+    .banner p { margin: 0; color: #cfeeff; font-size: 14px; }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="grid"></div>
+
+  <div class="hud">
+    <div class="panel">
+      <div class="title">Stuck in a Loop</div>
+      <div class="statline">
+        <div class="chip speed"><span class="dot"></span><span id="speedLabel">Speed: 0.00x</span></div>
+        <div class="chip loop"><span class="dot"></span><span id="loopLabel">Level: 0</span></div>
+        <div class="chip score"><span class="dot"></span><span id="scoreLabel">Score: 0</span></div>
+        <div class="chip alert" id="hintChip" style="display:none"><span class="dot"></span><span id="hintLabel">Hint: Spiral into the gap</span></div>
+      </div>
+    </div>
+    <div class="panel controls">
+      <div><span class="kbd">←</span><span class="kbd">→</span> or <span class="kbd">A</span><span class="kbd">D</span> Adjust speed</div>
+      <div><span class="kbd">Space</span> / ⭑ button / Swipe up: Burst</div>
+      <div><span class="kbd">R</span> Restart</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game" width="900" height="900" aria-label="Stuck in a Loop canvas"></canvas>
+  </div>
+
+  <div class="banner" id="banner">
+    <h2>Break the Spiral</h2>
+    <p>Align with the glow gap and burst outward. Each success tightens the spiral and increases speed. When your orb equals the loop size, you level up and the spiral resets at your current speed. Score persists and high score is saved.</p>
+  </div>
+
+  <div class="touch-controls">
+    <button class="btn left" id="btnLeft" aria-label="Decrease speed">◀</button>
+    <button class="btn burst" id="btnBurst" aria-label="Burst">⭑</button>
+    <button class="btn right" id="btnRight" aria-label="Increase speed">▶</button>
+  </div>
+
+  <div class="sharebar">
+    <button class="sharebtn" id="btnScreenshot">Save shot</button>
+    <button class="sharebtn" id="btnShare">Share score</button>
+  </div>
+
+  <script>
+    (() => {
+      // Canvas setup
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const CX = W / 2, CY = H / 2;
+
+      // HUD elements
+      const speedLabel = document.getElementById('speedLabel');
+      const loopLabel  = document.getElementById('loopLabel');
+      const scoreLabel = document.getElementById('scoreLabel');
+      const banner     = document.getElementById('banner');
+
+      const btnLeft  = document.getElementById('btnLeft');
+      const btnRight = document.getElementById('btnRight');
+      const btnBurst = document.getElementById('btnBurst');
+      const btnScreenshot = document.getElementById('btnScreenshot');
+      const btnShare = document.getElementById('btnShare');
+
+      // Input
+      const keys = new Set();
+      window.addEventListener('keydown', (e) => {
+        if (['ArrowLeft','ArrowRight','Space','KeyA','KeyD','KeyR'].includes(e.code)) e.preventDefault();
+        keys.add(e.code);
+      });
+      window.addEventListener('keyup', (e) => keys.delete(e.code));
+      window.onkeydown = (e) => { if (e.code === 'Space') e.preventDefault(); };
+
+      // Utils
+      const TAU = Math.PI * 2;
+      const rand   = (min, max) => Math.random() * (max - min) + min;
+      const clamp  = (v, a, b) => Math.max(a, Math.min(b, v));
+      const wrap   = (a) => { a %= TAU; if (a < 0) a += TAU; return a; };
+      const angDist= (a, b) => {
+        const d = Math.abs(wrap(a) - wrap(b));
+        return Math.min(d, TAU - d);
+      };
+
+      // Shake + particles (juice)
+      let shake = 0;
+      const addShake = (s=2) => { shake = Math.min(10, shake + s); };
+      const applyShake = () => {
+        const sx = rand(-shake, shake), sy = rand(-shake, shake);
+        ctx.translate(sx, sy);
+        shake = Math.max(0, shake - 0.4);
+      };
+
+      const particles = [];
+      function spawnParticle(x, y, color = '#00fff0', life = rand(0.4, 0.8), size = rand(2, 4), vel = null) {
+        particles.push({ x, y, vx: vel ? vel.vx : rand(-20, 20), vy: vel ? vel.vy : rand(-20, 20), life, age: 0, size, color });
+      }
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.age += dt;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          p.vy += 8 * dt;
+          if (p.age >= p.life) particles.splice(i, 1);
+        }
+      }
+      function drawParticles() {
+        for (const p of particles) {
+          const t = 1 - (p.age / p.life);
+          ctx.globalAlpha = Math.max(0, t);
+          ctx.shadowBlur = 20 * t + 5;
+          ctx.shadowColor = p.color;
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * t, 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Spiral track configuration
+      // We render an Archimedean spiral and define the current "loop" radius as the active ring the player rides.
+      const spiral = {
+        a: 30,           // base offset
+        b: 38,           // distance between spiral arms
+        turns: 6,        // visual turns for background
+        rotation: 0,     // background spiral rotation animation
+        rotationSpeed: 0.2
+      };
+
+      const TRACK_THICKNESS = 10;
+      const INITIAL_LOOP_RADIUS = 140;     // starting active loop radius
+      const MIN_LOOP_RADIUS = 10;          // when loop radius <= player size => level up
+      const GAP_ARC_MIN = 0.12 * TAU;
+      const GAP_ARC_MAX = 0.22 * TAU;
+
+      // Player
+      const player = {
+        angle: rand(0, TAU),
+        angVel: 1.2,
+        maxVel: 3.5,
+        size: 8,            // orb radius
+        color: '#63ff73',
+        trail: []
+      };
+
+      // Game state
+      let activeLoopRadius = INITIAL_LOOP_RADIUS;
+      let gapCenter = rand(0, TAU);
+      let gapArc = rand(GAP_ARC_MIN, GAP_ARC_MAX);
+      let level = 0;
+      let score = 0;
+      let highScore = Number(localStorage.getItem('sil_highscore') || 0);
+      let running = true;          // auto-start (no blocking overlay)
+      let time = 0;
+
+      // Update HUD initially
+      updateHUD();
+      banner.classList.add('show');
+      setTimeout(() => banner.classList.remove('show'), 1800);
+
+      function updateHUD() {
+        speedLabel.textContent = `Speed: ${Math.abs(player.angVel).toFixed(2)}x`;
+        loopLabel.textContent  = `Level: ${level}`;
+        scoreLabel.textContent = `Score: ${score}  •  High: ${highScore}`;
+      }
+
+      // Generate a new gap on the current loop (slightly random for variety)
+      function newGap() {
+        gapCenter = rand(0, TAU);
+        gapArc = rand(GAP_ARC_MIN, GAP_ARC_MAX);
+      }
+
+      // Proximity to gap center at current angle
+      function gapProximity(angle) {
+        const d = angDist(angle, gapCenter);
+        const r = gapArc / 2;
+        return clamp(1 - d / r, 0, 1);
+      }
+
+      // Try to burst outward: success shrinks loop radius and increases speed
+      function tryBurst() {
+        const p = gapProximity(player.angle);
+        if (p >= 0.72) {
+          // Success burst: spawn outward particles along radial direction
+          const x = CX + Math.cos(player.angle) * activeLoopRadius;
+          const y = CY + Math.sin(player.angle) * activeLoopRadius;
+          const dir = { vx: Math.cos(player.angle) * 240, vy: Math.sin(player.angle) * 240 };
+          for (let i = 0; i < 18; i++) {
+            const hue = 180 + (level % 8) * 22;
+            const col = `hsl(${hue}, 100%, 60%)`;
+            spawnParticle(x, y, col, rand(0.35, 0.8), rand(2, 4), {
+              vx: dir.vx + rand(-70, 70), vy: dir.vy + rand(-70, 70)
+            });
+          }
+          addShake(4);
+
+          // Increase speed slightly and shrink active loop
+          player.angVel = clamp(player.angVel * 1.06 + 0.02, -player.maxVel, player.maxVel);
+          activeLoopRadius = Math.max(MIN_LOOP_RADIUS, activeLoopRadius - rand(10, 18));
+          score += Math.floor(120 * p);
+
+          // If the loop gets as small as the player, level up and reset spiral at same speed
+          if (activeLoopRadius <= player.size + 2) {
+            level++;
+            score += 250; // level bonus
+            // Save high score
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem('sil_highscore', String(highScore));
+            }
+
+            // Level-up fireworks
+            for (let i = 0; i < 60; i++) {
+              const a = rand(0, TAU);
+              const rr = player.size + 16;
+              const x2 = CX + Math.cos(a) * rr;
+              const y2 = CY + Math.sin(a) * rr;
+              const col = ['#11ffee', '#00fff0', '#ff3dfc'][i % 3];
+              spawnParticle(x2, y2, col, rand(0.6, 1.2), rand(2, 5), {
+                vx: Math.cos(a) * rand(160, 280),
+                vy: Math.sin(a) * rand(160, 280)
+              });
+            }
+            addShake(6);
+
+            // Reset loop radius and gap but keep speed (as requested)
+            activeLoopRadius = INITIAL_LOOP_RADIUS;
+            newGap();
+
+            // Brief banner cue (non-blocking)
+            banner.querySelector('h2').textContent = `Level Up! (${level})`;
+            banner.querySelector('p').textContent = `Spiral resets, speed persists. High: ${highScore}`;
+            banner.classList.add('show');
+            setTimeout(() => banner.classList.remove('show'), 1400);
+          } else {
+            // New gap for next burst
+            newGap();
+          }
+          updateHUD();
+        } else {
+          // Fail feedback
+          addShake(2);
+          score = Math.max(0, score - 12);
+          updateHUD();
+        }
+      }
+
+      // Draw background spiral (infinite rotating)
+      function drawSpiralBackground() {
+        ctx.save();
+        ctx.translate(CX, CY);
+        ctx.rotate(spiral.rotation);
+        ctx.lineWidth = 2;
+        const arms = 3;
+        for (let k = 0; k < arms; k++) {
+          const hue = 180 + k * 60;
+          ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.08)`;
+          ctx.shadowColor = `hsla(${hue}, 100%, 60%, 0.25)`;
+          ctx.shadowBlur = 12;
+
+          ctx.beginPath();
+          const maxTheta = spiral.turns * TAU;
+          for (let t = 0; t <= maxTheta; t += 0.02) {
+            const r = spiral.a + spiral.b * t;
+            const x = Math.cos(t + (k * TAU / arms)) * r;
+            const y = Math.sin(t + (k * TAU / arms)) * r;
+            if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Draw current active loop ring with a gap
+      function drawActiveLoop(prox = 0) {
+        const r = activeLoopRadius;
+        // Main ring except gap
+        ctx.lineWidth = TRACK_THICKNESS;
+        const hue = 180 + (level % 8) * 22;
+        const color = `hsl(${hue}, 100%, 60%)`;
+        ctx.strokeStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 16 + prox * 24;
+
+        // Draw the arc skipping the gap
+        const start = (gapCenter + gapArc / 2);
+        ctx.beginPath();
+        ctx.arc(CX, CY, r, start, start + (TAU - gapArc));
+        ctx.stroke();
+
+        // Gap wedge glow
+        const wedge = Math.max(gapArc * 0.85, 0.10);
+        const a0 = gapCenter - wedge / 2, a1 = gapCenter + wedge / 2;
+
+        const grad = ctx.createRadialGradient(CX, CY, r - TRACK_THICKNESS, CX, CY, r + 60);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, `rgba(255,255,255,${0.06 + prox * 0.10})`);
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.moveTo(CX, CY);
+        ctx.arc(CX, CY, r + 42, a0, a1); ctx.lineTo(CX, CY); ctx.fill();
+
+        // Thin edge highlights
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = `rgba(255,255,255,${0.12 + prox * 0.25})`;
+        ctx.shadowBlur = 8 + prox * 16;
+        ctx.beginPath(); ctx.arc(CX, CY, r, a0, a0 + 0.014); ctx.stroke();
+        ctx.beginPath(); ctx.arc(CX, CY, r, a1 - 0.014, a1); ctx.stroke();
+      }
+
+      // Draw player orb
+      function drawPlayer() {
+        const r = activeLoopRadius;
+        const x = CX + Math.cos(player.angle) * r;
+        const y = CY + Math.sin(player.angle) * r;
+
+        // Trail
+        player.trail.push({ x, y, age: 0 });
+        if (player.trail.length > 100) player.trail.shift();
+        for (const t of player.trail) {
+          t.age += 0.016;
+          const k = Math.max(0, 1 - t.age / 1.0);
+          ctx.globalAlpha = k * 0.6;
+          ctx.shadowBlur = 12 * k + 8;
+          ctx.shadowColor = player.color;
+          ctx.fillStyle = player.color;
+          ctx.beginPath(); ctx.arc(t.x, t.y, 3 * k + 1, 0, TAU); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // Orb
+        ctx.shadowBlur = 28;
+        ctx.shadowColor = player.color;
+        ctx.fillStyle = player.color;
+        ctx.beginPath(); ctx.arc(x, y, player.size, 0, TAU); ctx.fill();
+
+        // Core
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(x, y, 3.4, 0, TAU); ctx.fill();
+
+        // Proximity ring when close to gap
+        const prox = gapProximity(player.angle);
+        if (prox > 0.75) {
+          ctx.globalAlpha = (prox - 0.75) * 2.0;
+          ctx.shadowBlur = 24 + 24 * (prox - 0.75);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.arc(x, y, 18 + 12 * (prox - 0.75), 0, TAU); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // Main loop
+      let last = performance.now();
+      function loop(stamp) {
+        const dt = Math.min(0.033, (stamp - last) / 1000);
+        last = stamp; time += dt;
+
+        // Auto-animate background spiral
+        spiral.rotation = (spiral.rotation + spiral.rotationSpeed * dt) % TAU;
+
+        // Inputs (desktop)
+        const accel = 3.2;
+        const pressingRight = keys.has('ArrowRight') || keys.has('KeyD');
+        const pressingLeft  = keys.has('ArrowLeft') || keys.has('KeyA');
+
+        if (pressingRight) player.angVel = clamp(player.angVel + accel * dt, -player.maxVel, player.maxVel);
+        if (pressingLeft)  player.angVel = clamp(player.angVel - accel * dt, -player.maxVel, player.maxVel);
+        if (keys.has('Space')) {
+          if (!tryBurst._lock) {
+            tryBurst();
+            tryBurst._lock = true;
+            setTimeout(() => { tryBurst._lock = false; }, 140);
+          }
+          keys.delete('Space');
+        }
+        if (keys.has('KeyR')) {
+          restart();
+          keys.delete('KeyR');
+        }
+
+        // Passive angle advance
+        if (running) {
+          player.angle = wrap(player.angle + player.angVel * dt);
+          score += 1; // passive scoring over time
+        }
+
+        // Render
+        updateParticles(dt);
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        applyShake();
+
+        // Ambient rings
+        for (let i = 0; i < 3; i++) {
+          const rr = 300 + i * 120;
+          ctx.shadowBlur = 40;
+          ctx.shadowColor = ['#00fff0', '#00a2ff', '#ff3dfc'][i % 3];
+          ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(CX, CY, rr, 0, TAU); ctx.stroke();
+        }
+
+        // Background spiral
+        drawSpiralBackground();
+
+        // Active loop and player
+        const prox = gapProximity(player.angle);
+        drawActiveLoop(prox);
+        drawPlayer();
+
+        // Particles
+        drawParticles();
+        ctx.restore();
+
+        updateHUD();
+        requestAnimationFrame(loop);
+      }
+
+      // Restart game
+      function restart() {
+        level = 0;
+        score = 0;
+        activeLoopRadius = INITIAL_LOOP_RADIUS;
+        player.angVel = 1.2;
+        player.angle = rand(0, TAU);
+        player.trail.length = 0;
+        newGap();
+        running = true;
+        banner.querySelector('h2').textContent = 'Break the Spiral';
+        banner.querySelector('p').textContent = 'Align with the glow gap and burst outward. Each success tightens the spiral and increases speed.';
+        banner.classList.add('show');
+        setTimeout(() => banner.classList.remove('show'), 1400);
+        updateHUD();
+      }
+
+      // Mobile controls: press-and-hold
+      let holdInterval = null;
+      function startHold(dir) {
+        if (holdInterval) return;
+        holdInterval = setInterval(() => {
+          const delta = 0.18;
+          if (dir === 'left') player.angVel = clamp(player.angVel - delta, -player.maxVel, player.maxVel);
+          else player.angVel = clamp(player.angVel + delta, -player.maxVel, player.maxVel);
+        }, 50);
+      }
+      function stopHold() { if (holdInterval) { clearInterval(holdInterval); holdInterval = null; } }
+      function bindHold(el, dir) {
+        const down = (e) => { e.preventDefault(); startHold(dir); };
+        const up   = (e) => { e.preventDefault(); stopHold(); };
+        el.addEventListener('touchstart', down, { passive: false });
+        el.addEventListener('touchend', up, { passive: false });
+        el.addEventListener('touchcancel', up, { passive: false });
+        el.addEventListener('mousedown', down);
+        el.addEventListener('mouseup', up);
+        el.addEventListener('mouseleave', up);
+      }
+      bindHold(btnLeft, 'left');
+      bindHold(btnRight, 'right');
+
+      // Burst tap
+      const burstTap = (e) => { e.preventDefault(); tryBurst(); };
+      btnBurst.addEventListener('touchstart', burstTap, { passive: false });
+      btnBurst.addEventListener('click', burstTap);
+
+      // Swipe gestures (canvas)
+      let touchStartX = 0, touchStartY = 0, touchActive = false, lastMoveX = 0;
+      canvas.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        touchStartX = t.clientX; touchStartY = t.clientY;
+        lastMoveX = t.clientX; touchActive = true;
+        e.preventDefault();
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (!touchActive) return;
+        const t = e.touches[0];
+        const dx = t.clientX - lastMoveX;
+        const delta = clamp(dx / 180, -0.35, 0.35);
+        player.angVel = clamp(player.angVel + delta, -player.maxVel, player.maxVel);
+        lastMoveX = t.clientX;
+        e.preventDefault();
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', (e) => {
+        if (!touchActive) return;
+        touchActive = false;
+        const c = e.changedTouches[0];
+        const dy = c.clientY - touchStartY;
+        if (dy < -50) tryBurst();
+        e.preventDefault();
+      }, { passive: false });
+
+      // Fit canvas to viewport
+      function fit() {
+        const size = Math.min(window.innerWidth, window.innerHeight);
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+      }
+      window.addEventListener('resize', fit);
+      fit();
+
+      // Screenshot and share
+      btnScreenshot.addEventListener('click', async () => {
+        try {
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `StuckInALoop_Level${level}_Score${score}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch {}
+      });
+
+      btnShare.addEventListener('click', async () => {
+        try {
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          if (!blob) return;
+          const file = new File([blob], `StuckInALoop_Level${level}_Score${score}.png`, { type: 'image/png' });
+          const shareData = {
+            title: 'Stuck in a Loop — High Score',
+            text: `Level ${level}, Score ${score}. Can you beat my spiral?`,
+            files: [file]
+          };
+          if (navigator.canShare && navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+          } else {
+            // Fallback: download
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        } catch {}
+      });
+
+      // Public controls: restart via R
+      function publicRestart() { restart(); }
+      window.publicRestart = publicRestart;
+
+      // Start running immediately (no start button to block)
+      requestAnimationFrame(loop);
+    })();
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

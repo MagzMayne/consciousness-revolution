@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: pocketLaunchReceiver.html
+Declaration ID: IP-7CE4361F-MLL2901K
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎯 NASA Rocket Receiver Station - pocketLaunch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <!-- PeerJS for WebRTC -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --nasa-blue: #0B3D91;
+      --nasa-red: #FC3D21;
+      --space-black: #000814;
+      --star-white: #F5F5F5;
+      --mission-gold: #FFD60A;
+      --tech-cyan: #00D9FF;
+      --warning-orange: #FF6B35;
+      --receiver-green: #00FF41;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Orbitron', 'Courier New', monospace, system-ui;
+      background: linear-gradient(135deg, var(--space-black) 0%, #001d3d 50%, #000814 100%);
+      color: var(--star-white);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated Star Background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 80%, white, transparent);
+      background-size: 200% 200%;
+      animation: starfield 60s linear infinite;
+      opacity: 0.5;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @keyframes starfield {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 100%; }
+    }
+
+    header {
+      background: linear-gradient(90deg, var(--receiver-green) 0%, #003366 100%);
+      padding: 1rem 2rem;
+      box-shadow: 0 4px 20px rgba(0, 255, 65, 0.3);
+      border-bottom: 3px solid var(--receiver-green);
+      position: relative;
+      z-index: 1000;
+    }
+
+    header h1 {
+      font-size: clamp(1.2rem, 3vw, 2rem);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-shadow: 0 0 10px var(--receiver-green), 0 0 20px var(--receiver-green);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .receiver-badge {
+      background: var(--receiver-green);
+      color: var(--space-black);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.6em;
+      font-weight: bold;
+      box-shadow: 0 0 10px var(--receiver-green);
+    }
+
+    .connection-status {
+      position: fixed;
+      top: 90px;
+      right: 20px;
+      background: rgba(11, 61, 145, 0.9);
+      border: 2px solid var(--receiver-green);
+      border-radius: 10px;
+      padding: 1rem;
+      min-width: 280px;
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+      z-index: 999;
+      backdrop-filter: blur(10px);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #666;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+      background: var(--receiver-green);
+      box-shadow: 0 0 10px var(--receiver-green);
+    }
+
+    .status-dot.disconnected {
+      background: var(--nasa-red);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .main-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(11, 61, 145, 0.3);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 15px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .panel h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: var(--tech-cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .input-group {
+      margin: 1rem 0;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--mission-gold);
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 0.75rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 8px;
+      color: var(--star-white);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    .action-button {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--receiver-green) 0%, #003366 100%);
+      border: 2px solid var(--receiver-green);
+      border-radius: 10px;
+      color: var(--star-white);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 0.5rem 0;
+    }
+
+    .action-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 255, 65, 0.5);
+    }
+
+    .action-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .countdown-display {
+      font-size: 4rem;
+      text-align: center;
+      color: var(--mission-gold);
+      text-shadow: 0 0 20px var(--mission-gold);
+      margin: 2rem 0;
+      font-weight: bold;
+    }
+
+    .data-display {
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+    }
+
+    .data-row:last-child {
+      border-bottom: none;
+    }
+
+    .data-label {
+      color: var(--tech-cyan);
+      font-size: 0.9rem;
+    }
+
+    .data-value {
+      color: var(--mission-gold);
+      font-weight: bold;
+    }
+
+    #mapContainer {
+      height: 400px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid var(--tech-cyan);
+    }
+
+    .video-container {
+      position: relative;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid var(--receiver-green);
+      margin: 1rem 0;
+    }
+
+    .video-container video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .recording-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--nasa-red);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      display: none;
+      animation: recordBlink 1s infinite;
+    }
+
+    .recording-indicator.active {
+      display: block;
+    }
+
+    @keyframes recordBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .log-container {
+      max-height: 300px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .log-entry {
+      padding: 0.5rem;
+      margin: 0.25rem 0;
+      background: rgba(0, 217, 255, 0.1);
+      border-left: 3px solid var(--receiver-green);
+      border-radius: 5px;
+      font-size: 0.85rem;
+    }
+
+    .log-entry.error {
+      border-left-color: var(--nasa-red);
+    }
+
+    .log-entry.warning {
+      border-left-color: var(--warning-orange);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid var(--tech-cyan);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      min-width: 250px;
+      z-index: 10000;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 300px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .chat-message {
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+
+    .chat-message.sent {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--receiver-green), #003366);
+      margin-left: auto;
+    }
+
+    .chat-message.received {
+      align-self: flex-start;
+      background: rgba(11, 61, 145, 0.5);
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chat-input-container input {
+      flex: 1;
+    }
+  </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <header>
+    <h1>
+      🎯 RECEIVER STATION
+      <span class="receiver-badge">GROUND TRACKING</span>
+    </h1>
+  </header>
+
+  <!-- Connection Status -->
+  <div class="connection-status">
+    <h3 style="margin-bottom: 1rem;">Connection Status</h3>
+    <div class="status-indicator">
+      <div class="status-dot" id="connectionDot"></div>
+      <span id="connectionText">Disconnected</span>
+    </div>
+    <div class="status-indicator">
+      <span>Receiver ID:</span>
+      <span id="receiverIdDisplay" style="font-family: monospace; color: var(--mission-gold);">--</span>
+    </div>
+    <div class="status-indicator">
+      <span>Launcher:</span>
+      <span id="launcherIdDisplay" style="font-family: monospace; color: var(--tech-cyan);">--</span>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <!-- Left Column -->
+    <div>
+      <!-- Pairing Panel -->
+      <div class="panel" id="pairingPanel">
+        <h2>🔗 Pair with Launcher</h2>
+        <div class="input-group">
+          <label>Enter Launcher ID:</label>
+          <input 
+            type="text" 
+            id="launcherIdInput" 
+            placeholder="e.g., launcher-12345"
+            style="text-transform: uppercase;"
+          />
+        </div>
+        <button class="action-button" onclick="connectToLauncher()">
+          🚀 CONNECT TO LAUNCHER
+        </button>
+        <div class="data-display" style="margin-top: 1rem;">
+          <p style="font-size: 0.85rem; opacity: 0.8;">
+            Your Receiver ID: <strong id="receiverIdCopy" style="color: var(--mission-gold); font-family: monospace;"></strong>
+          </p>
+          <button class="action-button" onclick="copyReceiverId()" style="margin-top: 0.5rem; padding: 0.5rem;">
+            📋 COPY MY ID
+          </button>
+        </div>
+      </div>
+
+      <!-- Countdown Panel -->
+      <div class="panel" id="countdownPanel" style="display: none;">
+        <h2>⏱️ Launch Countdown</h2>
+        <div class="countdown-display" id="countdownDisplay">--</div>
+        <div class="data-display">
+          <div class="data-row">
+            <span class="data-label">Launch Status:</span>
+            <span class="data-value" id="launchStatus">STANDBY</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Target Azimuth:</span>
+            <span class="data-value" id="targetAzimuth">--°</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Target Elevation:</span>
+            <span class="data-value" id="targetElevation">--°</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Feed Panel -->
+      <div class="panel" id="videoPanel" style="display: none;">
+        <h2>📹 Video Feed & Recording</h2>
+        <div class="video-container">
+          <video id="localVideo" autoplay playsinline muted></video>
+          <div class="recording-indicator" id="recordingIndicator">● REC</div>
+        </div>
+        <button class="action-button" onclick="toggleRecording()" id="recordButton">
+          🎥 START RECORDING
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+      <!-- Landing Location Panel -->
+      <div class="panel" id="landingPanel" style="display: none;">
+        <h2>🎯 Landing Location</h2>
+        <div id="mapContainer"></div>
+        <div class="data-display">
+          <div class="data-row">
+            <span class="data-label">Predicted Landing:</span>
+            <span class="data-value" id="predictedLanding">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Distance to Landing:</span>
+            <span class="data-value" id="distanceToLanding">--</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">Your Location:</span>
+            <span class="data-value" id="receiverLocation">--</span>
+          </div>
+        </div>
+        <button class="action-button" onclick="navigateToLanding()">
+          🧭 NAVIGATE TO LANDING
+        </button>
+        <button class="action-button" onclick="recordLandingAccuracy()">
+          ✅ RECORD LANDING ACCURACY
+        </button>
+      </div>
+
+      <!-- Communication Panel -->
+      <div class="panel" id="commPanel" style="display: none;">
+        <h2>📡 Live Communication</h2>
+        <div class="chat-container" id="chatContainer">
+          <div class="log-entry">Communication channel ready...</div>
+        </div>
+        <div class="chat-input-container">
+          <input 
+            type="text" 
+            id="chatInput" 
+            placeholder="Type message..."
+            onkeypress="if(event.key==='Enter') sendMessage()"
+          />
+          <button class="action-button" onclick="sendMessage()" style="width: auto; padding: 0.75rem 1.5rem;">
+            📤 SEND
+          </button>
+        </div>
+      </div>
+
+      <!-- Data Logging Panel -->
+      <div class="panel" id="loggingPanel" style="display: none;">
+        <h2>📊 Data Logging</h2>
+        <div class="log-container" id="dataLog">
+          <div class="log-entry">Waiting for launch data...</div>
+        </div>
+        <button class="action-button" onclick="exportDataLog()">
+          💾 EXPORT LOG DATA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    // ============================================================================
+    // RECEIVER STATE
+    // ============================================================================
+    const ReceiverState = {
+      peer: null,
+      connection: null,
+      receiverId: 'receiver-' + Math.random().toString(36).substr(2, 9),
+      launcherId: null,
+      connected: false,
+      map: null,
+      receiverMarker: null,
+      landingMarker: null,
+      trajectoryLine: null,
+      mediaRecorder: null,
+      recordedChunks: [],
+      isRecording: false,
+      videoStream: null,
+      countdownInterval: null,
+      launchData: null,
+      dataLogEntries: []
+    };
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      initializeReceiver();
+      initializeMap();
+      initializeCamera();
+      updateReceiverIdDisplays();
+    });
+
+    function initializeReceiver() {
+      // Initialize PeerJS with receiver ID and official cloud server
+      ReceiverState.peer = new Peer(ReceiverState.receiverId, {
+        host: '0.peerjs.com',
+        secure: true,
+        port: 443
+      });
+
+      ReceiverState.peer.on('open', (id) => {
+        console.log('Receiver ID:', id);
+        ReceiverState.receiverId = id;
+        updateReceiverIdDisplays();
+        addDataLog('Receiver station initialized', 'info');
+      });
+
+      ReceiverState.peer.on('connection', (conn) => {
+        handleIncomingConnection(conn);
+      });
+
+      ReceiverState.peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        showToast('Connection error: ' + err.type, 'error');
+        addDataLog('Error: ' + err.message, 'error');
+      });
+    }
+
+    function initializeMap() {
+      const mapContainer = document.getElementById('mapContainer');
+      ReceiverState.map = L.map(mapContainer).setView([0, 0], 2);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(ReceiverState.map);
+
+      // Get receiver location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          
+          ReceiverState.map.setView([lat, lng], 15);
+          
+          if (ReceiverState.receiverMarker) {
+            ReceiverState.map.removeLayer(ReceiverState.receiverMarker);
+          }
+          
+          ReceiverState.receiverMarker = L.marker([lat, lng], {
+            icon: L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41]
+            })
+          }).addTo(ReceiverState.map);
+          ReceiverState.receiverMarker.bindPopup('📡 Your Location').openPopup();
+          
+          document.getElementById('receiverLocation').textContent = 
+            lat.toFixed(5) + ', ' + lng.toFixed(5);
+          
+          addDataLog('Receiver location acquired', 'info');
+        });
+      }
+    }
+
+    async function initializeCamera() {
+      try {
+        ReceiverState.videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: true
+        });
+        
+        const videoElement = document.getElementById('localVideo');
+        videoElement.srcObject = ReceiverState.videoStream;
+        addDataLog('Camera initialized', 'info');
+      } catch (err) {
+        console.error('Camera error:', err);
+        addDataLog('Camera not available: ' + err.message, 'warning');
+      }
+    }
+
+    function updateReceiverIdDisplays() {
+      document.getElementById('receiverIdDisplay').textContent = ReceiverState.receiverId;
+      document.getElementById('receiverIdCopy').textContent = ReceiverState.receiverId;
+    }
+
+    // ============================================================================
+    // CONNECTION MANAGEMENT
+    // ============================================================================
+    function connectToLauncher() {
+      const launcherId = document.getElementById('launcherIdInput').value.trim();
+      
+      if (!launcherId) {
+        showToast('Please enter a Launcher ID', 'error');
+        return;
+      }
+
+      addDataLog('Attempting to connect to launcher: ' + launcherId, 'info');
+      
+      ReceiverState.connection = ReceiverState.peer.connect(launcherId);
+      
+      ReceiverState.connection.on('open', () => {
+        ReceiverState.connected = true;
+        ReceiverState.launcherId = launcherId;
+        updateConnectionStatus();
+        
+        // Send initial receiver info
+        sendToLauncher({
+          type: 'receiver_connected',
+          receiverId: ReceiverState.receiverId,
+          timestamp: Date.now()
+        });
+        
+        showToast('Connected to launcher!', 'success');
+        addDataLog('Successfully connected to launcher', 'info');
+        
+        // Show panels
+        showConnectedPanels();
+      });
+
+      ReceiverState.connection.on('data', (data) => {
+        handleLauncherData(data);
+      });
+
+      ReceiverState.connection.on('close', () => {
+        ReceiverState.connected = false;
+        updateConnectionStatus();
+        showToast('Connection closed', 'warning');
+        addDataLog('Disconnected from launcher', 'warning');
+        hideConnectedPanels();
+      });
+
+      ReceiverState.connection.on('error', (err) => {
+        showToast('Connection error', 'error');
+        addDataLog('Connection error: ' + err, 'error');
+      });
+    }
+
+    function handleIncomingConnection(conn) {
+      ReceiverState.connection = conn;
+      
+      conn.on('open', () => {
+        ReceiverState.connected = true;
+        ReceiverState.launcherId = conn.peer;
+        updateConnectionStatus();
+        showToast('Launcher connected!', 'success');
+        addDataLog('Launcher connected: ' + conn.peer, 'info');
+        showConnectedPanels();
+      });
+
+      conn.on('data', (data) => {
+        handleLauncherData(data);
+      });
+
+      conn.on('close', () => {
+        ReceiverState.connected = false;
+        updateConnectionStatus();
+        showToast('Launcher disconnected', 'warning');
+        addDataLog('Launcher disconnected', 'warning');
+        hideConnectedPanels();
+      });
+    }
+
+    function updateConnectionStatus() {
+      const dot = document.getElementById('connectionDot');
+      const text = document.getElementById('connectionText');
+      const launcherDisplay = document.getElementById('launcherIdDisplay');
+      
+      if (ReceiverState.connected) {
+        dot.classList.add('connected');
+        text.textContent = 'Connected';
+        launcherDisplay.textContent = ReceiverState.launcherId || '--';
+      } else {
+        dot.classList.remove('connected');
+        dot.classList.add('disconnected');
+        text.textContent = 'Disconnected';
+        launcherDisplay.textContent = '--';
+      }
+    }
+
+    function showConnectedPanels() {
+      document.getElementById('countdownPanel').style.display = 'block';
+      document.getElementById('videoPanel').style.display = 'block';
+      document.getElementById('landingPanel').style.display = 'block';
+      document.getElementById('commPanel').style.display = 'block';
+      document.getElementById('loggingPanel').style.display = 'block';
+    }
+
+    function hideConnectedPanels() {
+      document.getElementById('countdownPanel').style.display = 'none';
+      document.getElementById('videoPanel').style.display = 'none';
+      document.getElementById('landingPanel').style.display = 'none';
+      document.getElementById('commPanel').style.display = 'none';
+      document.getElementById('loggingPanel').style.display = 'none';
+    }
+
+    // ============================================================================
+    // DATA HANDLING
+    // ============================================================================
+    function handleLauncherData(data) {
+      console.log('Received from launcher:', data);
+      
+      switch(data.type) {
+        case 'countdown':
+          updateCountdown(data.count);
+          break;
+        case 'launch_data':
+          handleLaunchData(data);
+          break;
+        case 'trajectory_update':
+          updateTrajectory(data);
+          break;
+        case 'message':
+          receiveMessage(data.message, data.sender);
+          break;
+        case 'location_update':
+          updateLauncherLocation(data);
+          break;
+        default:
+          addDataLog('Unknown data type: ' + data.type, 'warning');
+      }
+    }
+
+    function updateCountdown(count) {
+      const display = document.getElementById('countdownDisplay');
+      const status = document.getElementById('launchStatus');
+      
+      if (count > 0) {
+        display.textContent = count;
+        status.textContent = 'T-MINUS ' + count;
+        addDataLog('Countdown: T-' + count, 'info');
+      } else if (count === 0) {
+        display.textContent = 'LIFTOFF!';
+        status.textContent = 'LAUNCHED';
+        addDataLog('🚀 ROCKET LAUNCHED!', 'info');
+        showToast('🚀 LIFTOFF!', 'success');
+      }
+    }
+
+    function handleLaunchData(data) {
+      ReceiverState.launchData = data;
+      
+      document.getElementById('targetAzimuth').textContent = 
+        (data.azimuth || 0).toFixed(1) + '°';
+      document.getElementById('targetElevation').textContent = 
+        (data.elevation || 0).toFixed(1) + '°';
+      
+      if (data.predictedLanding) {
+        const landing = data.predictedLanding;
+        document.getElementById('predictedLanding').textContent = 
+          landing.lat.toFixed(5) + ', ' + landing.lng.toFixed(5);
+        
+        // Add landing marker
+        if (ReceiverState.landingMarker) {
+          ReceiverState.map.removeLayer(ReceiverState.landingMarker);
+        }
+        
+        ReceiverState.landingMarker = L.marker([landing.lat, landing.lng], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          })
+        }).addTo(ReceiverState.map);
+        ReceiverState.landingMarker.bindPopup('🎯 Predicted Landing').openPopup();
+        
+        ReceiverState.map.setView([landing.lat, landing.lng], 15);
+        
+        calculateDistanceToLanding();
+      }
+      
+      addDataLog('Launch data received', 'info');
+    }
+
+    function updateTrajectory(data) {
+      if (data.currentPosition && ReceiverState.launchData) {
+        // Draw trajectory line
+        if (ReceiverState.trajectoryLine) {
+          ReceiverState.map.removeLayer(ReceiverState.trajectoryLine);
+        }
+        
+        const points = [
+          [data.launchLocation.lat, data.launchLocation.lng],
+          [data.currentPosition.lat, data.currentPosition.lng]
+        ];
+        
+        ReceiverState.trajectoryLine = L.polyline(points, {
+          color: '#00FF41',
+          weight: 3,
+          dashArray: '10, 5'
+        }).addTo(ReceiverState.map);
+        
+        addDataLog('Trajectory updated - Alt: ' + 
+          (data.currentPosition.altitude || 0).toFixed(1) + 'm', 'info');
+      }
+    }
+
+    function calculateDistanceToLanding() {
+      if (!ReceiverState.launchData || !ReceiverState.launchData.predictedLanding) {
+        return;
+      }
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const landing = ReceiverState.launchData.predictedLanding;
+          const distance = haversineDistance(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            landing.lat,
+            landing.lng
+          );
+          
+          document.getElementById('distanceToLanding').textContent = 
+            distance.toFixed(1) + ' m';
+        });
+      }
+    }
+
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+      return R * c;
+    }
+
+    // ============================================================================
+    // VIDEO RECORDING
+    // ============================================================================
+    function toggleRecording() {
+      if (ReceiverState.isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    }
+
+    function startRecording() {
+      if (!ReceiverState.videoStream) {
+        showToast('Camera not available', 'error');
+        return;
+      }
+
+      ReceiverState.recordedChunks = [];
+      
+      ReceiverState.mediaRecorder = new MediaRecorder(ReceiverState.videoStream, {
+        mimeType: 'video/webm'
+      });
+
+      ReceiverState.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          ReceiverState.recordedChunks.push(event.data);
+        }
+      };
+
+      ReceiverState.mediaRecorder.onstop = () => {
+        const blob = new Blob(ReceiverState.recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'rocket-landing-' + Date.now() + '.webm';
+        a.click();
+        showToast('Recording saved', 'success');
+        addDataLog('Video recording saved', 'info');
+      };
+
+      ReceiverState.mediaRecorder.start();
+      ReceiverState.isRecording = true;
+      
+      document.getElementById('recordingIndicator').classList.add('active');
+      document.getElementById('recordButton').textContent = '⏹️ STOP RECORDING';
+      
+      showToast('Recording started', 'success');
+      addDataLog('Video recording started', 'info');
+    }
+
+    function stopRecording() {
+      if (ReceiverState.mediaRecorder && ReceiverState.isRecording) {
+        ReceiverState.mediaRecorder.stop();
+        ReceiverState.isRecording = false;
+        
+        document.getElementById('recordingIndicator').classList.remove('active');
+        document.getElementById('recordButton').textContent = '🎥 START RECORDING';
+        
+        addDataLog('Video recording stopped', 'info');
+      }
+    }
+
+    // ============================================================================
+    // COMMUNICATION
+    // ============================================================================
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      
+      if (!message || !ReceiverState.connected) {
+        return;
+      }
+      
+      sendToLauncher({
+        type: 'message',
+        message: message,
+        sender: 'receiver',
+        timestamp: Date.now()
+      });
+      
+      addChatMessage(message, true);
+      input.value = '';
+    }
+
+    function receiveMessage(message, sender) {
+      addChatMessage(message, false);
+      addDataLog('Message from launcher: ' + message, 'info');
+    }
+
+    function addChatMessage(message, isSent) {
+      const container = document.getElementById('chatContainer');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-message ' + (isSent ? 'sent' : 'received');
+      msgDiv.textContent = message;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ============================================================================
+    // NAVIGATION & ACCURACY
+    // ============================================================================
+    function navigateToLanding() {
+      if (!ReceiverState.launchData || !ReceiverState.launchData.predictedLanding) {
+        showToast('No landing location available', 'error');
+        return;
+      }
+      
+      const landing = ReceiverState.launchData.predictedLanding;
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${pos.coords.latitude},${pos.coords.longitude}&destination=${landing.lat},${landing.lng}&travelmode=walking`;
+          window.open(mapsUrl, '_blank');
+          addDataLog('Navigation to landing site opened', 'info');
+        }, () => {
+          const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${landing.lat},${landing.lng}`;
+          window.open(mapsUrl, '_blank');
+          addDataLog('Landing location map opened', 'info');
+        });
+      }
+    }
+
+    function recordLandingAccuracy() {
+      if (!ReceiverState.launchData || !ReceiverState.launchData.predictedLanding) {
+        showToast('No landing data available', 'error');
+        return;
+      }
+      
+      if (!navigator.geolocation) {
+        showToast('Geolocation not available', 'error');
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const actualLat = pos.coords.latitude;
+        const actualLng = pos.coords.longitude;
+        const predicted = ReceiverState.launchData.predictedLanding;
+        
+        const errorMeters = haversineDistance(
+          predicted.lat,
+          predicted.lng,
+          actualLat,
+          actualLng
+        );
+        
+        const accuracyData = {
+          type: 'landing_accuracy',
+          receiverId: ReceiverState.receiverId,
+          predictedLocation: predicted,
+          actualLocation: { lat: actualLat, lng: actualLng },
+          errorMeters: errorMeters,
+          timestamp: Date.now()
+        };
+        
+        sendToLauncher(accuracyData);
+        
+        showToast(`Landing error: ${errorMeters.toFixed(1)}m`, 'success');
+        addDataLog(`Landing accuracy recorded: ${errorMeters.toFixed(1)}m error`, 'info');
+        
+        // Add actual landing marker
+        const actualMarker = L.marker([actualLat, actualLng], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41]
+          })
+        }).addTo(ReceiverState.map);
+        actualMarker.bindPopup(`🎯 Actual Landing<br>Error: ${errorMeters.toFixed(1)}m`).openPopup();
+      });
+    }
+
+    // ============================================================================
+    // UTILITIES
+    // ============================================================================
+    function sendToLauncher(data) {
+      if (ReceiverState.connected && ReceiverState.connection) {
+        ReceiverState.connection.send(data);
+      }
+    }
+
+    function copyReceiverId() {
+      const id = ReceiverState.receiverId;
+      navigator.clipboard.writeText(id).then(() => {
+        showToast('Receiver ID copied!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy ID', 'error');
+      });
+    }
+
+    function addDataLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = {
+        timestamp: timestamp,
+        message: message,
+        type: type
+      };
+      
+      ReceiverState.dataLogEntries.push(entry);
+      
+      const logContainer = document.getElementById('dataLog');
+      const logDiv = document.createElement('div');
+      logDiv.className = 'log-entry ' + type;
+      logDiv.innerHTML = `<strong>${timestamp}</strong> - ${message}`;
+      logContainer.appendChild(logDiv);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function exportDataLog() {
+      const dataStr = JSON.stringify(ReceiverState.dataLogEntries, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'receiver-data-log-' + Date.now() + '.json';
+      a.click();
+      showToast('Data log exported', 'success');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show';
+      
+      setTimeout(() => {
+        toast.className = 'toast';
+      }, 3000);
+    }
+  </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

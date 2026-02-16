@@ -1,0 +1,654 @@
+name: Daily Agent Conflict Fixer
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      branch_pattern:
+        description: 'Branch pattern to check (default: copilot/*)'
+        required: false
+        default: 'copilot/*'
+        type: string
+      dry_run:
+        description: 'Dry run mode (only detect, do not fix)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  detect-and-fix-stuck-agents:
+    name: Detect and Fix Stuck Agent Branches
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Find agent branches
+        id: find-branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pattern = '${{ inputs.branch_pattern }}' || 'copilot/*';
+            
+            console.log(`🔍 Searching for agent branches matching: ${pattern}`);
+            
+            // Get all branches
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            console.log(`Found ${branches.length} total branches`);
+            
+            // Filter for agent branches (copilot/*, agent/*, bot/*)
+            const agentPatterns = [
+              /^copilot\//,
+              /^agent\//,
+              /^bot\//,
+              /^automated\//
+            ];
+            
+            const agentBranches = branches.filter(branch => 
+              agentPatterns.some(regex => regex.test(branch.name))
+            );
+            
+            console.log(`Found ${agentBranches.length} agent branches:`);
+            agentBranches.forEach(branch => console.log(`  - ${branch.name}`));
+            
+            core.setOutput('agent_branches', JSON.stringify(agentBranches.map(b => b.name)));
+            core.setOutput('branch_count', agentBranches.length);
+            
+            return agentBranches;
+      
+      - name: Check each branch for conflicts
+        id: check-conflicts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branchNames = JSON.parse('${{ steps.find-branches.outputs.agent_branches }}');
+            const defaultBranch = context.payload.repository.default_branch;
+            
+            console.log(`\n🔍 Checking ${branchNames.length} branches for conflicts with ${defaultBranch}...\n`);
+            
+            const conflictedBranches = [];
+            const healthyBranches = [];
+            
+            for (const branchName of branchNames) {
+              console.log(`\n===== Checking: ${branchName} =====`);
+              
+              try {
+                // Get branch details
+                const { data: branch } = await github.rest.repos.getBranch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  branch: branchName
+                });
+                
+                // Compare with default branch
+                const { data: comparison } = await github.rest.repos.compareCommitsWithBasehead({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  basehead: `${defaultBranch}...${branchName}`
+                });
+                
+                const behindBy = comparison.behind_by || 0;
+                const aheadBy = comparison.ahead_by || 0;
+                
+                console.log(`  Behind by: ${behindBy} commits`);
+                console.log(`  Ahead by: ${aheadBy} commits`);
+                
+                // Check if there's a PR for this branch
+                const { data: prs } = await github.rest.pulls.list({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  head: `${context.repo.owner}:${branchName}`
+                });
+                
+                const hasPR = prs.length > 0;
+                const pr = hasPR ? prs[0] : null;
+                
+                console.log(`  Has open PR: ${hasPR ? 'Yes (#' + pr.number + ')' : 'No'}`);
+                
+                if (hasPR && pr) {
+                  console.log(`  PR mergeable: ${pr.mergeable}`);
+                  console.log(`  PR mergeable_state: ${pr.mergeable_state}`);
+                  
+                  // Check if PR has conflicts
+                  if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
+                    console.log(`  ❌ Branch has conflicts!`);
+                    
+                    conflictedBranches.push({
+                      name: branchName,
+                      pr_number: pr.number,
+                      pr_title: pr.title,
+                      behind_by: behindBy,
+                      ahead_by: aheadBy,
+                      sha: branch.commit.sha,
+                      has_pr: true
+                    });
+                  } else if (behindBy > 10) {
+                    console.log(`  ⚠️ Branch is significantly behind (${behindBy} commits)`);
+                    
+                    conflictedBranches.push({
+                      name: branchName,
+                      pr_number: pr.number,
+                      pr_title: pr.title,
+                      behind_by: behindBy,
+                      ahead_by: aheadBy,
+                      sha: branch.commit.sha,
+                      has_pr: true,
+                      needs_update: true
+                    });
+                  } else {
+                    console.log(`  ✅ Branch is healthy`);
+                    healthyBranches.push(branchName);
+                  }
+                } else {
+                  // No PR - check if branch is stale
+                  if (behindBy > 20) {
+                    console.log(`  ⚠️ Branch without PR is very behind (${behindBy} commits)`);
+                    
+                    conflictedBranches.push({
+                      name: branchName,
+                      pr_number: null,
+                      pr_title: null,
+                      behind_by: behindBy,
+                      ahead_by: aheadBy,
+                      sha: branch.commit.sha,
+                      has_pr: false,
+                      stale: true
+                    });
+                  } else {
+                    console.log(`  ✅ Branch is healthy (no PR, not too far behind)`);
+                    healthyBranches.push(branchName);
+                  }
+                }
+                
+              } catch (error) {
+                console.error(`  ❌ Error checking branch: ${error.message}`);
+                continue;
+              }
+            }
+            
+            console.log(`\n\n📊 Summary:`);
+            console.log(`  Conflicted/stuck branches: ${conflictedBranches.length}`);
+            console.log(`  Healthy branches: ${healthyBranches.length}`);
+            
+            if (conflictedBranches.length > 0) {
+              console.log(`\n⚠️ Branches needing attention:`);
+              conflictedBranches.forEach(branch => {
+                console.log(`  - ${branch.name} (${branch.has_pr ? 'PR #' + branch.pr_number : 'No PR'})`);
+              });
+            }
+            
+            core.setOutput('conflicted_branches', JSON.stringify(conflictedBranches));
+            core.setOutput('conflicted_count', conflictedBranches.length);
+            core.setOutput('healthy_count', healthyBranches.length);
+            
+            return { conflictedBranches, healthyBranches };
+      
+      - name: Generate conflict report
+        id: generate-report
+        if: steps.check-conflicts.outputs.conflicted_count > 0
+        run: |
+          mkdir -p reports
+          
+          cat > reports/daily-agent-conflict-report.md << 'EOF'
+          # Daily Agent Conflict Report
+          
+          **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Total Agent Branches:** ${{ steps.find-branches.outputs.branch_count }}
+          **Conflicted/Stuck Branches:** ${{ steps.check-conflicts.outputs.conflicted_count }}
+          **Healthy Branches:** ${{ steps.check-conflicts.outputs.healthy_count }}
+          
+          ## Branches Requiring Attention
+          
+          EOF
+          
+          echo "Report generated"
+      
+      - name: Attempt to fix conflicted branches
+        id: fix-conflicts
+        if: steps.check-conflicts.outputs.conflicted_count > 0 && inputs.dry_run != true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const conflictedBranches = JSON.parse('${{ steps.check-conflicts.outputs.conflicted_branches }}');
+            
+            console.log(`\n🔧 Attempting to fix ${conflictedBranches.length} stuck branches...\n`);
+            
+            // Rate limit helper function with retry logic
+            async function retryWithBackoff(fn, maxRetries = 3) {
+              for (let i = 0; i < maxRetries; i++) {
+                try {
+                  return await fn();
+                } catch (error) {
+                  if (error.status === 403 && error.message.includes('rate limit')) {
+                    const waitTime = Math.pow(2, i) * 2000; // Exponential backoff: 2s, 4s, 8s
+                    console.log(`  ⏳ Rate limit hit, waiting ${waitTime}ms before retry ${i + 1}/${maxRetries}...`);
+                    await new Promise(resolve => setTimeout(resolve, waitTime));
+                    if (i === maxRetries - 1) throw error;
+                  } else {
+                    throw error;
+                  }
+                }
+              }
+              // This should never be reached, but added for defensive programming
+              throw new Error('Retry loop completed without returning or throwing');
+            }
+            
+            // Delay helper to avoid rate limits
+            async function delay(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            
+            const fixed = [];
+            const failed = [];
+            const skipped = [];
+            
+            // Batch processing: limit issues created per run to avoid rate limits
+            const MAX_ISSUES_PER_RUN = 10;
+            let issuesCreated = 0;
+            
+            for (const branch of conflictedBranches) {
+              console.log(`\n===== Fixing: ${branch.name} =====`);
+              
+              try {
+                // If branch has a PR with conflicts, trigger auto-resolver
+                if (branch.has_pr && branch.pr_number && !branch.stale) {
+                  console.log(`  Triggering auto-conflict-resolver for PR #${branch.pr_number}`);
+                  
+                  try {
+                    await retryWithBackoff(async () => {
+                      await github.rest.actions.createWorkflowDispatch({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        workflow_id: 'auto-conflict-resolver.yml',
+                        ref: context.ref || context.payload.repository.default_branch,
+                        inputs: {
+                          pr_number: branch.pr_number.toString(),
+                          strategy: 'auto'
+                        }
+                      });
+                    });
+                    
+                    console.log(`  ✅ Triggered auto-resolver for PR #${branch.pr_number}`);
+                    
+                    fixed.push({
+                      branch: branch.name,
+                      pr: branch.pr_number,
+                      action: 'auto-resolver-triggered'
+                    });
+                    
+                  } catch (dispatchError) {
+                    console.log(`  ⚠️ Could not trigger auto-resolver: ${dispatchError.message}`);
+                    failed.push({
+                      branch: branch.name,
+                      pr: branch.pr_number,
+                      reason: 'auto-resolver-failed',
+                      error: dispatchError.message
+                    });
+                  }
+                  
+                  // Add delay between API calls to avoid rate limits
+                  await delay(1000);
+                  
+                } else if (branch.has_pr && branch.needs_update) {
+                  // Branch is behind but mergeable - add comment suggesting update
+                  console.log(`  Adding update suggestion to PR #${branch.pr_number}`);
+                  
+                  await retryWithBackoff(async () => {
+                    await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: branch.pr_number,
+                      body: `## 🤖 Daily Agent Branch Check
+                      
+                      This branch is **${branch.behind_by} commits behind** the base branch.
+                      
+                      ### Recommendation
+                      
+                      Update your branch to include the latest changes:
+                      
+                      \`\`\`bash
+                      git fetch origin
+                      git merge origin/${context.payload.repository.default_branch}
+                      git push
+                      \`\`\`
+                      
+                      This will help prevent merge conflicts and ensure your changes are compatible with the latest code.
+                      
+                      ---
+                      *🤖 Automated by Daily Agent Conflict Fixer*`
+                    });
+                  });
+                  
+                  console.log(`  ✅ Update suggestion added to PR #${branch.pr_number}`);
+                  
+                  fixed.push({
+                    branch: branch.name,
+                    pr: branch.pr_number,
+                    action: 'update-suggestion-added'
+                  });
+                  
+                  // Add delay between API calls
+                  await delay(1000);
+                  
+                } else if (branch.stale && !branch.has_pr) {
+                  // Check rate limit before creating issues
+                  if (issuesCreated >= MAX_ISSUES_PER_RUN) {
+                    console.log(`  ⏭️ Skipping issue creation (reached limit of ${MAX_ISSUES_PER_RUN} per run)`);
+                    skipped.push({
+                      branch: branch.name,
+                      reason: 'rate-limit-protection'
+                    });
+                    continue;
+                  }
+                  
+                  // Stale branch without PR - create an issue
+                  console.log(`  Creating issue for stale branch: ${branch.name}`);
+                  
+                  // Check if issue already exists
+                  const existingIssues = await retryWithBackoff(async () => {
+                    const { data } = await github.rest.issues.listForRepo({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      state: 'open',
+                      labels: 'stale-branch,automated'
+                    });
+                    return data;
+                  });
+                  
+                  const issueExists = existingIssues.some(issue => 
+                    issue.title.includes(branch.name)
+                  );
+                  
+                  if (!issueExists) {
+                    await retryWithBackoff(async () => {
+                      await github.rest.issues.create({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        title: `🚨 Stale Agent Branch: ${branch.name}`,
+                        body: `## Stale Agent Branch Detection
+                        
+                        **Branch:** \`${branch.name}\`
+                        **Behind by:** ${branch.behind_by} commits
+                        **Ahead by:** ${branch.ahead_by} commits
+                        **Status:** No open PR
+                        
+                        ### Required Action
+                        
+                        This agent branch does not have an open PR and is significantly behind the base branch.
+                        
+                        **Options:**
+                        1. Create a PR for this branch if the work is complete
+                        2. Update the branch to latest and continue work
+                        3. Delete the branch if the work is no longer needed
+                        
+                        ### Commands
+                        
+                        To update the branch:
+                        \`\`\`bash
+                        git fetch origin
+                        git checkout ${branch.name}
+                        git merge origin/${context.payload.repository.default_branch}
+                        git push origin ${branch.name}
+                        \`\`\`
+                        
+                        To delete the branch:
+                        \`\`\`bash
+                        git push origin --delete ${branch.name}
+                        \`\`\`
+                        
+                        ---
+                        *🤖 Automated by Daily Agent Conflict Fixer*
+                        *Detected on: ${new Date().toISOString()}*`,
+                        labels: ['stale-branch', 'automated', 'needs-attention']
+                      });
+                    });
+                    
+                    issuesCreated++;
+                    console.log(`  ✅ Issue created for stale branch (${issuesCreated}/${MAX_ISSUES_PER_RUN})`);
+                    
+                    fixed.push({
+                      branch: branch.name,
+                      pr: null,
+                      action: 'issue-created'
+                    });
+                    
+                    // Add delay between issue creations to avoid rate limits
+                    await delay(2000);
+                  } else {
+                    console.log(`  ℹ️ Issue already exists for this branch`);
+                    
+                    fixed.push({
+                      branch: branch.name,
+                      pr: null,
+                      action: 'issue-already-exists'
+                    });
+                  }
+                }
+                
+              } catch (error) {
+                console.error(`  ❌ Error fixing branch: ${error.message}`);
+                
+                // Check if it's a rate limit error
+                if (error.status === 403 && error.message.includes('rate limit')) {
+                  console.error(`  ⚠️ Rate limit exceeded, stopping further processing`);
+                  failed.push({
+                    branch: branch.name,
+                    pr: branch.pr_number,
+                    reason: 'rate-limit-exceeded',
+                    error: error.message
+                  });
+                  break; // Stop processing to avoid further rate limit issues
+                } else {
+                  failed.push({
+                    branch: branch.name,
+                    pr: branch.pr_number,
+                    reason: 'unexpected-error',
+                    error: error.message
+                  });
+                }
+              }
+            }
+            
+            console.log(`\n\n📊 Fix Summary:`);
+            console.log(`  Successfully handled: ${fixed.length}`);
+            console.log(`  Failed: ${failed.length}`);
+            console.log(`  Skipped (rate limit protection): ${skipped.length}`);
+            
+            core.setOutput('fixed_count', fixed.length);
+            core.setOutput('failed_count', failed.length);
+            core.setOutput('skipped_count', skipped.length);
+            core.setOutput('fixed_branches', JSON.stringify(fixed));
+            core.setOutput('failed_branches', JSON.stringify(failed));
+            core.setOutput('skipped_branches', JSON.stringify(skipped));
+            
+            return { fixed, failed, skipped };
+      
+      - name: Create summary issue
+        if: steps.check-conflicts.outputs.conflicted_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const conflictedCount = '${{ steps.check-conflicts.outputs.conflicted_count }}';
+            const fixedCount = '${{ steps.fix-conflicts.outputs.fixed_count }}' || '0';
+            const failedCount = '${{ steps.fix-conflicts.outputs.failed_count }}' || '0';
+            const skippedCount = '${{ steps.fix-conflicts.outputs.skipped_count }}' || '0';
+            const isDryRun = '${{ inputs.dry_run }}' === 'true';
+            const conflictedBranches = JSON.parse('${{ steps.check-conflicts.outputs.conflicted_branches }}');
+            
+            const issueTitle = `🤖 Daily Agent Conflict Report - ${new Date().toISOString().split('T')[0]}`;
+            
+            let issueBody = `## Daily Agent Conflict Detection Summary
+            
+            **Date:** ${new Date().toISOString().split('T')[0]}
+            **Time:** ${new Date().toISOString().split('T')[1].split('.')[0]} UTC
+            **Mode:** ${isDryRun ? '🔍 Dry Run (Detection Only)' : '🔧 Fix Mode'}
+            
+            ### 📊 Statistics
+            
+            - **Total Agent Branches Checked:** ${{ steps.find-branches.outputs.branch_count }}
+            - **Conflicted/Stuck Branches Found:** ${conflictedCount}
+            - **Healthy Branches:** ${{ steps.check-conflicts.outputs.healthy_count }}
+            `;
+            
+            if (!isDryRun) {
+              issueBody += `- **Successfully Handled:** ${fixedCount}
+            - **Failed to Fix:** ${failedCount}
+            - **Skipped (Rate Limit Protection):** ${skippedCount}
+            `;
+            }
+            
+            issueBody += `\n### 🚨 Branches Requiring Attention\n\n`;
+            
+            conflictedBranches.forEach(branch => {
+              issueBody += `#### ${branch.name}\n\n`;
+              issueBody += `- **Status:** ${branch.has_pr ? `Has PR #${branch.pr_number}` : 'No PR'}\n`;
+              issueBody += `- **Behind by:** ${branch.behind_by} commits\n`;
+              issueBody += `- **Ahead by:** ${branch.ahead_by} commits\n`;
+              
+              if (branch.stale) {
+                issueBody += `- **Issue:** Stale branch without PR\n`;
+              } else if (branch.needs_update) {
+                issueBody += `- **Issue:** Significantly behind base branch\n`;
+              } else {
+                issueBody += `- **Issue:** Has merge conflicts\n`;
+              }
+              
+              if (!isDryRun) {
+                const fixedBranches = JSON.parse('${{ steps.fix-conflicts.outputs.fixed_branches }}' || '[]');
+                const fixed = fixedBranches.find(f => f.branch === branch.name);
+                const failedBranches = JSON.parse('${{ steps.fix-conflicts.outputs.failed_branches }}' || '[]');
+                const failed = failedBranches.find(f => f.branch === branch.name);
+                
+                if (fixed) {
+                  issueBody += `- **Action Taken:** ${fixed.action}\n`;
+                } else if (failed) {
+                  issueBody += `- **Action Failed:** ${failed.reason}\n`;
+                }
+              }
+              
+              if (branch.has_pr) {
+                issueBody += `- **Link:** [PR #${branch.pr_number}](https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${branch.pr_number})\n`;
+              }
+              
+              issueBody += `\n`;
+            });
+            
+            issueBody += `\n### 📝 Next Steps\n\n`;
+            
+            if (isDryRun) {
+              issueBody += `This was a **dry run**. To fix these issues automatically, run the workflow without dry run mode.\n\n`;
+            } else {
+              issueBody += `The workflow has attempted to automatically handle these issues:\n\n`;
+              issueBody += `- ✅ Triggered auto-conflict-resolver for PRs with conflicts\n`;
+              issueBody += `- ✅ Added update suggestions to PRs that are behind\n`;
+              issueBody += `- ✅ Created issues for stale branches without PRs (max 10 per run to avoid rate limits)\n\n`;
+              
+              if (skippedCount > 0) {
+                issueBody += `⚠️ **Rate Limit Protection:** ${skippedCount} branches were skipped to avoid GitHub API rate limits. They will be processed in the next run.\n\n`;
+              }
+            }
+            
+            issueBody += `For any remaining issues:\n`;
+            issueBody += `1. Review the linked PRs and resolve conflicts manually if auto-resolution failed\n`;
+            issueBody += `2. Update branches that are behind using the git commands provided\n`;
+            issueBody += `3. Clean up stale branches that are no longer needed\n\n`;
+            
+            issueBody += `### 🔍 Workflow Details\n\n`;
+            issueBody += `- **Workflow Run:** [View Logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+            issueBody += `- **Branch Pattern:** ${context.eventName === 'workflow_dispatch' ? '${{ inputs.branch_pattern }}' : 'copilot/*, agent/*, bot/*, automated/*'}\n\n`;
+            
+            issueBody += `---\n`;
+            issueBody += `*🤖 Automated by Daily Agent Conflict Fixer*\n`;
+            issueBody += `*This issue is created daily to track agent branch health. Previous issues are automatically closed.*`;
+            
+            // Close previous daily report issues
+            try {
+              const { data: existingIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'daily-agent-report,automated'
+              });
+              
+              for (const issue of existingIssues) {
+                if (issue.title.includes('Daily Agent Conflict Report')) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed'
+                  });
+                  console.log(`Closed previous report issue #${issue.number}`);
+                }
+              }
+            } catch (error) {
+              console.log('Note: Could not close previous issues:', error.message);
+            }
+            
+            // Create new issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['daily-agent-report', 'automated', conflictedCount > 0 ? 'needs-attention' : 'all-clear']
+            });
+            
+            console.log('✅ Summary issue created');
+      
+      - name: Upload report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-agent-conflict-report-${{ github.run_number }}
+          path: |
+            reports/daily-agent-conflict-report.md
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      - name: Workflow summary
+        if: always()
+        run: |
+          echo "## 🤖 Daily Agent Conflict Fixer Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Agent Branches:** ${{ steps.find-branches.outputs.branch_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Conflicted/Stuck:** ${{ steps.check-conflicts.outputs.conflicted_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Healthy:** ${{ steps.check-conflicts.outputs.healthy_count }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check-conflicts.outputs.conflicted_count }}" -gt 0 ]; then
+            echo "- **Fixed:** ${{ steps.fix-conflicts.outputs.fixed_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed:** ${{ steps.fix-conflicts.outputs.failed_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skipped (Rate Limit Protection):** ${{ steps.fix-conflicts.outputs.skipped_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ See the created issue for detailed information about conflicted branches." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All agent branches are healthy!" >> $GITHUB_STEP_SUMMARY
+          fi

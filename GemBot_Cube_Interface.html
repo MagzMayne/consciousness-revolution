@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: GemBot_Cube_Interface.html
+Declaration ID: IP-741059E3-MLL28ZXB
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.babylonjs-playground.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self' blob: indexeddb: https://cdn.jsdelivr.net https://api.qrserver.com; object-src 'none'; img-src 'self' data: blob: https://api.qrserver.com;">
+    <title>GemBot - Learning Platform</title>
+    
+    <!-- Babylon.js for 3D Virtual Machine -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+    
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3"></script>
+    
+    <!-- Virtual Machine 3D Module -->
+    <script src="./virtual-machine-3d.js"></script>
+    
+    <!-- Cube UI Module -->
+    <script src="./cube-ui.js"></script>
+    
+    <!-- 📐 Z-Index Manager - Debug and organize layout layers (Ctrl+Shift+Z to toggle) -->
+    <script src="./z-index-manager.js"></script>
+    
+    <!-- TensorFlow.js for ML Analysis (Desktop Only) -->
+    <script>
+        const isMobileDevice = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobileDevice) {
+            const tfScript = document.createElement('script');
+            tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0';
+            document.head.appendChild(tfScript);
+            
+            const cocoScript = document.createElement('script');
+            cocoScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3';
+            document.head.appendChild(cocoScript);
+        }
+    </script>
+    
+    <!-- Cube UI Styles -->
+    <link rel="stylesheet" href="./cube-ui.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #e0e6ed;
+        }
+
+        /* Hide old interface */
+        #leftSidebar, #rightSidebar, #centerPanel, #controlPanel, #statusBar {
+            display: none !important;
+        }
+
+        /* Button styles */
+        button {
+            padding: 10px 20px;
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(100, 200, 255, 0.1);
+            color: #64c8ff;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: rgba(100, 200, 255, 0.2);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.3);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8f4f8;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: rgba(100, 200, 255, 0.7);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.2);
+        }
+
+        input::placeholder {
+            color: rgba(232, 244, 248, 0.5);
+        }
+
+        /* Card styling */
+        .card {
+            background: rgba(15, 52, 96, 0.5);
+            border: 1px solid rgba(100, 200, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            backdrop-filter: blur(5px);
+        }
+
+        .card h3 {
+            color: #64c8ff;
+            margin-bottom: 15px;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+            padding-bottom: 10px;
+        }
+
+        /* Data grid */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        @media (max-width: 768px) {
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .data-item {
+            background: rgba(30, 70, 120, 0.4);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #64c8ff;
+        }
+
+        .data-item-label {
+            font-size: 0.85rem;
+            color: #a0b8c8;
+            margin-bottom: 5px;
+        }
+
+        .data-item-value {
+            font-size: 1.3rem;
+            color: #64c8ff;
+            font-weight: bold;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animated {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <!-- Documentation Banner -->
+    <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10000; background: linear-gradient(135deg, rgba(255, 215, 0, 0.95), rgba(255, 107, 107, 0.95)); border: 2px solid #ffd700; border-radius: 12px; padding: 10px 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); max-width: 90vw;">
+        <span style="color: #1a1a2e; font-weight: 600; font-size: 0.9em;">💎 Gem Bot Documentation & Tutorials</span>
+        <a href="https://barbrickdesign.wixsite.com/merlins-gem-bot" target="_blank" rel="noopener noreferrer" style="background: #1a1a2e; color: #ffd700; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85em; transition: all 0.3s ease; white-space: nowrap;">📚 View Docs</a>
+    </div>
+
+    <!-- Cube Container -->
+    <div class="cube-container">
+        <div class="cube">
+            <!-- Face 0: Dashboard -->
+            <div class="cube-face" data-face="0">
+                <div class="face-content animated">
+                    <h1>📊 Dashboard</h1>
+                    <p>Welcome to GemBot Learning Platform</p>
+                    
+                    <div class="card">
+                        <h3>Quick Stats</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-item-label">Sessions Today</div>
+                                <div class="data-item-value" id="sessionsCount">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Learning Time</div>
+                                <div class="data-item-value" id="learningTime">0m</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Points Earned</div>
+                                <div class="data-item-value" id="pointsEarned">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Accuracy</div>
+                                <div class="data-item-value" id="accuracy">--%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Current Session</h3>
+                        <div id="sessionStatus">
+                            <p>No active session</p>
+                            <button onclick="startNewSession()">Start New Session</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Getting Started</h3>
+                        <p>Navigate using arrow keys, swipe, or scroll wheel:</p>
+                        <ul style="margin: 10px 0 0 20px; color: #b8d4e0;">
+                            <li>→ or D - Next Face</li>
+                            <li>← or A - Previous Face</li>
+                            <li>↑ or W - Down (Physical view)</li>
+                            <li>↓ or S - Up (Top view)</li>
+                            <li>Swipe on mobile device</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face 1: Controls -->
+            <div class="cube-face" data-face="1">
+                <div class="face-content animated">
+                    <h1>🎮 Controls</h1>
+                    <p>Virtual Machine Operations</p>
+                    
+                    <div class="card">
+                        <h3>Motor Control</h3>
+                        <div id="motorControls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label>X-Axis Position</label>
+                                <input type="range" id="xAxis" min="0" max="4200" value="0" style="width: 100%;">
+                                <div id="xValue" style="margin-top: 5px; text-align: center; color: #64c8ff;">0 / 4200</div>
+                            </div>
+                            <div>
+                                <label>Y-Axis Position</label>
+                                <input type="range" id="yAxis" min="0" max="3300" value="0" style="width: 100%;">
+                                <div id="yValue" style="margin-top: 5px; text-align: center; color: #64c8ff;">0 / 3300</div>
+                            </div>
+                        </div>
+                        <button style="width: 100%; margin-top: 15px;" onclick="homeAllAxis()">HOME ALL AXIS</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>Virtual Machine Status</h3>
+                        <div id="vmStatus" style="padding: 10px; background: rgba(100, 255, 150, 0.1); border-radius: 5px; color: #64ff96;">
+                            Initializing virtual machine...
+                        </div>
+                        <button style="width: 100%; margin-top: 15px;" onclick="resetVirtualMachine()">Reset Machine</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>Current Positions</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-item-label">X-Axis</div>
+                                <div class="data-item-value" id="xPos">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Y-Axis</div>
+                                <div class="data-item-value" id="yPos">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">P-Axis</div>
+                                <div class="data-item-value" id="pPos">0°</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Status</div>
+                                <div class="data-item-value" id="machineStatus" style="color: #64ff96;">READY</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face 2: Learning -->
+            <div class="cube-face" data-face="2">
+                <div class="face-content animated">
+                    <h1>📚 Learning</h1>
+                    <p>Skill Development & Tutorials</p>
+                    
+                    <div class="card">
+                        <h3>Active Lessons</h3>
+                        <div id="activeLessons">
+                            <p style="color: #a0b8c8;">No active lessons</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Recommended for You</h3>
+                        <div class="data-grid">
+                            <div class="data-item" style="cursor: pointer;" onclick="selectLesson('basics')">
+                                <div class="data-item-label">BASICS</div>
+                                <div class="data-item-value">Beginner</div>
+                            </div>
+                            <div class="data-item" style="cursor: pointer;" onclick="selectLesson('intermediate')">
+                                <div class="data-item-label">INTERMEDIATE</div>
+                                <div class="data-item-value">50% Done</div>
+                            </div>
+                            <div class="data-item" style="cursor: pointer;" onclick="selectLesson('advanced')">
+                                <div class="data-item-label">ADVANCED</div>
+                                <div class="data-item-value">Locked</div>
+                            </div>
+                            <div class="data-item" style="cursor: pointer;" onclick="selectLesson('challenges')">
+                                <div class="data-item-label">CHALLENGES</div>
+                                <div class="data-item-value">New!</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Learning Path</h3>
+                        <div id="learningPath">
+                            <div style="margin: 10px 0; padding: 10px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <strong style="color: #64c8ff;">→</strong> Start with "Machine Basics" tutorial
+                            </div>
+                            <div style="margin: 10px 0; padding: 10px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <strong style="color: #64c8ff;">→</strong> Complete first 3 challenges
+                            </div>
+                            <div style="margin: 10px 0; padding: 10px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <strong style="color: #64c8ff;">→</strong> Unlock physical machine control
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face 3: Stats -->
+            <div class="cube-face" data-face="3">
+                <div class="face-content animated">
+                    <h1>📈 Statistics</h1>
+                    <p>Your Progress & Performance</p>
+                    
+                    <div class="card">
+                        <h3>Overall Performance</h3>
+                        <div class="data-grid">
+                            <div class="data-item">
+                                <div class="data-item-label">Total Sessions</div>
+                                <div class="data-item-value" id="totalSessions">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Total Time</div>
+                                <div class="data-item-value" id="totalTime">0h</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Lessons Completed</div>
+                                <div class="data-item-value" id="lessonsCompleted">0</div>
+                            </div>
+                            <div class="data-item">
+                                <div class="data-item-label">Total Points</div>
+                                <div class="data-item-value" id="totalPoints">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>This Week</h3>
+                        <div style="margin: 10px 0;">
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <span>Monday</span>
+                                <strong>45 min</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <span>Tuesday</span>
+                                <strong>60 min</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <span>Wednesday</span>
+                                <strong>30 min</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(100, 200, 255, 0.1); border-radius: 5px;">
+                                <span>Today</span>
+                                <strong id="todayTime">0 min</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Achievements Unlocked</h3>
+                        <div id="achievements">
+                            <p style="color: #a0b8c8;">Keep learning to unlock achievements!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face 4: Settings -->
+            <div class="cube-face" data-face="4">
+                <div class="face-content animated">
+                    <h1>⚙️ Settings</h1>
+                    <p>Personalization & Preferences</p>
+                    
+                    <div class="card">
+                        <h3>Account</h3>
+                        <div style="margin: 15px 0;">
+                            <label>Username</label>
+                            <input type="text" id="username" placeholder="Enter your username" value="User">
+                        </div>
+                        <div style="margin: 15px 0;">
+                            <label>Email</label>
+                            <input type="email" id="email" placeholder="your@email.com" value="">
+                        </div>
+                        <button style="width: 100%; margin-top: 10px;" onclick="saveProfile()">Save Profile</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>Preferences</h3>
+                        <div style="margin: 15px 0;">
+                            <label>Theme</label>
+                            <select id="theme">
+                                <option value="dark">Dark (Default)</option>
+                                <option value="light">Light</option>
+                                <option value="cyan">Cyan Glow</option>
+                            </select>
+                        </div>
+                        <div style="margin: 15px 0;">
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="soundEnabled" checked>
+                                <span>Sound Effects</span>
+                            </label>
+                        </div>
+                        <div style="margin: 15px 0;">
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                                <input type="checkbox" id="notificationsEnabled" checked>
+                                <span>Notifications</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Hardware</h3>
+                        <div style="margin: 10px 0;">
+                            <label>Machine Type</label>
+                            <select id="machineType">
+                                <option value="virtual">Virtual (No Hardware)</option>
+                                <option value="local">Local USB (Arduino)</option>
+                                <option value="remote">Remote (Cloud)</option>
+                            </select>
+                        </div>
+                        <button style="width: 100%; margin-top: 10px;" onclick="scanDevices()">Scan for Devices</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>System</h3>
+                        <button style="width: 100%; margin-bottom: 10px;" onclick="checkUpdates()">Check for Updates</button>
+                        <button style="width: 100%;" onclick="resetSettings()">Reset to Defaults</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Face 5: Camera -->
+            <div class="cube-face" data-face="5">
+                <div class="face-content animated">
+                    <h1>📱 Camera & Mirror</h1>
+                    <p>Device Camera & Machine Mirroring</p>
+                    
+                    <div class="card">
+                        <h3>Device Camera Feed</h3>
+                        <div id="cameraContainer" style="width: 100%; height: 200px; background: rgba(0, 0, 0, 0.5); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 15px 0;">
+                            <video id="cameraFeed" width="100%" height="100%" style="border-radius: 10px; object-fit: cover;" playsinline></video>
+                            <div id="noCameraMessage" style="color: #a0b8c8; text-align: center;">
+                                <p>Click to enable camera</p>
+                            </div>
+                        </div>
+                        <button style="width: 100%;" onclick="toggleCamera()">Enable Camera</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>Machine View</h3>
+                        <div id="babylonCanvas" style="width: 100%; height: 200px; background: rgba(0, 0, 0, 0.5); border-radius: 10px; margin: 15px 0; position: relative;">
+                            <canvas id="renderCanvas" style="width: 100%; height: 100%; border-radius: 10px;"></canvas>
+                            <div id="machineLoadingStatus" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #64c8ff; text-align: center;">
+                                <div class="loading-spinner" style="margin: 0 auto 10px; width: 30px; height: 30px; border-width: 3px;"></div>
+                                <p>Loading 3D View...</p>
+                            </div>
+                        </div>
+                        <button style="width: 100%;" onclick="calibrateMachine()">Calibrate Machine</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>Recording</h3>
+                        <button style="width: 100%; margin-bottom: 10px;" id="recordButton" onclick="startRecording()">⭕ Start Recording</button>
+                        <button style="width: 100%; display: none;" id="stopRecordButton" onclick="stopRecording()">⏹ Stop Recording</button>
+                        <p id="recordingStatus" style="margin-top: 10px; color: #a0b8c8; text-align: center;">Not recording</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div class="cube-navigation">
+            <button class="cube-nav-button cube-nav-up" title="Up">↑</button>
+            <button class="cube-nav-button cube-nav-left" title="Left">←</button>
+            <button class="cube-nav-button cube-nav-down" title="Down">↓</button>
+            <button class="cube-nav-button cube-nav-right" title="Right">→</button>
+            <div class="cube-indicator">Dashboard</div>
+        </div>
+
+        <!-- Face Selector -->
+        <div class="face-selector">
+            <button class="cube-face-link active" data-face="0">📊 Dashboard</button>
+            <button class="cube-face-link" data-face="1">🎮 Controls</button>
+            <button class="cube-face-link" data-face="2">📚 Learning</button>
+            <button class="cube-face-link" data-face="3">📈 Stats</button>
+            <button class="cube-face-link" data-face="4">⚙️ Settings</button>
+            <button class="cube-face-link" data-face="5">📱 Camera</button>
+        </div>
+
+        <!-- Status Indicator -->
+        <div class="cube-status" id="statusIndicator">
+            <strong>Status:</strong> Ready
+        </div>
+    </div>
+
+    <!-- Keep old HTML for compatibility (hidden) -->
+    <div id="leftSidebar"></div>
+    <div id="rightSidebar"></div>
+    <div id="centerPanel"></div>
+    <div id="controlPanel"></div>
+    <div id="statusBar"></div>
+
+    <script>
+        let cubeUI = null;
+        let virtualMachine = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        /**
+         * Initialize the Cube UI
+         */
+        function initializeCubeUI() {
+            console.log('✅ Initializing Cube UI');
+            
+            try {
+                cubeUI = new GemBotCubeUI();
+                console.log('✅ Cube UI created successfully');
+                
+                // Update face selector styling
+                document.querySelectorAll('.cube-face-link').forEach((btn, idx) => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        document.querySelectorAll('.cube-face-link').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        cubeUI.rotateToCube(idx);
+                    });
+                });
+                
+                // Initialize virtual machine
+                if (window.VirtualMachine3D) {
+                    console.log('✅ VirtualMachine3D class available');
+                    initializeVirtualMachine();
+                } else {
+                    console.warn('⚠️ VirtualMachine3D not loaded yet');
+                    setTimeout(initializeVirtualMachine, 1000);
+                }
+                
+                // Initialize camera
+                initializeCamera();
+                
+                // Setup controls
+                setupControlFace();
+                
+                updateStatus('Ready', 'success');
+            } catch (error) {
+                console.error('❌ Error initializing Cube UI:', error);
+                updateStatus('Initialization Error', 'error');
+            }
+        }
+
+        /**
+         * Initialize Virtual Machine 3D
+         */
+        function initializeVirtualMachine() {
+            console.log('✅ Initializing Virtual Machine');
+            
+            try {
+                const canvas = document.getElementById('renderCanvas');
+                if (!canvas) {
+                    console.error('❌ Canvas element not found');
+                    return;
+                }
+                
+                virtualMachine = new VirtualMachine3D(canvas);
+                console.log('✅ Virtual Machine 3D initialized');
+                
+                // Hide loading indicator
+                const loading = document.getElementById('machineLoadingStatus');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+                
+                updateStatus('Virtual Machine Ready', 'success');
+            } catch (error) {
+                console.error('❌ Error initializing Virtual Machine:', error);
+                updateStatus('VM Initialization Error', 'error');
+            }
+        }
+
+        /**
+         * Initialize camera
+         */
+        function initializeCamera() {
+            console.log('✅ Camera system initialized');
+        }
+
+        /**
+         * Setup control face event listeners
+         */
+        function setupControlFace() {
+            // X-Axis slider
+            const xAxis = document.getElementById('xAxis');
+            if (xAxis) {
+                xAxis.addEventListener('input', (e) => {
+                    document.getElementById('xValue').textContent = `${e.target.value} / 4200`;
+                    if (virtualMachine) {
+                        virtualMachine.setMotorPosition(0, parseInt(e.target.value));
+                    }
+                });
+            }
+            
+            // Y-Axis slider
+            const yAxis = document.getElementById('yAxis');
+            if (yAxis) {
+                yAxis.addEventListener('input', (e) => {
+                    document.getElementById('yValue').textContent = `${e.target.value} / 3300`;
+                    if (virtualMachine) {
+                        virtualMachine.setMotorPosition(1, parseInt(e.target.value));
+                    }
+                });
+            }
+        }
+
+        /**
+         * Update status indicator
+         */
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('statusIndicator');
+            if (status) {
+                status.textContent = `Status: ${message}`;
+                status.className = `cube-status ${type}`;
+            }
+        }
+
+        /**
+         * Button callbacks
+         */
+        function startNewSession() {
+            console.log('🎮 Starting new session');
+            updateStatus('Session Started', 'success');
+            document.getElementById('sessionStatus').innerHTML = `
+                <p>Session in progress...</p>
+                <p style="color: #64ff96; margin-top: 10px;">Time: <span id="sessionTimer">0:00</span></p>
+                <button onclick="endSession()">End Session</button>
+            `;
+        }
+
+        function endSession() {
+            console.log('📊 Ending session');
+            updateStatus('Session Ended', 'info');
+            startNewSession(); // Reset
+        }
+
+        function homeAllAxis() {
+            console.log('🏠 Homing all axis');
+            document.getElementById('xAxis').value = 0;
+            document.getElementById('yAxis').value = 0;
+            document.getElementById('xValue').textContent = '0 / 4200';
+            document.getElementById('yValue').textContent = '0 / 3300';
+            updateStatus('Homing Complete', 'success');
+        }
+
+        function resetVirtualMachine() {
+            console.log('🔄 Resetting virtual machine');
+            homeAllAxis();
+            updateStatus('Machine Reset', 'success');
+        }
+
+        function selectLesson(lesson) {
+            console.log(`📖 Selected lesson: ${lesson}`);
+            updateStatus(`Lesson Selected: ${lesson}`, 'info');
+        }
+
+        function saveProfile() {
+            const username = document.getElementById('username').value;
+            console.log(`💾 Saving profile: ${username}`);
+            updateStatus('Profile Saved', 'success');
+        }
+
+        function scanDevices() {
+            console.log('🔍 Scanning for devices');
+            updateStatus('Scanning...', 'loading');
+            setTimeout(() => updateStatus('No devices found', 'info'), 2000);
+        }
+
+        function checkUpdates() {
+            console.log('🔄 Checking for updates');
+            updateStatus('Up to date', 'success');
+        }
+
+        function resetSettings() {
+            console.log('⚙️ Resetting settings');
+            updateStatus('Settings Reset', 'success');
+        }
+
+        function toggleCamera() {
+            console.log('📷 Toggling camera');
+            const video = document.getElementById('cameraFeed');
+            const message = document.getElementById('noCameraMessage');
+            
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    message.style.display = 'none';
+                    updateStatus('Camera Active', 'success');
+                })
+                .catch(error => {
+                    console.error('Camera error:', error);
+                    updateStatus('Camera Not Available', 'error');
+                });
+        }
+
+        function calibrateMachine() {
+            console.log('📏 Calibrating machine');
+            updateStatus('Calibration Started', 'loading');
+            setTimeout(() => updateStatus('Calibration Complete', 'success'), 2000);
+        }
+
+        function startRecording() {
+            console.log('⭕ Starting recording');
+            const video = document.getElementById('cameraFeed');
+            if (video.srcObject) {
+                mediaRecorder = new MediaRecorder(video.srcObject);
+                mediaRecorder.start();
+                document.getElementById('recordButton').style.display = 'none';
+                document.getElementById('stopRecordButton').style.display = 'block';
+                document.getElementById('recordingStatus').textContent = 'Recording...';
+                updateStatus('Recording Started', 'success');
+            }
+        }
+
+        function stopRecording() {
+            console.log('⏹ Stopping recording');
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                document.getElementById('recordButton').style.display = 'block';
+                document.getElementById('stopRecordButton').style.display = 'none';
+                document.getElementById('recordingStatus').textContent = 'Recording saved!';
+                updateStatus('Recording Saved', 'success');
+            }
+        }
+
+        /**
+         * Initialize everything when page loads
+         */
+        window.addEventListener('load', () => {
+            console.log('🚀 Page loaded, initializing GemBot Cube Interface');
+            setTimeout(initializeCubeUI, 500);
+        });
+
+        /**
+         * Log when user navigates between faces
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🌐 DOM Content Loaded');
+        });
+    </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+name: Backup and Rollback System
+
+on:
+  workflow_call:
+    inputs:
+      action:
+        description: 'Action to perform: backup, rollback, list, or clean'
+        required: true
+        type: string
+      files:
+        description: 'Comma-separated list of files to backup (required for backup action)'
+        required: false
+        type: string
+      label:
+        description: 'Backup label/name (required for backup and rollback actions)'
+        required: false
+        type: string
+      description:
+        description: 'Backup description (optional for backup action)'
+        required: false
+        type: string
+      older_than_days:
+        description: 'Remove backups older than N days (for clean action)'
+        required: false
+        type: number
+        default: 30
+    outputs:
+      backup_id:
+        description: 'ID of the created backup'
+        value: ${{ jobs.backup-rollback.outputs.backup_id }}
+      success:
+        description: 'Whether the operation succeeded'
+        value: ${{ jobs.backup-rollback.outputs.success }}
+
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - backup
+          - rollback
+          - list
+          - clean
+      files:
+        description: 'Comma-separated list of files to backup'
+        required: false
+        type: string
+      label:
+        description: 'Backup label/name'
+        required: false
+        type: string
+      description:
+        description: 'Backup description'
+        required: false
+        type: string
+      older_than_days:
+        description: 'Remove backups older than N days'
+        required: false
+        type: number
+        default: 30
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  backup-rollback:
+    name: ${{ inputs.action }} Operation
+    runs-on: ubuntu-latest
+    outputs:
+      backup_id: ${{ steps.operation.outputs.backup_id }}
+      success: ${{ steps.operation.outputs.success }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          npm install
+          chmod +x .github/scripts/backup-rollback.js
+      
+      - name: Validate inputs
+        id: validate
+        run: |
+          ACTION="${{ inputs.action }}"
+          
+          case "$ACTION" in
+            backup)
+              if [ -z "${{ inputs.files }}" ] || [ -z "${{ inputs.label }}" ]; then
+                echo "❌ Error: backup action requires --files and --label parameters"
+                exit 1
+              fi
+              ;;
+            rollback)
+              if [ -z "${{ inputs.label }}" ]; then
+                echo "❌ Error: rollback action requires --label parameter"
+                exit 1
+              fi
+              ;;
+            list|clean)
+              # No additional validation needed
+              ;;
+            *)
+              echo "❌ Error: Unknown action '$ACTION'"
+              exit 1
+              ;;
+          esac
+          
+          echo "✅ Input validation passed"
+      
+      - name: Perform ${{ inputs.action }} operation
+        id: operation
+        continue-on-error: true
+        run: |
+          ACTION="${{ inputs.action }}"
+          
+          echo "## 🔧 Backup & Rollback System" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** $ACTION" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          case "$ACTION" in
+            backup)
+              echo "### Creating Backup" >> $GITHUB_STEP_SUMMARY
+              echo "**Files:** ${{ inputs.files }}" >> $GITHUB_STEP_SUMMARY
+              echo "**Label:** ${{ inputs.label }}" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              OUTPUT=$(node .github/scripts/backup-rollback.js backup \
+                --files="${{ inputs.files }}" \
+                --label="${{ inputs.label }}" \
+                --description="${{ inputs.description }}" 2>&1)
+              
+              echo "$OUTPUT"
+              echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+              
+              # Extract backup ID from output
+              BACKUP_ID=$(echo "$OUTPUT" | grep -oP 'ID: \K[^\s]+' || echo "")
+              echo "backup_id=$BACKUP_ID" >> $GITHUB_OUTPUT
+              echo "success=true" >> $GITHUB_OUTPUT
+              
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Backup created successfully" >> $GITHUB_STEP_SUMMARY
+              ;;
+              
+            rollback)
+              echo "### Performing Rollback" >> $GITHUB_STEP_SUMMARY
+              echo "**Label:** ${{ inputs.label }}" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              OUTPUT=$(node .github/scripts/backup-rollback.js rollback \
+                --label="${{ inputs.label }}" 2>&1)
+              
+              echo "$OUTPUT"
+              echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo "success=true" >> $GITHUB_OUTPUT
+              
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Rollback completed successfully" >> $GITHUB_STEP_SUMMARY
+              ;;
+              
+            list)
+              echo "### Listing Backups" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              OUTPUT=$(node .github/scripts/backup-rollback.js list 2>&1)
+              echo "$OUTPUT"
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "success=true" >> $GITHUB_OUTPUT
+              ;;
+              
+            clean)
+              echo "### Cleaning Old Backups" >> $GITHUB_STEP_SUMMARY
+              echo "**Older than:** ${{ inputs.older_than_days }} days" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              
+              OUTPUT=$(node .github/scripts/backup-rollback.js clean \
+                --older-than=${{ inputs.older_than_days }} 2>&1)
+              
+              echo "$OUTPUT"
+              echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+              echo "success=true" >> $GITHUB_OUTPUT
+              
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Cleanup completed" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+      
+      - name: Handle operation failure
+        if: steps.operation.outcome == 'failure'
+        run: |
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Operation failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          exit 1
+      
+      - name: Upload backup artifacts
+        if: inputs.action == 'backup' && steps.operation.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-manifest
+          path: .github/backups/manifest.json
+          retention-days: 90
+      
+      - name: Upload backup log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-rollback-log
+          path: .github/backups/backup-rollback.log
+          retention-days: 30

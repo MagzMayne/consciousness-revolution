@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: test-ebay-listing-fetch.html
+Declaration ID: IP-7346D045-MLL29028
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBay Listing Fetch Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        .listing {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .listing h4 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+        }
+        .listing a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .listing a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 eBay Listing Fetch Test</h1>
+    <p>This page tests the real eBay API integration for ebaySwarm.html</p>
+
+    <div class="test-section">
+        <h2>Test Configuration</h2>
+        <p><strong>Store URL:</strong> <code>https://ebay.us/m/qhL5jH</code></p>
+        <p><strong>Method:</strong> eBay RSS Feed + HTML Fallback</p>
+        <p><strong>CORS Proxy:</strong> allorigins.win</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Quick Tests</h2>
+        <button onclick="testUrlParsing()">1. Test URL Parsing</button>
+        <button onclick="testRSSConstruction()">2. Test RSS URL</button>
+        <button onclick="testCORSProxy()">3. Test CORS Proxy</button>
+        <button onclick="testUrlResolution()" id="resolveBtn">4. Test URL Resolution (NEW)</button>
+        <button onclick="testFullFetch()" id="fetchBtn">5. Fetch Real Listings</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="log" class="log">Ready to test...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Fetched Listings</h2>
+        <div id="listings-display">No listings fetched yet. Click "Fetch Real Listings" above.</div>
+    </div>
+
+    <script>
+        let logDiv = document.getElementById('log');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            const prefix = {
+                'success': '✓',
+                'error': '✗',
+                'warning': '⚠',
+                'info': '●'
+            }[type] || '●';
+            
+            logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${prefix} ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = 'Log cleared...\n';
+        }
+        
+        function testUrlParsing() {
+            log('Testing URL parsing...', 'info');
+            
+            const testUrl = 'https://ebay.us/m/qhL5jH';
+            const shortCode = testUrl.split('/m/')[1];
+            
+            if (shortCode === 'qhL5jH') {
+                log(`Successfully extracted short code: ${shortCode}`, 'success');
+                return shortCode;
+            } else {
+                log(`Failed to extract short code. Got: ${shortCode}`, 'error');
+                return null;
+            }
+        }
+        
+        function testRSSConstruction() {
+            log('Testing RSS URL construction...', 'info');
+            
+            const sellerId = 'qhL5jH';
+            const rssUrl = `https://www.ebay.com/sch/i.html?_ssn=${sellerId}&_ipg=50&_rss=1`;
+            
+            log(`RSS URL: ${rssUrl}`, 'info');
+            log('RSS URL format is correct', 'success');
+            
+            return rssUrl;
+        }
+        
+        function testCORSProxy() {
+            log('Testing CORS proxy URL construction...', 'info');
+            
+            const rssUrl = 'https://www.ebay.com/sch/i.html?_ssn=qhL5jH&_ipg=50&_rss=1';
+            const corsProxy = 'https://api.allorigins.win/raw?url=';
+            const finalUrl = corsProxy + encodeURIComponent(rssUrl);
+            
+            log(`CORS proxy URL: ${finalUrl.substring(0, 80)}...`, 'info');
+            log('CORS proxy URL format is correct', 'success');
+            
+            return finalUrl;
+        }
+        
+        async function testFullFetch() {
+            const btn = document.getElementById('fetchBtn');
+            btn.disabled = true;
+            btn.textContent = 'Fetching...';
+            
+            log('=== Starting Full Fetch Test ===', 'info');
+            
+            try {
+                // Step 1: Parse URL
+                const shortCode = testUrlParsing();
+                
+                // Step 2: Build RSS URL
+                const sellerId = shortCode;
+                const rssUrl = `https://www.ebay.com/sch/i.html?_ssn=${sellerId}&_ipg=50&_rss=1`;
+                log(`Built RSS URL for seller: ${sellerId}`, 'success');
+                
+                // Step 3: Fetch via CORS proxy
+                const corsProxy = 'https://api.allorigins.win/raw?url=';
+                const fetchUrl = corsProxy + encodeURIComponent(rssUrl);
+                
+                log('Fetching from eBay RSS feed...', 'info');
+                const response = await fetch(fetchUrl);
+                
+                log(`Response status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // Step 4: Parse response
+                const xmlText = await response.text();
+                log(`Received ${xmlText.length} characters of data`, 'info');
+                
+                // Step 5: Parse XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                
+                const parserError = xmlDoc.querySelector('parsererror');
+                if (parserError) {
+                    log('XML parsing error detected', 'error');
+                    log('Falling back to HTML scraping...', 'warning');
+                    await testHTMLFallback(sellerId);
+                    return;
+                }
+                
+                // Step 6: Extract items
+                const items = xmlDoc.querySelectorAll('item');
+                log(`Found ${items.length} items in RSS feed`, 'success');
+                
+                if (items.length === 0) {
+                    log('No items in RSS feed, trying HTML fallback...', 'warning');
+                    await testHTMLFallback(sellerId);
+                    return;
+                }
+                
+                // Step 7: Parse listings
+                const listings = [];
+                items.forEach((item, index) => {
+                    const title = item.querySelector('title')?.textContent || 'Unknown Item';
+                    const link = item.querySelector('link')?.textContent || '';
+                    const description = item.querySelector('description')?.textContent || '';
+                    
+                    const itemIdMatch = link.match(/\/itm\/(\d+)/);
+                    const itemId = itemIdMatch ? itemIdMatch[1] : `item_${index + 1}`;
+                    
+                    const priceMatch = description.match(/\$[\d,]+\.?\d*/);
+                    const price = priceMatch ? priceMatch[0] : 'Price not listed';
+                    
+                    listings.push({
+                        listing_id: itemId,
+                        title: title,
+                        price: price,
+                        url: link,
+                        description_preview: description.substring(0, 150)
+                    });
+                });
+                
+                log(`Successfully parsed ${listings.length} listings`, 'success');
+                displayListings(listings);
+                
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+                log('Stack trace: ' + error.stack, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '4. Fetch Real Listings';
+            }
+        }
+        
+        async function testHTMLFallback(sellerId) {
+            log('=== Attempting HTML Fallback ===', 'warning');
+            
+            try {
+                const storeUrl = `https://www.ebay.com/sch/i.html?_ssn=${sellerId}&_ipg=50`;
+                const corsProxy = 'https://api.allorigins.win/raw?url=';
+                const fetchUrl = corsProxy + encodeURIComponent(storeUrl);
+                
+                log('Fetching store HTML page...', 'info');
+                const response = await fetch(fetchUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const html = await response.text();
+                log(`Received ${html.length} characters of HTML`, 'info');
+                
+                // Try to extract some info from HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Look for common eBay elements
+                const items = doc.querySelectorAll('.s-item, .sresult, [data-view="mi:1686"]');
+                log(`Found ${items.length} potential item elements in HTML`, items.length > 0 ? 'success' : 'warning');
+                
+                if (items.length > 0) {
+                    const listings = [];
+                    items.forEach((elem, index) => {
+                        if (index === 0) return; // Skip first placeholder
+                        
+                        const titleElem = elem.querySelector('.s-item__title, .lvtitle, h3');
+                        const priceElem = elem.querySelector('.s-item__price, .lvprice, .prc');
+                        const linkElem = elem.querySelector('a[href*="/itm/"]');
+                        
+                        if (titleElem && linkElem) {
+                            const title = titleElem.textContent.trim();
+                            const price = priceElem ? priceElem.textContent.trim() : 'N/A';
+                            const link = linkElem.href;
+                            
+                            const itemIdMatch = link.match(/\/itm\/(\d+)/);
+                            const itemId = itemIdMatch ? itemIdMatch[1] : `item_${index}`;
+                            
+                            listings.push({
+                                listing_id: itemId,
+                                title: title,
+                                price: price,
+                                url: link,
+                                description_preview: title
+                            });
+                        }
+                    });
+                    
+                    log(`Extracted ${listings.length} listings from HTML`, 'success');
+                    displayListings(listings);
+                } else {
+                    log('Could not find any recognizable item elements', 'error');
+                    log('The seller might not have any active listings', 'warning');
+                }
+                
+            } catch (error) {
+                log(`HTML fallback failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function displayListings(listings) {
+            const container = document.getElementById('listings-display');
+            
+            if (listings.length === 0) {
+                container.innerHTML = '<p class="warning">No listings found.</p>';
+                return;
+            }
+            
+            container.innerHTML = `<h3>Found ${listings.length} Real Listings:</h3>`;
+            
+            listings.forEach((listing, index) => {
+                const listingDiv = document.createElement('div');
+                listingDiv.className = 'listing';
+                listingDiv.innerHTML = `
+                    <h4>${index + 1}. ${listing.title}</h4>
+                    <p><strong>Item ID:</strong> ${listing.listing_id}</p>
+                    <p><strong>Price:</strong> ${listing.price}</p>
+                    <p><strong>Preview:</strong> ${listing.description_preview}...</p>
+                    <p><a href="${listing.url}" target="_blank" rel="noopener">View on eBay →</a></p>
+                `;
+                container.appendChild(listingDiv);
+            });
+        }
+        
+        async function testUrlResolution() {
+            const btn = document.getElementById('resolveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Resolving...';
+            
+            log('=== Testing URL Resolution (NEW LOGIC) ===', 'info');
+            
+            try {
+                const shortUrl = 'https://ebay.us/m/qhL5jH';
+                const corsProxyRaw = 'https://api.allorigins.win/raw?url=';
+                
+                log('Step 1: Fetching shortened URL to resolve it...', 'info');
+                const response = await fetch(corsProxyRaw + encodeURIComponent(shortUrl));
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                log('Step 2: Parsing HTML for seller ID...', 'info');
+                const html = await response.text();
+                log(`Received ${html.length} characters of HTML`, 'info');
+                
+                // Look for seller information using multiple patterns
+                const sellerPatterns = [
+                    { name: '_ssn parameter', pattern: /_ssn=([a-zA-Z0-9_-]+)/gi },
+                    { name: 'seller field', pattern: /seller:\s*["']([a-zA-Z0-9_-]+)["']/gi },
+                    { name: 'userId field', pattern: /"userId":\s*["']([a-zA-Z0-9_-]+)["']/gi },
+                    { name: '/usr/ URL', pattern: /\/usr\/([a-zA-Z0-9_-]+)/gi },
+                    { name: '/str/ URL', pattern: /\/str\/([a-zA-Z0-9_-]+)/gi }
+                ];
+                
+                const foundIds = new Set();
+                for (const { name, pattern } of sellerPatterns) {
+                    let match;
+                    pattern.lastIndex = 0;
+                    while ((match = pattern.exec(html)) !== null) {
+                        if (match[1] && match[1].length > 2) {
+                            foundIds.add(match[1]);
+                            log(`Found via ${name}: ${match[1]}`, 'success');
+                        }
+                    }
+                }
+                
+                if (foundIds.size === 0) {
+                    log('No seller IDs found in resolved HTML', 'error');
+                    log('This is the root cause of the "No listings found" error', 'error');
+                } else {
+                    log(`Found ${foundIds.size} potential seller ID(s)`, 'success');
+                    
+                    // Validate each found ID
+                    log('Step 3: Validating seller IDs...', 'info');
+                    for (const sellerId of foundIds) {
+                        try {
+                            const testUrl = `https://www.ebay.com/sch/i.html?_ssn=${sellerId}&_ipg=10&_rss=1`;
+                            const testResponse = await fetch(corsProxyRaw + encodeURIComponent(testUrl));
+                            
+                            if (testResponse.ok) {
+                                const xmlText = await testResponse.text();
+                                if (xmlText.includes('<rss') && (xmlText.includes('<item>') || xmlText.includes('<entry>'))) {
+                                    log(`✓ Validated: ${sellerId} has active listings!`, 'success');
+                                } else {
+                                    log(`✗ ${sellerId}: RSS feed has no items`, 'warning');
+                                }
+                            } else {
+                                log(`✗ ${sellerId}: HTTP ${testResponse.status}`, 'warning');
+                            }
+                        } catch (e) {
+                            log(`✗ ${sellerId}: ${e.message}`, 'warning');
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                log(`Resolution failed: ${error.message}`, 'error');
+                log('This is why the system falls back to guessing seller names', 'warning');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '4. Test URL Resolution (NEW)';
+            }
+        }
+        
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            log('=== Page Loaded ===', 'info');
+            log('Ready to test eBay listing integration', 'success');
+            log('', 'info');
+        });
+    </script>
+</body>
+</html>

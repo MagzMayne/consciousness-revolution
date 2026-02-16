@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: pumpPool.html
+Declaration ID: IP-2DE280B5-MLL2901S
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en" class="mobile-enhanced">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pump.Pool – 3D Schools of Fish + PayPal GBUV</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+
+  <!-- Styles -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #061727 0%, #010308 60%, #000000 100%);
+      color: #ffffff;
+    }
+
+    #scene-container {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #ui-overlay {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      z-index: 10;
+      color: #ffffff;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+      max-width: 360px;
+    }
+
+    #ui-overlay h1 {
+      margin: 0 0 4px 0;
+      font-size: 20px;
+    }
+
+    #ui-overlay p {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    #legend {
+      font-size: 11px;
+      margin-bottom: 8px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+
+    .dot.green { background: #36d96f; }
+    .dot.red   { background: #ff4b5c; }
+    .dot.blue  { background: #4da6ff; }
+
+    .label {
+      position: absolute;
+      color: #ffffff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Payment panel */
+    #payment-panel {
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+    }
+
+    #payment-panel h2 {
+      margin: 0 0 6px 0;
+      font-size: 13px;
+    }
+
+    #payment-panel label {
+      display: block;
+      margin-top: 4px;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+
+    #payment-panel select, #payment-panel input {
+      width: 100%;
+      font-size: 11px;
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.6);
+      color: #ffffff;
+      outline: none;
+    }
+
+    #paypal-button-container {
+      margin-top: 6px;
+    }
+
+    #payment-status {
+      margin-top: 4px;
+      font-size: 11px;
+      min-height: 14px;
+    }
+
+    #withdraw-panel {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 11px;
+    }
+
+    #withdraw-panel button {
+      margin-top: 4px;
+      width: 100%;
+      padding: 4px 6px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      background: #1e8fff;
+      color: #fff;
+    }
+
+    #withdraw-panel button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    #purchase-log {
+      margin-top: 4px;
+      font-size: 10px;
+      max-height: 70px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    #purchase-log strong {
+      font-weight: 600;
+    }
+  </style>
+
+  <!-- Three.js CDN -->
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- PayPal JS SDK (live client ID you provided) -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AWqjFuel2GES9stDaoUnIT6icNYnf_oxYYFAoJ8c-5TkuMoa8aXu9BnuiG6D6FI7J-YQajeR-M4MqczR&currency=USD"></script>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div id="ui-overlay">
+    <h1>Pump.Pool</h1>
+    <p>Schools of fish = pools • Size = balance • Color = PnL</p>
+    <div id="legend">
+      <span class="dot green"></span> Profit &nbsp;
+      <span class="dot red"></span> Loss &nbsp;
+      <span class="dot blue"></span> Flat
+    </div>
+
+    <div id="payment-panel">
+      <h2>$GBUV purchase (anonymous key = transaction)</h2>
+
+      <label for="pool-select">Pool (school) selection</label>
+      <select id="pool-select"></select>
+
+      <label for="amount-select">Unique purchase amount (USD)</label>
+      <select id="amount-select">
+        <!-- Filled dynamically per pool -->
+      </select>
+
+      <div id="paypal-button-container"></div>
+      <div id="payment-status"></div>
+
+      <div id="withdraw-panel">
+        <strong>Withdraw request</strong>
+        <p style="margin: 2px 0 4px 0;">
+          Select pool + amount you paid, then click to open an email to <strong>BarbrickDesign@gmail.com</strong> with your request.
+        </p>
+        <button id="withdraw-button" disabled>Request Withdraw via Email</button>
+      </div>
+
+      <div id="purchase-log"></div>
+    </div>
+  </div>
+
+  <div id="scene-container"></div>
+
+  <script>
+    // ============================================================
+    // CONFIG / MOCK DATA (POOLS AND FISH VIEW)
+    // ============================================================
+
+    const USE_BACKEND = false;
+    const API_URL = "http://localhost:4000/api/pools";
+
+    // Pools for visualization + also for the payment dropdown
+    function getMockPools() {
+      return [
+        {
+          poolId: "POOL_DOPSWAP",
+          name: "DopSwap Alpha",
+          totalSol: 128.4,
+          totalUsdEarned: 5421.22,
+          targetToken: "DPHcbu7wJEbcrnCYjXC8vHBkM39kT9xZg4mYayvrpump",
+          members: [
+            { wallet: "WalletA", balanceSol: 0.5, profitLossUsd: 12.34 },
+            { wallet: "WalletB", balanceSol: 5.0, profitLossUsd: -45.12 },
+            { wallet: "WalletC", balanceSol: 12.3, profitLossUsd: 120.0 },
+          ],
+        },
+        {
+          poolId: "POOL_BETA",
+          name: "School of Beta",
+          totalSol: 64.2,
+          totalUsdEarned: -321.77,
+          targetToken: "ExampleTokenMint",
+          members: [
+            { wallet: "WalletD", balanceSol: 1.2, profitLossUsd: -5.5 },
+            { wallet: "WalletE", balanceSol: 9.0, profitLossUsd: 30.0 },
+            { wallet: "WalletF", balanceSol: 0.3, profitLossUsd: 0.4 },
+          ],
+        },
+        {
+          poolId: "POOL_GAMMA",
+          name: "Gamma Swarm",
+          totalSol: 32.5,
+          totalUsdEarned: 940.13,
+          targetToken: "AnotherTokenMint",
+          members: [
+            { wallet: "WalletG", balanceSol: 2.0, profitLossUsd: 120.0 },
+            { wallet: "WalletH", balanceSol: 0.8, profitLossUsd: -10.2 },
+            { wallet: "WalletI", balanceSol: 3.5, profitLossUsd: 210.0 },
+            { wallet: "WalletJ", balanceSol: 0.4, profitLossUsd: 5.1 },
+          ],
+        },
+      ];
+    }
+
+    // ============================================================
+    // THREE.JS SCENE SETUP
+    // ============================================================
+
+    let scene, camera, renderer, controls;
+    let clock;
+    let schools = [];
+    let labelsContainer;
+    let labelElements = [];
+
+    initScene();
+    animate();
+    refreshPoolsPeriodically();
+
+    function initScene() {
+      const container = document.getElementById("scene-container");
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x020611, 0.04);
+
+      const aspect = container.clientWidth / container.clientHeight;
+      camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+      camera.position.set(0, 30, 60);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setClearColor(0x000000, 1);
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      const ambient = new THREE.AmbientLight(0x88aaff, 0.7);
+      scene.add(ambient);
+
+      const directional = new THREE.DirectionalLight(0xffffff, 1.0);
+      directional.position.set(30, 50, 40);
+      scene.add(directional);
+
+      const floorGeo = new THREE.PlaneGeometry(200, 200, 32, 32);
+      const floorMat = new THREE.MeshPhongMaterial({
+        color: 0x02121f,
+        shininess: 12,
+        side: THREE.DoubleSide,
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -20;
+      scene.add(floor);
+
+      addParticles();
+
+      clock = new THREE.Clock();
+      labelsContainer = document.body;
+
+      window.addEventListener("resize", onWindowResize);
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById("scene-container");
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function mapRange(value, inMin, inMax, outMin, outMax) {
+      if (inMax === inMin) return (outMin + outMax) / 2;
+      const t = (value - inMin) / (inMax - inMin);
+      return outMin + Math.max(0, Math.min(1, t)) * (outMax - outMin);
+    }
+
+    function addParticles() {
+      const particleCount = 500;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        const x = (Math.random() - 0.5) * 200;
+        const y = Math.random() * 60 - 20;
+        const z = (Math.random() - 0.5) * 200;
+        positions[i * 3 + 0] = x;
+        positions[i * 3 + 1] = y;
+        positions[i * 3 + 2] = z;
+      }
+
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+      const material = new THREE.PointsMaterial({
+        color: 0x4da6ff,
+        size: 0.4,
+        transparent: true,
+        opacity: 0.4,
+      });
+
+      const points = new THREE.Points(geometry, material);
+      scene.add(points);
+    }
+
+    // ============================================================
+    // POOL DATA FETCH / REFRESH
+    // ============================================================
+
+    async function fetchPools() {
+      try {
+        // First try backend API
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        return data.pools || [];
+      } catch (err) {
+        console.error("Error fetching pools from backend:", err);
+        // Return empty array if backend is unavailable
+        // This allows the app to function without predefined pools
+        return [];
+      }
+    }
+
+    function refreshPoolsPeriodically() {
+      const update = async () => {
+        const pools = await fetchPools();
+        setSchoolsFromData(pools);
+        initializePaymentUI(pools);
+      };
+      update();
+      setInterval(update, 10000);
+    }
+
+    // ============================================================
+    // SCHOOLS + FISH
+    // ============================================================
+
+    function setSchoolsFromData(pools) {
+      schools.forEach((school) => scene.remove(school.group));
+      schools = [];
+      labelElements.forEach((el) => el.remove());
+      labelElements = [];
+
+      if (!pools.length) return;
+
+      const totalSolValues = pools.map((p) => p.totalSol);
+      const maxSol = Math.max(...totalSolValues, 1);
+
+      const radius = 35;
+      const angleStep = (Math.PI * 2) / pools.length;
+
+      pools.forEach((pool, index) => {
+        const angle = index * angleStep;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        const y = 0;
+
+        const school = createSchool(pool, new THREE.Vector3(x, y, z), maxSol);
+        schools.push(school);
+        scene.add(school.group);
+
+        const labelEl = createLabelElement(pool);
+        labelElements.push(labelEl);
+        school.labelElement = labelEl;
+      });
+    }
+
+    function createSchool(pool, position, maxSol) {
+      const group = new THREE.Group();
+      group.position.copy(position);
+
+      const schoolRadius = mapRange(pool.totalSol, 0, maxSol, 6, 15);
+      const glowGeo = new THREE.SphereGeometry(schoolRadius, 32, 32);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0x0a7bd9,
+        transparent: true,
+        opacity: 0.12,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.y = 0;
+      group.add(glow);
+
+      const fishArray = [];
+      const members = pool.members || [];
+      const balances = members.map((m) => m.balanceSol);
+      const maxBalance = Math.max(...balances, 1);
+
+      members.forEach((member) => {
+        const fish = createFish(member, schoolRadius, maxBalance);
+        group.add(fish.mesh);
+        fishArray.push(fish);
+      });
+
+      return {
+        pool,
+        group,
+        fish: fishArray,
+        schoolRadius,
+        basePosition: position.clone(),
+        labelElement: null,
+      };
+    }
+
+    function createFish(member, schoolRadius, maxBalance) {
+      const balance = member.balanceSol;
+      const pnl = member.profitLossUsd;
+
+      const size = mapRange(balance, 0, maxBalance, 0.4, 3.0);
+
+      let color;
+      if (pnl > 1) {
+        color = new THREE.Color(0x36d96f);
+      } else if (pnl < -1) {
+        color = new THREE.Color(0xff4b5c);
+      } else {
+        color = new THREE.Color(0x4da6ff);
+      }
+
+      const bodyGeo = new THREE.SphereGeometry(1, 16, 16);
+      const bodyMat = new THREE.MeshPhongMaterial({
+        color,
+        shininess: 40,
+        emissive: color.clone().multiplyScalar(0.2),
+      });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.scale.set(1.6 * size, 0.8 * size, 0.5 * size);
+
+      const tailGeo = new THREE.ConeGeometry(0.5 * size, 1.0 * size, 16);
+      const tailMat = new THREE.MeshPhongMaterial({
+        color: color.clone().offsetHSL(0.02, 0.1, 0.05),
+        shininess: 30,
+      });
+      const tail = new THREE.Mesh(tailGeo, tailMat);
+      tail.position.set(-1.3 * size, 0, 0);
+      tail.rotation.z = Math.PI / 2;
+      body.add(tail);
+
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * (schoolRadius * 0.7);
+      const height = (Math.random() - 0.5) * schoolRadius * 0.5;
+
+      body.position.set(
+        Math.cos(angle) * radius,
+        height,
+        Math.sin(angle) * radius
+      );
+
+      const velocity = new THREE.Vector3(
+        (Math.random() - 0.5) * 0.4,
+        (Math.random() - 0.5) * 0.2,
+        (Math.random() - 0.5) * 0.4
+      );
+
+      return {
+        member,
+        mesh: body,
+        velocity,
+        size,
+      };
+    }
+
+    // ============================================================
+    // LABELS
+    // ============================================================
+
+    function createLabelElement(pool) {
+      const el = document.createElement("div");
+      el.className = "label";
+
+      const earned = pool.totalUsdEarned.toFixed(2);
+      const earnedColor = pool.totalUsdEarned >= 0 ? "#36d96f" : "#ff4b5c";
+
+      el.innerHTML = `
+        <strong>${pool.name}</strong><br/>
+        Members: ${pool.members.length}<br/>
+        Total SOL: ${pool.totalSol.toFixed(2)}<br/>
+        <span style="color:${earnedColor}">Total Earned: $${earned}</span>
+      `;
+
+      labelsContainer.appendChild(el);
+      return el;
+    }
+
+    function updateLabels() {
+      if (!schools.length) return;
+
+      const container = document.getElementById("scene-container");
+      const rect = container.getBoundingClientRect();
+
+      schools.forEach((school) => {
+        if (!school.labelElement) return;
+
+        const worldPos = new THREE.Vector3();
+        school.group.getWorldPosition(worldPos);
+        worldPos.y += school.schoolRadius + 2;
+
+        const proj = worldPos.clone().project(camera);
+
+        const x = (proj.x * 0.5 + 0.5) * rect.width + rect.left;
+        const y = (-proj.y * 0.5 + 0.5) * rect.height + rect.top;
+
+        school.labelElement.style.left = `${x}px`;
+        school.labelElement.style.top = `${y}px`;
+
+        const visible = proj.z < 1;
+        school.labelElement.style.display = visible ? "block" : "none";
+      });
+    }
+
+    // ============================================================
+    // ANIMATION LOOP
+    // ============================================================
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const delta = clock.getDelta();
+
+      schools.forEach((school) => {
+        updateSchool(school, delta);
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+      updateLabels();
+    }
+
+    function updateSchool(school, delta) {
+      const center = school.group.position;
+
+      school.group.position.y =
+        Math.sin(clock.elapsedTime * 0.2 + school.basePosition.x) * 2;
+
+      const fishArray = school.fish;
+      const cohesionFactor = 0.5;
+      const separationFactor = 0.5;
+      const alignmentFactor = 0.3;
+      const maxSpeed = 3.5;
+      const neighborhoodRadius = school.schoolRadius * 0.7;
+
+      fishArray.forEach((fish, i) => {
+        const pos = fish.mesh.position;
+
+        const cohesion = new THREE.Vector3();
+        const separation = new THREE.Vector3();
+        const alignment = new THREE.Vector3();
+        let neighborCount = 0;
+
+        fishArray.forEach((other, j) => {
+          if (i === j) return;
+          const otherPos = other.mesh.position;
+          const dist = pos.distanceTo(otherPos);
+          if (dist < neighborhoodRadius) {
+            cohesion.add(otherPos);
+            alignment.add(other.velocity);
+            neighborCount++;
+            if (dist < fish.size * 2.5) {
+              const away = pos.clone().sub(otherPos).normalize().divideScalar(dist);
+              separation.add(away);
+            }
+          }
+        });
+
+        if (neighborCount > 0) {
+          cohesion.divideScalar(neighborCount).sub(pos).multiplyScalar(0.3);
+          alignment.divideScalar(neighborCount).multiplyScalar(0.2);
+        }
+
+        const toCenter = center.clone().sub(pos).multiplyScalar(0.02);
+
+        fish.velocity.add(cohesion.multiplyScalar(cohesionFactor));
+        fish.velocity.add(separation.multiplyScalar(separationFactor));
+        fish.velocity.add(alignment.multiplyScalar(alignmentFactor));
+        fish.velocity.add(toCenter);
+
+        fish.velocity.x += (Math.random() - 0.5) * 0.02;
+        fish.velocity.y += (Math.random() - 0.5) * 0.02;
+        fish.velocity.z += (Math.random() - 0.5) * 0.02;
+
+        if (fish.velocity.length() > maxSpeed * delta) {
+          fish.velocity.setLength(maxSpeed * delta);
+        }
+
+        pos.add(fish.velocity);
+
+        const offset = pos.clone().sub(center);
+        if (offset.length() > school.schoolRadius * 0.9) {
+          const correction = offset
+            .normalize()
+            .multiplyScalar(-0.3 * school.schoolRadius * delta);
+          pos.add(correction);
+        }
+
+        if (fish.velocity.lengthSq() > 0.00001) {
+          const dir = fish.velocity.clone().normalize();
+          const quat = new THREE.Quaternion().setFromUnitVectors(
+            new THREE.Vector3(1, 0, 0),
+            dir
+          );
+          fish.mesh.quaternion.slerp(quat, 0.2);
+        }
+      });
+    }
+
+    // ============================================================
+    // PAYPAL + ANONYMOUS IDENTITY LAYER
+    // ============================================================
+
+    // In-memory log: keyed by poolId + amount string
+    const purchaseLog = {}; // { "POOLID|amount": { poolId, amount, paypalOrderId, timestamp } }
+
+    const POOL_AMOUNT_OPTIONS = {
+      // Customize per pool if you want different ranges
+      default: [ "1.11", "2.22", "3.33", "5.55", "8.88", "13.37" ],
+    };
+
+    function initializePaymentUI(pools) {
+      const poolSelect = document.getElementById("pool-select");
+      const amountSelect = document.getElementById("amount-select");
+      const statusEl = document.getElementById("payment-status");
+      const withdrawButton = document.getElementById("withdraw-button");
+      const logEl = document.getElementById("purchase-log");
+
+      // Populate pools
+      poolSelect.innerHTML = "";
+      pools.forEach((p, idx) => {
+        const opt = document.createElement("option");
+        opt.value = p.poolId;
+        opt.textContent = p.name || p.poolId;
+        poolSelect.appendChild(opt);
+        if (idx === 0) poolSelect.value = p.poolId;
+      });
+
+      // Helper: get available unique amounts for the selected pool
+      function refreshAmounts() {
+        const poolId = poolSelect.value;
+        const baseAmounts = POOL_AMOUNT_OPTIONS[poolId] || POOL_AMOUNT_OPTIONS.default;
+        amountSelect.innerHTML = "";
+        baseAmounts.forEach((amt) => {
+          const key = poolId + "|" + amt;
+          const used = !!purchaseLog[key];
+          const opt = document.createElement("option");
+          opt.value = amt;
+          opt.textContent = used ? `${amt} (already used)` : amt;
+          opt.disabled = used; // make unique per pool
+          amountSelect.appendChild(opt);
+        });
+        // Enable/disable withdraw button based on whether current selection exists
+        updateWithdrawButtonState();
+      }
+
+      function updateWithdrawButtonState() {
+        const poolId = poolSelect.value;
+        const amount = amountSelect.value;
+        const key = poolId + "|" + amount;
+        const hasPurchase = !!purchaseLog[key];
+        withdrawButton.disabled = !hasPurchase;
+      }
+
+      poolSelect.onchange = () => {
+        refreshAmounts();
+        renderPayPalButton();
+      };
+
+      amountSelect.onchange = () => {
+        updateWithdrawButtonState();
+        renderPayPalButton();
+      };
+
+      function renderPurchaseLog() {
+        const entries = Object.values(purchaseLog);
+        if (!entries.length) {
+          logEl.innerHTML = "<em>No $GBUV purchases logged yet.</em>";
+          return;
+        }
+        entries.sort((a, b) => b.timestamp - a.timestamp);
+        logEl.innerHTML = entries
+          .map(
+            (e) =>
+              `<div><strong>${e.poolName}</strong> – $${e.amount} – <span style="opacity:0.8;">${e.paypalOrderId}</span></div>`
+          )
+          .join("");
+      }
+
+      function renderPayPalButton() {
+        const container = document.getElementById("paypal-button-container");
+        container.innerHTML = ""; // clear previous
+
+        const poolId = poolSelect.value;
+        const pool = pools.find((p) => p.poolId === poolId);
+        if (!pool) return;
+
+        const amount = amountSelect.value || POOL_AMOUNT_OPTIONS.default[0];
+
+        // Render PayPal Buttons
+        paypal.Buttons({
+          style: {
+            layout: "horizontal",
+            color: "gold",
+            shape: "rect",
+            label: "paypal",
+            height: 30,
+          },
+
+          createOrder: function(data, actions) {
+            statusEl.textContent = "";
+            return actions.order.create({
+              purchase_units: [{
+                amount: {
+                  value: amount,
+                  currency_code: "USD",
+                },
+                payee: {
+                  // This is the account that receives funds (email)
+                  email_address: "barbrickdesign@gmail.com"
+                },
+                description: `Pump.Pool $GBUV – Pool: ${pool.name} – Key: ${pool.poolId}|${amount}`,
+              }]
+            });
+          },
+
+          onApprove: function(data, actions) {
+            return actions.order.capture().then(function(details) {
+              const poolId = poolSelect.value;
+              const pool = pools.find((p) => p.poolId === poolId);
+              const amount = amountSelect.value;
+
+              const key = poolId + "|" + amount;
+              purchaseLog[key] = {
+                poolId,
+                poolName: pool.name || pool.poolId,
+                amount,
+                paypalOrderId: details.id,
+                timestamp: Date.now(),
+              };
+
+              statusEl.textContent =
+                `Payment completed. Anonymous key: ${key} (Order: ${details.id})`;
+              refreshAmounts();
+              renderPurchaseLog();
+            });
+          },
+
+          onError: function(err) {
+            console.error(err);
+            statusEl.textContent = "Payment error. Please try again.";
+          },
+
+          onCancel: function() {
+            statusEl.textContent = "Payment cancelled.";
+          },
+        }).render("#paypal-button-container");
+      }
+
+      // Withdraw: opens email draft with pool + amount + key info
+      withdrawButton.onclick = () => {
+        const poolId = poolSelect.value;
+        const amount = amountSelect.value;
+        const key = poolId + "|" + amount;
+        const entry = purchaseLog[key];
+        if (!entry) {
+          alert("No purchase found for this pool and amount.");
+          return;
+        }
+
+        const subject = encodeURIComponent("Pump.Pool $GBUV Withdraw Request");
+        const body = encodeURIComponent(
+`I would like to request a withdraw of my $GBUV.
+
+Pool: ${entry.poolName}
+Pool ID: ${entry.poolId}
+Unique Amount (USD): ${entry.amount}
+Anonymous Key: ${key}
+PayPal Order ID: ${entry.paypalOrderId}
+
+Please send the withdraw to this PayPal email address:
+
+[YOUR PAYPAL EMAIL HERE]
+
+I understand that fees may be deducted as described.`
+        );
+
+        const mailtoLink = `mailto:BarbrickDesign@gmail.com?subject=${subject}&body=${body}`;
+        window.location.href = mailtoLink;
+      };
+
+      // Initial load
+      refreshAmounts();
+      renderPayPalButton();
+      renderPurchaseLog();
+    }
+  </script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

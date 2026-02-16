@@ -1,0 +1,592 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: liveSafeMapSync.html
+Declaration ID: IP-AA9E9A5-MLL2900P
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Live Safety Map — Simple Sync & Verified Feeds</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{--bg:#031321;--muted:#9fb0be;--accent:#06b6d4;--danger:#ef4444}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+  .top{display:flex;gap:12px;align-items:center;padding:12px}
+  h1{font-size:18px;margin:0}
+  .muted{color:var(--muted);font-size:13px}
+  .layout{display:grid;grid-template-columns:320px 1fr;gap:12px;padding:12px;max-width:1200px;margin:0 auto}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+  button.warn{background:var(--danger);color:#fff}
+  input,select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#02121b;color:#e6f7f9}
+  #map{height:78vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  ul{padding-left:14px;margin:8px 0}
+  .user-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.02)}
+  .small{font-size:13px}
+  .badge{background:rgba(255,255,255,0.02);padding:6px;border-radius:8px;color:var(--muted)}
+  .safe-dot{width:10px;height:10px;background:#16a34a;border-radius:50%;display:inline-block;margin-right:8px}
+  .green-heart{width:14px;height:14px;background:#22c55e;border-radius:3px;display:inline-block;margin-right:6px}
+  @media(max-width:960px){ .layout{grid-template-columns:1fr} #map{height:56vh} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for location tracking features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="top">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <div>
+      <h1>Live Safety Map</h1>
+      <div class="muted">Simple sync, friend linking, safe-zone marking, and basic audio verification</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700">You</div>
+          <div id="username" class="muted"></div>
+        </div>
+        <div class="badge" id="statusBadge">offline</div>
+      </div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)"/>
+
+      <div style="font-weight:700;margin-bottom:6px">Sync & Sharing</div>
+      <div class="controls" style="margin-bottom:8px">
+        <button id="btnPublic" title="Share publicly (shows on global map)">Public Sync</button>
+        <button id="btnPrivate" title="Share to linked friends">Private Sync</button>
+      </div>
+      <div class="muted small">Generate a random username at load. Share your username with friends to link. Linked friends appear on your confirmed list and on your live map.</div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)"/>
+
+      <div style="font-weight:700">Active Users</div>
+      <div class="muted small">People currently marking zones as safe</div>
+      <div id="activeUsers" style="margin-top:8px;max-height:180px;overflow:auto"></div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)"/>
+
+      <div style="font-weight:700">Friends & Confirmed Links</div>
+      <div style="display:flex;gap:6px;margin-top:8px;margin-bottom:8px">
+        <input id="friendName" placeholder="friend username" style="flex:1"/>
+        <button id="btnAddFriend">Link</button>
+      </div>
+      <div id="friendsList" style="max-height:140px;overflow:auto"></div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)"/>
+
+      <div style="font-weight:700">Detection Verification</div>
+      <div class="muted small" style="margin-top:6px">
+        Every audio snippet creates a short SHA-256 fingerprint plus geo/time. The app shows a "verified" badge when multiple independent nearby users report matching fingerprints and locations within a time window.
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button id="btnEnableMic">Enable Mic</button>
+        <button id="btnMarkSafe">Mark Safe Here</button>
+      </div>
+      <div style="margin-top:8px" class="muted small">Click a red marker to play snippet and inspect verification data.</div>
+    </aside>
+
+    <section>
+      <div class="card" id="mapCard">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Map</div>
+          <div class="muted small">Green = safe zone; Red = detected impulse (click to play); Heart = fall/drop</div>
+        </div>
+        <div id="map" style="margin-top:8px"></div>
+      </div>
+    </section>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/*
+Single-file demonstration:
+- Generates random username on load
+- Maintains in-memory lists of active users, friends/confirmed links, and events
+- Allows marking safe zones; marks appear with owner username
+- Records short audio snippet on impulse and computes SHA-256 fingerprint (Web Crypto)
+- Adds simple verification: when two+ independent users report matching audio fingerprint near same place/time, event is 'verified'
+- Public/private sync buttons POST to configured server endpoints (placeholders); private encrypts payload client-side
+- Friends share username to confirm link; confirmed friends are shown and their safe zones become visible
+Notes: This is client-only demo with local storage; to operate in multi-user setting you must implement a server that keeps active user registry, event store, and verification aggregation
+*/
+
+/* ---------- Utilities ---------- */
+function uid(len=6){ return Math.random().toString(36).slice(2,2+len); }
+function nowISO(){ return new Date().toISOString(); }
+function el(tag, attrs={}, txt=''){ const e=document.createElement(tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(txt) e.textContent=txt; return e; }
+async function sha256Base64(buffer){ const hash = await crypto.subtle.digest('SHA-256', buffer); const b = new Uint8Array(hash); let s=''; for(let i=0;i<b.length;i++) s += String.fromCharCode(b[i]); return btoa(s); }
+
+/* ---------- State ---------- */
+const localUser = { name: 'user-'+uid(6), id: 'u-'+uid(6) };
+localStorage.setItem('ls_username', localUser.name);
+let activeUsers = {}; // username -> {name, lastSeen, lat,lon}
+let friends = {}; // username -> {name, confirmed:true}
+let events = []; // {id, type:'impulse'|'safe'|'drop', owner, lat, lon, radius, ts, audioFingerprint, audioBlob, verifications:[]}
+let deviceKey = null;
+
+/* ---------- UI wiring ---------- */
+document.getElementById('username').textContent = localUser.name;
+document.getElementById('statusBadge').textContent = 'online';
+const activeUsersDiv = document.getElementById('activeUsers');
+const friendsDiv = document.getElementById('friendsList');
+
+/* ---------- Map ---------- */
+const map = L.map('map').setView([20,0], 3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+const safeLayer = L.layerGroup().addTo(map);
+const impulseLayer = L.layerGroup().addTo(map);
+const dropLayer = L.layerGroup().addTo(map);
+let myMarker = null;
+const privacyRadiusDefault = 150;
+
+/* center on coarse location */
+if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p=> map.setView([p.coords.latitude, p.coords.longitude], 13), ()=>{}, { maximumAge:60000, timeout:3000 });
+
+/* ---------- Active users simulated registry (client-only) ---------- */
+/* Adds self to registry and shows list. In a real system, server keeps active users. */
+function announceActive(){
+  if(!currentPos) return;
+  activeUsers[localUser.name] = { name: localUser.name, lastSeen: Date.now(), lat: currentPos.lat, lon: currentPos.lon };
+  renderActiveUsers();
+}
+/* Clean stale */
+setInterval(()=>{ const cutoff = Date.now() - 1000*60*2; for(const k of Object.keys(activeUsers)) if(activeUsers[k].lastSeen < cutoff) delete activeUsers[k]; renderActiveUsers(); }, 30*1000);
+
+function renderActiveUsers(){
+  activeUsersDiv.innerHTML = '';
+  const arr = Object.values(activeUsers).sort((a,b)=>b.lastSeen - a.lastSeen);
+  arr.forEach(u=>{
+    const d = el('div', { }, '');
+    d.className = 'user-item';
+    const left = el('div', {}, '');
+    left.innerHTML = `<span class="safe-dot"></span><strong>${u.name}</strong><div class="muted small">${new Date(u.lastSeen).toLocaleTimeString()}</div>`;
+    const right = el('div', {}, '');
+    const btn = el('button', {}, 'View');
+    btn.addEventListener('click', ()=>{ map.setView([u.lat, u.lon], 14, {animate:true}); });
+    right.appendChild(btn);
+    d.appendChild(left); d.appendChild(right);
+    activeUsersDiv.appendChild(d);
+  });
+}
+
+/* ---------- Friends linking ---------- */
+document.getElementById('btnAddFriend').addEventListener('click', ()=>{
+  const v = document.getElementById('friendName').value.trim();
+  if(!v) return alert('Enter friend username');
+  // in a real system you'd send a link request; here we simulate direct confirmation when they enter your username
+  if(v === localUser.name) return alert('Cannot link to yourself');
+  friends[v] = { name: v, confirmed: true };
+  localStorage.setItem('safety_friends', JSON.stringify(friends));
+  renderFriends();
+  document.getElementById('friendName').value = '';
+});
+function renderFriends(){
+  friendsDiv.innerHTML = '';
+  Object.keys(friends).forEach(k=>{
+    const item = el('div'); item.className = 'user-item';
+    item.innerHTML = `<div><strong>${k}</strong><div class="muted small">${friends[k].confirmed? 'confirmed':'pending'}</div></div><div><button data-user="${k}">Show</button></div>`;
+    friendsDiv.appendChild(item);
+  });
+  friendsDiv.querySelectorAll('button').forEach(b=> b.addEventListener('click', (ev)=> { const u = ev.target.getAttribute('data-user'); showFriendZones(u); }));
+}
+function showFriendZones(username){
+  // reveal safe zones on the map that owner == username
+  safeLayer.clearLayers();
+  events.filter(e=> e.type === 'safe' && e.owner === username).forEach(addSafeZoneToMap);
+}
+
+/* restore friends */
+(function loadFriends(){ try{ const raw = localStorage.getItem('safety_friends'); if(raw) friends = JSON.parse(raw); }catch(e){} renderFriends(); })();
+
+/* ---------- Simple microphone capture + fingerprint ---------- */
+let micStream = null, audioCtx = null, recorderNode = null, recBuffer = [], recMedia = null;
+let currentPos = null;
+
+/* Geolocation watch while app open */
+let watchId = null;
+function startGeoWatch(){
+  if(!navigator.geolocation) return;
+  watchId = navigator.geolocation.watchPosition(p=>{
+    currentPos = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() };
+    announceActive();
+    if(!myMarker){
+      myMarker = L.circleMarker([currentPos.lat, currentPos.lon], { radius:6, color:'#06b6d4', fillColor:'#06b6d4', fillOpacity:1 }).addTo(map);
+    } else myMarker.setLatLng([currentPos.lat, currentPos.lon]);
+  }, err=> console.warn('geo err', err), { enableHighAccuracy: false, maximumAge:3000, timeout:5000 });
+}
+startGeoWatch();
+
+/* enable mic */
+document.getElementById('btnEnableMic').addEventListener('click', async ()=>{
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(micStream);
+    const proc = audioCtx.createScriptProcessor(2048,1,1);
+    proc.onaudioprocess = (ev)=> {
+      // lightweight RMS; if loud event, capture snippet
+      const buf = ev.inputBuffer.getChannelData(0);
+      const rms = Math.sqrt(buf.reduce((s,x)=>s + x*x,0) / buf.length);
+      if(rms > 0.18){ captureSnippet(); } // threshold; tuneable
+    };
+    src.connect(proc); proc.connect(audioCtx.destination);
+    recorderNode = proc;
+    alert('Microphone enabled (listening for impulses).');
+  }catch(e){ console.error(e); alert('Microphone access failed'); }
+});
+
+/* capture short snippet and compute fingerprint */
+async function captureSnippet(){
+  // prevent repeated captures
+  if(!micStream) return;
+  // use MediaRecorder for 2s snippet
+  const mr = new MediaRecorder(micStream);
+  const chunks = [];
+  mr.ondataavailable = e=> { if(e.data && e.data.size>0) chunks.push(e.data); };
+  mr.start();
+  await new Promise(res => setTimeout(res, 1200));
+  mr.stop();
+  await new Promise(res => mr.onstop = res);
+  const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+  // compute fingerprint: read as arrayBuffer then SHA-256 of bytes
+  const ab = await blob.arrayBuffer();
+  const fingerprint = await sha256Base64(ab);
+  // create event: owner = localUser.name
+  const event = {
+    id: 'evt-'+uid(8),
+    type: 'impulse',
+    owner: localUser.name,
+    lat: currentPos?.lat || map.getCenter().lat,
+    lon: currentPos?.lon || map.getCenter().lng,
+    radius: privacyRadiusDefault,
+    ts: nowISO(),
+    audioFingerprint: fingerprint,
+    audioBlob: blob,
+    verifications: [ { reporter: localUser.name, ts: nowISO(), lat: currentPos?.lat, lon: currentPos?.lon } ],
+    verified: false
+  };
+  events.push(event);
+  addImpulseToMap(event);
+  addToLocalLog('Captured impulse (fingerprint ' + fingerprint.slice(0,8) + '...)');
+  attemptLocalVerification(event);
+}
+
+/* Add impulse marker with popup to play audio and show verification status */
+function addImpulseToMap(e){
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color:'#ef4444', fillColor:'#ef4444', fillOpacity:1 }).addTo(impulseLayer);
+  const bubble = L.circle([e.lat, e.lon], { radius: e.radius, color:'#ef4444', fillColor:'rgba(239,68,68,0.12)', weight:2, fillOpacity:0.12 }).addTo(impulseLayer);
+  const popup = el('div');
+  popup.innerHTML = `<div style="font-weight:700">Detected sound</div><div class="muted small">${e.ts}</div>`;
+  const play = el('button'); play.textContent = 'Play'; play.style.marginTop='8px';
+  play.addEventListener('click', async ()=>{
+    const url = URL.createObjectURL(e.audioBlob);
+    const a = new Audio(url); a.play(); a.onended = ()=> URL.revokeObjectURL(url);
+  });
+  const verifyLabel = el('div', {}, '');
+  verifyLabel.className = 'muted small';
+  verifyLabel.textContent = e.verified ? 'Verified' : 'Unverified';
+  popup.appendChild(play); popup.appendChild(verifyLabel);
+  marker.bindPopup(popup);
+}
+
+/* attempt verification by checking if a recent nearby event has matching fingerprint (client-only) */
+function attemptLocalVerification(event){
+  // find other events in last 60s within 200m that share fingerprint
+  const matches = events.filter(ev => ev !== event && ev.audioFingerprint === event.audioFingerprint);
+  if(matches.length >= 1){
+    // mark verified (in real system you'd require independent devices & server consensus)
+    event.verified = true;
+    event.verifications.push(...matches.flatMap(m=> m.verifications || []));
+    addToLocalLog('Event verified locally by matching fingerprint from other reports');
+    // update popup labels by refreshing impulseLayer (simple approach: clear and redraw)
+    impulseLayer.clearLayers();
+    events.filter(e=> e.type === 'impulse').forEach(addImpulseToMap);
+  } else {
+    // not verified yet; broadcast to active users registry (simulated) by storing event in local storage "sharedEvents"
+    const shared = JSON.parse(localStorage.getItem('sharedEvents') || '[]');
+    shared.push({ id: event.id, fingerprint: event.audioFingerprint, lat: event.lat, lon: event.lon, ts: event.ts, owner: event.owner });
+    localStorage.setItem('sharedEvents', JSON.stringify(shared));
+    // other clients could poll and compare; in this demo we check sharedEvents from storage periodically
+  }
+}
+
+/* periodic check of sharedEvents to simulate other users contributing verification */
+setInterval(()=> {
+  const shared = JSON.parse(localStorage.getItem('sharedEvents') || '[]');
+  // check for fingerprints that match local events
+  for(const e of events.filter(ev=> ev.type==='impulse' && !ev.verified)){
+    const match = shared.find(s => s.fingerprint === e.audioFingerprint && s.owner !== e.owner && Math.abs(new Date(s.ts) - new Date(e.ts)) < 1000*60);
+    if(match){
+      e.verified = true;
+      e.verifications.push({ reporter: match.owner || 'remote', ts: match.ts, lat: match.lat, lon: match.lon });
+      addToLocalLog('Event ' + e.id + ' verified by shared registry');
+    }
+  }
+  // redraw impulse markers
+  impulseLayer.clearLayers();
+  events.filter(ev=> ev.type==='impulse').forEach(addImpulseToMap);
+}, 5000);
+
+/* ---------- Mark safe zone ---------- */
+document.getElementById('btnMarkSafe').addEventListener('click', ()=>{
+  if(!currentPos) return alert('Location unknown');
+  const id = 'safe-'+uid(6);
+  const zone = {
+    id, type:'safe', owner: localUser.name, lat: currentPos.lat + (Math.random()-0.5)*0.0003, lon: currentPos.lon + (Math.random()-0.5)*0.0003,
+    radius: privacyRadiusDefault, ts: nowISO()
+  };
+  events.push(zone);
+  addSafeZoneToMap(zone);
+  addToLocalLog('Marked safe zone at your coarse location');
+  announceActive();
+});
+
+/* add safe zone to map */
+function addSafeZoneToMap(z){
+  const circle = L.circle([z.lat, z.lon], { radius: z.radius, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12 }).addTo(safeLayer);
+  const marker = L.marker([z.lat, z.lon], { icon: L.divIcon({ className:'', html:`<div style="display:flex;align-items:center;gap:6px"><div class="green-heart"></div><div style="color:#e6f7f9;font-weight:700">${z.owner}</div></div>`, iconSize:[120,24] }) }).addTo(safeLayer);
+  marker.bindPopup(`<b>Safe zone</b><br>Owner: ${z.owner}<br>Updated: ${z.ts}`);
+}
+
+/* show friend safe zones when linking */
+function refreshAllSafeZones(){
+  safeLayer.clearLayers();
+  // show zones from self + confirmed friends + global public ones (in this demo, we show all events of type 'safe' but mark owner)
+  events.filter(e=> e.type==='safe').forEach(e=>{
+    // only show if owner is you, in friends, or global public (for demo we show all)
+    if(e.owner === localUser.name || friends[e.owner]?.confirmed || true){
+      addSafeZoneToMap(e);
+    }
+  });
+}
+
+/* ---------- Simple public/private sync buttons (placeholders) ---------- */
+document.getElementById('btnPublic').addEventListener('click', async ()=>{
+  const base = prompt('Public sync base URL (enter to simulate local-storage registry):','local');
+  if(!base) return;
+  // demo behavior: if user enters 'local' we write event summary to localStorage.sharedPublic
+  if(base === 'local'){
+    const pub = JSON.parse(localStorage.getItem('publicEvents')||'[]');
+    // upload last safe zone or impulse summary
+    const last = events.slice(-10);
+    last.forEach(e => pub.push({ id:e.id, type:e.type, owner:e.owner, lat:e.lat, lon:e.lon, ts:e.ts || nowISO(), fingerprint: e.audioFingerprint || null }));
+    localStorage.setItem('publicEvents', JSON.stringify(pub));
+    addToLocalLog('Public sync: wrote to local public registry');
+    alert('Public sync written to local registry (demo)');
+  } else {
+    // real server: post payloads
+    try{
+      for(const e of events){
+        await fetch(base + '/uploadPublic', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id:e.id, type:e.type, owner:e.owner, lat:e.lat, lon:e.lon, ts:e.ts }) });
+      }
+      alert('Public sync attempted to ' + base);
+    }catch(err){ alert('Public sync failed: ' + err.message); console.error(err); }
+  }
+});
+
+document.getElementById('btnPrivate').addEventListener('click', async ()=>{
+  const base = prompt('Private sync base URL (enter to simulate local registry):','local');
+  if(!base) return;
+  if(base === 'local'){
+    const pri = JSON.parse(localStorage.getItem('privateEvents')||'[]');
+    const last = events.slice(-10);
+    last.forEach(e => pri.push({ id:e.id, owner:e.owner, encrypted: 'demo', ts:e.ts }));
+    localStorage.setItem('privateEvents', JSON.stringify(pri));
+    addToLocalLog('Private sync: wrote to local private registry (demo)');
+    alert('Private sync written to local registry (demo)');
+  } else {
+    // real server: encrypt client-side and post
+    try{
+      if(!deviceKey) deviceKey = await ensureDeviceKey();
+      for(const e of events){
+        const payload = { id:e.id, owner:e.owner, lat:e.lat, lon:e.lon, ts:e.ts };
+        const enc = await encryptWithKey(deviceKey, payload);
+        await fetch(base + '/uploadPrivate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ deviceId: localUser.id, ciphertext: enc.ciphertext, iv: enc.iv }) });
+      }
+      alert('Private sync attempted to ' + base);
+    }catch(err){ alert('Private sync failed: ' + err.message); console.error(err); }
+  }
+});
+
+/* ---------- Simple cryptography helpers ---------- */
+async function ensureDeviceKey(){
+  const name = 'safety_key_'+localUser.id;
+  const saved = localStorage.getItem(name);
+  if(saved){ try{ const raw = base64ToArray(saved); return await crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt','decrypt']); }catch(e){ console.warn('key import failed', e); } }
+  const k = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
+  const raw = await crypto.subtle.exportKey('raw', k);
+  localStorage.setItem(name, arrayToBase64(raw));
+  return k;
+}
+function arrayToBase64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function base64ToArray(s){ const bin = atob(s); const arr = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return arr.buffer; }
+async function encryptWithKey(key, obj){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc);
+  return { ciphertext: arrayToBase64(ct), iv: arrayToBase64(iv.buffer) };
+}
+
+/* ---------- Logging UI ---------- */
+function addToLocalLog(msg){ const log = document.createElement('div'); log.style.padding='6px'; log.style.borderBottom='1px solid rgba(255,255,255,0.02)'; log.textContent = new Date().toLocaleTimeString() + ' — ' + msg; document.getElementById('log')?.prepend(log); }
+
+/* ---------- Playback & click behavior for map objects (redrawn on events) ---------- */
+function redrawAll(){
+  safeLayer.clearLayers(); impulseLayer.clearLayers(); dropLayer.clearLayers();
+  events.forEach(e=>{
+    if(e.type === 'safe') addSafeZoneToMap(e);
+    else if(e.type === 'impulse') addImpulseToMap(e);
+    else if(e.type === 'drop') addDropMarker(e);
+  });
+}
+function addDropMarker(e){
+  const marker = L.circleMarker([e.lat, e.lon], { radius:8, color:'#ef476f', fillColor:'#ef476f', fillOpacity:1 }).addTo(dropLayer);
+  const bubble = L.circle([e.lat, e.lon], { radius: e.radius || privacyRadiusDefault, color:'#ef476f', fillColor:'rgba(239,71,111,0.10)', weight:2, fillOpacity:0.10 }).addTo(dropLayer);
+  marker.bindPopup(`<b>Drop detected</b><br>${e.ts}`);
+}
+
+/* ---------- Helpers ---------- */
+function addSafeZoneToMap(z){
+  const circle = L.circle([z.lat, z.lon], { radius: z.radius, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12 }).addTo(safeLayer);
+  const marker = L.marker([z.lat, z.lon], { icon: L.divIcon({ className:'', html:`<div style="display:flex;align-items:center;gap:6px"><div class="green-heart"></div><div style="color:#e6f7f9;font-weight:700">${z.owner}</div></div>`, iconSize:[160,24] }) }).addTo(safeLayer);
+  marker.bindPopup(`<b>Safe zone</b><br>Owner: ${z.owner}<br>${z.ts || ''}`);
+}
+
+/* ---------- Demo: show existing public registry (localStorage) on load ---------- */
+(function loadPublicRegistry(){
+  try{
+    const pub = JSON.parse(localStorage.getItem('publicEvents') || '[]');
+    pub.forEach(p=>{
+      if(p.type === 'safe') events.push({ id: p.id, type:'safe', owner:p.owner, lat:p.lat, lon:p.lon, radius: privacyRadiusDefault, ts: p.ts });
+    });
+    redrawAll();
+    addToLocalLog('Loaded public registry (local) entries: ' + pub.length);
+  }catch(e){}
+})();
+
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

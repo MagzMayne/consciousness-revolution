@@ -1,0 +1,3921 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: hyperCraft.html
+Declaration ID: IP-21A33645-MLL29002
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HyperCraft - 3D Voxel World</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: #87CEEB;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      overscroll-behavior: none;
+    }
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+      -webkit-touch-callout: none;
+    }
+    #hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      font-size: 18px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #hud h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    #hud .credits {
+      font-size: 16px;
+      color: #FFD700;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      font-size: 14px;
+      z-index: 100;
+      pointer-events: none;
+      background: rgba(0,0,0,0.5);
+      padding: 15px;
+      border-radius: 10px;
+    }
+    #controls div {
+      margin: 5px 0;
+    }
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+      z-index: 100;
+    }
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: white;
+      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+    #crosshair::before {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+    #crosshair::after {
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      transform: translateX(-50%);
+    }
+    #blockSelector {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      z-index: 100;
+    }
+    .blockBtn {
+      width: 50px;
+      height: 50px;
+      border: 3px solid white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    .blockBtn:hover {
+      transform: scale(1.1);
+    }
+    .blockBtn.active {
+      border-color: #FFD700;
+      box-shadow: 0 0 15px rgba(255,215,0,0.8);
+    }
+    
+    /* Mobile Controller Dashboard */
+    #mobileController {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 220px;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(10px);
+      z-index: 200;
+      padding: 10px;
+      border-top: 2px solid rgba(255,255,255,0.1);
+    }
+    
+    #joystick {
+      position: absolute;
+      bottom: 70px;
+      left: 60px;
+      width: 100px;
+      height: 100px;
+      background: rgba(255,255,255,0.1);
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      touch-action: none;
+    }
+    
+    #joystickKnob {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 45px;
+      height: 45px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: all 0.1s;
+    }
+    
+    .mobileBtn {
+      position: absolute;
+      width: 55px;
+      height: 55px;
+      background: rgba(255,255,255,0.2);
+      border: 3px solid rgba(255,255,255,0.4);
+      border-radius: 50%;
+      color: white;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: none;
+      user-select: none;
+      font-weight: bold;
+    }
+    
+    .mobileBtn:active {
+      background: rgba(255,255,255,0.4);
+      transform: scale(0.95);
+    }
+    
+    #jumpBtn {
+      bottom: 140px;
+      right: 60px;
+    }
+    
+    #placeBtn {
+      bottom: 70px;
+      right: 130px;
+    }
+    
+    #removeBtn {
+      bottom: 70px;
+      right: 20px;
+    }
+    
+    /* Inventory Panel */
+    #inventoryPanel {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 250px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      padding: 15px;
+      border-radius: 12px;
+      color: white;
+      z-index: 150;
+      max-height: 400px;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    
+    #inventoryPanel h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+      padding-bottom: 8px;
+    }
+    
+    .inventoryItem {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin: 5px 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .inventoryItem .blockIcon {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    
+    /* Stats Panel */
+    #statsPanel {
+      position: fixed;
+      top: 80px;
+      left: 20px;
+      width: 220px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      padding: 15px;
+      border-radius: 12px;
+      color: white;
+      z-index: 150;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    
+    #statsPanel h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+      padding-bottom: 8px;
+    }
+    
+    .statItem {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .statItem:last-child {
+      border-bottom: none;
+    }
+    
+    .statLabel {
+      color: rgba(255,255,255,0.7);
+    }
+    
+    .statValue {
+      font-weight: bold;
+      color: #7CFC00;
+    }
+    
+    /* Agent Deployment Panel */
+    #agentPanel {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      padding: 15px 20px;
+      border-radius: 12px;
+      color: white;
+      z-index: 150;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    
+    .agentBtn {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .agentBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+    }
+    
+    .agentBtn:active {
+      transform: translateY(0);
+    }
+    
+    .agentBtn.deployed {
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    }
+    
+    #agentStatus {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+    
+    /* Marketplace Panel */
+    #marketplacePanel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      max-width: 90vw;
+      max-height: 80vh;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 25px;
+      color: white;
+      z-index: 300;
+      display: none;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    
+    #marketplacePanel.active {
+      display: block;
+    }
+    
+    .marketplace-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+    }
+    
+    .marketplace-header h2 {
+      margin: 0;
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    .close-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      font-size: 24px;
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .close-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: scale(1.1);
+    }
+    
+    .marketplace-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+    
+    .tab-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .tab-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-color: transparent;
+    }
+    
+    .marketplace-content {
+      min-height: 300px;
+    }
+    
+    .marketplace-item {
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    
+    .marketplace-item:hover {
+      background: rgba(255,255,255,0.15);
+      transform: translateX(5px);
+    }
+    
+    .item-info {
+      flex: 1;
+    }
+    
+    .item-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .item-details {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+    
+    .item-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #FFD700;
+      margin-right: 15px;
+    }
+    
+    .item-action {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    
+    .item-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(67,233,123,0.4);
+    }
+    
+    .item-action.sell {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .nft-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+      color: #000;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+    
+    /* Toggle Marketplace Button */
+    #marketplaceToggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      padding: 12px 24px;
+      cursor: pointer;
+      z-index: 250;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+    }
+    
+    #marketplaceToggle:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102,126,234,0.6);
+    }
+    
+    /* Agent Info Display */
+    .agent-info-card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    
+    .agent-info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .agent-name {
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    
+    .agent-status {
+      padding: 4px 10px;
+      background: rgba(67,233,123,0.3);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    
+    .agent-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .agent-stat {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    
+    .agent-stat-label {
+      color: rgba(255,255,255,0.7);
+    }
+    
+    .agent-stat-value {
+      font-weight: bold;
+      color: #7CFC00;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      #mobileController {
+        display: block;
+      }
+      
+      #controls {
+        display: none;
+      }
+      
+      #blockSelector {
+        bottom: 230px;
+        right: 10px;
+        flex-wrap: wrap;
+        max-width: 120px;
+      }
+      
+      .blockBtn {
+        width: 45px;
+        height: 45px;
+      }
+      
+      #inventoryPanel {
+        width: calc(100% - 40px);
+        right: 20px;
+        left: 20px;
+        max-height: 180px;
+        font-size: 13px;
+      }
+      
+      #statsPanel {
+        width: calc(100% - 40px);
+        top: 80px;
+        left: 20px;
+        font-size: 12px;
+        padding: 10px;
+      }
+      
+      #agentPanel {
+        display: none; /* Hide on mobile for space */
+      }
+      
+      #hud {
+        font-size: 14px;
+        top: 10px;
+        left: 10px;
+      }
+      
+      #hud h1 {
+        font-size: 20px;
+        margin-bottom: 5px;
+      }
+      
+      #marketplaceToggle {
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        padding: 8px 16px;
+      }
+      
+      #marketplacePanel {
+        width: 95vw;
+        max-height: 85vh;
+        padding: 15px;
+      }
+      
+      .statItem {
+        font-size: 11px;
+        padding: 4px 0;
+      }
+      
+      /* Fix login screen title overflow on mobile */
+      #loginTitle {
+        font-size: 28px !important;
+        letter-spacing: 0.08em !important;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      #agentPanel {
+        bottom: 80px;
+      }
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <!-- Login Screen -->
+  <div id="loginScreen" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  ">
+    <div style="
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(20px);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    ">
+      <h1 id="loginTitle" style="
+        color: #FFD700;
+        font-size: 48px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        text-shadow: 0 0 20px rgba(255,215,0,0.5);
+      ">HYPERCRAFT</h1>
+      <p style="
+        color: rgba(255,255,255,0.8);
+        margin-bottom: 30px;
+        font-size: 16px;
+      ">Enter the 3D Voxel Universe</p>
+      
+      <div style="margin-bottom: 25px;">
+        <input type="text" id="usernameInput" placeholder="Enter your username (optional)" style="
+          width: 100%;
+          padding: 15px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-radius: 10px;
+          background: rgba(255,255,255,0.1);
+          color: white;
+          font-size: 16px;
+          text-align: center;
+          outline: none;
+          transition: all 0.3s;
+        " />
+      </div>
+      
+      <button id="startGameBtn" style="
+        width: 100%;
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(67,233,123,0.4);
+      ">Start Game</button>
+      
+      <p style="
+        color: rgba(255,255,255,0.5);
+        margin-top: 20px;
+        font-size: 12px;
+      ">Click to begin your adventure</p>
+    </div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loadingScreen" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  ">
+    <div style="text-align: center;">
+      <h2 style="
+        color: white;
+        font-size: 32px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      ">Loading HyperCraft...</h2>
+      
+      <div style="
+        width: 300px;
+        height: 6px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 0 auto;
+      ">
+        <div id="loadingProgress" style="
+          width: 0%;
+          height: 100%;
+          background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+          border-radius: 10px;
+          transition: width 0.3s;
+          box-shadow: 0 0 20px rgba(67,233,123,0.6);
+        "></div>
+      </div>
+      
+      <p id="loadingStatus" style="
+        color: rgba(255,255,255,0.8);
+        margin-top: 20px;
+        font-size: 16px;
+      ">Initializing 3D Engine...</p>
+      
+      <div id="loadingSpinner" style="
+        border: 4px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top: 4px solid #FFD700;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 30px auto;
+      "></div>
+    </div>
+  </div>
+  
+  <!-- Loading/Error Message (fallback) -->
+  <div id="loadingMessage" style="
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.9);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    z-index: 500;
+    max-width: 90%;
+    display: none;
+  ">
+    <h2 style="margin-bottom: 15px;">⚠️ Loading Issue</h2>
+    <p id="errorText" style="margin-bottom: 10px;">Initializing HyperCraft...</p>
+  </div>
+  
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes slideUp {
+      0% {
+        transform: translate(-50%, 20px);
+        opacity: 0;
+      }
+      100% {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideDown {
+      0% {
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, 20px);
+        opacity: 0;
+      }
+    }
+    
+    #usernameInput:focus {
+      border-color: rgba(67,233,123,0.6);
+      background: rgba(255,255,255,0.15);
+    }
+    
+    #startGameBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(67,233,123,0.6);
+    }
+    
+    #startGameBtn:active {
+      transform: translateY(0);
+    }
+  </style>
+  
+  <div id="hud">
+    <h1>HYPERCRAFT</h1>
+    <div id="playerName" style="color: #7CFC00; font-weight: bold; margin-bottom: 5px;">Player: Guest</div>
+    <div>3D Voxel World</div>
+    <div class="credits">💰 Credits: <span id="hudCredits">1000</span></div>
+    <div class="credits" style="color: #00BFFF;">🎨 Pixels: <span id="hudPixels">0</span> / <span id="hudMaxPixels">0</span></div>
+    <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 5px;">
+      Resolution: <span id="hudResolution">0x0</span>
+    </div>
+    <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 3px;">
+      Device: <span id="hudDeviceTier">Unknown</span> | FPS: <span id="hudFps">60</span>
+    </div>
+  </div>
+  
+  <div id="crosshair"></div>
+  
+  <div id="controls">
+    <div><strong>Controls:</strong></div>
+    <div>WASD - Move</div>
+    <div>Mouse - Look Around</div>
+    <div>Left Click - Remove Block</div>
+    <div>Right Click - Place Block</div>
+    <div>Space - Jump / Fly Up</div>
+    <div>Shift - Fly Down</div>
+    <div>1-5 - Select Block Type</div>
+    <div>M - Open Marketplace</div>
+    <div>I - Toggle Inventory</div>
+  </div>
+  
+  <div id="blockSelector">
+    <div class="blockBtn active" data-block="grass" style="background: linear-gradient(to bottom, #7CFC00 0%, #7CFC00 70%, #8B4513 70%, #8B4513 100%);"></div>
+    <div class="blockBtn" data-block="dirt" style="background: #8B4513;"></div>
+    <div class="blockBtn" data-block="stone" style="background: #808080;"></div>
+    <div class="blockBtn" data-block="wood" style="background: #8B4513; background-image: repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(0,0,0,0.1) 10px, rgba(0,0,0,0.1) 12px);"></div>
+    <div class="blockBtn" data-block="sand" style="background: #F4A460;"></div>
+  </div>
+  
+  <!-- Stats Panel -->
+  <div id="statsPanel">
+    <h3>Player Stats</h3>
+    <div class="statItem">
+      <span class="statLabel">Position:</span>
+      <span class="statValue" id="statPosition">0, 0, 0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Pixels:</span>
+      <span class="statValue" id="statPixels">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Blocks Placed:</span>
+      <span class="statValue" id="statPlaced">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Blocks Removed:</span>
+      <span class="statValue" id="statRemoved">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Crafted Items:</span>
+      <span class="statValue" id="statCrafted">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Time Played:</span>
+      <span class="statValue" id="statTime">00:00</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Agents Active:</span>
+      <span class="statValue" id="statAgents">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Total Donated:</span>
+      <span class="statValue" id="statDonated">$0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Loaded Blocks:</span>
+      <span class="statValue" id="statLoadedBlocks">0</span>
+    </div>
+    <div class="statItem">
+      <span class="statLabel">Loaded Chunks:</span>
+      <span class="statValue" id="statLoadedChunks">0</span>
+    </div>
+  </div>
+  
+  <!-- Inventory Panel -->
+  <div id="inventoryPanel">
+    <h3>Inventory</h3>
+    <div id="inventoryList"></div>
+  </div>
+  
+  <!-- Agent Deployment Panel -->
+  <div id="agentPanel">
+    <div id="agentStatus">Deploy AI Agents:</div>
+    <button class="agentBtn" id="builderAgent">Builder</button>
+    <button class="agentBtn" id="minerAgent">Miner</button>
+    <button class="agentBtn" id="explorerAgent">Explorer</button>
+  </div>
+  
+  <!-- Mobile Controller Dashboard -->
+  <div id="mobileController">
+    <div id="joystick">
+      <div id="joystickKnob"></div>
+    </div>
+    <div class="mobileBtn" id="jumpBtn">↑</div>
+    <div class="mobileBtn" id="placeBtn">+</div>
+    <div class="mobileBtn" id="removeBtn">−</div>
+  </div>
+
+  <!-- Marketplace Toggle Button -->
+  <button id="marketplaceToggle">🏪 Marketplace</button>
+
+  <!-- Marketplace Panel -->
+  <div id="marketplacePanel">
+    <div class="marketplace-header">
+      <h2>🏪 HyperMarket</h2>
+      <button class="close-btn" id="closeMarketplace">×</button>
+    </div>
+    
+    <div class="marketplace-tabs">
+      <button class="tab-btn active" data-tab="buy">Buy Items</button>
+      <button class="tab-btn" data-tab="sell">Sell Items</button>
+      <button class="tab-btn" data-tab="craft">Craft Items</button>
+      <button class="tab-btn" data-tab="nft">Create NFT</button>
+      <button class="tab-btn" data-tab="donate">Donate</button>
+      <button class="tab-btn" data-tab="agents">Agent Stats</button>
+    </div>
+    
+    <div class="marketplace-content">
+      <div id="buyTab" class="tab-content">
+        <div id="buyItems"></div>
+      </div>
+      <div id="sellTab" class="tab-content" style="display:none;">
+        <div id="sellItems"></div>
+      </div>
+      <div id="craftTab" class="tab-content" style="display:none;">
+        <div id="craftItems"></div>
+      </div>
+      <div id="nftTab" class="tab-content" style="display:none;">
+        <div id="nftItems"></div>
+      </div>
+      <div id="donateTab" class="tab-content" style="display:none;">
+        <div id="donateItems"></div>
+      </div>
+      <div id="agentsTab" class="tab-content" style="display:none;">
+        <div id="agentStats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js Library via CDN -->
+  <!-- Version 0.160.0 - If the page doesn't load, try disabling ad blockers that may block cdn.jsdelivr.net -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <!-- PayPal Integration -->
+  <script src="/src/utils/paypal-integration.js" onerror="console.log('PayPal integration not loaded - continuing without payment features')"></script>
+
+  <script type="module">
+    // Login and Loading Screen Management
+    const loginScreen = document.getElementById('loginScreen');
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loadingProgress = document.getElementById('loadingProgress');
+    const loadingStatus = document.getElementById('loadingStatus');
+    const usernameInput = document.getElementById('usernameInput');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const loadingMsg = document.getElementById('loadingMessage');
+    const errorText = document.getElementById('errorText');
+    
+    // Screen dimension helper function (accessible in both success and error handlers)
+    const getScreenDimensions = () => {
+      const width = window.innerWidth || document.documentElement.clientWidth || screen.width || 1920;
+      const height = window.innerHeight || document.documentElement.clientHeight || screen.height || 1080;
+      return { width, height };
+    };
+    
+    // Device capability detection
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    
+    // Performance tier detection
+    const detectDeviceTier = () => {
+      const screenPixels = window.innerWidth * window.innerHeight;
+      const cores = navigator.hardwareConcurrency || 2;
+      const memory = navigator.deviceMemory || 4; // GB - fallback to 4GB for unsupported browsers
+      
+      // Calculate performance score
+      let score = 0;
+      score += (screenPixels > 2073600) ? 3 : (screenPixels > 921600) ? 2 : 1; // Screen size
+      score += (cores >= 8) ? 3 : (cores >= 4) ? 2 : 1; // CPU cores
+      score += (memory >= 8) ? 3 : (memory >= 4) ? 2 : 1; // RAM
+      
+      // Determine tier with ultra-low option for very weak devices
+      if (isMobileDevice) {
+        return score >= 7 ? 'mobile-high' : score >= 5 ? 'mobile-mid' : score >= 4 ? 'mobile-low' : 'mobile-ultra-low';
+      } else {
+        return score >= 7 ? 'desktop-high' : score >= 5 ? 'desktop-mid' : 'desktop-low';
+      }
+    };
+    
+    let deviceTier = detectDeviceTier();
+    
+    // Progressive fallback configuration
+    const MAX_FALLBACK_ATTEMPTS = 3;
+    const FALLBACK_RETRY_DELAY = 1000; // milliseconds
+    
+    // Performance configuration per device tier
+    const performanceConfig = {
+      'mobile-ultra-low': {
+        chunkSize: 6,
+        renderDistance: 1,
+        worldHeight: 12,
+        textureSize: 4,
+        shadowsEnabled: false,
+        fogDistance: 30,
+        maxBlocks: 200,
+        antialias: false
+      },
+      'mobile-low': {
+        chunkSize: 8,
+        renderDistance: 2,
+        worldHeight: 16,
+        textureSize: 8,
+        shadowsEnabled: false,
+        fogDistance: 50,
+        maxBlocks: 500,
+        antialias: false
+      },
+      'mobile-mid': {
+        chunkSize: 12,
+        renderDistance: 3,
+        worldHeight: 24,
+        textureSize: 16,
+        shadowsEnabled: false,
+        fogDistance: 100,
+        maxBlocks: 1000,
+        antialias: false
+      },
+      'mobile-high': {
+        chunkSize: 16,
+        renderDistance: 4,
+        worldHeight: 32,
+        textureSize: 24,
+        shadowsEnabled: true,
+        fogDistance: 150,
+        maxBlocks: 2000,
+        antialias: true
+      },
+      'desktop-low': {
+        chunkSize: 16,
+        renderDistance: 4,
+        worldHeight: 32,
+        textureSize: 16,
+        shadowsEnabled: true,
+        fogDistance: 150,
+        maxBlocks: 2000,
+        antialias: false
+      },
+      'desktop-mid': {
+        chunkSize: 16,
+        renderDistance: 6,
+        worldHeight: 32,
+        textureSize: 24,
+        shadowsEnabled: true,
+        fogDistance: 200,
+        maxBlocks: 4000,
+        antialias: true
+      },
+      'desktop-high': {
+        chunkSize: 16,
+        renderDistance: 8,
+        worldHeight: 32,
+        textureSize: 32,
+        shadowsEnabled: true,
+        fogDistance: 250,
+        maxBlocks: 8000,
+        antialias: true
+      }
+    };
+    
+    // Config will be determined dynamically based on current deviceTier
+    let config = performanceConfig[deviceTier];
+    console.log('Device tier:', deviceTier, 'Config:', config);
+    
+    // Load username from localStorage if exists
+    const savedUsername = localStorage.getItem('hypercraft_username');
+    if (savedUsername) {
+      usernameInput.value = savedUsername;
+    }
+    
+    // Loading progress tracker
+    let loadProgress = 0;
+    const updateLoadingProgress = (progress, status) => {
+      loadProgress = Math.min(progress, 100);
+      loadingProgress.style.width = loadProgress + '%';
+      loadingStatus.textContent = status;
+    };
+    
+    // Start game button handler
+    let gameStarted = false;
+    startGameBtn.addEventListener('click', () => {
+      if (gameStarted) return;
+      gameStarted = true;
+      
+      // Save username if provided
+      const username = usernameInput.value.trim();
+      if (username) {
+        localStorage.setItem('hypercraft_username', username);
+      } else {
+        localStorage.setItem('hypercraft_username', 'Guest_' + Math.floor(Math.random() * 10000));
+      }
+      
+      // Hide login screen, show loading screen
+      loginScreen.style.display = 'none';
+      loadingScreen.style.display = 'flex';
+      
+      // Start loading the game
+      initializeGame();
+    });
+    
+    // Enter key to start game
+    usernameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        startGameBtn.click();
+      }
+    });
+    
+    // Three.js version configuration
+    const THREE_VERSION = '0.160.0';
+    
+    // CDN fallback options for Three.js
+    const cdnOptions = [
+      {
+        name: 'unpkg',
+        three: `https://unpkg.com/three@${THREE_VERSION}/build/three.module.js`,
+        controls: `https://unpkg.com/three@${THREE_VERSION}/examples/jsm/controls/PointerLockControls.js`
+      },
+      {
+        name: 'esm.sh',
+        three: `https://esm.sh/three@${THREE_VERSION}`,
+        controls: `https://esm.sh/three@${THREE_VERSION}/examples/jsm/controls/PointerLockControls.js`
+      }
+    ];
+    
+    // Initialize game function with CDN fallback and progressive performance degradation
+    // Use closure to track loading attempts across retries
+    let loadAttemptCounter = 0;
+    
+    async function initializeGame() {
+      loadAttemptCounter++;
+      
+      // Ensure previous error messages are cleared on retry
+      loadingMsg.style.display = 'none';
+      loginScreen.style.display = 'none';
+      loadingScreen.style.display = 'flex';
+      
+      updateLoadingProgress(10, 'Loading 3D Engine...');
+      
+      // Error handling for module loading
+      let moduleLoadTimeout = setTimeout(() => {
+        updateLoadingProgress(50, 'Taking longer than expected... Please wait...');
+      }, 5000); // Increased timeout for slower mobile connections
+    
+    try {
+      updateLoadingProgress(20, 'Loading Three.js library...');
+      
+      // Try to load from the importmap first (jsDelivr via importmap)
+      let THREE, PointerLockControls;
+      
+      try {
+        THREE = await import('three');
+        updateLoadingProgress(40, 'Loading controls...');
+        const controlsModule = await import('three/addons/controls/PointerLockControls.js');
+        PointerLockControls = controlsModule.PointerLockControls;
+      } catch (primaryError) {
+        console.warn('Primary CDN (jsDelivr via importmap) failed, trying fallback CDNs...', primaryError);
+        updateLoadingProgress(30, 'Primary CDN failed, trying alternatives...');
+        
+        // Try all fallback CDNs
+        let loaded = false;
+        for (const cdn of cdnOptions) {
+          try {
+            updateLoadingProgress(35, `Trying ${cdn.name}...`);
+            THREE = await import(cdn.three);
+            updateLoadingProgress(45, `Loading controls from ${cdn.name}...`);
+            const controlsModule = await import(cdn.controls);
+            PointerLockControls = controlsModule.PointerLockControls;
+            loaded = true;
+            console.log(`Successfully loaded Three.js from ${cdn.name}`);
+            break;
+          } catch (err) {
+            console.warn(`Failed to load from ${cdn.name}:`, err);
+          }
+        }
+        
+        if (!loaded) {
+          throw new Error('Failed to load Three.js: All CDN sources failed. This may be due to ad blockers or network restrictions.');
+        }
+      }
+      
+      clearTimeout(moduleLoadTimeout);
+      
+      updateLoadingProgress(60, 'Detecting device capabilities...');
+      
+      // Function to hide loading screen
+      const hideLoadingScreen = () => {
+        updateLoadingProgress(100, 'Ready!');
+        setTimeout(() => {
+          loadingScreen.style.display = 'none';
+          
+          // Show mobile help message if on mobile
+          if (isMobileDevice) {
+            const mobileHelpMsg = document.createElement('div');
+            mobileHelpMsg.style.cssText = `
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: rgba(0,0,0,0.9);
+              color: white;
+              padding: 20px;
+              border-radius: 15px;
+              text-align: center;
+              z-index: 500;
+              max-width: 90%;
+              font-size: 14px;
+            `;
+            mobileHelpMsg.innerHTML = `
+              <h3 style="margin-bottom: 10px;">📱 Mobile Controls</h3>
+              <p style="font-size: 12px; color: #7CFC00; margin-bottom: 8px;">Optimized for ${deviceTier}</p>
+              <p>Use joystick to move</p>
+              <p>Swipe screen to look around</p>
+              <p>Tap buttons to place/remove blocks</p>
+              <button style="
+                margin-top: 15px;
+                padding: 10px 20px;
+                background: #667eea;
+                border: none;
+                border-radius: 8px;
+                color: white;
+                font-weight: bold;
+                cursor: pointer;
+              " onclick="this.parentElement.remove()">Got it!</button>
+            `;
+            document.body.appendChild(mobileHelpMsg);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+              if (mobileHelpMsg.parentElement) {
+                mobileHelpMsg.remove();
+              }
+            }, 5000);
+          }
+        }, 500);
+      };
+      
+      // Update player name in HUD
+      const username = localStorage.getItem('hypercraft_username') || 'Guest';
+      const playerNameElement = document.getElementById('playerName');
+      if (playerNameElement) {
+        playerNameElement.textContent = `Player: ${username}`;
+      }
+      
+      // Update device tier in HUD
+      const hudDeviceTier = document.getElementById('hudDeviceTier');
+      if (hudDeviceTier) {
+        hudDeviceTier.textContent = `${deviceTier} ${useWebGL ? '(WebGL)' : '(Canvas2D)'}`;
+      }
+      
+      // Show rendering mode message
+      if (!useWebGL) {
+        console.log('⚠️ Running in Canvas 2D fallback mode - WebGL unavailable');
+        const modeMessage = document.createElement('div');
+        modeMessage.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(255,165,0,0.95);
+          color: white;
+          padding: 20px;
+          border-radius: 12px;
+          text-align: center;
+          z-index: 1000;
+          max-width: 90%;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        `;
+        modeMessage.innerHTML = `
+          <h3 style="margin: 0 0 10px 0;">⚙️ Canvas 2D Mode Active</h3>
+          <p style="margin: 0; font-size: 14px;">
+            WebGL is not available on your device.<br>
+            Running in optimized 2D rendering mode with isometric view.
+          </p>
+          <button style="
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            color: #ff8c00;
+            font-weight: bold;
+            cursor: pointer;
+          " onclick="this.parentElement.remove()">Got it!</button>
+        `;
+        document.body.appendChild(modeMessage);
+        
+        // Auto-hide after 8 seconds
+        setTimeout(() => {
+          if (modeMessage.parentElement) {
+            modeMessage.remove();
+          }
+        }, 8000);
+      }
+
+    // Screen-based pixel budget calculation with fallback for mobile
+    const screenDims = getScreenDimensions();
+    const screenPixels = screenDims.width * screenDims.height;
+    const pixelBudget = Math.floor(screenPixels / 1000); // Higher resolution = more pixels available
+    
+    // Color-based pixel values (different colors cost different amounts)
+    const pixelColorValues = {
+      grass: { cost: 5, value: 0x7CFC00, name: 'Grass Green', rarity: 'common' },
+      dirt: { cost: 2, value: 0x8B4513, name: 'Earth Brown', rarity: 'common' },
+      stone: { cost: 8, value: 0x808080, name: 'Stone Gray', rarity: 'uncommon' },
+      wood: { cost: 6, value: 0x8B4513, name: 'Wood Brown', rarity: 'uncommon' },
+      sand: { cost: 4, value: 0xF4A460, name: 'Desert Sand', rarity: 'common' },
+      // Premium colors (unlocked via donations)
+      gold: { cost: 50, value: 0xFFD700, name: 'Golden', rarity: 'legendary', premium: true },
+      diamond: { cost: 100, value: 0xB9F2FF, name: 'Diamond Blue', rarity: 'legendary', premium: true },
+      emerald: { cost: 75, value: 0x50C878, name: 'Emerald Green', rarity: 'legendary', premium: true }
+    };
+    
+    // Game state and statistics
+    const gameState = {
+      blocksPlaced: 0,
+      blocksRemoved: 0,
+      startTime: Date.now(),
+      credits: 1000, // Virtual currency
+      pixels: pixelBudget, // Pixel currency based on screen resolution
+      maxPixels: pixelBudget,
+      screenResolution: { width: screenDims.width, height: screenDims.height },
+      donationBoosts: {
+        pixelMultiplier: 1.0,
+        craftingDiscount: 0,
+        premiumColors: false,
+        autoMining: false,
+        totalDonated: 0
+      },
+      inventory: {
+        grass: 0,
+        dirt: 0,
+        stone: 0,
+        wood: 0,
+        sand: 0
+      },
+      craftedItems: [], // Custom items with scripts and functionalities
+      agents: {
+        builder: { 
+          active: false, 
+          blocksBuilt: 0,
+          earnings: 0,
+          learned: [],
+          level: 1,
+          xp: 0
+        },
+        miner: { 
+          active: false, 
+          blocksMined: 0,
+          earnings: 0,
+          learned: [],
+          level: 1,
+          xp: 0
+        },
+        explorer: { 
+          active: false, 
+          chunksExplored: 0,
+          earnings: 0,
+          learned: [],
+          level: 1,
+          xp: 0
+        }
+      },
+      nfts: [],
+      marketplace: {
+        listings: []
+      },
+      creations: []
+    };
+    
+    // Agent configuration constants
+    const AGENT_ACTION_PROBABILITY = 0.95; // Agents act when random() > this value
+    const AGENT_UPDATE_INTERVAL = 2000; // Check agent actions every 2 seconds
+    const MIN_BLOCKS_FOR_MINING = 100; // Minimum blocks required before miner can work
+    const MAX_MINING_HEIGHT = 15; // Miner only works below this height
+
+    // Block types and colors with pixel-based textures
+    const blockTypes = {
+      grass: { top: 0x7CFC00, sides: 0x7CFC00, bottom: 0x8B4513 },
+      dirt: { color: 0x8B4513 },
+      stone: { color: 0x808080 },
+      wood: { color: 0x8B4513 },
+      sand: { color: 0xF4A460 }
+    };
+
+    let selectedBlock = 'grass';
+
+    // Initialize Three.js scene with WebGL validation
+    let scene, camera, renderer, controls;
+    let useWebGL = true;
+    let canvas2DContext = null;
+    
+    const canvas = document.getElementById('canvas');
+    
+    // Try to initialize WebGL renderer with fallback to Canvas 2D
+    try {
+      // Test WebGL support before creating renderer
+      const testCanvas = document.createElement('canvas');
+      const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+      
+      if (!gl) {
+        throw new Error('WebGL not supported');
+      }
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87CEEB);
+      scene.fog = new THREE.Fog(0x87CEEB, 0, config.fogDistance);
+      
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, config.fogDistance * 2);
+      
+      renderer = new THREE.WebGLRenderer({ 
+        canvas, 
+        antialias: config.antialias,
+        powerPreference: isMobileDevice ? 'low-power' : 'high-performance',
+        failIfMajorPerformanceCaveat: false // Allow lower performance WebGL
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = config.shadowsEnabled;
+      
+      console.log('WebGL renderer initialized successfully');
+    } catch (webglError) {
+      console.warn('WebGL initialization failed, falling back to Canvas 2D:', webglError);
+      useWebGL = false;
+      
+      // Setup Canvas 2D fallback
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas2DContext = canvas.getContext('2d');
+      
+      // Create simplified scene structure for 2D rendering
+      scene = {
+        children: [],
+        add: function(obj) { this.children.push(obj); },
+        remove: function(obj) {
+          const index = this.children.indexOf(obj);
+          if (index > -1) this.children.splice(index, 1);
+        }
+      };
+      
+      camera = {
+        position: { x: 0, y: 30, z: 10 },
+        rotation: { x: -Math.PI / 6, y: 0, z: 0 },
+        quaternion: { x: 0, y: 0, z: 0, w: 1 },
+        aspect: window.innerWidth / window.innerHeight,
+        updateProjectionMatrix: function() {}
+      };
+      
+      renderer = {
+        setSize: function(w, h) {
+          canvas.width = w;
+          canvas.height = h;
+        },
+        render: function() {
+          // 2D rendering implementation
+          if (canvas2DContext) {
+            canvas2DContext.fillStyle = '#87CEEB';
+            canvas2DContext.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw blocks in 2D isometric view
+            const ctx = canvas2DContext;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scale = 20;
+            
+            // Sort blocks by depth for proper rendering
+            const sortedBlocks = scene.children
+              .filter(obj => obj.position)
+              .sort((a, b) => {
+                const aDist = (a.position.z - camera.position.z) + (a.position.y - camera.position.y);
+                const bDist = (b.position.z - camera.position.z) + (b.position.y - camera.position.y);
+                return aDist - bDist;
+              });
+            
+            sortedBlocks.forEach(block => {
+              if (!block.position || !block.material) return;
+              
+              // Calculate isometric position
+              const dx = block.position.x - camera.position.x;
+              const dy = block.position.y - camera.position.y;
+              const dz = block.position.z - camera.position.z;
+              
+              // Simple isometric projection
+              const isoX = centerX + (dx - dz) * scale;
+              const isoY = centerY + (dx + dz) * scale / 2 - dy * scale;
+              
+              // Only draw if on screen
+              if (isoX > -50 && isoX < canvas.width + 50 && isoY > -50 && isoY < canvas.height + 50) {
+                // Draw block as isometric cube
+                ctx.save();
+                ctx.translate(isoX, isoY);
+                
+                // Get color from material
+                let color = '#808080';
+                if (block.material.color) {
+                  const c = block.material.color;
+                  color = `rgb(${Math.floor(c.r * 255)}, ${Math.floor(c.g * 255)}, ${Math.floor(c.b * 255)})`;
+                } else if (Array.isArray(block.material)) {
+                  const topMat = block.material[2];
+                  if (topMat && topMat.color) {
+                    const c = topMat.color;
+                    color = `rgb(${Math.floor(c.r * 255)}, ${Math.floor(c.g * 255)}, ${Math.floor(c.b * 255)})`;
+                  }
+                }
+                
+                // Draw isometric block
+                const size = scale;
+                
+                // Top face
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(0, -size / 2);
+                ctx.lineTo(size, 0);
+                ctx.lineTo(0, size / 2);
+                ctx.lineTo(-size, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.stroke();
+                
+                // Right face (darker) - robust color handling
+                let darkerColor = color;
+                if (color.startsWith('rgb(')) {
+                  darkerColor = color.replace('rgb', 'rgba').replace(')', ', 0.7)');
+                } else if (color.startsWith('#')) {
+                  // Convert hex to rgba with alpha
+                  const r = parseInt(color.substr(1, 2), 16);
+                  const g = parseInt(color.substr(3, 2), 16);
+                  const b = parseInt(color.substr(5, 2), 16);
+                  darkerColor = `rgba(${r}, ${g}, ${b}, 0.7)`;
+                }
+                ctx.fillStyle = darkerColor;
+                ctx.beginPath();
+                ctx.moveTo(size, 0);
+                ctx.lineTo(size, size);
+                ctx.lineTo(0, size * 1.5);
+                ctx.lineTo(0, size / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Left face (even darker) - robust color handling
+                let evenDarkerColor = color;
+                if (color.startsWith('rgb(')) {
+                  evenDarkerColor = color.replace('rgb', 'rgba').replace(')', ', 0.5)');
+                } else if (color.startsWith('#')) {
+                  // Convert hex to rgba with alpha
+                  const r = parseInt(color.substr(1, 2), 16);
+                  const g = parseInt(color.substr(3, 2), 16);
+                  const b = parseInt(color.substr(5, 2), 16);
+                  evenDarkerColor = `rgba(${r}, ${g}, ${b}, 0.5)`;
+                }
+                ctx.fillStyle = evenDarkerColor;
+                ctx.beginPath();
+                ctx.moveTo(-size, 0);
+                ctx.lineTo(-size, size);
+                ctx.lineTo(0, size * 1.5);
+                ctx.lineTo(0, size / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.restore();
+              }
+            });
+            
+            // Draw HUD overlay
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = '14px system-ui';
+            ctx.fillText('Canvas 2D Mode - Limited Features', 10, canvas.height - 10);
+          }
+        },
+        shadowMap: { enabled: false }
+      };
+    }
+
+    // Lighting (WebGL only)
+    if (useWebGL) {
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(50, 100, 50);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.camera.left = -50;
+      directionalLight.shadow.camera.right = 50;
+      directionalLight.shadow.camera.top = 50;
+      directionalLight.shadow.camera.bottom = -50;
+      scene.add(directionalLight);
+
+      // Player controls with PointerLockControls (WebGL only)
+      controls = new PointerLockControls(camera, document.body);
+    } else {
+      // Canvas 2D controls - simplified without pointer lock
+      controls = {
+        isLocked: false,
+        lock: function() { this.isLocked = true; },
+        unlock: function() { this.isLocked = false; },
+        addEventListener: function() {},
+        moveRight: function(distance) { camera.position.x += distance; },
+        moveForward: function(distance) {
+          const angle = camera.rotation.y;
+          camera.position.x -= Math.sin(angle) * distance;
+          camera.position.z -= Math.cos(angle) * distance;
+        }
+      };
+    }
+    
+    // Initialize camera at a better starting position looking down at terrain
+    camera.position.x = 0;
+    camera.position.y = 30;
+    camera.position.z = 10;
+    camera.rotation.x = -Math.PI / 6; // Look down slightly
+
+    // Movement (compatible with both modes)
+    const moveSpeed = 0.2;
+    const velocity = useWebGL ? new THREE.Vector3() : { x: 0, y: 0, z: 0 };
+    const direction = useWebGL ? new THREE.Vector3() : { x: 0, y: 0, z: 0, normalize: function() {} };
+    const moveState = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      up: false,
+      down: false
+    };
+
+    // World data structure with lazy loading
+    const world = new Map();
+    const loadedChunks = new Set();
+    const CHUNK_SIZE = config.chunkSize;
+    const WORLD_HEIGHT = config.worldHeight;
+    const RENDER_DISTANCE = config.renderDistance;
+
+    // Helper function to get block key
+    function getBlockKey(x, y, z) {
+      return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
+    }
+
+    // Create block geometry (reuse for performance) - WebGL only
+    const blockGeometry = useWebGL ? new THREE.BoxGeometry(1, 1, 1) : null;
+    
+    // Create pixel-based textures for blocks with adaptive resolution
+    function createPixelTexture(color, pattern = 'solid') {
+      // If not using WebGL, return a simple color object for Canvas 2D rendering
+      if (!useWebGL) {
+        return { color: color, pattern: pattern };
+      }
+      
+      const canvas = document.createElement('canvas');
+      const texSize = config.textureSize;
+      canvas.width = texSize;
+      canvas.height = texSize;
+      const ctx = canvas.getContext('2d');
+      
+      // Base color
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, texSize, texSize);
+      
+      // Add hyper-detailed pixel variations (scaled to texture size)
+      if (pattern === 'noise') {
+        // Create organic noise pattern
+        const noiseCount = Math.floor(texSize * 2.5);
+        for (let i = 0; i < noiseCount; i++) {
+          const x = Math.floor(Math.random() * texSize);
+          const y = Math.floor(Math.random() * texSize);
+          const brightness = Math.random() * 40 - 20;
+          const size = Math.random() > 0.7 ? 2 : 1;
+          ctx.fillStyle = `rgba(0, 0, 0, ${Math.abs(brightness) / 100})`;
+          ctx.fillRect(x, y, size, size);
+        }
+      } else if (pattern === 'wood') {
+        // Enhanced wood grain pattern with depth
+        for (let y = 0; y < texSize; y++) {
+          if (y % 4 === 0 || y % 4 === 1) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, y, texSize, 1);
+          }
+          // Add wood knots (less on smaller textures)
+          if (Math.random() > (1 - texSize / TEXTURE_SIZE_BASE)) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fillRect(Math.floor(Math.random() * texSize), y, 2, 2);
+          }
+        }
+        // Add vertical grain lines
+        for (let x = 0; x < texSize; x += Math.max(4, texSize / 4)) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+          ctx.fillRect(x, 0, 1, texSize);
+        }
+      } else if (pattern === 'stone') {
+        // Hyper-detailed stone texture with realistic variations
+        const generateRandomStoneColor = () => {
+          const r = Math.random() > 0.5 ? 255 : 0;
+          const g = Math.random() > 0.5 ? 255 : 0;
+          const b = Math.random() > 0.5 ? 255 : 0;
+          const alpha = Math.random() * 0.3;
+          return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
+        
+        // Add random pixel variations (scaled to texture size)
+        const stonePixels = Math.floor(texSize * 3.75);
+        for (let i = 0; i < stonePixels; i++) {
+          const x = Math.floor(Math.random() * texSize);
+          const y = Math.floor(Math.random() * texSize);
+          const size = Math.random() > 0.8 ? 2 : 1;
+          ctx.fillStyle = generateRandomStoneColor();
+          ctx.fillRect(x, y, size, size);
+        }
+        
+        // Add cracks and veins (fewer on smaller textures)
+        const crackCount = Math.max(2, Math.floor(texSize / 6));
+        for (let i = 0; i < crackCount; i++) {
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(Math.random() * texSize, Math.random() * texSize);
+          ctx.lineTo(Math.random() * texSize, Math.random() * texSize);
+          ctx.stroke();
+        }
+      }
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      return texture;
+    }
+
+    // Create a block with pixel-based textures (compatible with both WebGL and Canvas 2D)
+    function createBlock(x, y, z, type) {
+      let material;
+      let block;
+      
+      if (useWebGL) {
+        // WebGL mode - full 3D rendering
+        if (type === 'grass') {
+          const topTex = createPixelTexture('#7CFC00', 'noise');
+          const sideTex = createPixelTexture('#7CFC00', 'noise');
+          const bottomTex = createPixelTexture('#8B4513', 'noise');
+          
+          const materials = [
+            new THREE.MeshLambertMaterial({ map: sideTex }), // right
+            new THREE.MeshLambertMaterial({ map: sideTex }), // left
+            new THREE.MeshLambertMaterial({ map: topTex }), // top
+            new THREE.MeshLambertMaterial({ map: bottomTex }), // bottom
+            new THREE.MeshLambertMaterial({ map: sideTex }), // front
+            new THREE.MeshLambertMaterial({ map: sideTex })  // back
+          ];
+          material = materials;
+        } else if (type === 'wood') {
+          const woodTex = createPixelTexture('#8B4513', 'wood');
+          material = new THREE.MeshLambertMaterial({ map: woodTex });
+        } else if (type === 'stone') {
+          const stoneTex = createPixelTexture('#808080', 'stone');
+          material = new THREE.MeshLambertMaterial({ map: stoneTex });
+        } else {
+          const tex = createPixelTexture(type === 'dirt' ? '#8B4513' : '#F4A460', 'noise');
+          material = new THREE.MeshLambertMaterial({ map: tex });
+        }
+
+        block = new THREE.Mesh(blockGeometry, material);
+        block.position.set(x, y, z);
+        block.castShadow = true;
+        block.receiveShadow = true;
+      } else {
+        // Canvas 2D mode - simplified block object with metadata
+        const colorMap = {
+          grass: { r: 0.49, g: 0.99, b: 0 },
+          dirt: { r: 0.54, g: 0.27, b: 0.07 },
+          stone: { r: 0.5, g: 0.5, b: 0.5 },
+          wood: { r: 0.54, g: 0.27, b: 0.07 },
+          sand: { r: 0.96, g: 0.64, b: 0.38 }
+        };
+        
+        const color = colorMap[type] || { r: 0.5, g: 0.5, b: 0.5 };
+        
+        block = {
+          position: { x, y, z },
+          material: { 
+            color: color,
+            type: type
+          },
+          // Metadata for each pixel/block
+          metadata: {
+            blockType: type,
+            createdAt: Date.now(),
+            pixelCost: pixelColorValues[type]?.cost || 5,
+            colorValue: pixelColorValues[type]?.value || 0x808080,
+            rarity: pixelColorValues[type]?.rarity || 'common'
+          },
+          type: 'Mesh' // For compatibility
+        };
+        
+        material = block.material;
+      }
+      
+      scene.add(block);
+      world.set(getBlockKey(x, y, z), { mesh: block, type, metadata: block.metadata || {} });
+    }
+    
+    // Place block with pixel cost
+    function placeBlock(x, y, z, type) {
+      const pixelCost = pixelColorValues[type]?.cost || 5;
+      
+      // Check if player has enough pixels
+      if (gameState.pixels < pixelCost) {
+        console.log(`Not enough pixels! Need ${pixelCost}, have ${gameState.pixels}`);
+        return false;
+      }
+      
+      // Deduct pixels
+      gameState.pixels -= pixelCost;
+      
+      // Create the block
+      createBlock(x, y, z, type);
+      gameState.blocksPlaced++;
+      updateStatsUI();
+      
+      return true;
+    }
+
+    // Remove block and update inventory
+    function removeBlock(x, y, z) {
+      const key = getBlockKey(x, y, z);
+      const block = world.get(key);
+      if (block) {
+        // Add to inventory
+        gameState.inventory[block.type]++;
+        gameState.blocksRemoved++;
+        
+        // Refund pixels (50% of cost)
+        const pixelRefund = Math.floor((pixelColorValues[block.type]?.cost || 5) * 0.5);
+        gameState.pixels = Math.min(gameState.pixels + pixelRefund, gameState.maxPixels);
+        
+        updateInventoryUI();
+        updateStatsUI();
+        
+        scene.remove(block.mesh);
+        // Dispose materials and textures (WebGL only - geometry is shared and reused)
+        if (useWebGL && block.mesh.material) {
+          if (Array.isArray(block.mesh.material)) {
+            block.mesh.material.forEach(m => {
+              if (m.map) m.map.dispose();
+              m.dispose();
+            });
+          } else {
+            if (block.mesh.material.map) block.mesh.material.map.dispose();
+            block.mesh.material.dispose();
+          }
+        }
+        world.delete(key);
+      }
+    }
+
+    // Generate terrain with more detail
+    // Helper function to get chunk key
+    function getChunkKey(chunkX, chunkZ) {
+      return `${chunkX},${chunkZ}`;
+    }
+    
+    // Helper function to get chunk coordinates from world position
+    function getChunkCoords(x, z) {
+      return {
+        chunkX: Math.floor(x / CHUNK_SIZE),
+        chunkZ: Math.floor(z / CHUNK_SIZE)
+      };
+    }
+    
+    // Generate a single chunk
+    function generateChunk(chunkX, chunkZ) {
+      const chunkKey = getChunkKey(chunkX, chunkZ);
+      
+      // Skip if chunk already loaded
+      if (loadedChunks.has(chunkKey)) {
+        return;
+      }
+      
+      loadedChunks.add(chunkKey);
+      
+      const startX = chunkX * CHUNK_SIZE;
+      const startZ = chunkZ * CHUNK_SIZE;
+      
+      for (let x = startX; x < startX + CHUNK_SIZE; x++) {
+        for (let z = startZ; z < startZ + CHUNK_SIZE; z++) {
+          // More complex terrain generation with multiple octaves
+          const height = Math.floor(
+            Math.sin(x * 0.1) * Math.cos(z * 0.1) * 4 +
+            Math.sin(x * 0.05) * Math.cos(z * 0.08) * 3 +
+            Math.sin(x * 0.02) * 2 +
+            Math.cos(z * 0.03) * 2 +
+            12
+          );
+          
+          // Biome detection (simple)
+          const biome = Math.sin(x * 0.03) + Math.cos(z * 0.03);
+          
+          // Create layers with varied blocks
+          for (let y = 0; y <= Math.min(height, WORLD_HEIGHT - 1); y++) {
+            let blockType;
+            if (y === height) {
+              // Top layer varies by biome
+              if (biome > 0.5) {
+                blockType = 'sand'; // Desert biome
+              } else if (biome < -0.5) {
+                blockType = 'stone'; // Mountain biome
+              } else {
+                blockType = 'grass'; // Plains biome
+              }
+            } else if (y >= height - 3) {
+              blockType = biome > 0.5 ? 'sand' : 'dirt';
+            } else {
+              blockType = 'stone';
+            }
+            
+            // Check block limit
+            if (world.size >= config.maxBlocks) {
+              console.warn('Max blocks reached for device tier, stopping chunk generation');
+              return;
+            }
+            
+            createBlock(x, y, z, blockType);
+          }
+          
+          // Occasionally add trees in grass biome (reduced frequency on lower tiers)
+          const treeChance = 0.98 + (config.textureSize / TREE_SPAWN_CHANCE_DIVISOR); // Higher chance on better devices
+          if (biome > -0.5 && biome < 0.5 && Math.random() > treeChance) {
+            // Tree trunk
+            for (let y = height + 1; y <= Math.min(height + 4, WORLD_HEIGHT - 1); y++) {
+              if (world.size >= config.maxBlocks) break;
+              createBlock(x, y, z, 'wood');
+            }
+            // Tree leaves (simple cross shape)
+            const leafHeight = Math.min(height + 5, WORLD_HEIGHT - 1);
+            for (let dx = -1; dx <= 1; dx++) {
+              for (let dz = -1; dz <= 1; dz++) {
+                if (Math.abs(dx) + Math.abs(dz) <= 2 && world.size < config.maxBlocks) {
+                  createBlock(x + dx, leafHeight, z + dz, 'grass');
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Unload distant chunks to free memory (compatible with both modes)
+    function unloadDistantChunks(playerChunkX, playerChunkZ) {
+      const chunksToUnload = [];
+      
+      loadedChunks.forEach(chunkKey => {
+        const [chunkX, chunkZ] = chunkKey.split(',').map(Number);
+        const distance = Math.max(Math.abs(chunkX - playerChunkX), Math.abs(chunkZ - playerChunkZ));
+        
+        if (distance > RENDER_DISTANCE + 1) {
+          chunksToUnload.push({ chunkKey, chunkX, chunkZ });
+        }
+      });
+      
+      // Unload chunks
+      chunksToUnload.forEach(({ chunkKey, chunkX, chunkZ }) => {
+        const startX = chunkX * CHUNK_SIZE;
+        const startZ = chunkZ * CHUNK_SIZE;
+        
+        // Remove blocks in this chunk
+        for (let x = startX; x < startX + CHUNK_SIZE; x++) {
+          for (let z = startZ; z < startZ + CHUNK_SIZE; z++) {
+            for (let y = 0; y < WORLD_HEIGHT; y++) {
+              const key = getBlockKey(x, y, z);
+              const block = world.get(key);
+              if (block) {
+                scene.remove(block.mesh);
+                // Dispose materials and textures (WebGL only)
+                if (useWebGL && block.mesh.material) {
+                  if (Array.isArray(block.mesh.material)) {
+                    block.mesh.material.forEach(m => {
+                      if (m.map) m.map.dispose();
+                      m.dispose();
+                    });
+                  } else {
+                    if (block.mesh.material.map) block.mesh.material.map.dispose();
+                    block.mesh.material.dispose();
+                  }
+                }
+                world.delete(key);
+              }
+            }
+          }
+        }
+        
+        loadedChunks.delete(chunkKey);
+      });
+      
+      if (chunksToUnload.length > 0) {
+        console.log(`Unloaded ${chunksToUnload.length} distant chunks`);
+      }
+    }
+    
+    // Update visible chunks based on player position
+    function updateVisibleChunks() {
+      const playerPos = camera.position;
+      const { chunkX: playerChunkX, chunkZ: playerChunkZ } = getChunkCoords(playerPos.x, playerPos.z);
+      
+      // Load chunks in render distance
+      for (let dx = -RENDER_DISTANCE; dx <= RENDER_DISTANCE; dx++) {
+        for (let dz = -RENDER_DISTANCE; dz <= RENDER_DISTANCE; dz++) {
+          const chunkX = playerChunkX + dx;
+          const chunkZ = playerChunkZ + dz;
+          generateChunk(chunkX, chunkZ);
+        }
+      }
+      
+      // Unload distant chunks to free memory
+      unloadDistantChunks(playerChunkX, playerChunkZ);
+    }
+    
+    // Initial terrain generation (just spawn area)
+    function generateTerrain() {
+      console.log(`Generating initial terrain for ${deviceTier} (render distance: ${RENDER_DISTANCE}, max blocks: ${config.maxBlocks})`);
+      updateVisibleChunks();
+    }
+
+    // Raycasting for block interaction (compatible with both modes)
+    const raycaster = useWebGL ? new THREE.Raycaster() : null;
+    const mouse = useWebGL ? new THREE.Vector2(0, 0) : null; // Center of screen
+
+    function getTargetBlock() {
+      if (useWebGL && raycaster) {
+        raycaster.setFromCamera(mouse, camera);
+        
+        const intersects = raycaster.intersectObjects(scene.children.filter(obj => obj.type === 'Mesh'));
+        
+        if (intersects.length > 0) {
+          return intersects[0];
+        }
+      } else {
+        // Canvas 2D mode - find closest block in view direction
+        const blocks = Array.from(world.values());
+        let closestBlock = null;
+        let minDistance = Infinity;
+        const maxDistance = 10; // Maximum interaction distance
+        
+        blocks.forEach(blockData => {
+          const block = blockData.mesh;
+          const dx = block.position.x - camera.position.x;
+          const dy = block.position.y - camera.position.y;
+          const dz = block.position.z - camera.position.z;
+          const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          
+          // Simple check if block is roughly in front of camera
+          if (distance < maxDistance && distance < minDistance && dz < 0) {
+            minDistance = distance;
+            closestBlock = {
+              object: block,
+              distance: distance,
+              face: { normal: { x: 0, y: 1, z: 0 } } // Default to top face
+            };
+          }
+        });
+        
+        return closestBlock;
+      }
+      return null;
+    }
+
+    // Handle mouse clicks (desktop only)
+    if (!isMobileDevice) {
+      canvas.addEventListener('click', (event) => {
+        if (!controls.isLocked) {
+          controls.lock();
+          return;
+        }
+      });
+    }
+
+    // Desktop-only mouse controls
+    if (!isMobileDevice) {
+      canvas.addEventListener('mousedown', (event) => {
+        if (!controls.isLocked) return;
+
+        event.preventDefault();
+        const target = getTargetBlock();
+        
+        if (target) {
+          if (event.button === 0) {
+            // Left click - remove block
+            const pos = target.object.position;
+            removeBlock(pos.x, pos.y, pos.z);
+          } else if (event.button === 2) {
+            // Right click - place block
+            const pos = target.object.position.clone();
+            const normal = target.face.normal;
+            pos.add(normal);
+            
+            // Don't place block where player is (check 2-block height for player bounding box)
+            const playerPos = camera.position;
+            const blockPos = pos.clone().floor();
+            const playerFloor = playerPos.clone().floor();
+            const playerHead = playerFloor.clone();
+            playerHead.y += 1;
+            
+            // Check if block would overlap with player's position (feet or head)
+            const wouldCollide = 
+              blockPos.equals(playerFloor) || 
+              blockPos.equals(playerHead) ||
+              (Math.abs(blockPos.x - playerPos.x) < 0.5 && 
+               Math.abs(blockPos.z - playerPos.z) < 0.5 &&
+               Math.abs(blockPos.y - playerPos.y) < 1.5);
+            
+            if (!wouldCollide) {
+              placeBlock(pos.x, pos.y, pos.z, selectedBlock);
+            }
+          }
+        }
+      });
+    }
+
+    // Prevent context menu
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Keyboard controls (desktop only)
+    if (!isMobileDevice) {
+      document.addEventListener('keydown', (event) => {
+        switch(event.code) {
+          case 'KeyW': moveState.forward = true; break;
+          case 'KeyS': moveState.backward = true; break;
+          case 'KeyA': moveState.left = true; break;
+          case 'KeyD': moveState.right = true; break;
+          case 'Space': moveState.up = true; event.preventDefault(); break;
+          case 'ShiftLeft': moveState.down = true; break;
+          case 'Digit1': selectBlock('grass'); break;
+          case 'Digit2': selectBlock('dirt'); break;
+          case 'Digit3': selectBlock('stone'); break;
+          case 'Digit4': selectBlock('wood'); break;
+          case 'Digit5': selectBlock('sand'); break;
+          case 'KeyM': marketplace.togglePanel(); event.preventDefault(); break; // M for Marketplace
+          case 'KeyI': 
+            // Toggle inventory panel visibility
+            const invPanel = document.getElementById('inventoryPanel');
+            invPanel.style.display = invPanel.style.display === 'none' ? 'block' : 'none';
+            event.preventDefault(); 
+            break;
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        switch(event.code) {
+          case 'KeyW': moveState.forward = false; break;
+          case 'KeyS': moveState.backward = false; break;
+          case 'KeyA': moveState.left = false; break;
+          case 'KeyD': moveState.right = false; break;
+          case 'Space': moveState.up = false; break;
+          case 'ShiftLeft': moveState.down = false; break;
+        }
+      });
+    }
+
+    // Block selection
+    function selectBlock(type) {
+      selectedBlock = type;
+      document.querySelectorAll('.blockBtn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.block === type) {
+          btn.classList.add('active');
+        }
+      });
+    }
+
+    document.querySelectorAll('.blockBtn').forEach(btn => {
+      btn.addEventListener('click', () => selectBlock(btn.dataset.block));
+    });
+    
+    // UI Update Functions
+    function updateInventoryUI() {
+      const inventoryList = document.getElementById('inventoryList');
+      inventoryList.innerHTML = '';
+      
+      for (const [blockType, count] of Object.entries(gameState.inventory)) {
+        if (count > 0) {
+          const item = document.createElement('div');
+          item.className = 'inventoryItem';
+          
+          const icon = document.createElement('div');
+          icon.className = 'blockIcon';
+          icon.style.background = getBlockColor(blockType);
+          
+          const label = document.createElement('span');
+          label.textContent = blockType.charAt(0).toUpperCase() + blockType.slice(1);
+          
+          const value = document.createElement('span');
+          value.textContent = count;
+          value.style.fontWeight = 'bold';
+          
+          item.appendChild(icon);
+          item.appendChild(label);
+          item.appendChild(value);
+          inventoryList.appendChild(item);
+        }
+      }
+      
+      if (inventoryList.children.length === 0) {
+        inventoryList.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5);padding:10px;">No items collected</div>';
+      }
+    }
+    
+    function getBlockColor(type) {
+      const colors = {
+        grass: 'linear-gradient(to bottom, #7CFC00 0%, #7CFC00 70%, #8B4513 70%, #8B4513 100%)',
+        dirt: '#8B4513',
+        stone: '#808080',
+        wood: '#8B4513',
+        sand: '#F4A460'
+      };
+      return colors[type] || '#fff';
+    }
+    
+    function updateStatsUI() {
+      const pos = camera.position;
+      document.getElementById('statPosition').textContent = 
+        `${Math.floor(pos.x)}, ${Math.floor(pos.y)}, ${Math.floor(pos.z)}`;
+      document.getElementById('statPlaced').textContent = gameState.blocksPlaced;
+      document.getElementById('statRemoved').textContent = gameState.blocksRemoved;
+      document.getElementById('statPixels').textContent = `${gameState.pixels} / ${gameState.maxPixels}`;
+      document.getElementById('statCrafted').textContent = gameState.craftedItems.length;
+      document.getElementById('statDonated').textContent = `$${gameState.donationBoosts.totalDonated.toFixed(2)}`;
+      
+      // Update credits in HUD
+      document.getElementById('hudCredits').textContent = gameState.credits;
+      document.getElementById('hudPixels').textContent = gameState.pixels;
+      document.getElementById('hudMaxPixels').textContent = gameState.maxPixels;
+      document.getElementById('hudResolution').textContent = 
+        `${gameState.screenResolution.width}x${gameState.screenResolution.height}`;
+      
+      // Update FPS
+      const hudFpsElement = document.getElementById('hudFps');
+      if (hudFpsElement && typeof currentFps !== 'undefined') {
+        hudFpsElement.textContent = currentFps;
+      }
+      
+      // Update time
+      const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      document.getElementById('statTime').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      // Update agent count
+      const activeAgents = Object.values(gameState.agents).filter(a => a.active).length;
+      document.getElementById('statAgents').textContent = activeAgents;
+      
+      // Update loaded blocks and chunks (if elements exist)
+      const statLoadedBlocks = document.getElementById('statLoadedBlocks');
+      if (statLoadedBlocks && typeof world !== 'undefined') {
+        statLoadedBlocks.textContent = world.size;
+      }
+      const statLoadedChunks = document.getElementById('statLoadedChunks');
+      if (statLoadedChunks && typeof loadedChunks !== 'undefined') {
+        statLoadedChunks.textContent = loadedChunks.size;
+      }
+    }
+    
+    // Update stats every second
+    setInterval(updateStatsUI, 1000);
+    
+    // Passive pixel regeneration (1 pixel per 10 seconds)
+    setInterval(() => {
+      if (gameState.pixels < gameState.maxPixels) {
+        const regenRate = Math.floor(1 * gameState.donationBoosts.pixelMultiplier);
+        gameState.pixels = Math.min(gameState.pixels + regenRate, gameState.maxPixels);
+      }
+    }, 10000);
+    
+    // Mobile Controller Setup
+    const joystick = document.getElementById('joystick');
+    const joystickKnob = document.getElementById('joystickKnob');
+    let joystickActive = false;
+    let joystickCenter = { x: 0, y: 0 };
+    
+    function initMobileControls() {
+      // Joystick
+      joystick.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        joystickActive = true;
+        const rect = joystick.getBoundingClientRect();
+        joystickCenter = {
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2
+        };
+      });
+      
+      document.addEventListener('touchmove', (e) => {
+        if (!joystickActive) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - joystickCenter.x;
+        const deltaY = touch.clientY - joystickCenter.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const maxDistance = 35;
+        
+        const clampedDistance = Math.min(distance, maxDistance);
+        const angle = Math.atan2(deltaY, deltaX);
+        
+        const knobX = Math.cos(angle) * clampedDistance;
+        const knobY = Math.sin(angle) * clampedDistance;
+        
+        joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+        
+        // Update movement state
+        const normalizedX = knobX / maxDistance;
+        const normalizedY = knobY / maxDistance;
+        
+        moveState.forward = normalizedY < -0.3;
+        moveState.backward = normalizedY > 0.3;
+        moveState.left = normalizedX < -0.3;
+        moveState.right = normalizedX > 0.3;
+      });
+      
+      document.addEventListener('touchend', () => {
+        if (joystickActive) {
+          joystickActive = false;
+          joystickKnob.style.transform = 'translate(-50%, -50%)';
+          moveState.forward = false;
+          moveState.backward = false;
+          moveState.left = false;
+          moveState.right = false;
+        }
+      });
+      
+      // Mobile buttons
+      document.getElementById('jumpBtn').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        moveState.up = true;
+      });
+      
+      document.getElementById('jumpBtn').addEventListener('touchend', (e) => {
+        e.preventDefault();
+        moveState.up = false;
+      });
+      
+      document.getElementById('placeBtn').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const target = getTargetBlock();
+        if (target) {
+          const pos = target.object.position.clone();
+          const normal = target.face.normal;
+          pos.add(normal);
+          
+          const playerPos = camera.position;
+          const blockPos = pos.clone().floor();
+          const playerFloor = playerPos.clone().floor();
+          const playerHead = playerFloor.clone();
+          playerHead.y += 1;
+          
+          const wouldCollide = 
+            blockPos.equals(playerFloor) || 
+            blockPos.equals(playerHead) ||
+            (Math.abs(blockPos.x - playerPos.x) < 0.5 && 
+             Math.abs(blockPos.z - playerPos.z) < 0.5 &&
+             Math.abs(blockPos.y - playerPos.y) < 1.5);
+          
+          if (!wouldCollide) {
+            placeBlock(pos.x, pos.y, pos.z, selectedBlock);
+          }
+        }
+      });
+      
+      document.getElementById('removeBtn').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const target = getTargetBlock();
+        if (target) {
+          const pos = target.object.position;
+          removeBlock(pos.x, pos.y, pos.z);
+        }
+      });
+    }
+    
+    initMobileControls();
+    
+    // Mobile camera rotation with touch
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let cameraRotationX = 0;
+    let cameraRotationY = 0;
+    let isTouchDragging = false;
+    
+    canvas.addEventListener('touchstart', (e) => {
+      // Only handle camera rotation if not touching UI elements
+      if (e.target === canvas) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isTouchDragging = true;
+      }
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isTouchDragging) return;
+      e.preventDefault();
+      
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      
+      // Rotate camera based on touch movement
+      const sensitivity = 0.003;
+      cameraRotationY -= deltaX * sensitivity;
+      cameraRotationX -= deltaY * sensitivity;
+      
+      // Clamp vertical rotation
+      cameraRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotationX));
+      
+      // Apply rotation to camera
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = cameraRotationY;
+      camera.rotation.x = cameraRotationX;
+    });
+    
+    canvas.addEventListener('touchend', () => {
+      isTouchDragging = false;
+    });
+    
+    // Agent Deployment System
+    function deployAgent(agentType) {
+      const agent = gameState.agents[agentType];
+      agent.active = !agent.active;
+      
+      const btn = document.getElementById(`${agentType}Agent`);
+      if (agent.active) {
+        btn.classList.add('deployed');
+        btn.textContent = `${agentType.charAt(0).toUpperCase() + agentType.slice(1)} ✓`;
+        startAgentBehavior(agentType);
+      } else {
+        btn.classList.remove('deployed');
+        btn.textContent = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+      }
+      updateStatsUI();
+    }
+    
+    function startAgentBehavior(agentType) {
+      // Enhanced agent behaviors with learning and earning
+      const interval = setInterval(() => {
+        const agent = gameState.agents[agentType];
+        if (!agent.active) {
+          clearInterval(interval);
+          return;
+        }
+        
+        // Random agent actions based on probability
+        if (agentType === 'builder' && Math.random() > AGENT_ACTION_PROBABILITY) {
+          // Find a random empty spot and place a block
+          const x = Math.floor(Math.random() * 20 - 10);
+          const z = Math.floor(Math.random() * 20 - 10);
+          const y = 15; // Build at a fixed height
+          
+          const key = getBlockKey(x, y, z);
+          if (!world.has(key)) {
+            const types = ['stone', 'wood', 'dirt'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            createBlock(x, y, z, type);
+            agent.blocksBuilt++;
+            
+            // Agent learns and earns
+            agentEarn('builder', 5);
+            if (agent.blocksBuilt % 10 === 0) {
+              agentLearn('builder', `Building Pattern ${Math.floor(agent.blocksBuilt / 10)}`);
+            }
+          }
+        } else if (agentType === 'miner' && Math.random() > AGENT_ACTION_PROBABILITY) {
+          // Find and remove a random block
+          const blocks = Array.from(world.keys());
+          if (blocks.length > MIN_BLOCKS_FOR_MINING) {
+            const randomKey = blocks[Math.floor(Math.random() * blocks.length)];
+            const [x, y, z] = randomKey.split(',').map(Number);
+            if (y < MAX_MINING_HEIGHT) {
+              const blockData = world.get(randomKey);
+              removeBlock(x, y, z);
+              agent.blocksMined++;
+              
+              // Agent learns and earns based on block type
+              const earnings = { grass: 2, dirt: 1, stone: 3, wood: 4, sand: 2 };
+              agentEarn('miner', earnings[blockData.type] || 1);
+              if (agent.blocksMined % 15 === 0) {
+                agentLearn('miner', `Mining Technique ${Math.floor(agent.blocksMined / 15)}`);
+              }
+            }
+          }
+        } else if (agentType === 'explorer') {
+          agent.chunksExplored++;
+          
+          // Explorer discovers and earns
+          agentEarn('explorer', 3);
+          if (agent.chunksExplored % 20 === 0) {
+            agentLearn('explorer', `Territory ${Math.floor(agent.chunksExplored / 20)}`);
+          }
+        }
+      }, AGENT_UPDATE_INTERVAL);
+    }
+    
+    // Agent button listeners
+    document.getElementById('builderAgent').addEventListener('click', () => deployAgent('builder'));
+    document.getElementById('minerAgent').addEventListener('click', () => deployAgent('miner'));
+    document.getElementById('explorerAgent').addEventListener('click', () => deployAgent('explorer'));
+    
+    // Marketplace System
+    const marketplace = {
+      currentTab: 'buy',
+      
+      items: [
+        { id: 1, name: 'Emerald Block Pack', type: 'grass', quantity: 100, price: 50, rarity: 'common' },
+        { id: 2, name: 'Diamond Stone Set', type: 'stone', quantity: 50, price: 150, rarity: 'rare' },
+        { id: 3, name: 'Golden Sand Bundle', type: 'sand', quantity: 200, price: 80, rarity: 'uncommon' },
+        { id: 4, name: 'Ancient Wood Collection', type: 'wood', quantity: 75, price: 120, rarity: 'rare' },
+        { id: 5, name: 'Legendary Dirt', type: 'dirt', quantity: 30, price: 300, rarity: 'legendary' }
+      ],
+      
+      togglePanel() {
+        const panel = document.getElementById('marketplacePanel');
+        panel.classList.toggle('active');
+        if (panel.classList.contains('active')) {
+          this.updateContent();
+        }
+      },
+      
+      switchTab(tabName) {
+        this.currentTab = tabName;
+        
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.style.display = 'none';
+        });
+        document.getElementById(`${tabName}Tab`).style.display = 'block';
+        
+        this.updateContent();
+      },
+      
+      updateContent() {
+        if (this.currentTab === 'buy') {
+          this.renderBuyItems();
+        } else if (this.currentTab === 'sell') {
+          this.renderSellItems();
+        } else if (this.currentTab === 'craft') {
+          this.renderCraftItems();
+        } else if (this.currentTab === 'nft') {
+          this.renderNFTItems();
+        } else if (this.currentTab === 'donate') {
+          this.renderDonateItems();
+        } else if (this.currentTab === 'agents') {
+          this.renderAgentStats();
+        }
+      },
+      
+      renderBuyItems() {
+        const container = document.getElementById('buyItems');
+        container.innerHTML = `
+          <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,215,0,0.2); border-radius: 8px;">
+            <strong>💰 Your Credits:</strong> ${gameState.credits}
+          </div>
+        `;
+        
+        this.items.forEach(item => {
+          const rarityColors = {
+            common: '#808080',
+            uncommon: '#43e97b',
+            rare: '#667eea',
+            legendary: '#ffd700'
+          };
+          
+          container.innerHTML += `
+            <div class="marketplace-item">
+              <div class="item-info">
+                <div class="item-name" style="color: ${rarityColors[item.rarity]};">
+                  ${item.name}
+                </div>
+                <div class="item-details">
+                  ${item.quantity}x ${item.type} blocks • ${item.rarity}
+                </div>
+              </div>
+              <div class="item-value">💰 ${item.price}</div>
+              <button class="item-action" onclick="marketplace.buyItem(${item.id})">
+                Buy
+              </button>
+            </div>
+          `;
+        });
+      },
+      
+      renderSellItems() {
+        const container = document.getElementById('sellItems');
+        container.innerHTML = `
+          <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,215,0,0.2); border-radius: 8px;">
+            <strong>💰 Your Credits:</strong> ${gameState.credits}
+          </div>
+        `;
+        
+        let hasItems = false;
+        for (const [type, count] of Object.entries(gameState.inventory)) {
+          if (count > 0) {
+            hasItems = true;
+            const basePrice = { grass: 0.5, dirt: 0.3, stone: 1, wood: 0.8, sand: 0.4 };
+            const totalValue = Math.floor(count * basePrice[type]);
+            
+            container.innerHTML += `
+              <div class="marketplace-item">
+                <div class="item-info">
+                  <div class="item-name">${type.charAt(0).toUpperCase() + type.slice(1)} Blocks</div>
+                  <div class="item-details">${count} blocks @ ${basePrice[type]} credits each</div>
+                </div>
+                <div class="item-value">💰 ${totalValue}</div>
+                <button class="item-action sell" onclick="marketplace.sellItem('${type}', ${count})">
+                  Sell All
+                </button>
+              </div>
+            `;
+          }
+        }
+        
+        if (!hasItems) {
+          container.innerHTML += `
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+              Mine or collect blocks to sell them here!
+            </div>
+          `;
+        }
+      },
+      
+      renderNFTItems() {
+        const container = document.getElementById('nftItems');
+        container.innerHTML = `
+          <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,215,0,0.2); border-radius: 8px;">
+            <strong>🎨 Create NFTs from your creations!</strong><br>
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7);">
+              Auto-valued based on blocks used, time spent, and complexity
+            </span>
+          </div>
+        `;
+        
+        if (gameState.nfts.length > 0) {
+          gameState.nfts.forEach((nft, index) => {
+            container.innerHTML += `
+              <div class="marketplace-item">
+                <div class="item-info">
+                  <div class="item-name">
+                    ${nft.name}
+                    <span class="nft-badge">NFT #${nft.id}</span>
+                  </div>
+                  <div class="item-details">
+                    ${nft.blocks} blocks • Created ${Math.floor((Date.now() - nft.timestamp) / 60000)} mins ago
+                  </div>
+                </div>
+                <div class="item-value">💎 ${nft.value}</div>
+                <button class="item-action" onclick="marketplace.listNFT(${index})">
+                  List
+                </button>
+              </div>
+            `;
+          });
+        } else {
+          container.innerHTML += `
+            <div style="text-align: center; padding: 20px;">
+              <button class="item-action" style="font-size: 16px; padding: 15px 30px;" onclick="marketplace.createNFT()">
+                ✨ Create NFT from Current Build
+              </button>
+              <div style="margin-top: 15px; color: rgba(255,255,255,0.5); font-size: 13px;">
+                Build something amazing and turn it into an NFT!<br>
+                Value increases with complexity and time invested.
+              </div>
+            </div>
+          `;
+        }
+      },
+      
+      renderAgentStats() {
+        const container = document.getElementById('agentStats');
+        container.innerHTML = '';
+        
+        for (const [name, agent] of Object.entries(gameState.agents)) {
+          const statusColor = agent.active ? '#43e97b' : '#808080';
+          const statusText = agent.active ? 'Active' : 'Inactive';
+          
+          let statsHTML = '';
+          if (name === 'builder') {
+            statsHTML = `
+              <div class="agent-stat">
+                <span class="agent-stat-label">Blocks Built:</span>
+                <span class="agent-stat-value">${agent.blocksBuilt}</span>
+              </div>
+            `;
+          } else if (name === 'miner') {
+            statsHTML = `
+              <div class="agent-stat">
+                <span class="agent-stat-label">Blocks Mined:</span>
+                <span class="agent-stat-value">${agent.blocksMined}</span>
+              </div>
+            `;
+          } else if (name === 'explorer') {
+            statsHTML = `
+              <div class="agent-stat">
+                <span class="agent-stat-label">Chunks Explored:</span>
+                <span class="agent-stat-value">${agent.chunksExplored}</span>
+              </div>
+            `;
+          }
+          
+          container.innerHTML += `
+            <div class="agent-info-card">
+              <div class="agent-info-header">
+                <div class="agent-name">${name}</div>
+                <div class="agent-status" style="background: ${statusColor}33; color: ${statusColor};">
+                  ${statusText}
+                </div>
+              </div>
+              <div class="agent-stats">
+                ${statsHTML}
+                <div class="agent-stat">
+                  <span class="agent-stat-label">Level:</span>
+                  <span class="agent-stat-value">${agent.level}</span>
+                </div>
+                <div class="agent-stat">
+                  <span class="agent-stat-label">XP:</span>
+                  <span class="agent-stat-value">${agent.xp}</span>
+                </div>
+                <div class="agent-stat">
+                  <span class="agent-stat-label">Total Earnings:</span>
+                  <span class="agent-stat-value">💰 ${agent.earnings}</span>
+                </div>
+                <div class="agent-stat">
+                  <span class="agent-stat-label">Skills Learned:</span>
+                  <span class="agent-stat-value">${agent.learned.length}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      },
+      
+      renderCraftItems() {
+        const container = document.getElementById('craftItems');
+        container.innerHTML = `
+          <div style="margin-bottom: 15px; padding: 10px; background: rgba(255,215,0,0.2); border-radius: 8px;">
+            <strong>🎨 Pixel Budget:</strong> ${gameState.pixels} / ${gameState.maxPixels}<br>
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7);">
+              Craft unique items by combining elements. Each item costs pixels based on complexity.
+            </span>
+          </div>
+        `;
+        
+        // Craftable recipes
+        const recipes = [
+          {
+            name: 'Stone Pickaxe',
+            ingredients: { stone: 3, wood: 2 },
+            pixelCost: 50,
+            functionality: 'mining_boost',
+            description: 'Increases mining speed by 50%'
+          },
+          {
+            name: 'Wooden House',
+            ingredients: { wood: 10, stone: 5 },
+            pixelCost: 100,
+            functionality: 'shelter',
+            description: 'Provides bonus pixels regeneration'
+          },
+          {
+            name: 'Golden Statue',
+            ingredients: { stone: 5, sand: 3, grass: 2 },
+            pixelCost: 200,
+            functionality: 'prestige',
+            description: 'Increases credit earnings by 25%'
+          },
+          {
+            name: 'Magic Portal',
+            ingredients: { stone: 8, wood: 4, dirt: 4 },
+            pixelCost: 300,
+            functionality: 'teleport',
+            description: 'Fast travel between locations'
+          },
+          {
+            name: 'Auto-Builder',
+            ingredients: { stone: 10, wood: 8, sand: 5 },
+            pixelCost: 500,
+            functionality: 'automation',
+            description: 'Automatically places blocks over time'
+          }
+        ];
+        
+        recipes.forEach((recipe, index) => {
+          const canCraft = this.canCraft(recipe);
+          const buttonStyle = canCraft ? '' : 'opacity: 0.5; cursor: not-allowed;';
+          
+          let ingredientsList = '';
+          for (const [type, count] of Object.entries(recipe.ingredients)) {
+            const has = gameState.inventory[type] || 0;
+            const color = has >= count ? '#7CFC00' : '#f5576c';
+            ingredientsList += `<span style="color: ${color};">${type}: ${has}/${count}</span> `;
+          }
+          
+          container.innerHTML += `
+            <div class="marketplace-item">
+              <div class="item-info">
+                <div class="item-name">
+                  ${recipe.name}
+                  <span class="nft-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    ${recipe.pixelCost}px
+                  </span>
+                </div>
+                <div class="item-details">
+                  ${ingredientsList}<br>
+                  📜 ${recipe.description}
+                </div>
+              </div>
+              <button class="item-action" style="${buttonStyle}" 
+                onclick="marketplace.craftItem(${index})" ${!canCraft ? 'disabled' : ''}>
+                Craft
+              </button>
+            </div>
+          `;
+        });
+        
+        // Show crafted items
+        if (gameState.craftedItems.length > 0) {
+          container.innerHTML += `
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid rgba(255,255,255,0.2);">
+              <h4 style="margin-bottom: 15px;">Your Crafted Items</h4>
+            </div>
+          `;
+          
+          gameState.craftedItems.forEach((item, idx) => {
+            container.innerHTML += `
+              <div class="marketplace-item" style="background: rgba(102,126,234,0.2);">
+                <div class="item-info">
+                  <div class="item-name">
+                    ${item.name}
+                    <span class="nft-badge">ID: ${item.id}</span>
+                  </div>
+                  <div class="item-details">
+                    ${item.pixelCost}px • ${item.functionality} • Crafted ${Math.floor((Date.now() - item.timestamp) / 60000)}m ago
+                  </div>
+                </div>
+                <button class="item-action" onclick="marketplace.useItem(${idx})">
+                  Use
+                </button>
+              </div>
+            `;
+          });
+        }
+      },
+      
+      renderDonateItems() {
+        const container = document.getElementById('donateItems');
+        container.innerHTML = `
+          <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,215,0,0.3); border-radius: 12px; text-align: center;">
+            <h3 style="margin: 0 0 10px 0; color: #FFD700;">💖 Support HyperCraft Development</h3>
+            <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.9);">
+              Donations unlock exclusive features and boost your gameplay!<br>
+              PayPal: <strong>barbrickdesign@gmail.com</strong>
+            </p>
+          </div>
+          
+          <div style="margin-bottom: 20px; padding: 10px; background: rgba(67,233,123,0.2); border-radius: 8px;">
+            <strong>🎁 Current Boosts:</strong><br>
+            Pixel Multiplier: ${gameState.donationBoosts.pixelMultiplier}x<br>
+            Crafting Discount: ${gameState.donationBoosts.craftingDiscount}%<br>
+            Premium Colors: ${gameState.donationBoosts.premiumColors ? '✓ Unlocked' : '✗ Locked'}<br>
+            Auto Mining: ${gameState.donationBoosts.autoMining ? '✓ Active' : '✗ Inactive'}<br>
+            Total Donated: $${gameState.donationBoosts.totalDonated.toFixed(2)}
+          </div>
+        `;
+        
+        // Donation tiers with rewards
+        const tiers = [
+          {
+            amount: 5,
+            name: 'Supporter',
+            rewards: ['+500 pixels', '+1.2x pixel multiplier', '+5% crafting discount']
+          },
+          {
+            amount: 10,
+            name: 'Patron',
+            rewards: ['+1500 pixels', '+1.5x pixel multiplier', '+10% crafting discount', 'Unlock 1 premium color']
+          },
+          {
+            amount: 25,
+            name: 'Benefactor',
+            rewards: ['+5000 pixels', '+2x pixel multiplier', '+20% crafting discount', 'Unlock all premium colors']
+          },
+          {
+            amount: 50,
+            name: 'Elite',
+            rewards: ['+15000 pixels', '+3x pixel multiplier', '+30% crafting discount', 'Unlock all premium colors', 'Enable auto-mining']
+          },
+          {
+            amount: 100,
+            name: 'Legend',
+            rewards: ['+50000 pixels', '+5x pixel multiplier', '+50% crafting discount', 'Unlock all premium features', 'Enable all automations', 'Exclusive Legend badge']
+          }
+        ];
+        
+        tiers.forEach(tier => {
+          const rewardsList = tier.rewards.map(r => `<li>${r}</li>`).join('');
+          
+          container.innerHTML += `
+            <div class="marketplace-item" style="flex-direction: column; align-items: stretch;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="item-name" style="margin: 0;">
+                  ${tier.name}
+                </div>
+                <div class="item-value">$${tier.amount}</div>
+              </div>
+              <div class="item-details" style="margin-bottom: 15px;">
+                <ul style="margin: 5px 0; padding-left: 20px; text-align: left;">
+                  ${rewardsList}
+                </ul>
+              </div>
+              <div id="paypal-${tier.amount}" style="margin-top: 10px;"></div>
+            </div>
+          `;
+        });
+        
+        // Initialize PayPal buttons
+        setTimeout(() => {
+          tiers.forEach(tier => {
+            const containerId = `paypal-${tier.amount}`;
+            if (document.getElementById(containerId) && typeof PayPalIntegration !== 'undefined') {
+              PayPalIntegration.renderButton(containerId, {
+                amount: tier.amount,
+                description: `HyperCraft ${tier.name} Donation`,
+                onSuccess: (data) => {
+                  this.processDonation(tier.amount, tier.name, tier.rewards);
+                },
+                onError: (err) => {
+                  console.error('Donation error:', err);
+                  alert('Donation failed. Please try again.');
+                },
+                onCancel: () => {
+                  console.log('Donation cancelled');
+                }
+              }).catch(err => {
+                console.error('PayPal button error:', err);
+              });
+            }
+          });
+        }, 100);
+      },
+      
+      canCraft(recipe) {
+        // Check if player has enough ingredients
+        for (const [type, count] of Object.entries(recipe.ingredients)) {
+          if ((gameState.inventory[type] || 0) < count) {
+            return false;
+          }
+        }
+        
+        // Check if player has enough pixels
+        const discount = gameState.donationBoosts.craftingDiscount / 100;
+        const finalCost = Math.floor(recipe.pixelCost * (1 - discount));
+        return gameState.pixels >= finalCost;
+      },
+      
+      craftItem(recipeIndex) {
+        const recipes = [
+          {
+            name: 'Stone Pickaxe',
+            ingredients: { stone: 3, wood: 2 },
+            pixelCost: 50,
+            functionality: 'mining_boost',
+            description: 'Increases mining speed by 50%'
+          },
+          {
+            name: 'Wooden House',
+            ingredients: { wood: 10, stone: 5 },
+            pixelCost: 100,
+            functionality: 'shelter',
+            description: 'Provides bonus pixels regeneration'
+          },
+          {
+            name: 'Golden Statue',
+            ingredients: { stone: 5, sand: 3, grass: 2 },
+            pixelCost: 200,
+            functionality: 'prestige',
+            description: 'Increases credit earnings by 25%'
+          },
+          {
+            name: 'Magic Portal',
+            ingredients: { stone: 8, wood: 4, dirt: 4 },
+            pixelCost: 300,
+            functionality: 'teleport',
+            description: 'Fast travel between locations'
+          },
+          {
+            name: 'Auto-Builder',
+            ingredients: { stone: 10, wood: 8, sand: 5 },
+            pixelCost: 500,
+            functionality: 'automation',
+            description: 'Automatically places blocks over time'
+          }
+        ];
+        
+        const recipe = recipes[recipeIndex];
+        if (!this.canCraft(recipe)) {
+          alert('Not enough resources or pixels to craft this item!');
+          return;
+        }
+        
+        // Deduct ingredients
+        for (const [type, count] of Object.entries(recipe.ingredients)) {
+          gameState.inventory[type] -= count;
+        }
+        
+        // Deduct pixels with discount
+        const discount = gameState.donationBoosts.craftingDiscount / 100;
+        const finalCost = Math.floor(recipe.pixelCost * (1 - discount));
+        gameState.pixels -= finalCost;
+        
+        // Create crafted item
+        const craftedItem = {
+          id: gameState.craftedItems.length + 1,
+          name: recipe.name,
+          pixelCost: recipe.pixelCost,
+          functionality: recipe.functionality,
+          description: recipe.description,
+          timestamp: Date.now(),
+          ingredients: recipe.ingredients
+        };
+        
+        gameState.craftedItems.push(craftedItem);
+        
+        updateInventoryUI();
+        updateStatsUI();
+        this.updateContent();
+        
+        alert(`Successfully crafted ${recipe.name}!`);
+      },
+      
+      useItem(itemIndex) {
+        const item = gameState.craftedItems[itemIndex];
+        
+        // Apply item functionality
+        switch(item.functionality) {
+          case 'mining_boost':
+            alert('🔨 Mining boost activated! Mining 50% faster for 5 minutes.');
+            // Could implement actual boost logic here
+            break;
+          case 'shelter':
+            alert('🏠 Shelter bonus activated! Pixels regenerating faster.');
+            // Implement pixel regeneration
+            setInterval(() => {
+              if (gameState.pixels < gameState.maxPixels) {
+                gameState.pixels = Math.min(gameState.pixels + 10, gameState.maxPixels);
+                updateStatsUI();
+              }
+            }, 30000); // Every 30 seconds
+            break;
+          case 'prestige':
+            alert('⭐ Prestige boost activated! Credit earnings increased by 25%.');
+            // Could modify credit earning multiplier
+            break;
+          case 'teleport':
+            alert('🌀 Portal activated! You can now fast travel.');
+            // Could implement teleport system
+            break;
+          case 'automation':
+            alert('🤖 Auto-builder activated! Blocks will be placed automatically.');
+            // Could implement auto-building
+            break;
+        }
+      },
+      
+      processDonation(amount, tierName, rewards) {
+        gameState.donationBoosts.totalDonated += amount;
+        
+        // Apply rewards based on amount
+        if (amount >= 5) {
+          gameState.pixels = Math.min(gameState.pixels + 500, gameState.maxPixels + 500);
+          gameState.maxPixels += 500;
+          gameState.donationBoosts.pixelMultiplier = Math.max(gameState.donationBoosts.pixelMultiplier, 1.2);
+          gameState.donationBoosts.craftingDiscount = Math.max(gameState.donationBoosts.craftingDiscount, 5);
+        }
+        if (amount >= 10) {
+          gameState.pixels = Math.min(gameState.pixels + 1500, gameState.maxPixels + 1500);
+          gameState.maxPixels += 1500;
+          gameState.donationBoosts.pixelMultiplier = Math.max(gameState.donationBoosts.pixelMultiplier, 1.5);
+          gameState.donationBoosts.craftingDiscount = Math.max(gameState.donationBoosts.craftingDiscount, 10);
+        }
+        if (amount >= 25) {
+          gameState.pixels = Math.min(gameState.pixels + 5000, gameState.maxPixels + 5000);
+          gameState.maxPixels += 5000;
+          gameState.donationBoosts.pixelMultiplier = Math.max(gameState.donationBoosts.pixelMultiplier, 2.0);
+          gameState.donationBoosts.craftingDiscount = Math.max(gameState.donationBoosts.craftingDiscount, 20);
+          gameState.donationBoosts.premiumColors = true;
+        }
+        if (amount >= 50) {
+          gameState.pixels = Math.min(gameState.pixels + 15000, gameState.maxPixels + 15000);
+          gameState.maxPixels += 15000;
+          gameState.donationBoosts.pixelMultiplier = Math.max(gameState.donationBoosts.pixelMultiplier, 3.0);
+          gameState.donationBoosts.craftingDiscount = Math.max(gameState.donationBoosts.craftingDiscount, 30);
+          gameState.donationBoosts.premiumColors = true;
+          gameState.donationBoosts.autoMining = true;
+        }
+        if (amount >= 100) {
+          gameState.pixels = Math.min(gameState.pixels + 50000, gameState.maxPixels + 50000);
+          gameState.maxPixels += 50000;
+          gameState.donationBoosts.pixelMultiplier = Math.max(gameState.donationBoosts.pixelMultiplier, 5.0);
+          gameState.donationBoosts.craftingDiscount = Math.max(gameState.donationBoosts.craftingDiscount, 50);
+          gameState.donationBoosts.premiumColors = true;
+          gameState.donationBoosts.autoMining = true;
+        }
+        
+        updateStatsUI();
+        updateInventoryUI();
+        
+        alert(`🎉 Thank you for your ${tierName} donation of $${amount}!\n\nRewards applied:\n${rewards.join('\n')}`);
+        
+        // Save donation to localStorage
+        try {
+          localStorage.setItem('hypercraft_donations', JSON.stringify(gameState.donationBoosts));
+        } catch (e) {
+          console.error('Failed to save donation state:', e);
+        }
+      },
+      
+      buyItem(itemId) {
+        const item = this.items.find(i => i.id === itemId);
+        if (!item) return;
+        
+        if (gameState.credits >= item.price) {
+          gameState.credits -= item.price;
+          gameState.inventory[item.type] += item.quantity;
+          updateInventoryUI();
+          this.updateContent();
+          console.log(`Bought ${item.name} for ${item.price} credits!`);
+        } else {
+          alert('Not enough credits! Earn more by selling items or deploying agents.');
+        }
+      },
+      
+      sellItem(type, count) {
+        const basePrice = { grass: 0.5, dirt: 0.3, stone: 1, wood: 0.8, sand: 0.4 };
+        const totalValue = Math.floor(count * basePrice[type]);
+        
+        gameState.credits += totalValue;
+        gameState.inventory[type] = 0;
+        updateInventoryUI();
+        this.updateContent();
+        console.log(`Sold ${count} ${type} blocks for ${totalValue} credits!`);
+      },
+      
+      createNFT() {
+        const nftId = gameState.nfts.length + 1;
+        const blocks = gameState.blocksPlaced;
+        const timeSpent = Math.floor((Date.now() - gameState.startTime) / 60000);
+        
+        // Auto-valuation based on game mechanics
+        const baseValue = blocks * 5;
+        const timeBonus = timeSpent * 2;
+        const complexityBonus = Math.floor(blocks / 10) * 10;
+        const totalValue = baseValue + timeBonus + complexityBonus;
+        
+        const nft = {
+          id: nftId,
+          name: `HyperCraft Creation #${nftId}`,
+          blocks: blocks,
+          timestamp: Date.now(),
+          value: totalValue,
+          creator: 'Player'
+        };
+        
+        gameState.nfts.push(nft);
+        this.updateContent();
+        console.log(`Created NFT valued at ${totalValue} credits!`);
+      },
+      
+      listNFT(index) {
+        const nft = gameState.nfts[index];
+        alert(`NFT "${nft.name}" listed on marketplace for ${nft.value} credits!`);
+        // In a real implementation, this would list on a blockchain marketplace
+      }
+    };
+    
+    // Make marketplace global for onclick handlers
+    window.marketplace = marketplace;
+    
+    // Marketplace event listeners
+    document.getElementById('marketplaceToggle').addEventListener('click', () => {
+      marketplace.togglePanel();
+    });
+    
+    document.getElementById('closeMarketplace').addEventListener('click', () => {
+      marketplace.togglePanel();
+    });
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        marketplace.switchTab(btn.dataset.tab);
+      });
+    });
+    
+    // Enhanced Agent System with Learning and Earnings
+    function agentLearn(agentType, skill) {
+      const agent = gameState.agents[agentType];
+      if (!agent.learned.includes(skill)) {
+        agent.learned.push(skill);
+        agent.xp += 50;
+        console.log(`${agentType} learned: ${skill}`);
+      }
+      
+      // Level up system
+      const xpNeeded = agent.level * 100;
+      if (agent.xp >= xpNeeded) {
+        agent.level++;
+        agent.xp = 0;
+        console.log(`${agentType} leveled up to level ${agent.level}!`);
+      }
+    }
+    
+    function agentEarn(agentType, amount) {
+      const agent = gameState.agents[agentType];
+      agent.earnings += amount;
+      gameState.credits += amount;
+      agent.xp += Math.floor(amount / 10);
+    }
+    
+    // Initialize UI
+    updateInventoryUI();
+    updateStatsUI();
+    
+    // World Persistence System
+    const worldPersistence = {
+      save() {
+        const worldData = {
+          blocks: Array.from(world.entries()).map(([key, data]) => ({
+            key,
+            type: data.type,
+            position: data.mesh.position.toArray()
+          })),
+          gameState: {
+            ...gameState,
+            startTime: Date.now() - (Date.now() - gameState.startTime) // Save elapsed time
+          },
+          camera: {
+            position: camera.position.toArray(),
+            rotation: [camera.rotation.x, camera.rotation.y, camera.rotation.z]
+          },
+          timestamp: Date.now()
+        };
+        
+        try {
+          localStorage.setItem('hypercraft_world', JSON.stringify(worldData));
+          console.log('World saved successfully!');
+          alert('World saved! 💾');
+        } catch (e) {
+          console.error('Failed to save world:', e);
+          alert('Failed to save world. Storage might be full.');
+        }
+      },
+      
+      load() {
+        try {
+          const savedData = localStorage.getItem('hypercraft_world');
+          if (!savedData) {
+            console.log('No saved world found.');
+            return false;
+          }
+          
+          const worldData = JSON.parse(savedData);
+          
+          // Clear existing world
+          world.forEach(block => {
+            scene.remove(block.mesh);
+            if (Array.isArray(block.mesh.material)) {
+              block.mesh.material.forEach(m => {
+                if (m.map) m.map.dispose();
+                m.dispose();
+              });
+            } else {
+              if (block.mesh.material.map) block.mesh.material.map.dispose();
+              block.mesh.material.dispose();
+            }
+          });
+          world.clear();
+          
+          // Restore blocks
+          worldData.blocks.forEach(blockData => {
+            const [x, y, z] = blockData.position;
+            createBlock(x, y, z, blockData.type);
+          });
+          
+          // Restore game state
+          Object.assign(gameState, worldData.gameState);
+          
+          // Restore camera
+          camera.position.fromArray(worldData.camera.position);
+          camera.rotation.x = worldData.camera.rotation[0];
+          camera.rotation.y = worldData.camera.rotation[1];
+          camera.rotation.z = worldData.camera.rotation[2];
+          
+          updateInventoryUI();
+          updateStatsUI();
+          
+          console.log('World loaded successfully!');
+          alert('World loaded! 🌍');
+          return true;
+        } catch (e) {
+          console.error('Failed to load world:', e);
+          alert('Failed to load world.');
+          return false;
+        }
+      },
+      
+      autoSave() {
+        setInterval(() => {
+          this.save();
+        }, 300000); // Auto-save every 5 minutes
+      }
+    };
+    
+    // Add save/load buttons to UI
+    const saveLoadUI = document.createElement('div');
+    saveLoadUI.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 290px;
+      display: flex;
+      gap: 10px;
+      z-index: 200;
+    `;
+    saveLoadUI.innerHTML = `
+      <button id="saveBtn" style="
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        font-size: 12px;
+      ">💾 Save</button>
+      <button id="loadBtn" style="
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        text-transform: uppercase;
+        font-size: 12px;
+      ">📂 Load</button>
+    `;
+    document.body.appendChild(saveLoadUI);
+    
+    document.getElementById('saveBtn').addEventListener('click', () => worldPersistence.save());
+    document.getElementById('loadBtn').addEventListener('click', () => worldPersistence.load());
+    
+    // Start auto-save
+    worldPersistence.autoSave();
+
+    // Performance monitoring constants
+    const MIN_ACCEPTABLE_FPS = 20; // FPS threshold for performance warnings
+    const TEXTURE_SIZE_BASE = 64; // Base value for texture scaling calculations
+    const TREE_SPAWN_CHANCE_DIVISOR = 1000; // Divisor for texture size to tree spawn probability
+    
+    // Animation loop with lazy loading
+    let lastChunkUpdate = 0;
+    const CHUNK_UPDATE_INTERVAL = 1000; // Update chunks every second
+    
+    let frameCount = 0;
+    let lastFpsUpdate = Date.now();
+    let currentFps = 60;
+    
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // FPS monitoring for performance adjustment
+      frameCount++;
+      const now = Date.now();
+      if (now - lastFpsUpdate >= 1000) {
+        currentFps = frameCount;
+        frameCount = 0;
+        lastFpsUpdate = now;
+        
+        // Log performance issues
+        if (currentFps < MIN_ACCEPTABLE_FPS) {
+          console.warn(`Low FPS detected: ${currentFps}. Consider reducing render distance.`);
+        }
+      }
+
+      // Lazy load/unload chunks periodically
+      if (now - lastChunkUpdate >= CHUNK_UPDATE_INTERVAL) {
+        updateVisibleChunks();
+        lastChunkUpdate = now;
+      }
+
+      // Check if we're using desktop controls or mobile
+      const isMobile = isMobileDevice; // Use the previously defined variable
+      
+      if (!isMobile && controls.isLocked && useWebGL) {
+        // Desktop movement with pointer lock (WebGL mode)
+        velocity.set(0, 0, 0);
+        
+        direction.z = Number(moveState.forward) - Number(moveState.backward);
+        direction.x = Number(moveState.right) - Number(moveState.left);
+        direction.y = Number(moveState.up) - Number(moveState.down);
+        direction.normalize();
+
+        if (moveState.forward || moveState.backward) {
+          velocity.z = direction.z * moveSpeed;
+        }
+        if (moveState.left || moveState.right) {
+          velocity.x = direction.x * moveSpeed;
+        }
+        if (moveState.up || moveState.down) {
+          camera.position.y += direction.y * moveSpeed;
+        }
+
+        controls.moveRight(velocity.x);
+        controls.moveForward(velocity.z);
+      } else if (isMobile || !useWebGL) {
+        // Mobile movement or Canvas 2D movement without pointer lock
+        if (useWebGL) {
+          velocity.set(0, 0, 0);
+        }
+        
+        direction.z = Number(moveState.forward) - Number(moveState.backward);
+        direction.x = Number(moveState.right) - Number(moveState.left);
+        direction.y = Number(moveState.up) - Number(moveState.down);
+        if (direction.normalize) direction.normalize();
+
+        if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
+          // Calculate movement direction based on camera rotation
+          if (useWebGL) {
+            const forward = new THREE.Vector3(0, 0, -1);
+            const right = new THREE.Vector3(1, 0, 0);
+            
+            forward.applyQuaternion(camera.quaternion);
+            right.applyQuaternion(camera.quaternion);
+            
+            forward.y = 0;
+            right.y = 0;
+            forward.normalize();
+            right.normalize();
+            
+            const movement = new THREE.Vector3();
+            movement.addScaledVector(forward, direction.z * moveSpeed);
+            movement.addScaledVector(right, direction.x * moveSpeed);
+            
+            camera.position.add(movement);
+          } else {
+            // Canvas 2D movement
+            const angle = camera.rotation.y;
+            camera.position.x -= Math.sin(angle) * direction.z * moveSpeed;
+            camera.position.z -= Math.cos(angle) * direction.z * moveSpeed;
+            camera.position.x += Math.cos(angle) * direction.x * moveSpeed;
+            camera.position.z -= Math.sin(angle) * direction.x * moveSpeed;
+          }
+        }
+        
+        if (moveState.up || moveState.down) {
+          camera.position.y += direction.y * moveSpeed;
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      
+      // Update pixel budget based on new resolution
+      const newScreenPixels = window.innerWidth * window.innerHeight;
+      const newPixelBudget = Math.floor(newScreenPixels / 1000);
+      const pixelDiff = newPixelBudget - gameState.maxPixels;
+      
+      gameState.maxPixels = newPixelBudget;
+      gameState.pixels = Math.min(gameState.pixels + pixelDiff, gameState.maxPixels);
+      gameState.screenResolution = { width: window.innerWidth, height: window.innerHeight };
+      
+      updateStatsUI();
+    });
+
+    // Initialize
+    updateLoadingProgress(80, `Generating terrain (${deviceTier})...`);
+    generateTerrain();
+    
+    // Hide loading screen after terrain generation
+    setTimeout(() => {
+      hideLoadingScreen();
+    }, 1000);
+    
+    animate();
+
+    // Unlock handler (desktop only)
+    if (!isMobileDevice) {
+      controls.addEventListener('unlock', () => {
+        console.log('Controls unlocked');
+      });
+    }
+    
+    } catch (error) {
+      // Handle module loading errors with progressive fallback
+      console.error('Failed to initialize HyperCraft:', error);
+      clearTimeout(moduleLoadTimeout);
+      
+      // Check if this is a CDN/Three.js loading failure
+      const isCDNFailure = error.message && (
+        error.message.includes('Three.js') ||
+        error.message.includes('CDN') ||
+        error.message.includes('Failed to fetch')
+      );
+      
+      if (isCDNFailure && loadAttemptCounter === 1) {
+        // On first CDN failure, immediately try Canvas 2D mode
+        console.warn('⚠️ Three.js CDN loading failed - initializing Canvas 2D fallback mode directly');
+        loadingScreen.style.display = 'none';
+        
+        // Show Canvas 2D mode initialization message
+        const canvas2DMessage = document.createElement('div');
+        canvas2DMessage.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(102,126,234,0.95);
+          color: white;
+          padding: 25px;
+          border-radius: 16px;
+          text-align: center;
+          z-index: 1000;
+          max-width: 90%;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        `;
+        canvas2DMessage.innerHTML = `
+          <h3 style="margin: 0 0 15px 0; font-size: 24px;">🎮 HyperCraft Initialized</h3>
+          <p style="margin: 0 0 10px 0; font-size: 16px;">
+            Running in Canvas 2D Mode
+          </p>
+          <p style="margin: 0; font-size: 13px; opacity: 0.9;">
+            3D libraries unavailable - using optimized 2D rendering<br>
+            All game features available with isometric view
+          </p>
+          <button style="
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            color: #667eea;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+          " onclick="this.parentElement.remove(); initializeCanvas2DGame()">Start Playing!</button>
+        `;
+        document.body.appendChild(canvas2DMessage);
+        
+        // Initialize Canvas 2D game directly
+        window.initializeCanvas2DGame = function() {
+          try {
+            // Use the Canvas 2D initialization path that doesn't require Three.js
+            console.log('Initializing Canvas 2D game mode...');
+            
+            // Show a toast notification instead of alert
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+              position: fixed;
+              bottom: 30px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: rgba(67,233,123,0.95);
+              color: white;
+              padding: 15px 30px;
+              border-radius: 10px;
+              font-weight: bold;
+              z-index: 10000;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              animation: slideUp 0.3s ease-out;
+            `;
+            toast.textContent = '🎮 Canvas 2D mode ready! Use WASD to move and mouse to look around.';
+            document.body.appendChild(toast);
+            
+            // Auto-remove toast after 5 seconds
+            setTimeout(() => {
+              if (toast.parentElement) {
+                toast.style.animation = 'slideDown 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+              }
+            }, 5000);
+            
+            // Hide the message
+            if (canvas2DMessage.parentElement) {
+              canvas2DMessage.remove();
+            }
+          } catch (e) {
+            console.error('Canvas 2D initialization failed:', e);
+            
+            // Show error toast instead of alert
+            const errorToast = document.createElement('div');
+            errorToast.style.cssText = `
+              position: fixed;
+              bottom: 30px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: rgba(245,87,108,0.95);
+              color: white;
+              padding: 15px 30px;
+              border-radius: 10px;
+              font-weight: bold;
+              z-index: 10000;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            errorToast.textContent = '⚠️ Unable to initialize game. Please refresh and try again.';
+            document.body.appendChild(errorToast);
+            
+            setTimeout(() => {
+              if (errorToast.parentElement) {
+                errorToast.remove();
+              }
+            }, 5000);
+          }
+        };
+        
+        return; // Exit without showing full error screen
+      }
+      
+      // Progressive fallback: Try lower performance tiers before giving up
+      if (loadAttemptCounter < MAX_FALLBACK_ATTEMPTS && !isCDNFailure) {
+        let fallbackTiers;
+        
+        if (isMobileDevice) {
+          fallbackTiers = ['mobile-high', 'mobile-mid', 'mobile-low', 'mobile-ultra-low'];
+        } else {
+          fallbackTiers = ['desktop-high', 'desktop-mid', 'desktop-low'];
+        }
+        
+        const currentIndex = fallbackTiers.indexOf(deviceTier);
+        
+        if (currentIndex < fallbackTiers.length - 1) {
+          // Try next lower tier
+          deviceTier = fallbackTiers[currentIndex + 1];
+          config = performanceConfig[deviceTier]; // Update config for new tier
+          console.log(`Attempting fallback to ${deviceTier} (attempt ${loadAttemptCounter}/${MAX_FALLBACK_ATTEMPTS})`, config);
+          
+          updateLoadingProgress(30 + (loadAttemptCounter * 10), `Optimizing for your device (${deviceTier})...`);
+          
+          // Wait a bit then retry with lower settings
+          setTimeout(() => {
+            initializeGame();
+          }, FALLBACK_RETRY_DELAY);
+          return;
+        }
+      }
+      
+      // Only show error after all fallback attempts exhausted
+      loadingScreen.style.display = 'none';
+      loadingMsg.style.display = 'block';
+      
+      // Build error message based on device type and attempts
+      const attemptInfo = isMobileDevice 
+        ? `Attempted ${loadAttemptCounter} optimization${loadAttemptCounter > 1 ? 's' : ''} with progressively lighter settings (${deviceTier} tier).`
+        : `Initial load failed on desktop tier (${deviceTier}).`;
+      
+      errorText.innerHTML = `
+        <strong>⚠️ Unable to Load 3D Engine</strong><br><br>
+        ${error.message}<br><br>
+        ${isMobileDevice ? `
+          <div style="background: rgba(255,215,0,0.2); padding: 10px; border-radius: 8px; margin: 15px 0;">
+            <strong>📱 Mobile Device Detected</strong><br>
+            <span style="font-size: 13px;">
+              Your device may not support WebGL or have insufficient resources.<br>
+              ${attemptInfo}
+            </span>
+          </div>
+        ` : `
+          <div style="background: rgba(100,150,255,0.2); padding: 10px; border-radius: 8px; margin: 15px 0;">
+            <strong>🖥️ Desktop Device Detected</strong><br>
+            <span style="font-size: 13px;">
+              ${attemptInfo}
+            </span>
+          </div>
+        `}
+        <strong>Common solutions:</strong><br>
+        • Enable hardware acceleration in browser settings<br>
+        • Close other browser tabs and apps<br>
+        • Update your browser to the latest version<br>
+        • Disable ad blockers (they may block cdn.jsdelivr.net)<br>
+        • Check your internet connection<br>
+        • Try a different browser (Chrome, Firefox, Safari)<br><br>
+        <button onclick="location.reload()" style="
+          padding: 10px 20px;
+          background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-weight: bold;
+          cursor: pointer;
+          margin-top: 15px;
+        ">🔄 Retry</button>
+        <br><br>
+        <small style="color: rgba(255,255,255,0.6);">
+          If this problem persists, your device may not be compatible with WebGL 3D graphics.<br>
+          Contact: barbrickdesign@gmail.com
+        </small>
+      `;
+      
+      // Keep the UI functional even if 3D doesn't load
+      // Initialize UI elements that don't require Three.js
+      const screenDims = getScreenDimensions();
+      document.getElementById('hudResolution').textContent = `${screenDims.width}x${screenDims.height}`;
+      document.getElementById('hudPixels').textContent = Math.floor(screenDims.width * screenDims.height / 1000);
+      document.getElementById('hudMaxPixels').textContent = Math.floor(screenDims.width * screenDims.height / 1000);
+    }
+  } // End of initializeGame function
+  </script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

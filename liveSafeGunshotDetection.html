@@ -1,0 +1,471 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: liveSafeGunshotDetection.html
+Declaration ID: IP-148408CB-MLL2900O
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Live Safety Map — Mobile</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --bg:#031321; --muted:#9fb0be; --accent:#06b6d4; --danger:#ef4444;
+  --safe-fill: rgba(34,197,94,0.12);
+  --safe-stroke: rgba(34,197,94,0.85);
+  --shot-fill: rgba(239,68,68,0.12);
+  --shot-stroke: rgba(239,68,68,0.85);
+}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,var(--bg),#02121a);color:#e6f7f9}
+.header{display:flex;gap:12px;align-items:center;padding:12px}
+h1{font-size:16px;margin:0}
+.container{max-width:980px;margin:10px auto;padding:12px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-bottom:12px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{background:var(--accent);border:0;color:#022;padding:8px 10px;border-radius:10px;font-weight:700}
+button.warn{background:var(--danger);color:#fff}
+label{font-size:13px;color:var(--muted)}
+.small{font-size:13px;padding:6px 8px}
+#map{height:62vh;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+#log{max-height:160px;overflow:auto;padding:8px;border-radius:8px;background:#02121b;color:#cfeffc;font-size:13px}
+canvas{width:100%;height:110px;border-radius:8px;background:#02121b;display:block}
+.pulse-dot{width:12px;height:12px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 6px rgba(34,197,94,0.12);display:inline-block;border:2px solid rgba(255,255,255,0.06)}
+.info{font-size:13px;color:var(--muted)}
+@media(min-width:900px){ #map{height:68vh} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for location tracking features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="header">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04161c"/><path d="M3 12h18" stroke="#06b6d4" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <div>
+    <h1>Live Safety Map — Mobile</h1>
+    <div class="info">Map centers on coarse location while logging; safe-zone pulses while active; red bubbles mark detected impulses</div>
+  </div>
+</div>
+
+<main class="container">
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Controls</div>
+      <div style="font-size:13px;color:var(--muted)"><span class="pulse-dot"></span> Feed active indicator</div>
+    </div>
+
+    <div class="controls" style="margin-top:8px">
+      <button id="btnEnable" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="0.2" max="4" step="0.1" value="1" />
+      <label>Privacy radius (m)</label>
+      <input id="privacyRadius" type="number" value="150" min="50" max="2000" style="width:110px" />
+    </div>
+
+    <div style="margin-top:8px"><canvas id="viz"></canvas></div>
+    <div class="info" id="status" style="margin-top:8px">Status: idle</div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Live Map</div>
+      <div style="font-size:13px;color:var(--muted)">Auto-centers while logging; privacy-preserving radii</div>
+    </div>
+    <div id="map" style="margin-top:8px"></div>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <label style="font-size:13px;color:var(--muted)">Map zoom cap</label>
+      <select id="zoomCap" class="small">
+        <option value="14">14 (close)</option>
+        <option value="13" selected>13</option>
+        <option value="12">12</option>
+        <option value="11">11</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Event Log</div>
+      <div style="font-size:13px;color:var(--muted)">Red bubbles indicate detected impulses; radius is coarse for privacy</div>
+    </div>
+    <div id="log" style="margin-top:8px" aria-live="polite"></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Single-file app:
+   - centers map on user's coarse location while logging
+   - pulsing green safe-zone circle (privacy radius obfuscates exact location)
+   - red dot + red bubble for each detected impulsive event (uses privacy radius)
+   - lightweight impulsive detection via RMS threshold and simple dominant-frequency estimate
+   - local event log and CSV export
+   - This is client-only; server sync not included here
+*/
+
+/* Globals and DOM */
+let audioCtx = null, micStream = null, sourceNode = null, procNode = null;
+let running = false;
+let lastEventAt = 0;
+const refractoryMs = 700;
+const btnEnable = document.getElementById('btnEnable');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const btnExport = document.getElementById('btnExport');
+const sens = document.getElementById('sens');
+const privacyRadiusInput = document.getElementById('privacyRadius');
+const viz = document.getElementById('viz');
+const statusEl = document.getElementById('status');
+const logEl = document.getElementById('log');
+const zoomCap = document.getElementById('zoomCap');
+
+const canvasCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvasCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+/* Map setup */
+const map = L.map('map', { zoomControl:true }).setView([20,0], 3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+let userMarker = null;
+let safeCircle = null;
+let pulseHandle = null;
+const shotLayer = L.layerGroup().addTo(map);
+let watchId = null;
+let currentPos = null;
+let events = [];
+
+/* Helpers - map elements */
+function ensureUserMarker(lat, lon){
+  if(!userMarker){
+    userMarker = L.circleMarker([lat, lon], { radius:6, color:'#16a34a', fillColor:'#16a34a', fillOpacity:1 }).addTo(map);
+  } else {
+    userMarker.setLatLng([lat, lon]);
+  }
+}
+function ensureSafeCircle(lat, lon, radius){
+  const r = Math.max(80, radius);
+  if(!safeCircle){
+    safeCircle = L.circle([lat, lon], { radius: r, color:'#16a34a', fillColor:'rgba(34,197,94,0.12)', weight:2, fillOpacity:0.12 }).addTo(map);
+  } else {
+    safeCircle.setLatLng([lat, lon]);
+    safeCircle.setRadius(r);
+  }
+}
+
+/* Location watch */
+function startLocationWatch(){
+  if(!navigator.geolocation) { setStatus('Geolocation not available'); return; }
+  watchId = navigator.geolocation.watchPosition(pos=>{
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    currentPos = {lat, lon, accuracy: pos.coords.accuracy};
+    ensureUserMarker(lat, lon);
+    ensureSafeCircle(lat, lon, parseFloat(privacyRadiusInput.value || 150));
+    if(running){
+      const z = Math.min(parseInt(zoomCap.value,10), 13);
+      map.setView([lat, lon], z, {animate:false});
+    }
+  }, err=>{
+    console.warn('watchPosition error', err);
+  }, { enableHighAccuracy: false, maximumAge: 3000, timeout: 5000 });
+}
+function stopLocationWatch(){
+  if(watchId !== null){ navigator.geolocation.clearWatch(watchId); watchId = null; }
+}
+
+/* Safe pulse animation */
+let pulseState = { baseRadius: 150, start: 0, raf: null };
+function startSafePulse(){
+  if(!safeCircle) return;
+  pulseState.baseRadius = Math.max(80, parseFloat(privacyRadiusInput.value || 150));
+  pulseState.start = performance.now();
+  if(pulseState.raf) cancelAnimationFrame(pulseState.raf);
+  function frame(ts){
+    const t = (ts - pulseState.start) / 1000;
+    const factor = 0.85 + 0.4 * (0.5 + 0.5 * Math.sin(t * 1.5));
+    safeCircle.setRadius(pulseState.baseRadius * factor);
+    pulseState.raf = requestAnimationFrame(frame);
+  }
+  pulseState.raf = requestAnimationFrame(frame);
+}
+function stopSafePulse(){
+  if(pulseState.raf) cancelAnimationFrame(pulseState.raf);
+  pulseState.raf = null;
+  if(safeCircle) safeCircle.setRadius(Math.max(80, parseFloat(privacyRadiusInput.value || 150)));
+}
+
+/* Microphone controls */
+btnEnable.addEventListener('click', async () => {
+  setStatus('Requesting microphone & location permission...');
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount:1, echoCancellation:true, noiseSuppression:true } });
+    setStatus('Microphone enabled. Allow location when prompted.');
+    btnStart.disabled = false;
+    btnEnable.disabled = true;
+  } catch (e) {
+    console.error(e);
+    setStatus('Microphone permission denied or unavailable');
+  }
+});
+
+btnStart.addEventListener('click', async () => {
+  if(!micStream){ setStatus('Enable microphone first'); return; }
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    sourceNode = audioCtx.createMediaStreamSource(micStream);
+    const bufferSize = 2048;
+    procNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+    procNode.onaudioprocess = (ev) => {
+      if(!running) return;
+      const data = ev.inputBuffer.getChannelData(0);
+      drawViz(data);
+      const amp = rms(data);
+      const threshold = 0.12 * parseFloat(sens.value || 1);
+      const now = performance.now();
+      if(amp > threshold && (now - lastEventAt) > refractoryMs){
+        lastEventAt = now;
+        handleDetectedImpulse(data, audioCtx.sampleRate, amp);
+      }
+    };
+    sourceNode.connect(procNode);
+    procNode.connect(audioCtx.destination);
+    running = true;
+    setStatus('Logging active');
+    btnStart.disabled = true; btnStop.disabled = false; btnExport.disabled = false;
+    startLocationWatch();
+    startSafePulse();
+  }catch(e){
+    console.error(e);
+    setStatus('Start failed: ' + e.message);
+  }
+});
+
+btnStop.addEventListener('click', () => {
+  running = false;
+  try { if(procNode) procNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioCtx) audioCtx.close(); } catch(e){}
+  audioCtx = null; sourceNode = null; procNode = null;
+  setStatus('Stopped');
+  btnStart.disabled = false; btnStop.disabled = true; btnEnable.disabled = false;
+  stopLocationWatch();
+  stopSafePulse();
+});
+
+/* Detection handler */
+function handleDetectedImpulse(buffer, sampleRate, amplitude){
+  const domHz = estimateDominantFreq(buffer, sampleRate);
+  const timestamp = new Date().toISOString();
+  const privacyRadius = Math.max( Math.min(parseFloat(privacyRadiusInput.value || 150), 2000), 50 );
+  const event = { timestamp, amplitude, dominantHz: domHz, privacyRadius };
+  if(currentPos){
+    // randomize marker inside privacy radius to obfuscate exact position
+    const angle = Math.random() * Math.PI * 2;
+    const r = (Math.random() * 0.6 + 0.2) * privacyRadius;
+    // convert meters offset to lat/lon approx
+    const dLat = (r * Math.cos(angle)) / 111320;
+    const dLon = (r * Math.sin(angle)) / (111320 * Math.cos(currentPos.lat * Math.PI / 180));
+    event.lat = currentPos.lat + dLat;
+    event.lon = currentPos.lon + dLon;
+  } else {
+    const center = map.getCenter();
+    event.lat = center.lat;
+    event.lon = center.lng;
+  }
+  events.unshift(event);
+  addShotMarker(event);
+  appendLogEntry(event);
+}
+
+/* Add red marker and privacy bubble */
+function addShotMarker(e){
+  const color = '#ef4444';
+  const marker = L.circleMarker([e.lat, e.lon], { radius:6, color: color, fillColor: color, fillOpacity:1 }).addTo(shotLayer);
+  const bubble = L.circle([e.lat, e.lon], {
+    radius: e.privacyRadius,
+    color: color,
+    fillColor: 'rgba(239,68,68,0.12)',
+    weight:2,
+    fillOpacity:0.12
+  }).addTo(shotLayer);
+  marker.bindPopup(`<b>Detected impulse</b><br>${e.timestamp}<br>Dominant: ${e.dominantHz.toFixed(0)} Hz`);
+  // remove after 10 minutes
+  setTimeout(()=>{ try{ shotLayer.removeLayer(marker); shotLayer.removeLayer(bubble); }catch(e){} }, 1000 * 60 * 10);
+}
+
+/* Log UI */
+function appendLogEntry(e){
+  const el = document.createElement('div');
+  el.style.padding = '8px'; el.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+  el.innerHTML = `<div style="font-weight:700">${e.timestamp}</div>
+    <div style="color:var(--muted)">Dominant: ${e.dominantHz.toFixed(0)} Hz • Amp: ${e.amplitude.toFixed(3)} • Radius: ${e.privacyRadius} m</div>`;
+  logEl.prepend(el);
+}
+
+/* CSV export */
+btnExport.addEventListener('click', ()=>{
+  if(events.length===0) return alert('No events to export');
+  const hdr = ['timestamp,latitude,longitude,dominantHz,amplitude,privacyRadius'];
+  const rows = events.map(ev => `${ev.timestamp},${ev.lat.toFixed(6)},${ev.lon.toFixed(6)},${ev.dominantHz.toFixed(1)},${ev.amplitude.toFixed(3)},${ev.privacyRadius}`);
+  const csv = hdr.concat(rows).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+/* Visuals */
+function drawViz(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvasCtx.clearRect(0,0,w,h);
+  canvasCtx.fillStyle = '#02121b'; canvasCtx.fillRect(0,0,w,h);
+  canvasCtx.strokeStyle = '#06b6d4'; canvasCtx.beginPath();
+  const step = Math.max(1, Math.floor(buf.length / w));
+  for(let i=0;i<w;i++){
+    const v = buf[i*step] || 0;
+    const y = (1 - (v + 1) / 2) * h;
+    if(i===0) canvasCtx.moveTo(i, y); else canvasCtx.lineTo(i, y);
+  }
+  canvasCtx.stroke();
+}
+
+/* DSP helpers */
+function rms(buf){ let s=0; for(let i=0;i<buf.length;i++){ s += buf[i]*buf[i]; } return Math.sqrt(s / buf.length); }
+function estimateDominantFreq(buf, sampleRate){
+  let crossings = 0;
+  for(let i=1;i<buf.length;i++) if(buf[i-1] <= 0 && buf[i] > 0) crossings++;
+  const seconds = buf.length / sampleRate;
+  const hz = (crossings / seconds) / 2;
+  return hz || 0;
+}
+
+/* Utility status */
+function setStatus(msg){ statusEl.textContent = 'Status: ' + msg; }
+
+/* Initial map centering if geolocation available */
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    try{ map.setView([pos.coords.latitude, pos.coords.longitude], 13); }catch(e){}
+  }, ()=>{}, { enableHighAccuracy:false, maximumAge:60000, timeout:3000 });
+}
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+``` [9F742443-6C92-4C44-BF58-8F5A7C53B6F1](https://github.com/surajpaul/testGlamyo/tree/f2a4b1204fbd789dccb3fbb4a648267620600ca8/resources%2Fviews%2Fauth%2Fregister.blade.php?citationMarker=9F742443-6C92-4C44-BF58-8F5A7C53B6F1&citationId=2F740A39-E912-4BDE-8980-199DC62370C8&citationTitle=github.com&citationFullTitle=github.com&chatItemId=NWrF81z8DMdfc1xYLuBuo)

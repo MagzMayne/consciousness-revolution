@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: 3dBusinessCard.html
+Declaration ID: IP-32285558-MLL28ZWP
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AR Business Card – 3D Shape Parallax Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #151530 0, #050509 60%, #000 100%);
+      color: #f9f9ff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      background: radial-gradient(circle at top, rgba(255,255,255,0.03), transparent 60%);
+    }
+
+    header h1 {
+      font-size: 18px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    header p {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
+      gap: 0;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1.3fr) auto;
+      }
+    }
+
+    #viewer-panel {
+      position: relative;
+      min-height: 320px;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    #card-container {
+      position: relative;
+      margin: 16px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: radial-gradient(circle at top left, #2b1b4d, #050509 60%);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #card-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: linear-gradient(120deg, rgba(255,255,255,0.05), transparent);
+    }
+
+    #card-header .identity {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    #card-header .identity span:nth-child(1) {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    #card-header .identity span:nth-child(2) {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    #card-header .badge {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(0, 0, 0, 0.25);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #card-header .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, #55ff99, #1cb365);
+      box-shadow: 0 0 12px rgba(85, 255, 153, 0.7);
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.03), transparent 70%);
+    }
+    
+    #loading-indicator {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.03), transparent 70%);
+      z-index: 10;
+    }
+    
+    #loading-indicator.hidden {
+      display: none;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #57e1ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      font-size: 13px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #three-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transition: opacity 0.3s ease;
+    }
+    
+    #three-canvas.loading {
+      opacity: 0;
+    }
+
+    #card-footer {
+      padding: 10px 16px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(to right, rgba(0,0,0,0.5), rgba(255,255,255,0.03));
+    }
+
+    #card-footer .contact {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    #card-footer .contact span {
+      opacity: 0.75;
+    }
+
+    #card-footer .qr-placeholder {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      border: 1px dashed rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    #controls-panel {
+      padding: 16px 18px 18px;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      background: radial-gradient(circle at top, rgba(255,255,255,0.03), transparent 60%);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      #controls-panel {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    .section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.9;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .control-group {
+      margin-top: 8px;
+    }
+
+    label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.8;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    select, input[type="range"], input[type="color"] {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 7px 10px;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #f9f9ff;
+      outline: none;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      -webkit-appearance: none;
+      background: transparent;
+      height: 22px;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 3px;
+      background: linear-gradient(to right, #57e1ff, #c855ff);
+      border-radius: 999px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #f9f9ff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      margin-top: -6px;
+    }
+
+    .inline-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .inline-row > div {
+      flex: 1;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.6);
+      margin-top: 4px;
+      opacity: 0.85;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, #57e1ff, #2673ff);
+      box-shadow: 0 0 10px rgba(87, 225, 255, 0.8);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    .toggle {
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.25);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #f9f9ff;
+      transition: transform 0.2s ease;
+    }
+
+    .toggle.on {
+      background: linear-gradient(to right, #57e1ff, #c855ff);
+      border-color: transparent;
+    }
+
+    .toggle.on .toggle-thumb {
+      transform: translateX(14px);
+    }
+
+    .small-text {
+      font-size: 10px;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+
+    button {
+      border-radius: 999px;
+      padding: 7px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.7);
+      color: #f9f9ff;
+      font-size: 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button.primary {
+      background: linear-gradient(120deg, #57e1ff, #c855ff);
+      border: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    button span.icon {
+      font-size: 14px;
+    }
+
+    footer {
+      padding: 8px 16px;
+      font-size: 10px;
+      text-align: right;
+      opacity: 0.6;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <header>
+    <h1>AR Business Card Shape Studio</h1>
+    <p>Preview interactive 3D geometric frames with parallax motion – ready to bind to your AR card experience.</p>
+  </header>
+
+  <main>
+    <section id="viewer-panel">
+      <div id="card-container">
+        <div id="card-header">
+          <div class="identity">
+            <span>Ryan Barbrick</span>
+            <span>Creative Director · Barbrick Design</span>
+          </div>
+          <div class="badge">
+            <span class="badge-dot"></span>
+            <span>Live 3D Preview</span>
+          </div>
+        </div>
+        <div id="canvas-wrapper">
+          <div id="loading-indicator">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading 3D Viewer...</div>
+          </div>
+          <canvas id="three-canvas"></canvas>
+        </div>
+        <div id="card-footer">
+          <div class="contact">
+            <span>BarbrickDesign@gmail.com</span>
+            <span>barbrickdesign.github.io</span>
+          </div>
+          <div class="qr-placeholder">
+            QR
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside id="controls-panel">
+      <div>
+        <div class="section-title">Geometry</div>
+        <div class="subtitle">Choose your 3D frame</div>
+        <div class="control-group">
+          <label for="shape-select">Shape</label>
+          <select id="shape-select">
+            <optgroup label="Platonic solids">
+              <option value="cube">Cube (hexahedron)</option>
+              <option value="tetrahedron">Tetrahedron</option>
+              <option value="octahedron">Octahedron</option>
+              <option value="dodecahedron">Dodecahedron</option>
+              <option value="icosahedron">Icosahedron</option>
+            </optgroup>
+            <optgroup label="Pyramids">
+              <option value="pyramid_tri">Triangular pyramid</option>
+              <option value="pyramid_square">Square pyramid</option>
+              <option value="pyramid_hex">Hexagonal pyramid</option>
+            </optgroup>
+            <optgroup label="Prisms & antiprisms">
+              <option value="prism_tri">Triangular prism</option>
+              <option value="prism_hex">Hexagonal prism</option>
+              <option value="antiprism_square">Square antiprism</option>
+            </optgroup>
+            <optgroup label="Rounded & organic">
+              <option value="sphere">Sphere</option>
+              <option value="torus">Torus</option>
+              <option value="mobius">Möbius ribbon</option>
+            </optgroup>
+            <optgroup label="Portal & hybrid">
+              <option value="portal_ring">Portal ring</option>
+              <option value="cube_rounded">Rounded cube</option>
+              <option value="fractal_shard">Fractal shard</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Look & feel</div>
+        <div class="control-group">
+          <label for="primary-color">Primary color</label>
+          <div class="inline-row">
+            <input type="color" id="primary-color" value="#57e1ff" />
+            <div class="pill">
+              <span class="pill-dot"></span>
+              <span>Neon glass</span>
+            </div>
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="metalness-range">Metallic / Glass</label>
+          <input type="range" id="metalness-range" min="0" max="1" step="0.01" value="0.2" />
+          <div class="small-text">Slide left for soft glass, right for metal-like sheen.</div>
+        </div>
+        <div class="control-group">
+          <label for="roughness-range">Gloss vs matte</label>
+          <input type="range" id="roughness-range" min="0" max="1" step="0.01" value="0.25" />
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Motion & parallax</div>
+        <div class="control-group">
+          <label for="auto-rotate-range">Rotation speed</label>
+          <input type="range" id="auto-rotate-range" min="0" max="2" step="0.01" value="0.75" />
+        </div>
+        <div class="control-group">
+          <label for="parallax-range">Parallax depth</label>
+          <input type="range" id="parallax-range" min="0" max="1.2" step="0.02" value="0.6" />
+        </div>
+        <div class="control-group toggle-row">
+          <div>
+            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.8;">Device tilt</span>
+            <div class="small-text">On supported devices, tilt to orbit the shape.</div>
+          </div>
+          <div id="tilt-toggle" class="toggle on">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Export concept</div>
+        <div class="control-group">
+          <button class="primary" id="mock-download">
+            <span class="icon">⬇️</span>
+            Download AR card bundle (.zip)
+          </button>
+          <div class="small-text">
+            In production, this button would appear after a $0.99 PayPal payment and generate your print-ready card + AR link.
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Prototype viewer – plug this into your AR pipeline and PayPal flow.
+  </footer>
+
+  <!-- Three.js with fallback loading -->
+  <script>
+    // Load Three.js with multiple fallbacks
+    (function loadThreeJS() {
+      const cdnUrls = [
+        '/js/three.min.js', // Try local first
+        'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
+        'https://unpkg.com/three@0.160.0/build/three.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js'
+      ];
+      
+      let currentIndex = 0;
+      let loadingTimeout = null;
+      
+      // Safety timeout - show fallback after 5 seconds if nothing loaded
+      loadingTimeout = setTimeout(() => {
+        console.warn('Three.js loading timeout - showing fallback');
+        showThreeJSError();
+      }, 5000);
+      
+      function tryLoadScript() {
+        if (currentIndex >= cdnUrls.length) {
+          clearTimeout(loadingTimeout);
+          showThreeJSError();
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = cdnUrls[currentIndex];
+        script.async = false;
+        
+        script.onload = function() {
+          console.log('Three.js loaded successfully from:', cdnUrls[currentIndex]);
+          // Small delay to ensure THREE is fully available
+          setTimeout(() => {
+            if (typeof THREE !== 'undefined') {
+              clearTimeout(loadingTimeout);
+              initThreeScene();
+            } else {
+              console.warn('THREE object not found after script load');
+              currentIndex++;
+              tryLoadScript();
+            }
+          }, 100);
+        };
+        
+        script.onerror = function() {
+          console.warn('Failed to load Three.js from:', cdnUrls[currentIndex]);
+          currentIndex++;
+          tryLoadScript();
+        };
+        
+        document.head.appendChild(script);
+      }
+      
+      function showThreeJSError() {
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        if (canvasWrapper) {
+          // Create a CSS-based 3D fallback
+          canvasWrapper.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; position: relative; overflow: hidden;">
+              <style>
+                @keyframes rotate3d {
+                  0% { transform: perspective(800px) rotateX(0deg) rotateY(0deg); }
+                  100% { transform: perspective(800px) rotateX(360deg) rotateY(360deg); }
+                }
+                @keyframes float {
+                  0%, 100% { transform: translateY(0px); }
+                  50% { transform: translateY(-20px); }
+                }
+                .css-cube {
+                  width: 120px;
+                  height: 120px;
+                  position: relative;
+                  transform-style: preserve-3d;
+                  animation: rotate3d 20s infinite linear;
+                }
+                .css-cube-face {
+                  position: absolute;
+                  width: 120px;
+                  height: 120px;
+                  border: 2px solid rgba(87, 225, 255, 0.5);
+                  background: linear-gradient(135deg, rgba(87, 225, 255, 0.1), rgba(200, 85, 255, 0.1));
+                  backdrop-filter: blur(10px);
+                }
+                .css-cube-face:nth-child(1) { transform: rotateY(0deg) translateZ(60px); }
+                .css-cube-face:nth-child(2) { transform: rotateY(90deg) translateZ(60px); }
+                .css-cube-face:nth-child(3) { transform: rotateY(180deg) translateZ(60px); }
+                .css-cube-face:nth-child(4) { transform: rotateY(-90deg) translateZ(60px); }
+                .css-cube-face:nth-child(5) { transform: rotateX(90deg) translateZ(60px); }
+                .css-cube-face:nth-child(6) { transform: rotateX(-90deg) translateZ(60px); }
+              </style>
+              <div class="css-cube">
+                <div class="css-cube-face"></div>
+                <div class="css-cube-face"></div>
+                <div class="css-cube-face"></div>
+                <div class="css-cube-face"></div>
+                <div class="css-cube-face"></div>
+                <div class="css-cube-face"></div>
+              </div>
+              <div style="margin-top: 30px; font-size: 14px; opacity: 0.9; font-weight: 600;">3D Preview (Fallback Mode)</div>
+              <div style="font-size: 12px; opacity: 0.7; max-width: 400px; line-height: 1.6; margin-top: 8px;">
+                Basic 3D visualization active. For full interactive experience with advanced shapes and controls, please disable ad blockers.
+              </div>
+              <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; border-radius: 999px; background: linear-gradient(120deg, #57e1ff, #c855ff); border: none; color: white; cursor: pointer; font-size: 13px; font-weight: 600;">
+                🔄 Try Full Version
+              </button>
+            </div>
+          `;
+        }
+      }
+      
+      tryLoadScript();
+    })();
+  </script>
+
+  <script>
+    function initThreeScene() {
+      // Check if THREE is available
+      if (typeof THREE === 'undefined') {
+        console.error('THREE is not defined');
+        return;
+      }
+      
+      // =============================
+      // BASIC THREE.JS SCENE SETUP
+      // =============================
+      const canvas = document.getElementById('three-canvas');
+      canvas.classList.add('loading');
+      
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050509, 0.45);
+
+    const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+    camera.position.set(0, 0.4, 5.2);
+
+    const baseLight = new THREE.AmbientLight(0xffffff, 0.32);
+    scene.add(baseLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    keyLight.position.set(3, 4, 2);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    scene.add(keyLight);
+
+    const rimLight = new THREE.PointLight(0x57e1ff, 1.1, 12, 2.0);
+    rimLight.position.set(-2.2, 1.8, -3.0);
+    scene.add(rimLight);
+
+    const fillLight = new THREE.PointLight(0xc855ff, 0.9, 9, 2.0);
+    fillLight.position.set(2.3, -1.3, 3.0);
+    scene.add(fillLight);
+
+    const groundGeo = new THREE.PlaneGeometry(10, 10);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x05040b,
+      roughness: 0.9,
+      metalness: 0.1
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1.05;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    let currentMesh = null;
+    let currentMaterial = null;
+
+    // =============================
+    // SHAPE FACTORY
+    // =============================
+    const shapeFactory = {
+      cube: (size = 1.4) => new THREE.BoxGeometry(size, size, size),
+      tetrahedron: (r = 1.3) => new THREE.TetrahedronGeometry(r),
+      octahedron: (r = 1.2) => new THREE.OctahedronGeometry(r),
+      dodecahedron: (r = 1.1) => new THREE.DodecahedronGeometry(r),
+      icosahedron: (r = 1.1) => new THREE.IcosahedronGeometry(r),
+
+      pyramid_tri: () => makePyramidGeometry(3, 1.5, 1.8),
+      pyramid_square: () => makePyramidGeometry(4, 1.8, 1.9),
+      pyramid_hex: () => makePyramidGeometry(6, 2.0, 2.0),
+
+      prism_tri: () => makePrismGeometry(3, 1.3, 2.0),
+      prism_hex: () => makePrismGeometry(6, 1.1, 2.4),
+      antiprism_square: () => makeAntiprismGeometry(4, 1.1, 2.1),
+
+      sphere: () => new THREE.SphereGeometry(1.2, 48, 48),
+      torus: () => new THREE.TorusGeometry(1.1, 0.32, 32, 96),
+      mobius: () => makeMobiusGeometry(1.1, 0.22),
+
+      portal_ring: () => makePortalGeometry(),
+      cube_rounded: () => makeRoundedBoxGeometry(1.3, 1.3, 1.3, 0.32, 3),
+      fractal_shard: () => makeFractalShardGeometry()
+    };
+
+    function makePyramidGeometry(sides, radius, height) {
+      const geo = new THREE.BufferGeometry();
+      const vertices = [];
+      const indices = [];
+
+      const angleStep = (Math.PI * 2) / sides;
+      const apex = new THREE.Vector3(0, height / 2, 0);
+      const baseY = -height / 2;
+      const basePoints = [];
+
+      for (let i = 0; i < sides; i++) {
+        const angle = i * angleStep;
+        basePoints.push(new THREE.Vector3(Math.cos(angle) * radius, baseY, Math.sin(angle) * radius));
+      }
+
+      vertices.push(apex.x, apex.y, apex.z);
+      basePoints.forEach(p => vertices.push(p.x, p.y, p.z));
+
+      for (let i = 0; i < sides; i++) {
+        const a = 0;
+        const b = i + 1;
+        const c = ((i + 1) % sides) + 1;
+        indices.push(a, b, c);
+      }
+
+      for (let i = 1; i < sides - 1; i++) {
+        indices.push(1, i + 1, i + 2);
+      }
+
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function makePrismGeometry(sides, radius, height) {
+      const geo = new THREE.CylinderGeometry(radius, radius, height, sides, 1, false);
+      return geo;
+    }
+
+    function makeAntiprismGeometry(sides, radius, height) {
+      const geo = new THREE.BufferGeometry();
+      const vertices = [];
+      const indices = [];
+
+      const angleStep = (Math.PI * 2) / sides;
+      const halfH = height / 2;
+      const top = [];
+      const bottom = [];
+
+      for (let i = 0; i < sides; i++) {
+        const angle = i * angleStep;
+        top.push(new THREE.Vector3(Math.cos(angle) * radius, halfH, Math.sin(angle) * radius));
+        bottom.push(new THREE.Vector3(Math.cos(angle + angleStep / 2) * radius, -halfH, Math.sin(angle + angleStep / 2) * radius));
+      }
+
+      top.forEach(p => vertices.push(p.x, p.y, p.z));
+      bottom.forEach(p => vertices.push(p.x, p.y, p.z));
+
+      for (let i = 0; i < sides; i++) {
+        const next = (i + 1) % sides;
+        const t0 = i;
+        const t1 = next;
+        const b0 = sides + i;
+        const b1 = sides + next;
+
+        indices.push(t0, b0, t1);
+        indices.push(t1, b0, b1);
+      }
+
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function makeMobiusGeometry(radius, width) {
+      const segments = 140;
+      const geo = new THREE.BufferGeometry();
+      const vertices = [];
+      const indices = [];
+
+      for (let i = 0; i <= segments; i++) {
+        const t = (i / segments) * Math.PI * 2;
+        const cos = Math.cos(t);
+        const sin = Math.sin(t);
+
+        const nx = cos;
+        const nz = sin;
+
+        const binormal = new THREE.Vector3(-sin, 0, cos);
+
+        const center = new THREE.Vector3(
+          (radius + (width * 0.25) * Math.cos(t / 2)) * cos,
+          (width * 0.25) * Math.sin(t / 2),
+          (radius + (width * 0.25) * Math.cos(t / 2)) * sin
+        );
+
+        const left = center.clone().addScaledVector(binormal, -width);
+        const right = center.clone().addScaledVector(binormal, width);
+
+        vertices.push(left.x, left.y, left.z);
+        vertices.push(right.x, right.y, right.z);
+      }
+
+      for (let i = 0; i < segments; i++) {
+        const a = i * 2;
+        const b = i * 2 + 1;
+        const c = (i + 1) * 2;
+        const d = (i + 1) * 2 + 1;
+
+        indices.push(a, b, c);
+        indices.push(b, d, c);
+      }
+
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function makePortalGeometry() {
+      const ring = new THREE.TorusGeometry(1.4, 0.12, 40, 120);
+      return ring;
+    }
+
+    function makeRoundedBoxGeometry(width, height, depth, radius0, smoothness) {
+      const shape = new THREE.Shape();
+      const eps = 0.00001;
+      const radius = radius0 - eps;
+      shape.absarc(eps, eps, eps, -Math.PI / 2, -Math.PI, true);
+      shape.absarc(eps, height - radius * 2, eps, Math.PI, Math.PI / 2, true);
+      shape.absarc(width - radius * 2, height - radius * 2, eps, Math.PI / 2, 0, true);
+      shape.absarc(width - radius * 2, eps, eps, 0, -Math.PI / 2, true);
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        amount: depth - radius0 * 2,
+        bevelEnabled: true,
+        bevelSegments: smoothness * 2,
+        steps: 1,
+        bevelSize: radius,
+        bevelThickness: radius0,
+        curveSegments: smoothness
+      });
+      geometry.center();
+      return geometry;
+    }
+
+    function makeFractalShardGeometry() {
+      const icosa = new THREE.IcosahedronGeometry(1.1, 1);
+      const pos = icosa.attributes.position;
+      const arr = pos.array;
+      for (let i = 0; i < arr.length; i += 3) {
+        const v = new THREE.Vector3(arr[i], arr[i + 1], arr[i + 2]);
+        const noise = (Math.sin(v.x * 7.3) + Math.cos(v.y * 5.1) + Math.sin(v.z * 9.7)) * 0.22;
+        v.addScaledVector(v.clone().normalize(), noise);
+        arr[i] = v.x;
+        arr[i + 1] = v.y;
+        arr[i + 2] = v.z;
+      }
+      pos.needsUpdate = true;
+      icosa.computeVertexNormals();
+      return icosa;
+    }
+
+    function createShapeMesh(key, material) {
+      const factory = shapeFactory[key] || shapeFactory.cube;
+      const geometry = factory();
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = false;
+      return mesh;
+    }
+
+    // =============================
+    // MATERIAL & CONTROLS
+    // =============================
+    const primaryColorInput = document.getElementById('primary-color');
+    const metalnessRange = document.getElementById('metalness-range');
+    const roughnessRange = document.getElementById('roughness-range');
+    const shapeSelect = document.getElementById('shape-select');
+    const autoRotateRange = document.getElementById('auto-rotate-range');
+    const parallaxRange = document.getElementById('parallax-range');
+    const tiltToggle = document.getElementById('tilt-toggle');
+    const mockDownload = document.getElementById('mock-download');
+
+    const material = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(primaryColorInput.value),
+      emissive: new THREE.Color(0x000000),
+      metalness: parseFloat(metalnessRange.value),
+      roughness: parseFloat(roughnessRange.value),
+      transparent: true,
+      opacity: 0.96,
+      reflectivity: 0.85,
+      thickness: 0.7,
+      transmission: 0.85,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.1
+    });
+    currentMaterial = material;
+
+    function updateMaterial() {
+      const color = new THREE.Color(primaryColorInput.value);
+      material.color.copy(color);
+      material.emissive.copy(color.clone().multiplyScalar(0.22));
+      material.metalness = parseFloat(metalnessRange.value);
+      material.roughness = parseFloat(roughnessRange.value);
+      material.needsUpdate = true;
+
+      fillLight.color.copy(color.clone().multiplyScalar(1.1));
+      rimLight.color.copy(color.clone().lerp(new THREE.Color(0xffffff), 0.3));
+    }
+
+    function switchShape(key) {
+      if (currentMesh) {
+        scene.remove(currentMesh);
+        currentMesh.geometry.dispose();
+      }
+      currentMesh = createShapeMesh(key, material);
+      scene.add(currentMesh);
+    }
+
+    primaryColorInput.addEventListener('input', updateMaterial);
+    metalnessRange.addEventListener('input', updateMaterial);
+    roughnessRange.addEventListener('input', updateMaterial);
+
+    shapeSelect.addEventListener('change', () => {
+      switchShape(shapeSelect.value);
+    });
+
+    mockDownload.addEventListener('click', () => {
+      // Show a more professional message
+      const currentShape = shapeSelect.value;
+      const currentColor = primaryColorInput.value;
+      
+      alert(`🎨 3D Business Card Export\n\n` +
+            `Shape: ${shapeSelect.options[shapeSelect.selectedIndex].text}\n` +
+            `Color: ${currentColor}\n` +
+            `Metalness: ${metalnessRange.value}\n` +
+            `Roughness: ${roughnessRange.value}\n\n` +
+            `This is a prototype demonstration.\n\n` +
+            `In production, this would:\n` +
+            `• Generate a high-resolution 3D model export\n` +
+            `• Create print-ready business card templates\n` +
+            `• Provide AR viewer link and QR code\n` +
+            `• Process $0.99 PayPal payment\n` +
+            `• Send download bundle to your email\n\n` +
+            `For custom business card solutions, contact:\n` +
+            `BarbrickDesign@gmail.com`);
+    });
+
+    tiltToggle.addEventListener('click', () => {
+      tiltEnabled = !tiltEnabled;
+      tiltToggle.classList.toggle('on', tiltEnabled);
+    });
+
+    // =============================
+    // PARALLAX & INTERACTION
+    // =============================
+    let autoRotateSpeed = parseFloat(autoRotateRange.value);
+    autoRotateRange.addEventListener('input', () => {
+      autoRotateSpeed = parseFloat(autoRotateRange.value);
+    });
+
+    let parallaxDepth = parseFloat(parallaxRange.value);
+    parallaxRange.addEventListener('input', () => {
+      parallaxDepth = parseFloat(parallaxRange.value);
+    });
+
+    let mouseX = 0;
+    let mouseY = 0;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      mouseX = (x - 0.5) * 2;
+      mouseY = (y - 0.5) * 2;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      mouseX = 0;
+      mouseY = 0;
+    });
+
+    let tiltEnabled = true;
+    let tiltX = 0;
+    let tiltY = 0;
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', (event) => {
+        if (!tiltEnabled) return;
+        const beta = event.beta || 0;
+        const gamma = event.gamma || 0;
+        tiltX = THREE.MathUtils.clamp(gamma / 45, -1, 1);
+        tiltY = THREE.MathUtils.clamp(beta / 45, -1, 1);
+      });
+    }
+
+    // =============================
+    // RESIZE HANDLER
+    // =============================
+    function handleResize() {
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    // =============================
+    // ANIMATION LOOP
+    // =============================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const t = clock.getElapsedTime();
+
+      if (currentMesh) {
+        currentMesh.rotation.y += delta * autoRotateSpeed;
+        currentMesh.rotation.x += delta * autoRotateSpeed * 0.35;
+
+        const targetX = (mouseX * 0.6 + tiltX * 0.8) * parallaxDepth;
+        const targetY = (mouseY * 0.4 + tiltY * 0.5) * parallaxDepth;
+
+        camera.position.x += (targetX - camera.position.x * 0.4) * 0.12;
+        camera.position.y += (targetY + 0.4 - camera.position.y) * 0.1;
+        camera.lookAt(0, 0, 0);
+
+        rimLight.position.x = Math.sin(t * 0.6) * 2.6;
+        rimLight.position.z = Math.cos(t * 0.6) * 2.6;
+        fillLight.position.y = Math.sin(t * 0.5) * 2.0;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // =============================
+    // INITIALIZATION
+    // =============================
+    updateMaterial();
+    switchShape('cube');
+    animate();
+    
+    // Hide loading indicator and show canvas
+    setTimeout(() => {
+      const loadingIndicator = document.getElementById('loading-indicator');
+      if (loadingIndicator) {
+        loadingIndicator.classList.add('hidden');
+      }
+      canvas.classList.remove('loading');
+    }, 500);
+    }
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

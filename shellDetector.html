@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: shellDetector.html
+Declaration ID: IP-62B38B7D-MLL2901Z
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Shell Casing Detection system for community safety - Advanced dash cam with real-time object detection for road surface evidence mapping" />
+  <title>Shell Casing Detection – Barbrick Design</title>
+  
+  <!-- TensorFlow.js for Real Object Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #111; }
+    header { background: #111; color: #fff; padding: 14px 20px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+    header span { font-size: 13px; opacity: 0.8; }
+    #app { display: flex; height: calc(100vh - 52px); }
+    #left, #right { padding: 16px; overflow-y: auto; }
+    #left { flex: 2; background: #fff; border-right: 1px solid #ddd; }
+    #right { flex: 1.2; background: #fafafa; }
+    h2 { margin-top: 0; }
+    #videoContainer { position: relative; width: 100%; max-width: 720px; margin: 0 auto; background: #000; border-radius: 6px; overflow: hidden; }
+    #videoElement { width: 100%; display: block; background: #000; }
+    #frameCanvas { width: 100%; display: block; background: #000; }
+    #overlayCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 8px 14px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
+    button.primary { background: #111; color: #fff; }
+    button.secondary { background: #e0e0e0; color: #111; }
+    button.danger { background: #c62828; color: #fff; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #statusBar { margin-top: 10px; font-size: 12px; color: #555; }
+    #log { margin-top: 8px; }
+    .event { background: #fff; border-radius: 6px; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; font-size: 13px; }
+    .event h4 { margin: 0 0 4px 0; font-size: 14px; }
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 999px; background: #eef; font-size: 11px; margin-right: 4px; margin-bottom: 4px; }
+    .tag.high { background: #e8f5e9; color: #1b5e20; }
+    .tag.medium { background: #fff8e1; color: #f57f17; }
+    .tag.low { background: #ffebee; color: #b71c1c; }
+    .meta { color: #666; font-size: 12px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #222; color: #fff; font-size: 11px; margin-right: 4px; }
+    #config { margin-top: 12px; font-size: 12px; color: #444; }
+    #config label { display: inline-block; margin-right: 10px; }
+    input[type="number"] { width: 60px; padding: 2px 4px; font-size: 12px; }
+    
+    /* Navigation and Footer Styles */
+    .back-link { color: #fff; text-decoration: none; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    
+    footer { background: #111; color: #fff; padding: 20px; text-align: center; font-size: 13px; }
+    footer a { color: #4ade80; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    
+    /* Donation Section Styles */
+    #donationSection { background: #f9fafb; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-top: 20px; }
+    #donationSection h3 { margin-top: 0; color: #1f2937; font-size: 18px; }
+    #donationSection p { color: #4b5563; line-height: 1.6; margin: 10px 0; }
+    .donation-highlight { background: #dbeafe; padding: 12px; border-radius: 6px; margin: 15px 0; }
+    .donation-email { font-weight: bold; color: #2563eb; font-size: 16px; }
+    #paypal-button-container { margin: 20px 0; min-height: 40px; }
+    .donation-benefits { list-style: none; padding-left: 0; margin: 15px 0; }
+    .donation-benefits li { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+    .donation-benefits li:before { content: "✓ "; color: #10b981; font-weight: bold; margin-right: 8px; }
+    
+    /* Thank You Message */
+    .thank-you-message { display: none; background: #d1fae5; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin-top: 20px; text-align: center; }
+    .thank-you-message.show { display: block; }
+    .thank-you-message h3 { color: #065f46; margin-top: 0; }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      #app { flex-direction: column; height: auto; }
+      #left, #right { flex: 1; border-right: none; border-bottom: 1px solid #ddd; }
+      #controls { justify-content: center; }
+      header { flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="03ea0be">
+  <meta name="git-commit-date" content="2026-02-08T13:26:32-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Create shellDetector.html">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- PayPal Integration -->
+  <script src="src/utils/paypal-integration.js"></script>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <a href="index.html" class="back-link" aria-label="Back to Hub">← Back to Hub</a>
+  </div>
+  <div>Shell Casing Detection – Dash Cam System</div>
+  <span>Real-time object detection on road surface • Evidence mapping • AI-powered detection</span>
+</header>
+
+<div id="app">
+  <div id="left">
+    <h2>Dash Cam Feed</h2>
+    <div id="videoContainer">
+      <video id="videoElement" width="720" height="360" autoplay playsinline style="width: 100%; display: block; background: #000;"></video>
+      <canvas id="frameCanvas" width="720" height="360" style="display: none;"></canvas>
+      <canvas id="overlayCanvas" width="720" height="360"></canvas>
+    </div>
+
+    <div id="controls">
+      <button class="primary" id="btnStartCamera">Start Camera</button>
+      <button class="danger" id="btnStopCamera" disabled>Stop Camera</button>
+      <button class="secondary" id="btnStartDetection" disabled>Start Detection</button>
+      <button class="danger" id="btnStopDetection" disabled>Stop Detection</button>
+      <button class="secondary" id="btnClear">Clear Log</button>
+    </div>
+
+    <div id="config">
+      <label>Detection sensitivity:
+        <input type="number" id="confInput" min="0.1" max="0.9" step="0.05" value="0.30" />
+      </label>
+      <label>Multi‑frame window:
+        <input type="number" id="windowInput" min="1" max="10" step="1" value="3" />
+      </label>
+      <label>Frame rate (FPS):
+        <input type="number" id="fpsInput" min="1" max="15" step="1" value="10" />
+      </label>
+    </div>
+
+    <div id="statusBar">
+      <span id="statusText">Ready. Click "Start Camera" to begin.</span>
+    </div>
+    
+    <!-- Donation Section -->
+    <section id="donationSection">
+      <h3>🛡️ Support Community Safety</h3>
+      <p>
+        This Shell Casing Detection system is designed to help communities identify potential crime scenes 
+        and gather evidence for law enforcement. By detecting shell casings on road surfaces through dash cam 
+        footage, we can help make neighborhoods safer and bring criminals to justice.
+      </p>
+      
+      <div class="donation-highlight">
+        <p><strong>Help us keep this tool free and accessible to everyone.</strong></p>
+        <p>Your donation supports:</p>
+        <ul class="donation-benefits">
+          <li>Continued development and improvements to detection accuracy</li>
+          <li>Server costs for processing and storage</li>
+          <li>Integration with law enforcement databases</li>
+          <li>Mobile app development for easier access</li>
+          <li>AI model training for better detection</li>
+        </ul>
+      </div>
+      
+      <p style="text-align: center; margin-top: 20px;">
+        <strong>Donate via PayPal:</strong><br>
+        <span class="donation-email">BarbrickDesign@gmail.com</span>
+      </p>
+      
+      <div id="paypal-button-container" aria-label="PayPal donation button"></div>
+      
+      <p style="text-align: center; font-size: 12px; color: #6b7280; margin-top: 15px;">
+        All donations go directly to improving community safety tools. 
+        <strong>Rest peacefully knowing you're making a difference.</strong>
+      </p>
+    </section>
+    
+    <!-- Thank You Message (shown after donation) -->
+    <div id="thankYouMessage" class="thank-you-message" role="alert">
+      <h3>🙏 Thank You for Your Support!</h3>
+      <p>Your donation helps keep our community safe. We truly appreciate your contribution 
+      to making these safety tools accessible to everyone.</p>
+      <p><strong>Together, we can make our neighborhoods safer.</strong></p>
+    </div>
+  </div>
+
+  <div id="right">
+    <h2>Detection Log</h2>
+    <div class="meta">
+      Each event represents a real object detection on the road surface using AI vision, with GPS, confidence, and frame index.
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2024-2025 Barbrick Design | Created by Ryan Barbrick</p>
+  <p>
+    <a href="mailto:BarbrickDesign@gmail.com">Contact</a> | 
+    <a href="index.html">Back to Hub</a> | 
+    Making Communities Safer Together
+  </p>
+</footer>
+
+<script>
+  // ------------------------------------------------------------
+  // GLOBAL STATE
+  // ------------------------------------------------------------
+  let frameCounter = 0;
+  let detectionInterval = null;
+  let cameraStream = null;
+  let cocoModel = null;
+  const recentDetections = []; // for multi-frame confirmation
+
+  const videoElement = document.getElementById("videoElement");
+  const frameCanvas = document.getElementById("frameCanvas");
+  const overlayCanvas = document.getElementById("overlayCanvas");
+  const frameCtx = frameCanvas.getContext("2d");
+  const overlayCtx = overlayCanvas.getContext("2d");
+
+  const statusText = document.getElementById("statusText");
+  const logEl = document.getElementById("log");
+
+  const confInput = document.getElementById("confInput");
+  const windowInput = document.getElementById("windowInput");
+  const fpsInput = document.getElementById("fpsInput");
+
+  // Button references
+  const btnStartCamera = document.getElementById("btnStartCamera");
+  const btnStopCamera = document.getElementById("btnStopCamera");
+  const btnStartDetection = document.getElementById("btnStartDetection");
+  const btnStopDetection = document.getElementById("btnStopDetection");
+  const btnClear = document.getElementById("btnClear");
+
+  // ------------------------------------------------------------
+  // MOCK GPS + TELEMETRY (keep for context)
+  // ------------------------------------------------------------
+  function getMockGPS() {
+    return {
+      lat: 39.9500 + (Math.random() * 0.002 - 0.001),
+      lng: -86.2600 + (Math.random() * 0.002 - 0.001)
+    };
+  }
+
+  function getMockSpeed() {
+    return 25 + Math.random() * 20; // 25–45 mph
+  }
+
+  // ------------------------------------------------------------
+  // CAMERA INITIALIZATION
+  // ------------------------------------------------------------
+  async function startCamera() {
+    try {
+      statusText.textContent = "Requesting camera access...";
+      
+      const constraints = {
+        video: {
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoElement.srcObject = cameraStream;
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => {
+          videoElement.play();
+          resolve();
+        };
+      });
+
+      // Set canvas dimensions to match video
+      frameCanvas.width = videoElement.videoWidth;
+      frameCanvas.height = videoElement.videoHeight;
+      overlayCanvas.width = videoElement.videoWidth;
+      overlayCanvas.height = videoElement.videoHeight;
+
+      btnStartCamera.disabled = true;
+      btnStopCamera.disabled = false;
+      btnStartDetection.disabled = false;
+      
+      statusText.textContent = "Camera started. Click 'Start Detection' to begin AI analysis.";
+      console.log('✅ Camera started successfully');
+      
+    } catch (error) {
+      console.error('❌ Camera access denied:', error);
+      statusText.textContent = `Camera error: ${error.message}. Please grant camera permissions.`;
+      alert('Camera access is required for detection. Please allow camera access and try again.');
+    }
+  }
+
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+      videoElement.srcObject = null;
+      
+      stopDetection(); // Also stop detection if running
+      
+      btnStartCamera.disabled = false;
+      btnStopCamera.disabled = true;
+      btnStartDetection.disabled = true;
+      
+      statusText.textContent = "Camera stopped.";
+      console.log('📷 Camera stopped');
+    }
+  }
+
+  // ------------------------------------------------------------
+  // AI MODEL LOADING
+  // ------------------------------------------------------------
+  async function loadAIModel() {
+    if (cocoModel) return cocoModel;
+    
+    try {
+      statusText.textContent = "Loading AI detection model...";
+      console.log('🤖 Loading COCO-SSD model...');
+      
+      cocoModel = await cocoSsd.load();
+      
+      statusText.textContent = "AI model loaded successfully.";
+      console.log('✅ COCO-SSD model loaded');
+      
+      return cocoModel;
+    } catch (error) {
+      console.error('❌ Failed to load AI model:', error);
+      statusText.textContent = `Model loading error: ${error.message}`;
+      alert('Failed to load AI model. Please refresh the page and try again.');
+      throw error;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // REAL OBJECT DETECTION
+  // ------------------------------------------------------------
+  async function detectObjects() {
+    if (!cocoModel || !videoElement.videoWidth) {
+      return [];
+    }
+
+    try {
+      // Run detection on current video frame
+      const predictions = await cocoModel.detect(videoElement);
+      
+      // Filter for small objects that could be shell casings or similar items
+      // We're looking for: bottles, cups, cell phones, or other small metallic/cylindrical objects
+      const relevantClasses = ['bottle', 'cup', 'cell phone', 'mouse', 'remote', 'scissors', 'toothbrush'];
+      const minConfidence = parseFloat(confInput.value) || 0.30;
+      
+      const filtered = predictions.filter(pred => {
+        // Check if object is in relevant classes or has appropriate shape/size
+        const isRelevant = relevantClasses.includes(pred.class.toLowerCase());
+        const isSmall = pred.bbox[2] < 200 && pred.bbox[3] < 200; // Small objects
+        const isConfident = pred.score >= minConfidence;
+        
+        return (isRelevant || isSmall) && isConfident;
+      });
+      
+      return filtered;
+    } catch (error) {
+      console.error('Detection error:', error);
+      return [];
+    }
+  }
+
+  // ------------------------------------------------------------
+  // MULTI-FRAME CONFIRMATION
+  // ------------------------------------------------------------
+  function recordDetectionCandidate(frameNumber, detection) {
+    const windowSize = parseInt(windowInput.value, 10) || 3;
+    const now = Date.now();
+
+    recentDetections.push({
+      frame: frameNumber,
+      time: now,
+      bbox: {
+        x: Math.round(detection.bbox[0]),
+        y: Math.round(detection.bbox[1]),
+        w: Math.round(detection.bbox[2]),
+        h: Math.round(detection.bbox[3])
+      },
+      confidence: detection.score,
+      class: detection.class
+    });
+
+    // Keep only recent window
+    while (recentDetections.length > windowSize) {
+      recentDetections.shift();
+    }
+
+    if (recentDetections.length < windowSize) return null;
+
+    // Check if detections are in similar positions (tracking same object)
+    const avgX = recentDetections.reduce((sum, d) => sum + d.bbox.x, 0) / recentDetections.length;
+    const avgY = recentDetections.reduce((sum, d) => sum + d.bbox.y, 0) / recentDetections.length;
+    
+    // Check position variance
+    const variance = recentDetections.reduce((sum, d) => {
+      const dx = d.bbox.x - avgX;
+      const dy = d.bbox.y - avgY;
+      return sum + (dx * dx + dy * dy);
+    }, 0) / recentDetections.length;
+    
+    // If objects are moving too much, likely false positives
+    if (variance > 5000) {
+      return null;
+    }
+
+    const avgConfidence =
+      recentDetections.reduce((sum, d) => sum + d.confidence, 0) /
+      recentDetections.length;
+
+    const avgBBox = recentDetections.reduce(
+      (acc, d) => {
+        acc.x += d.bbox.x;
+        acc.y += d.bbox.y;
+        acc.w += d.bbox.w;
+        acc.h += d.bbox.h;
+        return acc;
+      },
+      { x: 0, y: 0, w: 0, h: 0 }
+    );
+
+    avgBBox.x = Math.round(avgBBox.x / recentDetections.length);
+    avgBBox.y = Math.round(avgBBox.y / recentDetections.length);
+    avgBBox.w = Math.round(avgBBox.w / recentDetections.length);
+    avgBBox.h = Math.round(avgBBox.h / recentDetections.length);
+
+    return {
+      confidence: parseFloat(avgConfidence.toFixed(2)),
+      bbox: avgBBox,
+      class: recentDetections[recentDetections.length - 1].class
+    };
+  }
+
+  // ------------------------------------------------------------
+  // EVENT CREATION + RENDERING
+  // ------------------------------------------------------------
+  function createEvent(detection) {
+    const gps = getMockGPS();
+    const speed = getMockSpeed();
+    const timestamp = new Date().toISOString();
+
+    const event = {
+      id: crypto.randomUUID(),
+      timestamp,
+      gps,
+      speed,
+      confidence: detection.confidence,
+      bbox: detection.bbox,
+      frame: frameCounter,
+      class: detection.class || 'unknown object'
+    };
+
+    renderEvent(event);
+  }
+
+  function confidenceTagClass(conf) {
+    if (conf >= 0.7) return "high";
+    if (conf >= 0.4) return "medium";
+    return "low";
+  }
+
+  function renderEvent(event) {
+    const div = document.createElement("div");
+    div.className = "event";
+
+    const confClass = confidenceTagClass(event.confidence);
+
+    div.innerHTML = `
+      <h4>Detection #${event.id.slice(0, 8)}</h4>
+      <div>
+        <span class="tag ${confClass}">Confidence: ${event.confidence.toFixed(2)}</span>
+        <span class="tag">Frame: ${event.frame}</span>
+        <span class="tag">Speed: ${event.speed.toFixed(1)} mph</span>
+        <span class="tag">Type: ${event.class}</span>
+      </div>
+      <p class="meta">
+        <strong>GPS:</strong> ${event.gps.lat.toFixed(6)}, ${event.gps.lng.toFixed(6)}<br />
+        <strong>Timestamp:</strong> ${event.timestamp}<br />
+        <strong>Bounding Box:</strong> x=${event.bbox.x}, y=${event.bbox.y}, w=${event.bbox.w}, h=${event.bbox.h}
+      </p>
+    `;
+
+    logEl.prepend(div);
+  }
+
+  // ------------------------------------------------------------
+  // OVERLAY RENDERING
+  // ------------------------------------------------------------
+  function drawOverlay(detections) {
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    if (!detections || detections.length === 0) return;
+
+    detections.forEach(detection => {
+      const [x, y, width, height] = detection.bbox;
+      
+      // Draw bounding box
+      overlayCtx.strokeStyle = "rgba(0, 255, 0, 0.9)";
+      overlayCtx.lineWidth = 3;
+      overlayCtx.strokeRect(x, y, width, height);
+
+      // Draw label background
+      const label = `${detection.class} (${(detection.score * 100).toFixed(0)}%)`;
+      const textWidth = overlayCtx.measureText(label).width + 8;
+      
+      overlayCtx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      overlayCtx.fillRect(x, y - 22, textWidth, 22);
+      
+      // Draw label text
+      overlayCtx.fillStyle = "#0f0";
+      overlayCtx.font = "14px system-ui";
+      overlayCtx.fillText(label, x + 4, y - 6);
+    });
+  }
+
+  // ------------------------------------------------------------
+  // DETECTION LOOP
+  // ------------------------------------------------------------
+  async function processFrame() {
+    if (!cocoModel || !cameraStream) return;
+
+    frameCounter++;
+
+    try {
+      // Run object detection
+      const detections = await detectObjects();
+      
+      // Draw current detections
+      drawOverlay(detections);
+
+      // Process each detection for multi-frame confirmation
+      let confirmedDetection = null;
+      
+      if (detections.length > 0) {
+        // Use the most confident detection
+        const bestDetection = detections.reduce((best, curr) => 
+          curr.score > best.score ? curr : best
+        );
+        
+        confirmedDetection = recordDetectionCandidate(frameCounter, bestDetection);
+      } else {
+        recentDetections.length = 0; // Clear buffer if no detections
+      }
+
+      // If we have a confirmed detection, log it
+      if (confirmedDetection) {
+        createEvent(confirmedDetection);
+        statusText.textContent = `Frame ${frameCounter}: Detection confirmed! (${confirmedDetection.class}, confidence ${confirmedDetection.confidence.toFixed(2)})`;
+      } else if (detections.length > 0) {
+        statusText.textContent = `Frame ${frameCounter}: Candidate detected (awaiting multi‑frame confirmation)`;
+      } else {
+        statusText.textContent = `Frame ${frameCounter}: Scanning... (no objects detected)`;
+      }
+      
+    } catch (error) {
+      console.error('Frame processing error:', error);
+      statusText.textContent = `Error processing frame ${frameCounter}: ${error.message}`;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // DETECTION CONTROL
+  // ------------------------------------------------------------
+  async function startDetection() {
+    if (detectionInterval) return;
+    
+    // Load AI model if not already loaded
+    if (!cocoModel) {
+      await loadAIModel();
+    }
+    
+    if (!cocoModel) {
+      alert('Cannot start detection: AI model failed to load');
+      return;
+    }
+    
+    const fps = parseInt(fpsInput.value, 10) || 10;
+    const intervalMs = 1000 / fps;
+    
+    detectionInterval = setInterval(processFrame, intervalMs);
+    
+    btnStartDetection.disabled = true;
+    btnStopDetection.disabled = false;
+    
+    statusText.textContent = `Detection started (${fps} FPS). AI is analyzing video feed...`;
+    console.log(`🔍 Detection started at ${fps} FPS`);
+  }
+
+  function stopDetection() {
+    if (!detectionInterval) return;
+    
+    clearInterval(detectionInterval);
+    detectionInterval = null;
+    
+    btnStartDetection.disabled = false;
+    btnStopDetection.disabled = true;
+    
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    
+    statusText.textContent = "Detection stopped.";
+    console.log('⏹️ Detection stopped');
+  }
+
+  function clearLog() {
+    logEl.innerHTML = "";
+    statusText.textContent = "Log cleared.";
+  }
+
+  // ------------------------------------------------------------
+  // EVENT LISTENERS
+  // ------------------------------------------------------------
+  btnStartCamera.addEventListener("click", startCamera);
+  btnStopCamera.addEventListener("click", stopCamera);
+  btnStartDetection.addEventListener("click", startDetection);
+  btnStopDetection.addEventListener("click", stopDetection);
+  btnClear.addEventListener("click", clearLog);
+
+  // ------------------------------------------------------------
+  // INITIALIZE
+  // ------------------------------------------------------------
+  statusText.textContent = "Ready. Click \'Start Camera\' to begin.";
+  console.log('🚀 Shell Detector initialized - Ready for real object detection');
+  
+  // Pre-load AI model in background for faster startup
+  setTimeout(() => {
+    if (!cocoModel) {
+      loadAIModel().catch(err => {
+        console.warn('Background model load failed:', err);
+      });
+    }
+  }, 1000);
+  
+  // ------------------------------------------------------------
+  // PAYPAL DONATION INTEGRATION
+  // ------------------------------------------------------------
+  function initializePayPalDonation() {
+    // Set default donation amount (optional, can be customized)
+    const donationAmounts = [5, 10, 25, 50, 100];
+    const defaultAmount = 10;
+    
+    // Initialize PayPal button with donation functionality
+    if (typeof PayPalIntegration !== \'undefined\' && PayPalIntegration.isAvailable()) {
+      PayPalIntegration.renderButton(\'paypal-button-container\', {
+        amount: defaultAmount,
+        description: \'Support Shell Casing Detection - Community Safety Tool\',
+        onSuccess: function(data) {
+          console.log(\'Donation successful:\', data);
+          
+          // Show thank you message
+          const thankYouMsg = document.getElementById(\'thankYouMessage\');
+          if (thankYouMsg) {
+            thankYouMsg.classList.add(\'show\');
+            
+            // Scroll to thank you message
+            thankYouMsg.scrollIntoView({ behavior: \'smooth\', block: \'center\' });
+            
+            // Hide donation section after successful donation
+            const donationSection = document.getElementById(\'donationSection\');
+            if (donationSection) {
+              donationSection.style.display = \'none\';
+            }
+          }
+          
+          // Optional: Send analytics or notification
+          if (typeof gtag !== \'undefined\') {
+            gtag(\'event\', \'donation\', {
+              \'event_category\': \'PayPal\',
+              \'event_label\': \'Shell Detector\',
+              \'value\': defaultAmount
+            });
+          }
+        },
+        onError: function(err) {
+          console.error(\'Donation error:\', err);
+          alert(\'There was an error processing your donation. Please try again or contact BarbrickDesign@gmail.com directly.\');
+        },
+        onCancel: function(data) {
+          console.log(\'Donation cancelled:\', data);
+        }
+      }).catch(err => {
+        console.error(\'Failed to render PayPal button:\', err);
+        // Show fallback text
+        const container = document.getElementById(\'paypal-button-container\');
+        if (container) {
+          container.innerHTML = `
+            <p style="text-align: center; padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 6px;">
+              <strong>PayPal integration is currently unavailable.</strong><br>
+              Please send donations directly to: <strong>BarbrickDesign@gmail.com</strong>
+            </p>
+          `;
+        }
+      });
+    } else {
+      // Fallback if PayPal integration is not available
+      const container = document.getElementById(\'paypal-button-container\');
+      if (container) {
+        container.innerHTML = `
+          <p style="text-align: center; padding: 20px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px;">
+            <strong>Direct PayPal donations:</strong><br>
+            Send to <strong>BarbrickDesign@gmail.com</strong> via PayPal
+          </p>
+        `;
+      }
+    }
+  }
+  
+  // Initialize PayPal donation when DOM is ready
+  if (document.readyState === \'loading\') {
+    document.addEventListener(\'DOMContentLoaded\', initializePayPalDonation);
+  } else {
+    initializePayPalDonation();
+  }
+</script>
+
+    <script src="/js/universal-utilities.js"></script>
+</body>
+</html>

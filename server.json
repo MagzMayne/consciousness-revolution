@@ -1,0 +1,132 @@
+// server.js — minimal payout server for PayPal Payouts (sandbox)
+// Node 18+ recommended. Replace debug/auth with your real auth/KYC.
+
+require('dotenv').config();
+const express = require('express');
+const fetch = require('node-fetch');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const helmet = require('helmet');
+const Database = require('better-sqlite3');
+
+const PORT = process.env.PORT || 3000;
+const PAYPAL_CLIENT = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET = process.env.PAYPAL_CLIENT_SECRET;
+const PAYPAL_BASE = process.env.PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+const SERVER_API_KEY = process.env.SERVER_API_KEY || 'dev-key';
+
+// SQLite DB (file payouts.sqlite)
+const db = new Database('payouts.sqlite');
+db.pragma('journal_mode = WAL');
+db.exec(`CREATE TABLE IF NOT EXISTS withdrawal_requests (id TEXT PRIMARY KEY, user_id TEXT, amount REAL, currency TEXT, method TEXT, payee_email TEXT, status TEXT, created_at TEXT, updated_at TEXT, attempts INTEGER DEFAULT 0, batch_id TEXT);`);
+db.exec(`CREATE TABLE IF NOT EXISTS payouts (id TEXT PRIMARY KEY, withdrawal_id TEXT, paypal_batch_id TEXT, item_id TEXT, status TEXT, response TEXT, created_at TEXT);`);
+
+// helpers
+function okJson(res,body){ res.status(200).json(body); }
+function errJson(res,status,body){ res.status(status).json(body); }
+
+async function getPayPalAccessToken(){
+  const auth = Buffer.from(`${PAYPAL_CLIENT}:${PAYPAL_SECRET}`).toString('base64');
+  const r = await fetch(`${PAYPAL_BASE}/v1/oauth2/token`, { method:'POST', headers:{'Authorization':'Basic '+auth, 'Content-Type':'application/x-www-form-urlencoded'}, body:'grant_type=client_credentials' });
+  const j = await r.json();
+  if(!r.ok) throw new Error(JSON.stringify(j));
+  return j.access_token;
+}
+
+// create payout via PayPal Payouts API (simple single-item batch)
+async function createPayPalPayout(accessToken, items){
+  const body = {
+    sender_batch_header: { recipient_type: "EMAIL", email_subject: "You have a payout", sender_batch_id: "batch_" + Date.now() },
+    items
+  };
+  const res = await fetch(`${PAYPAL_BASE}/v1/payments/payouts`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+accessToken},
+    body: JSON.stringify(body)
+  });
+  const j = await res.json();
+  if(!res.ok) throw new Error(JSON.stringify(j));
+  return j;
+}
+
+const app = express();
+app.use(helmet());
+app.use(cors());
+app.use(bodyParser.json({limit:'1mb'}));
+
+// simple API key auth (replace with your auth)
+app.use((req,res,next)=>{
+  const key = req.headers['x-api-key'] || req.query.api_key;
+  if(req.path.startsWith('/api')){ if(key !== SERVER_API_KEY) return errJson(res,401,{error:'unauthorized'}); }
+  next();
+});
+
+// health
+app.get('/health', (req,res)=> okJson(res,{ok:true}));
+
+// POST /api/withdrawals  (client calls this to request payout)
+app.post('/api/withdrawals', async (req,res)=>{
+  try{
+    const idemp = req.headers['idempotency-key'] || req.body.idempotencyKey || ('idemp_'+Date.now().toString(36));
+    const { amount, currency, method, payee } = req.body;
+    if(!amount || !payee || !payee.email) return errJson(res,400,{error:'missing'});
+    // very simple user_id from header for demo
+    const userId = req.headers['x-user-id'] || 'demo-user';
+    // check ledger sum - for demo we do a simple check: sum of ledger rows in client is not accessible; in production verify server ledger
+    // idempotency: if existing withdrawal with same idemp key exist, return it
+    const existing = db.prepare('SELECT * FROM withdrawal_requests WHERE id = ?').get(idemp);
+    if(existing) return okJson(res, { withdrawalId: existing.id, status: existing.status });
+    const now = new Date().toISOString();
+    const row = { id: idemp, user_id: userId, amount: parseFloat(amount), currency: currency || 'USD', method: method || 'paypal', payee_email: payee.email, status: 'requested', created_at: now, updated_at: now, attempts: 0 };
+    db.prepare(`INSERT INTO withdrawal_requests (id,user_id,amount,currency,method,payee_email,status,created_at,updated_at,attempts) VALUES (@id,@user_id,@amount,@currency,@method,@payee_email,@status,@created_at,@updated_at,@attempts)`).run(row);
+    // enqueue immediate worker attempt (synchronous for demo). In production push to a queue.
+    processWithdrawal(row.id).catch(e => console.error('processWithdrawal err', e));
+    res.status(202).json({ withdrawalId: row.id, status: row.status });
+  } catch(e){ console.error(e); errJson(res,500,{error: String(e)}); }
+});
+
+// GET /api/withdrawals/:id/status
+app.get('/api/withdrawals/:id/status', (req,res)=>{
+  const id = req.params.id;
+  const r = db.prepare('SELECT * FROM withdrawal_requests WHERE id = ?').get(id);
+  if(!r) return errJson(res,404,{error:'not found'});
+  okJson(res, { id: r.id, status: r.status, attempts: r.attempts, batch: r.batch_id });
+});
+
+// webhook endpoint (PayPal will POST updates here) — validate in prod
+app.post('/api/paypal/webhook', (req,res)=>{
+  // IMPORTANT: validate webhook using PayPal's webhook signature verification
+  console.log('paypal webhook', req.body);
+  res.status(200).send('ok');
+});
+
+// worker: process a single withdrawal id (very simple)
+async function processWithdrawal(withdrawalId){
+  const row = db.prepare('SELECT * FROM withdrawal_requests WHERE id = ?').get(withdrawalId);
+  if(!row) throw new Error('not found');
+  if(row.status !== 'requested') return;
+  // Basic risk checks (demo)
+  if(row.amount <= 0) { db.prepare('UPDATE withdrawal_requests SET status=?, updated_at=? WHERE id=?').run('failed', new Date().toISOString(), withdrawalId); return; }
+  // create PayPal payout (sandbox)
+  const accessToken = await getPayPalAccessToken();
+  try{
+    const items = [{ recipient_type: 'EMAIL', amount: { value: row.amount.toFixed(2), currency: row.currency }, receiver: row.payee_email, note: 'Payout from Commons Engine', sender_item_id: withdrawalId }];
+    const resp = await createPayPalPayout(accessToken, items);
+    // record
+    db.prepare('UPDATE withdrawal_requests SET status=?, updated_at=?, attempts = attempts + 1, batch_id = ? WHERE id=?').run('processing', new Date().toISOString(), resp.batch_header && resp.batch_header.payout_batch_id ? resp.batch_header.payout_batch_id : null, withdrawalId);
+    // record payouts table entry(s)
+    const batchId = resp.batch_header && resp.batch_header.payout_batch_id;
+    const created_at = new Date().toISOString();
+    db.prepare('INSERT OR REPLACE INTO payouts (id, withdrawal_id, paypal_batch_id, item_id, status, response, created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(withdrawalId + '_item', withdrawalId, batchId, null, 'sent', JSON.stringify(resp), created_at);
+    // finalize as sent for demo (webhook will confirm in prod)
+    db.prepare('UPDATE withdrawal_requests SET status=?, updated_at=? WHERE id=?').run('sent', new Date().toISOString(), withdrawalId);
+    console.log('payout sent', resp);
+  } catch(e){
+    console.error('payout error', e);
+    db.prepare('UPDATE withdrawal_requests SET status=?, attempts = attempts + 1, updated_at=? WHERE id=?').run('failed', new Date().toISOString(), withdrawalId);
+    throw e;
+  }
+}
+
+app.listen(PORT, ()=> console.log('Payout server listening on', PORT));

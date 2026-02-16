@@ -1,0 +1,262 @@
+name: Check PR Merge Readiness
+
+on:
+  schedule:
+    # Run every 6 hours to check PR merge status
+    - cron: '30 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      create_issue:
+        description: 'Create an issue with the report'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  check-merge-readiness:
+    name: Check PR Merge Readiness
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          npm install @octokit/rest
+      
+      - name: Run merge readiness check
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.event.repository.name }}
+          BASE_BRANCH: main
+        run: |
+          node .github/scripts/check-pr-merge-readiness.js | tee merge-readiness-output.txt
+          
+          # Extract summary from output
+          echo "report_generated=true" >> $GITHUB_OUTPUT
+      
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-merge-readiness-report-${{ github.run_number }}
+          path: |
+            pr-merge-readiness-report.json
+            merge-readiness-output.txt
+          retention-days: 30
+      
+      - name: Create issue with report
+        if: success() && (github.event.inputs.create_issue != 'false')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read report
+            const reportData = JSON.parse(fs.readFileSync('pr-merge-readiness-report.json', 'utf8'));
+            const summary = reportData.summary;
+            const categories = reportData.categories;
+            
+            // Generate issue body
+            let issueBody = `## 📊 PR Merge Readiness Report
+            
+            **Generated:** ${new Date(reportData.timestamp).toLocaleString('en-US', { timeZone: 'UTC' })} UTC
+            **Base Branch:** \`main\`
+            
+            ### Summary
+            
+            | Category | Count | Status |
+            |----------|-------|--------|
+            | Total Open PRs | ${summary.total} | - |
+            | ✅ Ready to Merge | ${summary.readyToMerge} | Can be merged immediately |
+            | 🔄 Needs Sync | ${summary.needsSync} | Behind base branch |
+            | ⚠️ Has Conflicts | ${summary.hasConflicts} | Manual resolution needed |
+            | ❌ Failing Checks | ${summary.failingChecks} | Tests/builds failing |
+            | 📝 Draft PRs | ${summary.draft} | Work in progress |
+            
+            ---
+            
+            `;
+            
+            // Ready to merge section
+            if (categories.readyToMerge.length > 0) {
+              issueBody += `### ✅ Ready to Merge (${categories.readyToMerge.length})\n\n`;
+              issueBody += `These PRs can be merged immediately:\n\n`;
+              
+              for (const pr of categories.readyToMerge.slice(0, 20)) {
+                issueBody += `- #${pr.number}: ${pr.title}\n`;
+              }
+              
+              if (categories.readyToMerge.length > 20) {
+                issueBody += `\n_...and ${categories.readyToMerge.length - 20} more_\n`;
+              }
+              issueBody += `\n`;
+            }
+            
+            // Needs sync section
+            if (categories.needsSync.length > 0) {
+              issueBody += `### 🔄 Needs Sync (${categories.needsSync.length})\n\n`;
+              issueBody += `These PRs need to sync with the base branch:\n\n`;
+              
+              for (const pr of categories.needsSync.slice(0, 20)) {
+                issueBody += `- #${pr.number}: ${pr.title} (${pr.behind_by} commits behind)\n`;
+              }
+              
+              if (categories.needsSync.length > 20) {
+                issueBody += `\n_...and ${categories.needsSync.length - 20} more_\n`;
+              }
+              
+              issueBody += `\n**Action:** Run the [auto-sync-branches workflow](../../actions/workflows/auto-sync-branches.yml) to sync these PRs automatically.\n\n`;
+            }
+            
+            // Has conflicts section
+            if (categories.hasConflicts.length > 0) {
+              issueBody += `### ⚠️ Has Conflicts (${categories.hasConflicts.length})\n\n`;
+              issueBody += `These PRs have merge conflicts that need resolution:\n\n`;
+              
+              for (const pr of categories.hasConflicts.slice(0, 20)) {
+                issueBody += `- #${pr.number}: ${pr.title}\n`;
+              }
+              
+              if (categories.hasConflicts.length > 20) {
+                issueBody += `\n_...and ${categories.hasConflicts.length - 20} more_\n`;
+              }
+              
+              issueBody += `\n**Action:** Either manually resolve conflicts or use the [auto-conflict-resolver workflow](../../actions/workflows/auto-conflict-resolver.yml).\n\n`;
+            }
+            
+            // Failing checks section
+            if (categories.failingChecks.length > 0) {
+              issueBody += `### ❌ Failing Checks (${categories.failingChecks.length})\n\n`;
+              issueBody += `These PRs have failing status checks:\n\n`;
+              
+              for (const pr of categories.failingChecks.slice(0, 20)) {
+                issueBody += `- #${pr.number}: ${pr.title}`;
+                if (pr.checks) {
+                  issueBody += ` (${pr.checks.failed} failed, ${pr.checks.pending} pending)`;
+                }
+                issueBody += `\n`;
+              }
+              
+              if (categories.failingChecks.length > 20) {
+                issueBody += `\n_...and ${categories.failingChecks.length - 20} more_\n`;
+              }
+              
+              issueBody += `\n**Action:** PR authors need to fix failing tests/builds before merge.\n\n`;
+            }
+            
+            // Recommendations
+            issueBody += `---\n\n### 🎯 Recommendations\n\n`;
+            
+            if (summary.readyToMerge > 0) {
+              issueBody += `1. ✅ **Merge ${summary.readyToMerge} ready PR(s)** - These can be merged immediately\n`;
+            }
+            
+            if (summary.needsSync > 0) {
+              issueBody += `2. 🔄 **Sync ${summary.needsSync} PR(s)** - Run auto-sync workflow to update branches\n`;
+            }
+            
+            if (summary.hasConflicts > 0) {
+              issueBody += `3. ⚠️ **Resolve ${summary.hasConflicts} conflict(s)** - Use auto-resolver or manual resolution\n`;
+            }
+            
+            if (summary.failingChecks > 0) {
+              issueBody += `4. ❌ **Fix ${summary.failingChecks} failing check(s)** - Notify PR authors to fix tests\n`;
+            }
+            
+            issueBody += `\n### 📝 Next Steps\n\n`;
+            issueBody += `1. Review ready-to-merge PRs and merge them\n`;
+            issueBody += `2. Run auto-sync workflow for PRs that need sync\n`;
+            issueBody += `3. Address conflicts in remaining PRs\n`;
+            issueBody += `4. Follow up with PR authors on failing checks\n`;
+            
+            issueBody += `\n---\n`;
+            issueBody += `*🤖 Automated by PR Merge Readiness Workflow*\n`;
+            issueBody += `*Report: [Download JSON](../../actions/runs/${context.runId})*\n`;
+            issueBody += `*Workflow Run: [View Logs](../../actions/runs/${context.runId})*`;
+            
+            // Close previous readiness report issues
+            try {
+              const { data: existingIssues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'merge-readiness-report,automated'
+              });
+              
+              for (const issue of existingIssues) {
+                if (issue.title.includes('PR Merge Readiness Report')) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed'
+                  });
+                  console.log(`Closed previous report issue #${issue.number}`);
+                }
+              }
+            } catch (error) {
+              console.log('Note: Could not close previous issues:', error.message);
+            }
+            
+            // Create new issue
+            const issueTitle = `📊 PR Merge Readiness Report - ${new Date().toISOString().split('T')[0]}`;
+            
+            const { data: newIssue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['merge-readiness-report', 'automated', 'tracking']
+            });
+            
+            console.log(`✅ Created issue #${newIssue.number}: ${issueTitle}`);
+            
+            core.setOutput('issue_number', newIssue.number);
+            core.setOutput('issue_url', newIssue.html_url);
+      
+      - name: Add summary
+        if: always()
+        run: |
+          echo "## 📊 PR Merge Readiness Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f pr-merge-readiness-report.json ]; then
+            echo "### Report Generated" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract summary using jq
+            TOTAL=$(jq '.summary.total' pr-merge-readiness-report.json)
+            READY=$(jq '.summary.readyToMerge' pr-merge-readiness-report.json)
+            SYNC=$(jq '.summary.needsSync' pr-merge-readiness-report.json)
+            CONFLICTS=$(jq '.summary.hasConflicts' pr-merge-readiness-report.json)
+            FAILING=$(jq '.summary.failingChecks' pr-merge-readiness-report.json)
+            DRAFT=$(jq '.summary.draft' pr-merge-readiness-report.json)
+            
+            echo "| Category | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total PRs | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Ready | $READY |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔄 Needs Sync | $SYNC |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⚠️ Conflicts | $CONFLICTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failing | $FAILING |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📝 Draft | $DRAFT |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "📄 Full report available in artifacts" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Report file not found" >> $GITHUB_STEP_SUMMARY
+          fi

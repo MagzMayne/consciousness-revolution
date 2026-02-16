@@ -1,0 +1,296 @@
+name: Authentication Testing
+
+# Automated testing of authentication flows based on recurring issues:
+# - Email authentication
+# - Wallet authentication
+# - User data isolation
+# - Payment integration requiring auth
+
+on:
+  # Manual trigger only - run when needed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test-auth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check authentication files exist
+        id: check-files
+        run: |
+          AUTH_FILES=""
+
+          if [ -f "email-auth.js" ]; then
+            echo "✅ email-auth.js found"
+            AUTH_FILES="$AUTH_FILES email-auth.js"
+          fi
+
+          if [ -f "auth-integration.js" ]; then
+            echo "✅ auth-integration.js found"
+            AUTH_FILES="$AUTH_FILES auth-integration.js"
+          fi
+
+          if [ -f "universal-wallet-auth.js" ]; then
+            echo "✅ universal-wallet-auth.js found"
+            AUTH_FILES="$AUTH_FILES universal-wallet-auth.js"
+          fi
+
+          if [ -f "js/universal-wallet-system.js" ]; then
+            echo "✅ js/universal-wallet-system.js found"
+            AUTH_FILES="$AUTH_FILES js/universal-wallet-system.js"
+          fi
+
+          if [ -z "$AUTH_FILES" ]; then
+            echo "has_auth=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No authentication files found"
+          else
+            echo "has_auth=true" >> $GITHUB_OUTPUT
+            echo "auth_files=$AUTH_FILES" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate Email Auth Implementation
+        if: steps.check-files.outputs.has_auth == 'true'
+        run: |
+          echo "Validating email authentication..."
+
+          ISSUES=0
+
+          if [ -f "email-auth.js" ]; then
+            # Check for password hashing
+            if grep -q "SHA-256\|crypto.subtle" email-auth.js; then
+              echo "✅ Password hashing detected"
+            else
+              echo "⚠️ No password hashing found"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for session management
+            if grep -q "localStorage\|sessionStorage" email-auth.js; then
+              echo "✅ Session management implemented"
+            else
+              echo "⚠️ No session management found"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for auto-connect
+            if grep -q "autoConnect\|auto-login" email-auth.js; then
+              echo "✅ Auto-connect functionality found"
+            else
+              echo "⚠️ No auto-connect functionality"
+            fi
+
+            # Check for proper user data isolation
+            if grep -q "email.*userId\|user.*email" email-auth.js; then
+              echo "✅ User data isolation by email"
+            else
+              echo "⚠️ User data isolation may be missing"
+              ISSUES=$((ISSUES + 1))
+            fi
+          fi
+
+          echo "email_auth_issues=$ISSUES" >> $GITHUB_ENV
+
+      - name: Validate Wallet Auth Implementation
+        if: steps.check-files.outputs.has_auth == 'true'
+        run: |
+          echo "Validating wallet authentication..."
+
+          ISSUES=0
+
+          if [ -f "universal-wallet-auth.js" ] || [ -f "js/universal-wallet-system.js" ]; then
+            # Check for MetaMask integration
+            if grep -r -q "ethereum\|MetaMask\|web3" universal-wallet-auth.js js/universal-wallet-system.js 2>/dev/null; then
+              echo "✅ Web3/MetaMask integration detected"
+            else
+              echo "⚠️ No Web3 integration found"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for wallet address validation
+            if grep -r -q "address.*0x\|wallet.*address" universal-wallet-auth.js js/universal-wallet-system.js 2>/dev/null; then
+              echo "✅ Wallet address handling found"
+            else
+              echo "⚠️ Wallet address handling may be missing"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for proper disconnect handling
+            if grep -r -q "disconnect\|signOut" universal-wallet-auth.js js/universal-wallet-system.js 2>/dev/null; then
+              echo "✅ Disconnect functionality found"
+            else
+              echo "⚠️ No disconnect functionality"
+            fi
+          fi
+
+          echo "wallet_auth_issues=$ISSUES" >> $GITHUB_ENV
+
+      - name: Check User Data Isolation
+        if: steps.check-files.outputs.has_auth == 'true'
+        run: |
+          echo "Checking user data isolation..."
+
+          ISSUES=0
+
+          # Check for user-specific localStorage keys
+          # Note: Checks for both template literals (backticks) and concatenation patterns
+          if grep -r -q 'localStorage.*user.*address\|localStorage.*user.*email\|localStorage.*user.*id' . --include="*.js" --include="*.html" 2>/dev/null; then
+            echo "✅ User-specific storage keys detected"
+          else
+            echo "⚠️ No user-specific storage isolation found"
+            ISSUES=$((ISSUES + 1))
+          fi
+
+          # Additional check for template literal patterns in separate pass
+          if grep -r -q 'localStorage\.\(get\|set\)Item.*`' . --include="*.js" 2>/dev/null; then
+            echo "✅ Template literal usage detected in storage"
+          fi
+
+          # Check for auth method tracking
+          if grep -r -q "authMethod\|auth_type\|authentication.*method" . --include="*.js" --include="*.html" 2>/dev/null; then
+            echo "✅ Auth method tracking found"
+          else
+            echo "⚠️ Auth method tracking may be missing"
+            ISSUES=$((ISSUES + 1))
+          fi
+
+          # Check for proper data cleanup on logout
+          if grep -r -q "localStorage.clear\|removeItem.*user\|clear.*userData" . --include="*.js" 2>/dev/null; then
+            echo "✅ Data cleanup on logout found"
+          else
+            echo "⚠️ Data cleanup may be missing"
+          fi
+
+          echo "isolation_issues=$ISSUES" >> $GITHUB_ENV
+
+      - name: Check Payment Auth Integration
+        if: steps.check-files.outputs.has_auth == 'true'
+        run: |
+          echo "Checking payment authentication integration..."
+
+          ISSUES=0
+
+          # Check if payment features require auth
+          if [ -f "bCert.html" ]; then
+            # Check for auth guards on payment
+            if grep -q "currentUser.*paypal\|if.*authenticated.*payment" bCert.html; then
+              echo "✅ Auth guard on payment features"
+            else
+              echo "⚠️ Payment features may not require authentication"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for "sign in to enroll" messaging
+            if grep -q "sign in.*enroll\|authenticate.*payment\|login.*pay" bCert.html; then
+              echo "✅ User messaging for auth requirement"
+            else
+              echo "⚠️ Missing user messaging for auth"
+            fi
+          fi
+
+          echo "payment_auth_issues=$ISSUES" >> $GITHUB_ENV
+
+      - name: Generate Auth Test Report
+        if: always() && steps.check-files.outputs.has_auth == 'true'
+        run: |
+          EMAIL_ISSUES=${email_auth_issues:-0}
+          WALLET_ISSUES=${wallet_auth_issues:-0}
+          ISOLATION_ISSUES=${isolation_issues:-0}
+          PAYMENT_ISSUES=${payment_auth_issues:-0}
+
+          TOTAL_ISSUES=$((EMAIL_ISSUES + WALLET_ISSUES + ISOLATION_ISSUES + PAYMENT_ISSUES))
+
+          echo "# Authentication Testing Report" > auth_report.md
+          echo "" >> auth_report.md
+
+          if [ $TOTAL_ISSUES -eq 0 ]; then
+            echo "✅ **All authentication tests passed!**" >> auth_report.md
+          else
+            echo "⚠️ **Total Issues Found**: $TOTAL_ISSUES" >> auth_report.md
+          fi
+
+          echo "" >> auth_report.md
+          echo "## Email Authentication" >> auth_report.md
+          if [ $EMAIL_ISSUES -eq 0 ]; then
+            echo "✅ No issues detected" >> auth_report.md
+          else
+            echo "⚠️ $EMAIL_ISSUES issue(s) detected" >> auth_report.md
+          fi
+
+          echo "" >> auth_report.md
+          echo "## Wallet Authentication" >> auth_report.md
+          if [ $WALLET_ISSUES -eq 0 ]; then
+            echo "✅ No issues detected" >> auth_report.md
+          else
+            echo "⚠️ $WALLET_ISSUES issue(s) detected" >> auth_report.md
+          fi
+
+          echo "" >> auth_report.md
+          echo "## User Data Isolation" >> auth_report.md
+          if [ $ISOLATION_ISSUES -eq 0 ]; then
+            echo "✅ No issues detected" >> auth_report.md
+          else
+            echo "⚠️ $ISOLATION_ISSUES issue(s) detected" >> auth_report.md
+          fi
+
+          echo "" >> auth_report.md
+          echo "## Payment Auth Integration" >> auth_report.md
+          if [ $PAYMENT_ISSUES -eq 0 ]; then
+            echo "✅ No issues detected" >> auth_report.md
+          else
+            echo "⚠️ $PAYMENT_ISSUES issue(s) detected" >> auth_report.md
+          fi
+
+          echo "" >> auth_report.md
+          echo "---" >> auth_report.md
+          echo "*Automated Authentication Testing - GitHub Actions*" >> auth_report.md
+
+          cat auth_report.md
+
+          echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_ENV
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request' && steps.check-files.outputs.has_auth == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('auth_report.md', 'utf8');
+            const totalIssues = parseInt('${{ env.total_issues }}');
+
+            let icon = '✅';
+            if (totalIssues > 0) {
+              icon = '⚠️';
+            }
+
+            const body = `${icon} **Authentication Testing Results**\n\n${report}\n\n---\n*Automated by GitHub Actions - Authentication Testing Workflow*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Authentication Testing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-files.outputs.has_auth }}" = "false" ]; then
+            echo "ℹ️ No authentication files changed" >> $GITHUB_STEP_SUMMARY
+          else
+            cat auth_report.md >> $GITHUB_STEP_SUMMARY
+          fi

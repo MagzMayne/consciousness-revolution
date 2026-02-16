@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: silverAutoBid.html
+Declaration ID: IP-6E287878-MLL29021
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="UTF-8" />
+<title>Silver Planner — Growth + Linear + Auto-bid</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --bg:#0b0f14; --card:#141a22; --text:#e7edf7; --muted:#90a4b8; --accent:#4bd5ff; --pos:#7effa1; --neg:#ff6b7a; --border:#2a3340; --pill:#17202b; }
+  * { box-sizing:border-box; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:1rem; background:var(--bg); color:var(--text); }
+  h1 { font-size:1.25rem; margin-bottom:0.5rem; }
+  h2 { font-size:1rem; margin:0 0 0.5rem; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1rem; }
+  label { display:block; margin:0.5rem 0 0.25rem; font-weight:600; color:var(--muted); }
+  input, textarea, button { width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--border); background:#0f141b; color:var(--text); }
+  button { background:var(--pill); font-weight:700; margin-top:0.5rem; cursor:pointer; }
+  .flex { display:flex; gap:0.5rem; flex-wrap:wrap; }
+  .pill { display:inline-block; padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:999px; font-size:0.8rem; color:var(--muted); }
+  table { border-collapse:collapse; width:100%; min-width:920px; margin-top:0.5rem; font-size:0.9rem; }
+  th, td { border:1px solid var(--border); padding:0.5rem; text-align:right; white-space:nowrap; }
+  th { background:#17202b; color:var(--muted); }
+  td:first-child, th:first-child { text-align:left; }
+  canvas { width:100% !important; max-height:320px; }
+  .pos { color:var(--pos); font-weight:700; }
+  .neg { color:var(--neg); font-weight:700; }
+  .warn { background: rgba(255,107,122,0.10); }
+  .ok { background: rgba(126,255,161,0.10); }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+
+<div class="card">
+  <h1>Silver Planner — Growth + Linear + Auto-bid</h1>
+  <div class="flex">
+    <button id="modeGrowth">Growth mode</button>
+    <button id="modeLinear">Linear mode</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Shared inputs and bankroll lock</h2>
+  <div class="flex">
+    <span class="pill">Switch modes anytime — inputs persist</span>
+  </div>
+  <label for="bankroll">Starting bankroll ($)</label>
+  <input id="bankroll" type="number" value="5000" />
+  <label for="ebayBalance">eBay balance available ($)</label>
+  <input id="ebayBalance" type="number" value="2500" />
+  <div class="flex">
+    <label style="display:inline-flex;align-items:center;gap:0.5rem;">
+      <input id="lockBankroll" type="checkbox" /> Lock bankroll for bidding (reserves queued bids)
+    </label>
+    <span class="pill" id="reservePill">Reserved: $0.00</span>
+    <span class="pill" id="availablePill">Available: $0.00</span>
+  </div>
+  <label for="spotOz">Spot price ($/oz)</label>
+  <input id="spotOz" type="number" value="58.00" />
+  <label for="resaleOz">Resale price ($/oz)</label>
+  <input id="resaleOz" type="number" value="65.00" />
+  <label for="buyPct">Buy ceiling (% of spot per pure gram)</label>
+  <input id="buyPct" type="number" value="75" />
+  <label for="processPerG">Processing ($/g pure)</label>
+  <input id="processPerG" type="number" value="0.10" />
+  <label for="feePct">Fees (% of revenue)</label>
+  <input id="feePct" type="number" value="15" />
+  <label for="turnoverDays">Turnover days per flip</label>
+  <input id="turnoverDays" type="number" value="7" />
+  <div id="unitEconomics" style="margin-top:0.5rem;"></div>
+</div>
+
+<!-- Growth mode content -->
+<div id="growthContent">
+  <div class="card">
+    <h2>Projected roadmap</h2>
+    <button id="runBtn">Run roadmap</button>
+    <div id="summary" style="margin-top:0.5rem;"></div>
+    <table>
+      <thead><tr>
+        <th>Flip</th><th>Bankroll start</th><th>Target listing g</th><th>Max bid</th><th>Processing</th><th>Revenue</th><th>Profit</th><th>Bankroll end</th><th>Day</th>
+      </tr></thead>
+      <tbody id="roadmapBody"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Charts</h2>
+    <canvas id="growthChart"></canvas>
+    <canvas id="profitChart" style="margin-top:0.75rem;"></canvas>
+  </div>
+</div>
+
+<!-- Linear mode content -->
+<div id="linearCard" style="display:none;">
+  <div class="card">
+    <h2>Linear income projection</h2>
+    <p class="muted">Enter a desired monthly income to solve for bankroll, or leave it at 0 to compute income supported by your bankroll.</p>
+    <label for="desiredMonthly">Desired monthly income ($)</label>
+    <input id="desiredMonthly" type="number" value="0" />
+    <button id="calcLinearBtn">Calculate steady income</button>
+    <div id="linearResults" style="margin-top:0.5rem;"></div>
+    <canvas id="linearChart" style="margin-top:0.75rem;"></canvas>
+  </div>
+</div>
+
+<!-- Auto-bid system -->
+<div class="card">
+  <h2>Auto-bid queue and snipe scheduling</h2>
+  <p class="muted">Paste active listing data or use the bookmarklet. Format: url | itemId | seller | grams | endTimeISO</p>
+  <textarea id="queuePaste" rows="4" placeholder="e.g.
+https://www.ebay.com/itm/1234567890 | 1234567890 | sellerA | 220 | 2025-12-05T19:42:00Z"></textarea>
+  <div class="flex" style="margin-top:0.5rem;">
+    <button id="ingestQueueBtn">Add to queue</button>
+    <button id="clearQueueBtn">Clear queue</button>
+  </div>
+  <div class="flex" style="margin-top:0.5rem;">
+    <label for="snipeSeconds">Snipe seconds before end</label>
+    <input id="snipeSeconds" type="number" value="9" />
+    <label for="maxConcurrent">Max concurrent active bids</label>
+    <input id="maxConcurrent" type="number" value="3" />
+  </div>
+  <table>
+    <thead><tr>
+      <th>Item</th><th>Seller</th><th>Grams (.925)</th><th>Ceiling ($)</th><th>End time</th><th>Countdown</th><th>Status</th><th>Action</th>
+    </tr></thead>
+    <tbody id="queueBody"></tbody>
+  </table>
+
+  <h2 style="margin-top:1rem;">Bookmarklets</h2>
+  <p class="muted">Create a bookmark with the URL below. Run it on an eBay item page to capture or to place your bid at snipe time.</p>
+  <label>Capture item details (item page)</label>
+  <textarea id="bmCapture" rows="4" readonly></textarea>
+  <label>Place bid with planner ceiling (item page at snipe time)</label>
+  <textarea id="bmPlaceBid" rows="4" readonly></textarea>
+</div>
+
+<script>
+(function(){
+  const gramsPerOz = 31.1035;
+  const storeKey = 'silverPlanner_auto_v1';
+  let gChart=null, pChart=null, lChart=null, scheduler=null;
+
+  function fmt(n, dp=2){ return Number(n||0).toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp}); }
+  function now(){ return new Date(); }
+  function toISO(d){ return new Date(d).toISOString(); }
+
+  const els = {
+    modeGrowth: document.getElementById('modeGrowth'),
+    modeLinear: document.getElementById('modeLinear'),
+    growthContent: document.getElementById('growthContent'),
+    linearCard: document.getElementById('linearCard'),
+    bankroll: document.getElementById('bankroll'),
+    ebayBalance: document.getElementById('ebayBalance'),
+    lockBankroll: document.getElementById('lockBankroll'),
+    reservePill: document.getElementById('reservePill'),
+    availablePill: document.getElementById('availablePill'),
+    spotOz: document.getElementById('spotOz'),
+    resaleOz: document.getElementById('resaleOz'),
+    buyPct: document.getElementById('buyPct'),
+    processPerG: document.getElementById('processPerG'),
+    feePct: document.getElementById('feePct'),
+    turnoverDays: document.getElementById('turnoverDays'),
+    unitEconomics: document.getElementById('unitEconomics'),
+    runBtn: document.getElementById('runBtn'),
+    summary: document.getElementById('summary'),
+    roadmapBody: document.getElementById('roadmapBody'),
+    growthChart: document.getElementById('growthChart'),
+    profitChart: document.getElementById('profitChart'),
+    desiredMonthly: document.getElementById('desiredMonthly'),
+    calcLinearBtn: document.getElementById('calcLinearBtn'),
+    linearResults: document.getElementById('linearResults'),
+    linearChart: document.getElementById('linearChart'),
+    queuePaste: document.getElementById('queuePaste'),
+    ingestQueueBtn: document.getElementById('ingestQueueBtn'),
+    clearQueueBtn: document.getElementById('clearQueueBtn'),
+    queueBody: document.getElementById('queueBody'),
+    snipeSeconds: document.getElementById('snipeSeconds'),
+    maxConcurrent: document.getElementById('maxConcurrent'),
+    bmCapture: document.getElementById('bmCapture'),
+    bmPlaceBid: document.getElementById('bmPlaceBid'),
+  };
+
+  // State
+  let state = load() || {
+    inputs: readInputs(),
+    queue: [], // {url,itemId,seller,grams,endTimeISO, ceiling, status:'queued|scheduled|opened|bidPlaced|won|lost|cancelled'}
+    reserved: 0
+  };
+
+  function readInputs(){
+    return {
+      bankroll: parseFloat(els.bankroll.value||0),
+      ebayBalance: parseFloat(els.ebayBalance.value||0),
+      lockBankroll: !!els.lockBankroll.checked,
+      spotOz: parseFloat(els.spotOz.value||0),
+      resaleOz: parseFloat(els.resaleOz.value||0),
+      buyPct: parseFloat(els.buyPct.value||0)/100,
+      processPerG: parseFloat(els.processPerG.value||0),
+      feePct: parseFloat(els.feePct.value||0)/100,
+      turnoverDays: parseFloat(els.turnoverDays.value||7),
+      snipeSeconds: parseFloat(els.snipeSeconds.value||9),
+      maxConcurrent: parseFloat(els.maxConcurrent.value||3)
+    };
+  }
+  function save(){ localStorage.setItem(storeKey, JSON.stringify(state)); }
+  function load(){ try{ return JSON.parse(localStorage.getItem(storeKey)||''); }catch(e){ return null; } }
+
+  function unitEconomics(){
+    const I = state.inputs;
+    const spotPerG = I.spotOz / gramsPerOz;
+    const resalePerG = I.resaleOz / gramsPerOz;
+    const buyCeilPerG = spotPerG * I.buyPct;
+    const revenuePerGAfterFees = resalePerG * (1 - I.feePct);
+    const profitPerG = revenuePerGAfterFees - buyCeilPerG - I.processPerG;
+    const costPerG = buyCeilPerG + I.processPerG;
+    const roi = (profitPerG>0 && costPerG>0) ? (profitPerG/costPerG) : -Infinity;
+    return { spotPerG, resalePerG, buyCeilPerG, revenuePerGAfterFees, profitPerG, costPerG, roi };
+  }
+  function renderUnitEconomics(){
+    const I = state.inputs;
+    const U = unitEconomics();
+    els.unitEconomics.innerHTML = `
+      <div class="flex">
+        <span class="pill">Spot: $${fmt(I.spotOz)} /oz ($${fmt(U.spotPerG,4)} /g)</span>
+        <span class="pill">Resale: $${fmt(I.resaleOz)} /oz ($${fmt(U.resalePerG,4)} /g)</span>
+        <span class="pill">Buy ceiling: ${fmt(I.buyPct*100,0)}% ⇒ $${fmt(U.buyCeilPerG,4)} /g pure</span>
+        <span class="pill">Processing: $${fmt(I.processPerG,4)} /g pure</span>
+        <span class="pill">Fees: ${fmt(I.feePct*100,0)}%</span>
+        <span class="pill">Profit/g: $${fmt(U.profitPerG,4)} | ROI/flip: ${U.roi>0?fmt(U.roi*100,2)+'%':'N/A'}</span>
+      </div>
+      ${U.profitPerG<=0?'<p class="neg">Unit economics negative. Raise resale, lower buy %, or reduce processing/fees.</p>':''}
+    `;
+  }
+
+  // Mode toggle
+  els.modeGrowth.addEventListener('click', ()=>{
+    els.growthContent.style.display='block';
+    els.linearCard.style.display='none';
+  });
+  els.modeLinear.addEventListener('click', ()=>{
+    els.growthContent.style.display='none';
+    els.linearCard.style.display='block';
+  });
+
+  // Growth simulation
+  function runRoadmap(){
+    const I = state.inputs; const U = unitEconomics();
+    if (U.profitPerG <= 0 || U.costPerG <= 0) {
+      els.summary.innerHTML = '<span class="neg">Unit economics negative — adjust inputs.</span>';
+      els.roadmapBody.innerHTML = '';
+      if (gChart) gChart.destroy(); if (pChart) pChart.destroy();
+      return;
+    }
+    let rows=[], bankroll=I.bankroll, day=0, flips=20;
+    for(let flip=1; flip<=flips; flip++){
+      const pureGrams = bankroll / U.costPerG;
+      const listingGrams = pureGrams / 0.925;
+      const maxBid = pureGrams * U.buyCeilPerG;
+      const proc = pureGrams * I.processPerG;
+      const revenue = pureGrams * U.revenuePerGAfterFees;
+      const profit = revenue - (maxBid + proc);
+      bankroll += profit; day += I.turnoverDays;
+      rows.push({ flip, bankrollStart: bankroll - profit, listingGrams, maxBid, proc, revenue, profit, bankrollEnd: bankroll, day });
+    }
+    els.summary.innerHTML = `<span class="pos">Flips: ${rows.length}. Final bankroll: $${fmt(rows.at(-1).bankrollEnd)}. Cumulative profit: $${fmt(rows.at(-1).bankrollEnd - I.bankroll)}.</span>`;
+    els.roadmapBody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.flip}</td><td>$${fmt(r.bankrollStart)}</td><td>${fmt(r.listingGrams)}</td>
+        <td>$${fmt(r.maxBid)}</td><td>$${fmt(r.proc)}</td><td>$${fmt(r.revenue)}</td>
+        <td class="${r.profit>=0?'pos':'neg'}">$${fmt(r.profit)}</td><td>$${fmt(r.bankrollEnd)}</td><td>${r.day}</td>
+      </tr>
+    `).join('');
+    const labels = rows.map(r=>r.day);
+    const bankrollData = rows.map(r=>r.bankrollEnd);
+    const cumProfitData = rows.map(r=>r.bankrollEnd - I.bankroll);
+    const ctx1 = els.growthChart.getContext('2d'); const ctx2 = els.profitChart.getContext('2d');
+    if (gChart) gChart.destroy(); if (pChart) pChart.destroy();
+    gChart = new Chart(ctx1, { type:'line',
+      data:{ labels, datasets:[ { label:'Bankroll', data:bankrollData, borderColor: '#4bd5ff', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+    pChart = new Chart(ctx2, { type:'line',
+      data:{ labels, datasets:[ { label:'Cumulative profit', data:cumProfitData, borderColor:'#7effa1', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+  }
+
+  // Linear mode
+  function calcLinear(){
+    const I = state.inputs; const U = unitEconomics();
+    const desiredMonthly = parseFloat(els.desiredMonthly.value||0);
+    if (U.profitPerG <= 0 || U.costPerG <= 0) {
+      els.linearResults.innerHTML = '<span class="neg">Unit economics negative — adjust inputs.</span>';
+      if (lChart) lChart.destroy();
+      return;
+    }
+    const cyclesPerYear = 365 / I.turnoverDays;
+    let monthlyIncome = 0, annualIncome = 0, requiredBankroll = 0;
+    if (desiredMonthly > 0) {
+      annualIncome = desiredMonthly * 12;
+      const profitPerDollarPerYear = (U.profitPerG / U.costPerG) * cyclesPerYear;
+      requiredBankroll = annualIncome / profitPerDollarPerYear;
+      monthlyIncome = desiredMonthly;
+      els.linearResults.innerHTML = `<span>Required bankroll for $${fmt(desiredMonthly)} /month steady: <span class="pos">$${fmt(requiredBankroll)}</span></span>`;
+    } else {
+      const pureGrams = I.bankroll / U.costPerG;
+      const profitPerCycle = pureGrams * U.profitPerG;
+      annualIncome = profitPerCycle * cyclesPerYear;
+      monthlyIncome = annualIncome / 12;
+      els.linearResults.innerHTML = `<span>Bankroll $${fmt(I.bankroll)} supports steady income: <span class="pos">$${fmt(monthlyIncome)}/month</span> ($${fmt(annualIncome)}/year)</span>`;
+    }
+    const months = Array.from({length:12}, (_,i)=>'Month '+(i+1));
+    const ctx = els.linearChart.getContext('2d');
+    if (lChart) lChart.destroy();
+    lChart = new Chart(ctx, { type:'line',
+      data:{ labels: months, datasets:[ { label:'Steady income', data: months.map(()=>monthlyIncome), borderColor:'#7effa1', fill:false } ] },
+      options:{ plugins:{ legend:{ labels:{ color:'#e7edf7' } } }, scales:{ x:{ ticks:{ color:'#e7edf7' } }, y:{ ticks:{ color:'#e7edf7' } } } }
+    });
+  }
+
+  // Auto-bid queue
+  function computeCeiling(grams925){
+    const U = unitEconomics(); const I = state.inputs;
+    const pureG = grams925 * 0.925;
+    const maxBid = pureG * U.buyCeilPerG;
+    const procBudget = pureG * I.processPerG;
+    return { maxBid, procBudget, pureG };
+  }
+
+  function ingestQueue(text){
+    const rows = text.split('\n').map(x=>x.trim()).filter(Boolean);
+    rows.forEach(line=>{
+      const [url,itemId,seller,grams,endISO] = line.split('|').map(x=>x.trim());
+      if(!url || !itemId || !seller || !grams || !endISO) return;
+      const gramsF = parseFloat(grams||0);
+      const { maxBid } = computeCeiling(gramsF);
+      const entry = { url, itemId, seller, grams: gramsF, endTimeISO: endISO, ceiling: maxBid, status:'queued' };
+      // Reserve funds if locked
+      tryReserve(entry);
+      // Upsert if itemId already exists
+      const idx = state.queue.findIndex(q=>q.itemId===itemId);
+      if(idx>=0) state.queue[idx] = entry; else state.queue.push(entry);
+    });
+    save(); renderQueue(); ensureScheduler();
+  }
+
+  function tryReserve(entry){
+    if(!state.inputs.lockBankroll) return;
+    const reserveNeeded = entry.ceiling;
+    const free = availableFunds();
+    if(reserveNeeded <= free){
+      state.reserved += reserveNeeded;
+      entry.status = 'scheduled';
+    } else {
+      entry.status = 'queued'; // cannot reserve yet
+    }
+    updateReserveUI();
+  }
+
+  function releaseReserve(amount){
+    state.reserved = Math.max(0, state.reserved - amount);
+    updateReserveUI();
+  }
+
+  function availableFunds(){
+    const I = state.inputs;
+    // Available is min(bankroll, ebayBalance) minus reserved
+    return Math.max(0, Math.min(I.bankroll, I.ebayBalance) - state.reserved);
+  }
+
+  function updateReserveUI(){
+    els.reservePill.textContent = 'Reserved: $' + fmt(state.reserved,2);
+    els.availablePill.textContent = 'Available: $' + fmt(availableFunds(),2);
+  }
+
+  function renderQueue(){
+    const I = state.inputs;
+    const rows = state.queue.slice().sort((a,b)=> new Date(a.endTimeISO) - new Date(b.endTimeISO));
+    els.queueBody.innerHTML = rows.map(q=>{
+      const tEnd = new Date(q.endTimeISO);
+      const msLeft = tEnd - now();
+      const secLeft = Math.max(0, Math.floor(msLeft/1000));
+      const countdown = secLeft>0 ? secLeft+'s' : 'ended';
+      const status = q.status;
+      return `
+        <tr class="${status==='scheduled'?'ok': status==='queued'?'': status==='opened'?'warn':''}">
+          <td><a href="${q.url}" target="_blank">${q.itemId}</a></td>
+          <td>${q.seller}</td>
+          <td>${fmt(q.grams,0)}</td>
+          <td>$${fmt(q.ceiling,2)}</td>
+          <td>${tEnd.toLocaleString()}</td>
+          <td>${countdown}</td>
+          <td>${status}</td>
+          <td>
+            <button onclick="window._openItem('${q.itemId}')">Open</button>
+            <button onclick="window._cancelItem('${q.itemId}')">Cancel</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Scheduler: opens item page at snipe time with ceiling stored in localStorage for the bookmarklet to place bid
+  function ensureScheduler(){
+    if(scheduler) return;
+    scheduler = setInterval(()=>{
+      const I = state.inputs;
+      const active = state.queue.filter(q=>q.status==='scheduled' || q.status==='queued')
+                                .sort((a,b)=> new Date(a.endTimeISO) - new Date(b.endTimeISO));
+      // Promote queued to scheduled if funds free and under maxConcurrent
+      const scheduledCount = state.queue.filter(q=>q.status==='scheduled' || q.status==='opened').length;
+      const canSchedule = Math.max(0, I.maxConcurrent - scheduledCount);
+      for(const q of active){
+        if(q.status==='queued' && canSchedule>0){
+          const free = availableFunds();
+          if(q.ceiling <= free){
+            state.reserved += q.ceiling; q.status='scheduled';
+          }
+        }
+      }
+      updateReserveUI();
+
+      // Open at snipe time
+      const nowMs = Date.now();
+      for(const q of state.queue){
+        if(q.status==='scheduled'){
+          const tEnd = new Date(q.endTimeISO).getTime();
+          const snipeMs = tEnd - (I.snipeSeconds*1000);
+          if(nowMs >= snipeMs && nowMs < tEnd){
+            // Store ceiling keyed by itemId for the bid bookmarklet
+            localStorage.setItem('silverPlanner_bid_'+q.itemId, JSON.stringify({ ceiling:q.ceiling, at:new Date().toISOString() }));
+            window.open(q.url, '_blank');
+            q.status='opened';
+          }
+        }
+      }
+      // Clean up ended
+      state.queue.forEach(q=>{
+        const ended = new Date(q.endTimeISO).getTime() <= nowMs;
+        if(ended && (q.status==='scheduled' || q.status==='opened')){
+          // Release reserve if not won (we don't auto-detect results here)
+          releaseReserve(q.ceiling);
+          if(q.status!=='won') q.status='ended';
+        }
+      });
+
+      save(); renderQueue();
+    }, 1000);
+  }
+
+  // Global actions for buttons in table
+  window._openItem = function(itemId){
+    const q = state.queue.find(x=>x.itemId===itemId); if(!q) return;
+    localStorage.setItem('silverPlanner_bid_'+q.itemId, JSON.stringify({ ceiling:q.ceiling, at:new Date().toISOString() }));
+    window.open(q.url, '_blank'); q.status='opened'; save(); renderQueue();
+  };
+  window._cancelItem = function(itemId){
+    const idx = state.queue.findIndex(x=>x.itemId===itemId); if(idx<0) return;
+    const q = state.queue[idx];
+    if(q.status==='scheduled' || q.status==='opened'){ releaseReserve(q.ceiling); }
+    state.queue.splice(idx,1); save(); renderQueue();
+  };
+
+  // Bookmarklets
+  els.bmCapture.value = `javascript:(function(){
+    // Run on an eBay item page to capture id, seller, guessed grams, and end time (if visible)
+    function n(x){return x?parseFloat((x+'').replace(/[^0-9.]/g,''))||0:0;}
+    function gramsFromText(t){var m=(t||'').match(/(\\d+[\\.,]?\\d*)\\s*(g|grams|gram)/i); return m?parseFloat(m[1].replace(',','.')):0;}
+    var url = location.href;
+    var itemId = (url.match(/\\/itm\\/(\\d+)/)||[])[1] || (document.querySelector('[data-item-id]')?.getAttribute('data-item-id')) || '';
+    var seller = document.querySelector('#RightSummaryPanel .mbg-nw, .seller-info .mbg-nw')?.innerText || '';
+    var title = document.querySelector('#itemTitle')?.innerText || document.title;
+    var grams = gramsFromText(title) || gramsFromText(document.body.innerText);
+    var endTxt = document.querySelector('.vi-cdown_timeLeft, .ux-timer__text')?.innerText || '';
+    var endISO = '';
+    // If page shows absolute end time, you can parse; otherwise leave blank
+    try{
+      var dt = document.querySelector('time[datetime]')?.getAttribute('datetime');
+      if(dt) endISO = dt;
+    }catch(e){}
+    var payload = { url:url, itemId:itemId, seller:seller, grams:grams, endTimeISO:endISO };
+    var key='silverPlanner_capture';
+    localStorage.setItem(key, JSON.stringify(payload));
+    alert('Captured item '+itemId+' for planner. You can paste it into the queue.');
+  })();`;
+
+  els.bmPlaceBid.value = `javascript:(function(){
+    // Run on item page at snipe time. Reads ceiling from localStorage and fills bid input; you confirm manually.
+    var url = location.href;
+    var itemId = (url.match(/\\/itm\\/(\\d+)/)||[])[1] || (document.querySelector('[data-item-id]')?.getAttribute('data-item-id')) || '';
+    var key = 'silverPlanner_bid_'+itemId;
+    var data = localStorage.getItem(key);
+    if(!data){ alert('No ceiling stored for item '+itemId+'. Open from planner to store ceiling.'); return; }
+    try{ data = JSON.parse(data); }catch(e){ data = null; }
+    if(!data || !data.ceiling){ alert('Ceiling not found.'); return; }
+    var ceiling = data.ceiling;
+    // Try common bid input selectors; eBay varies by experiment
+    var input = document.querySelector('input#MaxBid, input[name="quantity"], input[name="maxbid"], input[type="number"]');
+    if(!input){ alert('Bid input not found.'); return; }
+    input.value = ceiling.toFixed(2);
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+    // Focus primary bid button if present
+    var btn = document.querySelector('button[aria-label*="Place bid"], button#sbinTop, button[type="submit"]');
+    if(btn){ btn.focus(); }
+    alert('Ceiling $'+ceiling.toFixed(2)+' filled. Please confirm the bid.');
+  })();`;
+
+  // Render and bindings
+  function renderAvailable(){
+    updateReserveUI();
+  }
+
+  els.runBtn.addEventListener('click', ()=>{ state.inputs = readInputs(); renderUnitEconomics(); runRoadmap(); save(); });
+  els.calcLinearBtn.addEventListener('click', ()=>{ state.inputs = readInputs(); renderUnitEconomics(); calcLinear(); save(); });
+
+  ['bankroll','ebayBalance','lockBankroll','spotOz','resaleOz','buyPct','processPerG','feePct','turnoverDays','snipeSeconds','maxConcurrent'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', ()=>{
+      state.inputs = readInputs(); renderUnitEconomics(); renderAvailable(); save();
+    });
+  });
+
+  els.ingestQueueBtn.addEventListener('click', ()=>{
+    const t = els.queuePaste.value||''; ingestQueue(t); els.queuePaste.value='';
+  });
+  els.clearQueueBtn.addEventListener('click', ()=>{
+    // Release any reserves
+    state.queue.forEach(q=>{ if(q.status==='scheduled' || q.status==='opened') releaseReserve(q.ceiling); });
+    state.queue = []; save(); renderQueue();
+  });
+
+  // Initial
+  // Load inputs into DOM
+  els.bankroll.value = state.inputs.bankroll;
+  els.ebayBalance.value = state.inputs.ebayBalance;
+  els.lockBankroll.checked = state.inputs.lockBankroll;
+  els.spotOz.value = state.inputs.spotOz;
+  els.resaleOz.value = state.inputs.resaleOz;
+  els.buyPct.value = state.inputs.buyPct*100;
+  els.processPerG.value = state.inputs.processPerG;
+  els.feePct.value = state.inputs.feePct*100;
+  els.turnoverDays.value = state.inputs.turnoverDays;
+  els.snipeSeconds.value = state.inputs.snipeSeconds;
+  els.maxConcurrent.value = state.inputs.maxConcurrent;
+
+  renderUnitEconomics(); runRoadmap(); calcLinear();
+  renderAvailable(); renderQueue(); ensureScheduler();
+})();
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

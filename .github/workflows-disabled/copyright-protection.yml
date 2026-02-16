@@ -1,0 +1,207 @@
+name: Copyright Protection Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.js'
+      - '**.html'
+      - '**.css'
+  push:
+    branches:
+      - main
+    paths:
+      - '**.js'
+      - '**.html'
+      - '**.css'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  verify-copyright:
+    runs-on: ubuntu-latest
+    name: Verify Copyright Headers
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Check for copyright headers
+        id: check
+        run: |
+          echo "🔒 Checking copyright headers..."
+          
+          # Function to check if file has copyright
+          check_copyright() {
+            local file="$1"
+            if grep -q "Copyright.*Ryan Barbrick\|Barbrick Design" "$file"; then
+              return 0  # Has copyright
+            else
+              return 1  # Missing copyright
+            fi
+          }
+          
+          # Function to check if file is third-party
+          is_third_party() {
+            local file="$1"
+            # Check for third-party indicators
+            if echo "$file" | grep -q "vendor/\|node_modules/\|third-party/\|three.min.js\|babylon.min.js\|OrbitControls.js\|STLLoader.js"; then
+              return 0  # Is third-party
+            fi
+            
+            # Check file content for third-party licenses
+            if head -50 "$file" | grep -q "MIT License\|Apache License\|BSD License\|GNU General Public License"; then
+              return 0  # Is third-party
+            fi
+            
+            return 1  # Not third-party
+          }
+          
+          missing_files=""
+          file_count=0
+          missing_count=0
+          
+          # Get changed files in PR
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(js|html|css)$' || true)
+          else
+            files=$(git diff --name-only HEAD~1 HEAD | grep -E '\.(js|html|css)$' || true)
+          fi
+          
+          # Check each file
+          for file in $files; do
+            if [ -f "$file" ]; then
+              file_count=$((file_count + 1))
+              
+              # Skip third-party files
+              if is_third_party "$file"; then
+                echo "⏭️  Skipped (third-party): $file"
+                continue
+              fi
+              
+              # Check for copyright header
+              if ! check_copyright "$file"; then
+                echo "❌ Missing copyright: $file"
+                missing_files="${missing_files}${file}\n"
+                missing_count=$((missing_count + 1))
+              else
+                echo "✅ Has copyright: $file"
+              fi
+            fi
+          done
+          
+          echo "file_count=$file_count" >> $GITHUB_OUTPUT
+          echo "missing_count=$missing_count" >> $GITHUB_OUTPUT
+          
+          if [ $missing_count -gt 0 ]; then
+            echo "missing_files<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$missing_files" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Comment on PR (if copyright missing)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const missingFiles = `${{ steps.check.outputs.missing_files }}`;
+            const fileCount = ${{ steps.check.outputs.file_count }};
+            const missingCount = ${{ steps.check.outputs.missing_count }};
+            
+            const comment = `## 🔒 Copyright Protection Check Failed
+            
+            **⚠️ ${missingCount} file(s) are missing copyright headers**
+            
+            The following files need copyright headers:
+            
+            ${missingFiles.split('\n').filter(f => f).map(f => `- \`${f}\``).join('\n')}
+            
+            ### Required Copyright Header Format
+            
+            **For JavaScript files (.js):**
+            \`\`\`javascript
+            /**
+             * Copyright (c) 2024-2025 Ryan Barbrick (Barbrick Design)
+             * All Rights Reserved.
+             * 
+             * PROPRIETARY AND CONFIDENTIAL
+             * 
+             * This code is the exclusive property of Ryan Barbrick (Barbrick Design).
+             * Unauthorized copying, modification, distribution, or use of this code,
+             * via any medium, is strictly prohibited without express written permission.
+             * 
+             * For licensing inquiries: BarbrickDesign@gmail.com
+             * AI Assistant: Merlin AI
+             * 
+             * @license Proprietary
+             * @copyright 2024-2025 Ryan Barbrick. All Rights Reserved.
+             */
+            \`\`\`
+            
+            **For HTML files (.html):**
+            \`\`\`html
+            <!--
+              Copyright (c) 2024-2025 Ryan Barbrick (Barbrick Design)
+              All Rights Reserved.
+              
+              PROPRIETARY AND CONFIDENTIAL
+              
+              For licensing inquiries: BarbrickDesign@gmail.com
+              AI Assistant: Merlin AI
+            -->
+            \`\`\`
+            
+            **For CSS files (.css):**
+            \`\`\`css
+            /**
+             * Copyright (c) 2024-2025 Ryan Barbrick (Barbrick Design)
+             * All Rights Reserved.
+             * 
+             * PROPRIETARY AND CONFIDENTIAL
+             * 
+             * For licensing inquiries: BarbrickDesign@gmail.com
+             * AI Assistant: Merlin AI
+             */
+            \`\`\`
+            
+            ### How to Fix
+            
+            1. Add the appropriate copyright header to each file
+            2. Or run: \`node scripts/add-copyright-headers.js\`
+            3. Commit and push the changes
+            
+            ### Why This Matters
+            
+            Copyright headers protect the intellectual property in this repository. They:
+            - Establish clear ownership
+            - Protect against unauthorized use
+            - Provide legal recourse for infringement
+            - Enable proper licensing and revenue recovery
+            
+            ---
+            
+            © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+      
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ All files have proper copyright headers"
+          echo "© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved."

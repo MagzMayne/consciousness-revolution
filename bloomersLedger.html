@@ -1,0 +1,665 @@
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: bloomersLedger.html
+Declaration ID: IP-6A08748D-MLL28ZYB
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+Bloomers Ledger — single-file public hub
+
+Save this file as BloomersLedger.html. It’s a single-file deployable hub that:
+
+• hosts a public project ledger for BarBrickDesign with project entries, commit-like updates, time tracking, and file attachments
+• supports drag-and-drop or file input for images, code, and notes and computes SHA-256 hex fingerprints for uploads
+• records time entries, durations, tags, and contributor names into a local ledger stored in localStorage (exportable as JSON)
+• provides an optional “publish” mode that builds a read-only public view of selected entries for sharing on a site or GitHub Pages
+• includes the BloomersTattoos pixel-flow demo loader and hex fingerprint integration so project work tied to images (activation layers) is visible in the ledger
+• runs fully in the browser with no server required and contains no wallet or on-chain transaction code
+
+
+Copy the entire file below into BloomersLedger.html, open it in a modern browser, and put your demo images (e.g., X9dvbXGFGnkKR919MoaBt.jpeg) beside it if you want them available as defaults.
+
+<!doctype html>
+<html>
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Bloomers Ledger — BarBrickDesign Project Hub</title>
+<style>
+  :root{--bg:#071017;--panel:rgba(10,10,12,0.72);--accent:#8bd;--text:#dde}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial}
+  header{display:flex;align-items:center;gap:16px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent)}
+  header h1{margin:0;font-size:18px}
+  #main{display:flex;gap:12px;padding:12px;box-sizing:border-box}
+  #left{width:420px;max-width:40%;min-width:320px;background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5)}
+  #right{flex:1;min-width:360px}
+  .section{margin-bottom:12px}
+  label{display:block;font-size:13px;color:#cfd; margin-bottom:6px}
+  input[type=text],textarea,select{width:100%;padding:8px;border-radius:8px;border:0;background:#0c1114;color:var(--text);box-sizing:border-box}
+  textarea{min-height:84px;resize:vertical}
+  button{background:var(--accent);border:0;color:#062029;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .muted{color:#9bb}
+  .project{padding:10px;border-radius:8px;background:#07151a;margin-bottom:8px;border:1px solid rgba(255,255,255,0.02)}
+  .meta{font-size:12px;color:#9bb;margin-top:6px}
+  .ledger-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+  .small{font-size:12px;color:#9bb}
+  #canvasWrap{background:#000;border-radius:8px;overflow:hidden;padding:8px}
+  canvas{display:block;width:100%;height:auto;border-radius:6px;background:#111}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .pill{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+  footer{padding:12px;text-align:center;color:#9aa;font-size:13px}
+  @media (max-width:980px){ #main{flex-direction:column} #left{width:100%;max-width:unset} #right{width:100%} }
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<header>
+  <h1>Bloomers Ledger — BarBrickDesign</h1>
+  <div class="muted">Single-file public hub for projects, time logs, code, images, and activation-layer hex fingerprints</div>
+</header>
+
+<div id="main">
+  <aside id="left">
+    <div class="section">
+      <label>New Project / Update</label>
+      <input id="projName" type="text" placeholder="Project or repo name" />
+      <label>Update title</label>
+      <input id="updateTitle" type="text" placeholder="Short summary (commit-like)" />
+      <label>Notes or description</label>
+      <textarea id="updateNote" placeholder="Describe changes, ideas, or context"></textarea>
+      <label>Tags (comma separated)</label>
+      <input id="tags" type="text" placeholder="tag1, tag2, design, pixel-flow" />
+      <label>Time spent (minutes)</label>
+      <input id="minutes" type="text" placeholder="e.g., 45" />
+      <label>Attach file (image/code/note)</label>
+      <input id="fileIn" type="file" accept="image/*,text/plain,application/json,application/zip" />
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="addUpdate">Add update</button>
+        <button id="markCore">Mark as Core</button>
+        <button id="clearForm">Clear</button>
+      </div>
+      <div style="margin-top:10px" class="small muted">
+        First uploaded image can be set as Core activation layer. All uploads compute SHA-256 hex fingerprint locally.
+      </div>
+    </div>
+
+    <div class="section">
+      <label>Local ledger export / import</label>
+      <div style="display:flex;gap:8px">
+        <button id="exportLog">Export JSON</button>
+        <button id="importLog">Import JSON</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+      </div>
+      <div style="margin-top:8px" class="small muted">Exported ledger contains timestamps, filenames, SHA-256 hex, tags, time spent, and notes for each entry.</div>
+    </div>
+
+    <div class="section">
+      <label>Publish / Public view</label>
+      <div style="display:flex;gap:8px">
+        <button id="buildPublic">Build Public View</button>
+        <button id="clearPublic">Clear Public</button>
+      </div>
+      <div class="small muted" style="margin-top:8px">Builds a shareable read-only view of selected entries to show on GitHub Pages or a static host (client-side only).</div>
+    </div>
+
+    <div class="section">
+      <label>Ledger summary</label>
+      <div id="summary" class="small muted">Entries: 0 · Total minutes: 0</div>
+      <div style="margin-top:8px">
+        <button id="clearAll">Clear Ledger</button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="right">
+    <section class="section">
+      <label>Projects and Updates</label>
+      <div id="ledgerList"></div>
+    </section>
+
+    <section class="section" id="canvasSection">
+      <label>Visual demo & activation layer</label>
+      <div id="canvasWrap">
+        <canvas id="demoCanvas" width="900" height="700" aria-label="Pixel-flow demo canvas"></canvas>
+      </div>
+      <div class="controls">
+        <div class="pill">Density: <span id="densityVal">12</span></div>
+        <div class="pill">Speed: <span id="speedVal">1.2</span></div>
+        <div style="flex:1"></div>
+        <button id="restartDemo">Restart Demo</button>
+        <button id="hideDemoUI">Hide Demo UI</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <label>Core activation layer</label>
+      <div id="coreCard" class="project small muted">No core set</div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  Bloomers Ledger — single-file archive for BarBrickDesign. This runs entirely client-side; export and host as needed.
+</footer>
+
+<script>
+/* Bloomers Ledger — core JS
+   - Implements a client-side ledger with localStorage persistence
+   - Computes SHA-256 hex fingerprints for any uploaded file (images, code, JSON)
+   - Integrates the BloomersTattoos pixel-flow demo canvas as a visible activation demo
+   - Supports export/import of ledger JSON and builds a static public view (client-side)
+   - NOTE: No wallet, signing, or blockchain operations are included
+*/
+
+/* Utilities */
+const LOG_KEY = 'bloomers_ledger_v1';
+const DEMO_CANVAS = document.getElementById('demoCanvas');
+const dctx = DEMO_CANVAS.getContext('2d', { willReadFrequently: true });
+
+function nowISO(){ return new Date().toISOString(); }
+function uiLog(msg){ console.log((new Date()).toLocaleTimeString(), msg); }
+function loadLedger(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); }catch(e){ return []; } }
+function saveLedger(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); }
+
+/* SHA-256 hex function (fast 4byte chunks) */
+function bufToHex(buffer){
+  const hexCodes = []; const view = new DataView(buffer);
+  for(let i=0;i<view.byteLength;i+=4){ const v = view.getUint32(i,false); hexCodes.push(v.toString(16).padStart(8,'0')); }
+  return hexCodes.join('');
+}
+async function computeSHA256Hex(file){
+  const ab = await file.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', ab);
+  return bufToHex(hash);
+}
+
+/* Ledger operations */
+function addLedgerEntry(entry){
+  const arr = loadLedger();
+  arr.unshift(entry);
+  saveLedger(arr);
+  renderLedger();
+}
+function clearLedger(){ localStorage.removeItem(LOG_KEY); renderLedger(); }
+
+/* UI references */
+const fileIn = document.getElementById('fileIn');
+const projName = document.getElementById('projName');
+const updateTitle = document.getElementById('updateTitle');
+const updateNote = document.getElementById('updateNote');
+const tagsInput = document.getElementById('tags');
+const minutesInput = document.getElementById('minutes');
+const addBtn = document.getElementById('addUpdate');
+const markCoreBtn = document.getElementById('markCore');
+const clearFormBtn = document.getElementById('clearForm');
+const exportBtn = document.getElementById('exportLog');
+const importBtn = document.getElementById('importLog');
+const importFile = document.getElementById('importFile');
+const buildPublicBtn = document.getElementById('buildPublic');
+const clearPublicBtn = document.getElementById('clearPublic');
+const summaryEl = document.getElementById('summary');
+const ledgerList = document.getElementById('ledgerList');
+const coreCard = document.getElementById('coreCard');
+const clearAllBtn = document.getElementById('clearAll');
+
+let stagedFile = null; // File object when user uploads
+
+fileIn.addEventListener('change', async (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  stagedFile = f;
+  uiLog('File selected: ' + f.name);
+  // compute hash in background and show briefly
+  try{
+    const hex = await computeSHA256Hex(f);
+    uiLog('SHA-256 computed: ' + hex.slice(0,12));
+  }catch(e){ uiLog('Hash error: ' + e); }
+});
+
+addBtn.addEventListener('click', async () => {
+  const name = projName.value.trim() || 'Unnamed Project';
+  const title = updateTitle.value.trim() || 'Update';
+  const note = updateNote.value.trim() || '';
+  const tags = tagsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+  const mins = parseInt(minutesInput.value) || 0;
+  let fileMeta = null;
+  if(stagedFile){
+    try{
+      const hex = await computeSHA256Hex(stagedFile);
+      fileMeta = { filename: stagedFile.name, size: stagedFile.size, sha256: hex };
+    }catch(e){ uiLog('Failed hash for file: ' + e); fileMeta = { filename: stagedFile.name, size: stagedFile.size, sha256: 'error' }; }
+  }
+  const entry = {
+    id: 'entry_' + Date.now() + '_' + Math.floor(Math.random()*9999),
+    createdAt: nowISO(),
+    project: name,
+    title,
+    note,
+    tags,
+    minutes: mins,
+    file: fileMeta
+  };
+  addLedgerEntry(entry);
+  // optionally set first uploaded image as core automatically: commented, user may prefer manual
+  stagedFile = null; fileIn.value = '';
+  projName.value = ''; updateTitle.value = ''; updateNote.value = ''; tagsInput.value = ''; minutesInput.value = '';
+});
+
+/* Mark currently staged or latest entry as core activation layer */
+markCoreBtn.addEventListener('click', () => {
+  const arr = loadLedger();
+  if(arr.length === 0){ alert('No ledger entries to mark'); return; }
+  const newest = arr[0];
+  if(!newest.file || !newest.file.sha256){ alert('Newest entry has no file or file hash to set as core'); return; }
+  // append a core-mark entry
+  const coreEntry = { id: 'core_' + Date.now(), createdAt: nowISO(), coreFor: newest.project, filename: newest.file.filename, sha256: newest.file.sha256 };
+  addLedgerEntry(coreEntry);
+  uiLog('Core set: ' + newest.file.filename + ' ' + newest.file.sha256.slice(0,8));
+});
+
+/* Export / import */
+exportBtn.addEventListener('click', () => {
+  const arr = loadLedger();
+  const blob = new Blob([JSON.stringify(arr, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bloomers_ledger.json'; a.click();
+});
+importBtn.addEventListener('click', ()=> importFile.click());
+importFile.addEventListener('change', (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const arr = JSON.parse(reader.result);
+      if(!Array.isArray(arr)) throw new Error('Not an array');
+      saveLedger(arr);
+      renderLedger();
+      alert('Imported ' + arr.length + ' entries');
+    }catch(e){ alert('Import failed: ' + e.message); }
+  };
+  reader.readAsText(f);
+});
+
+/* Build simple public view (client-side only) */
+buildPublicBtn.addEventListener('click', () => {
+  const arr = loadLedger();
+  const publicArr = arr.slice(0, 50).map(e => ({
+    id: e.id, createdAt: e.createdAt, project: e.project, title: e.title, tags: e.tags, minutes: e.minutes, file: e.file ? { filename: e.file.filename, sha256: e.file.sha256 } : null
+  }));
+  const blob = new Blob([JSON.stringify(publicArr, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bloomers_public_view.json'; a.click();
+  alert('Public payload built (first 50 entries) and downloaded as JSON. Host this JSON or paste into a static page for public display.');
+});
+
+/* Clear public (no-op for client-side-only demo) */
+clearPublicBtn.addEventListener('click', ()=> alert('Public view clearing is a no-op in client-only demo. Remove the hosted JSON to unpublish.'));
+
+clearAllBtn.addEventListener('click', ()=>{
+  if(!confirm('Clear ledger from localStorage? This cannot be undone.')) return;
+  clearLedger();
+});
+
+/* Render functions */
+function renderLedger(){
+  const arr = loadLedger();
+  ledgerList.innerHTML = '';
+  let total = 0;
+  arr.forEach(entry => {
+    const el = document.createElement('div');
+    el.className = 'project';
+    const head = document.createElement('div');
+    head.innerHTML = '<strong>' + (entry.project || 'project') + '</strong> <span class="muted">· ' + new Date(entry.createdAt).toLocaleString() + '</span>';
+    const title = document.createElement('div'); title.innerHTML = '<div style="font-weight:600;margin-top:6px">' + (entry.title || '') + '</div>';
+    const note = document.createElement('div'); note.textContent = entry.note || ''; note.className = 'small';
+    const meta = document.createElement('div'); meta.className = 'meta';
+    meta.innerHTML = 'Tags: ' + (entry.tags && entry.tags.length ? entry.tags.join(', ') : '<span class="muted">none</span>') + ' · Minutes: ' + (entry.minutes || 0);
+    if(entry.file){
+      const fm = document.createElement('div'); fm.className = 'small muted'; fm.textContent = 'Attached: ' + entry.file.filename + ' · ' + (entry.file.sha256 ? entry.file.sha256.slice(0,12) + '...' : 'no-hash');
+      meta.appendChild(fm);
+    }
+    el.appendChild(head); el.appendChild(title); el.appendChild(note); el.appendChild(meta);
+    ledgerList.appendChild(el);
+    total += entry.minutes || 0;
+  });
+  summaryEl.textContent = `Entries: ${arr.length} · Total minutes: ${total}`;
+  // show core if present (core entries stored with id starting 'core_')
+  const core = arr.find(e => e.id && String(e.id).startsWith('core_'));
+  if(core){
+    coreCard.innerHTML = `<strong>Core set</strong><div class="small muted">Project: ${core.coreFor || 'n/a'}</div><div class="small muted">File: ${core.filename || 'n/a'}</div><div class="small muted">sha256: ${core.sha256 ? core.sha256.slice(0,12) + '...' : 'n/a'}</div>`;
+  } else {
+    coreCard.textContent = 'No core set';
+  }
+}
+
+/* Initial render */
+renderLedger();
+
+/* -------------------------- Pixel-flow demo (light integration) --------------------------- */
+/* This is a compact mobile-friendly adaptation of previous demo code to visualize an activation layer.
+   It samples a loaded "core" image or a demo image (if present) and creates an organic bloom of leaf particles.
+   For ledger integration we do a small show: when a core entry exists with a sha256, display it on the demo canvas.
+*/
+
+const demoState = { particles: [], sparks: [], t: 0, running: false };
+let demoImage = new Image();
+demoImage.crossOrigin = 'anonymous';
+let demoImgURL = null;
+let DEMO_DEVICE_RATIO = Math.max(1, window.devicePixelRatio || 1);
+
+function fitDemoCanvas(){
+  const wrapW = Math.min(window.innerWidth - 40, 1000);
+  DEMO_CANVAS.style.width = '100%';
+  DEMO_CANVAS.width = Math.round(900 * DEMO_DEVICE_RATIO);
+  DEMO_CANVAS.height = Math.round(700 * DEMO_DEVICE_RATIO);
+}
+fitDemoCanvas();
+window.addEventListener('resize', ()=> { DEMO_DEVICE_RATIO = Math.max(1, window.devicePixelRatio || 1); fitDemoCanvas(); });
+
+async function loadDemoFromCore(){
+  const arr = loadLedger();
+  const core = arr.find(e => e.id && String(e.id).startsWith('core_'));
+  if(core && core.filename){
+    // try to find matching ledger entry with file to create object URL if available in same session
+    const match = arr.find(e => e.file && e.file.filename === core.filename);
+    if(match){
+      // if the browser still has a blob URL reference in memory, use it; otherwise attempt to fetch local file by name (may fail)
+      uiLog('Loading demo image from ledger entry: ' + core.filename);
+      // For offline demo we can't reconstruct the original file blob unless user re-uploads; attempt fetch (best-effort)
+      try{
+        demoImage.src = core.filename;
+        demoImage.onload = () => { uiLog('Demo core image loaded'); initDemoParticles(); };
+        demoImage.onerror = () => { uiLog('Failed to load core image by filename; using demo image fallback'); loadFallbackDemo(); };
+      }catch(e){ loadFallbackDemo(); }
+      return;
+    }
+  }
+  // otherwise load default demo image in same folder (best effort)
+  loadFallbackDemo();
+}
+
+function loadFallbackDemo(){
+  demoImage = new Image();
+  demoImage.crossOrigin = 'anonymous';
+  demoImage.onload = initDemoParticles;
+  demoImage.onerror = () => { uiLog('No demo image available'); clearDemoCanvas(); };
+  demoImage.src = 'X9dvbXGFGnkKR919MoaBt.jpeg';
+}
+
+function clearDemoCanvas(){
+  dctx.clearRect(0,0,DEMO_CANVAS.width,DEMO_CANVAS.height);
+  const txt = 'No demo image available. Upload and set Core to preview activation layer.';
+  dctx.fillStyle = '#222'; dctx.fillRect(0,0,DEMO_CANVAS.width,DEMO_CANVAS.height);
+  dctx.fillStyle = '#9aa'; dctx.font = (18*DEMO_DEVICE_RATIO)+'px Inter, Arial';
+  dctx.fillText(txt, 20*DEMO_DEVICE_RATIO, 40*DEMO_DEVICE_RATIO);
+}
+
+/* compact particle engine for demo (borrowed and condensed from earlier scripts) */
+function initDemoParticles(){
+  demoState.particles.length = 0; demoState.sparks.length = 0; demoState.t = 0;
+  // draw image to temp canvas scaled to demo canvas size then sample
+  const tmp = document.createElement('canvas'); tmp.width = DEMO_CANVAS.width; tmp.height = DEMO_CANVAS.height;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#000'; tctx.fillRect(0,0,tmp.width,tmp.height);
+  const ratio = Math.min(tmp.width / demoImage.width, tmp.height / demoImage.height);
+  const iw = Math.round(demoImage.width * ratio), ih = Math.round(demoImage.height * ratio);
+  const ix = Math.round((tmp.width - iw)/2), iy = Math.round((tmp.height - ih)/2);
+  tctx.drawImage(demoImage, ix, iy, iw, ih);
+  // optional: we could apply a simple filter here; omitted for compactness
+  // sample pixels (density adaptive)
+  let density = parseInt(document.getElementById('densityVal').textContent) || 12;
+  if(window.innerWidth < 420) density = Math.max(density, 10);
+  const step = Math.max(2, density);
+  const imgData = tctx.getImageData(0,0,tmp.width,tmp.height).data;
+  for(let y=0;y<tmp.height;y+=step){
+    for(let x=0;x<tmp.width;x+=step){
+      const i = ((y*tmp.width)+x)*4;
+      const a = imgData[i+3];
+      if(a < 12) continue;
+      demoState.particles.push({
+        x: x / DEMO_DEVICE_RATIO, y: y / DEMO_DEVICE_RATIO,
+        ox: x / DEMO_DEVICE_RATIO, oy: y / DEMO_DEVICE_RATIO,
+        r: imgData[i], g: imgData[i+1], b: imgData[i+2],
+        mode: 'idle', vx:0, vy:0, t: Math.random()
+      });
+    }
+  }
+  seedDemoEmitters(5);
+  if(!demoState.running){ demoState.running = true; requestAnimationFrame(demoLoop); }
+}
+
+function seedDemoEmitters(n){
+  for(let i=0;i<n;i++){
+    const pool = demoState.particles;
+    if(pool.length === 0) return;
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    pick.mode = 'emitter'; pick.emitTimer = Math.random() * 1.2;
+  }
+}
+
+function demoLoop(){
+  demoState.t += 0.016;
+  const speed = parseFloat(document.getElementById('speedVal').textContent) || 1.2;
+  const sparkLevel = 0.6;
+
+  dctx.save();
+  dctx.setTransform(DEMO_DEVICE_RATIO,0,0,DEMO_DEVICE_RATIO,0,0);
+  dctx.clearRect(0,0,DEMO_CANVAS.width,DEMO_CANVAS.height);
+  dctx.fillStyle = 'rgba(8,8,8,0.16)';
+  dctx.fillRect(0,0,DEMO_CANVAS.width/DEMO_DEVICE_RATIO,DEMO_CANVAS.height/DEMO_DEVICE_RATIO);
+
+  for(const p of demoState.particles){
+    p.t += 0.02 * speed;
+    if(p.mode === 'emitter'){
+      p.emitTimer -= 0.02 * speed;
+      if(p.emitTimer <= 0){
+        p.emitTimer = 0.15 + Math.random()*0.6;
+        const n = demoFindNeighbor(p, 18);
+        if(n && n.mode === 'idle'){ n.mode = 'grow'; n.growProg = 0; n.leafColor = [ Math.round(95 + Math.random()*60), Math.round(20 + Math.random()*50), Math.round(120 + Math.random()*80) ]; }
+      }
+    }
+    if(p.mode === 'grow'){
+      p.growProg += 0.02 * speed * (0.6 + Math.random()*0.9);
+      p.vx += (Math.random()-0.5)*0.12; p.vy += (Math.random()-0.4)*0.06;
+      p.x += p.vx; p.y += p.vy;
+      if(p.growProg > 1){ p.mode = 'leaf'; p.leaf = { size: 0.9 + Math.random()*1.5, angle: (Math.random()-0.5)*3.2, pistils: Math.random()>0.4 ? Math.floor(1+Math.random()*3):0 }; }
+    }
+    if(p.mode === 'leaf'){
+      p.x += Math.sin((demoState.t + p.ox)*0.6)*0.2;
+      p.y += Math.cos((demoState.t + p.oy)*0.4)*0.08;
+    }
+  }
+
+  // draw particles
+  for(const p of demoState.particles){
+    if(p.mode === 'leaf'){
+      const lc = p.leafColor || [150,40,180];
+      const size = p.leaf.size * (12 / Math.max(1, parseInt(document.getElementById('densityVal').textContent) || 12));
+      dctx.save(); dctx.translate(p.x,p.y); dctx.rotate(p.leaf.angle);
+      const g = dctx.createLinearGradient(-size,0,size,0);
+      g.addColorStop(0, `rgba(${Math.max(0,lc[0]-20)},${lc[1]},${Math.min(255,lc[2]+20)},0.98)`);
+      g.addColorStop(0.6, `rgba(${lc[0]},${Math.min(255,lc[1]+10)},${lc[2]},0.98)`);
+      g.addColorStop(1, `rgba(${Math.min(255,lc[0]+30)},${Math.min(255,lc[1]+40)},${Math.min(255,lc[2]+60)},0.98)`);
+      dctx.fillStyle = g;
+      dctx.beginPath(); dctx.ellipse(0,0,size*1.6,size,0,0,Math.PI*2); dctx.fill();
+      dctx.restore();
+    } else {
+      dctx.fillStyle = `rgba(${p.r},${p.g},${p.b},0.18)`;
+      dctx.fillRect(p.x-0.5, p.y-0.5, Math.max(1, 12/parseInt(document.getElementById('densityVal').textContent||12)), Math.max(1, 12/parseInt(document.getElementById('densityVal').textContent||12)));
+    }
+  }
+
+  dctx.restore();
+  if(demoState.running) requestAnimationFrame(demoLoop);
+}
+
+function demoFindNeighbor(center, radius){
+  let best=null, bestD=Infinity;
+  for(const p of demoState.particles){
+    if(p.mode !== 'idle') continue;
+    const dx = p.x - center.x, dy = p.y - center.y; const d = Math.sqrt(dx*dx + dy*dy);
+    if(d < radius && d < bestD){ best = p; bestD = d; }
+  }
+  return best;
+}
+
+/* Demo controls */
+document.getElementById('restartDemo').addEventListener('click', ()=> loadDemoFromCore());
+document.getElementById('hideDemoUI').addEventListener('click', ()=> {
+  const cs = document.getElementById('canvasSection'); cs.style.display = cs.style.display === 'none' ? 'block' : 'none';
+});
+
+/* For compact UI: live display of slider readouts (density and speed) */
+const densityVal = document.getElementById('density');
+const speedVal = document.getElementById('speed');
+const densityDisplay = document.getElementById('densityVal');
+const speedDisplay = document.getElementById('speedVal');
+
+densityVal.addEventListener('input', ()=> densityDisplay.textContent = densityVal.value);
+speedVal.addEventListener('input', ()=> speedDisplay.textContent = speedVal.value);
+
+/* When ledger changes, update demo core display */
+(function observeLedgerChanges(){
+  const originalSave = saveLedger;
+  saveLedger = function(arr){ localStorage.setItem(LOG_KEY, JSON.stringify(arr)); renderLedger(); };
+})();
+
+function renderLedger(){ 
+  const arr = loadLedger(); ledgerList.innerHTML = '';
+  let total = 0;
+  for(const entry of arr){
+    const box = document.createElement('div'); box.className = 'project';
+    box.innerHTML = `<strong>${entry.project||'project'}</strong> <span class="muted">· ${new Date(entry.createdAt).toLocaleString()}</span>
+      <div style="font-weight:600;margin-top:6px">${entry.title||''}</div>
+      <div class="small">${entry.note||''}</div>
+      <div class="meta">Tags: ${(entry.tags&&entry.tags.length)?entry.tags.join(', '):'<span class="muted">none</span>'} · Minutes: ${entry.minutes||0}</div>`;
+    if(entry.file) box.innerHTML += `<div class="small muted">File: ${entry.file.filename} · sha256: ${entry.file.sha256?entry.file.sha256.slice(0,12)+'...':'n/a'}</div>`;
+    ledgerList.appendChild(box);
+    total += entry.minutes || 0;
+  }
+  summaryEl.textContent = `Entries: ${arr.length} · Total minutes: ${total}`;
+  const core = arr.find(e => e.id && String(e.id).startsWith('core_'));
+  if(core){
+    coreCard.innerHTML = `<strong>Core set</strong><div class="small muted">Project: ${core.coreFor||'n/a'}</div><div class="small muted">File: ${core.filename||'n/a'}</div><div class="small muted">sha256: ${core.sha256?core.sha256.slice(0,12)+'...':'n/a'}</div>`;
+  } else {
+    coreCard.textContent = 'No core set';
+  }
+}
+
+/* initial render and demo load */
+renderLedger();
+loadDemoFromCore();
+
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

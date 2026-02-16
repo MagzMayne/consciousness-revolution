@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: gembot-control-3d.html
+Declaration ID: IP-35AA6F3D-MLL28ZZV
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gem Bot Mini - Industrial Simulator & Training Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="wallet-adapter.js"></script>
+    <link rel="stylesheet" href="src/ui/wallet-button.css">
+    <link rel="stylesheet" href="mobile-responsive.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #ecf0f1;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Real Nextion HMI Display Panel */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 480px;
+            background: #000;
+            border: 8px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 0;
+            z-index: 10;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .hmi-header {
+            background: linear-gradient(180deg, #1e5a8e 0%, #165a8e 100%);
+            padding: 8px 15px;
+            border-bottom: 1px solid #0d3d66;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .hmi-title {
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .hmi-body {
+            padding: 15px;
+            max-height: calc(90vh - 60px);
+            overflow-y: auto;
+            background: #000;
+        }
+        
+        /* Custom Scrollbar */
+        .hmi-body::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .hmi-body::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        .hmi-body::-webkit-scrollbar-thumb {
+            background: #00ff00;
+            border-radius: 4px;
+        }
+
+        .stats-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: #000;
+            border: 8px solid #1a1a1a;
+            border-radius: 8px;
+            padding: 0;
+            z-index: 10;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        
+        .stats-panel h2 {
+            background: linear-gradient(180deg, #1e5a8e 0%, #165a8e 100%);
+            color: #fff;
+            margin: 0;
+            padding: 8px 15px;
+            border-radius: 0;
+            border-left: none;
+            border-bottom: 1px solid #0d3d66;
+        }
+        
+        .stats-panel .stat-item {
+            padding: 10px 15px;
+            background: #0a0a0a;
+        }
+
+        .bottom-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #000;
+            border: 6px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 10px 20px;
+            z-index: 10;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .bottom-panel button {
+            margin: 0;
+            padding: 10px 15px;
+            font-size: 11px;
+            min-width: 100px;
+        }
+
+        h2 {
+            color: #3498db;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 10px;
+            background: linear-gradient(180deg, #2c3e50 0%, #1a252f 100%);
+            border-left: 3px solid #3498db;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            padding: 12px;
+            border-radius: 2px;
+            border: 1px solid #2c3e50;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #95a5a6;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .value-display {
+            float: right;
+            color: #2ecc71;
+            font-size: 14px;
+            font-weight: 700;
+            background: #000;
+            padding: 2px 8px;
+            border-radius: 2px;
+        }
+
+        /* Nextion-Style Sliders */
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            height: 8px;
+            background: linear-gradient(180deg, #0d1117 0%, #1a1a1a 100%);
+            border: 1px solid #2c3e50;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
+            border: 2px solid #1a5c8e;
+            border-radius: 3px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(52,152,219,0.4);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: linear-gradient(180deg, #00ff33 0%, #00dd00 100%);
+            box-shadow: 0 0 12px rgba(0,255,0,0.8);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(180deg, #00ff00 0%, #00cc00 100%);
+            border: 2px solid #000;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0,255,0,0.5);
+        }
+
+        /* Real Nextion Touch Buttons */
+        button {
+            background: linear-gradient(180deg, #34495e 0%, #2c3e50 100%);
+            color: #ecf0f1;
+            border: 1px solid #1a252f;
+            border-radius: 3px;
+            padding: 12px 18px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s;
+            width: 100%;
+            margin: 5px 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        button:hover {
+            background: linear-gradient(180deg, #3d5a78 0%, #34495e 100%);
+            box-shadow: 0 3px 10px rgba(52,152,219,0.3);
+        }
+        
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        button.danger {
+            background: linear-gradient(180deg, #c0392b 0%, #a93226 100%);
+            border-color: #922b21;
+            color: #fff;
+        }
+        
+        button.danger:hover {
+            background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 3px 10px rgba(231,76,60,0.4);
+        }
+
+        button.primary {
+            background: linear-gradient(180deg, #27ae60 0%, #229954 100%);
+            border-color: #1e8449;
+            color: #fff;
+            font-weight: 700;
+        }
+        
+        button.primary:hover {
+            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+            box-shadow: 0 3px 10px rgba(46,204,113,0.4);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .stat-label {
+            color: #95a5a6;
+            font-size: 11px;
+        }
+
+        .stat-value {
+            color: #2ecc71;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+            color: #ecf0f1;
+            border: 1px solid #2c3e50;
+            border-radius: 3px;
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        select:focus {
+            border-color: #3498db;
+        }
+        
+        select option {
+            background: #1a1a1a;
+            color: #ecf0f1;
+            padding: 10px;
+        }
+
+
+        .cutting-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 1s infinite;
+        }
+
+        .cutting-active {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        .cutting-inactive {
+            background: #333;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Nextion Status LCD Display */
+        .mode-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: linear-gradient(180deg, #000 0%, #0a0a0a 100%);
+            border: 2px solid #1a5c8e;
+            border-radius: 2px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
+        }
+        
+        .status-display {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            color: #2ecc71;
+            font-family: 'Courier New', monospace;
+        }
+
+        .coordinates {
+            font-size: 0.85em;
+            color: #8addff;
+            margin-top: 5px;
+        }
+
+        /* MGC Rewards Box */
+        .mgc-rewards-box {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #00ff00;
+            margin-bottom: 15px;
+        }
+
+        .mgc-rewards-label {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .mgc-rewards-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00ff00;
+        }
+
+        .mgc-rewards-description {
+            font-size: 10px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+            #canvas-container {
+                position: relative;
+                height: 40vh;
+                min-height: 250px;
+            }
+
+            /* Control Panel - Full Width on Mobile */
+            .control-panel {
+                position: relative;
+                top: 0;
+                left: 0;
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                border-left: none;
+                border-right: none;
+                border-radius: 0;
+                max-height: none;
+                border-width: 4px;
+            }
+
+            .hmi-header {
+                padding: 10px 15px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .hmi-title {
+                font-size: 16px;
+                flex: 1;
+            }
+
+            .hmi-body {
+                padding: 15px;
+                max-height: none;
+            }
+
+            /* Stats Panel - Below Control Panel on Mobile */
+            .stats-panel {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                border-left: none;
+                border-right: none;
+                border-radius: 0;
+                border-width: 4px;
+                border-top: none;
+            }
+
+            .stats-panel h2 {
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+
+            .stats-panel .stat-item {
+                padding: 12px 15px;
+            }
+
+            .coordinates {
+                padding: 0 15px 15px 15px;
+            }
+
+            .coordinates > div {
+                padding: 8px 0;
+            }
+
+            /* Bottom Panel - Stacked Buttons on Mobile */
+            .bottom-panel {
+                position: relative;
+                bottom: 0;
+                left: 0;
+                transform: none;
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                padding: 15px;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+                border-radius: 0;
+                border-width: 4px;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .bottom-panel button {
+                min-width: auto;
+                width: 100%;
+                padding: 12px 10px;
+                font-size: 10px;
+            }
+
+            /* Adjust headings for mobile */
+            h2 {
+                font-size: 12px;
+                padding: 6px 8px;
+                margin-bottom: 10px;
+            }
+
+            /* Adjust control groups */
+            .control-group {
+                padding: 10px;
+                margin-bottom: 12px;
+            }
+
+            label {
+                font-size: 10px;
+            }
+
+            .value-display {
+                font-size: 12px;
+            }
+
+            /* Adjust buttons */
+            button {
+                padding: 10px 12px;
+                font-size: 11px;
+            }
+
+            /* Adjust stat items */
+            .stat-label,
+            .stat-value {
+                font-size: 12px;
+            }
+
+            /* MGC Rewards section */
+            .mgc-rewards-box {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            /* Mode indicator */
+            .mode-indicator {
+                padding: 8px 10px;
+                margin-bottom: 12px;
+            }
+
+            .status-display {
+                font-size: 12px;
+            }
+
+            /* Optimize cutting indicator */
+            .cutting-indicator {
+                width: 8px;
+                height: 8px;
+                margin-right: 8px;
+            }
+        }
+
+        /* Extra Small Mobile Phones */
+        @media (max-width: 480px) {
+            #canvas-container {
+                height: 30vh;
+                min-height: 200px;
+            }
+
+            .hmi-title {
+                font-size: 14px;
+            }
+
+            h2 {
+                font-size: 11px;
+            }
+
+            .bottom-panel {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                padding: 12px;
+            }
+
+            .bottom-panel button {
+                font-size: 9px;
+                padding: 10px 8px;
+            }
+
+            label {
+                font-size: 9px;
+            }
+
+            .value-display {
+                font-size: 11px;
+            }
+        }
+    </style>
+    
+    <!-- Universal Wallet Authentication & FPDS Integration -->
+    <script src="fpds-contract-schema.js"></script>
+    <script src="contractor-registry.js"></script>
+    <script src="universal-wallet-auth.js"></script>
+    <script src="auth-integration.js"></script>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <!-- Documentation Banner -->
+    <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 100; background: linear-gradient(135deg, rgba(255, 215, 0, 0.95), rgba(255, 107, 107, 0.95)); border: 2px solid #ffd700; border-radius: 12px; padding: 10px 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); max-width: 90vw;">
+        <span style="color: #1a1a2e; font-weight: 600; font-size: 0.9em;">💎 Learn how to use your Gem Bot</span>
+        <a href="https://barbrickdesign.wixsite.com/merlins-gem-bot" target="_blank" rel="noopener noreferrer" style="background: #1a1a2e; color: #ffd700; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85em; transition: all 0.3s ease; white-space: nowrap;">📚 Docs</a>
+        <a href="merlins-gem-bot-hub.html" style="background: #1a1a2e; color: #ffd700; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85em; transition: all 0.3s ease; white-space: nowrap;">🏠 Hub</a>
+    </div>
+
+    <!-- 3D Visualization Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Nextion-Style HMI Control Panel -->
+    <div class="control-panel">
+        <div class="hmi-header">
+            <div class="hmi-title">💎 GEM BOT MINI</div>
+            <div id="walletButtonContainer" style="position: relative; top: -5px;"></div>
+        </div>
+        
+        <div class="hmi-body">
+            <!-- Status Display -->
+            <div class="mode-indicator">
+                <span class="cutting-indicator cutting-inactive" id="cuttingIndicator"></span>
+                <div class="status-display" id="modeText">STANDBY MODE</div>
+            </div>
+
+            <h2>🎯 Machine Selection</h2>
+            <div class="control-group">
+                <label>Active Machine</label>
+                <select id="botSelect">
+                    <option value="physical">🤖 Physical Gem Bot Mini</option>
+                    <option value="virtual" selected>🌐 Virtual Training Unit</option>
+                    <option value="sync">🔄 Sync with Physical</option>
+                </select>
+            </div>
+
+            <h2>⚙️ Axis Control (X/Y)</h2>
+            <div class="control-group">
+                <label>X-Axis Position: <span class="value-display" id="xAxisValue">0.00</span> mm</label>
+                <input type="range" id="xAxis" min="-100" max="100" value="0" step="0.1" />
+            </div>
+            
+            <div class="control-group">
+                <label>Y-Axis Position: <span class="value-display" id="yAxisValue">0.00</span> mm</label>
+                <input type="range" id="yAxis" min="-100" max="100" value="0" step="0.1" />
+            </div>
+            
+            <h2>🔄 Index Control (96° Wheel)</h2>
+            <div class="control-group">
+                <label>Index Position: <span class="value-display" id="indexValue">0</span>° / 96°</label>
+                <input type="range" id="indexWheel" min="0" max="96" value="0" step="1" />
+                <div style="font-size: 10px; color: #666; margin-top: 8px;">
+                    Facet: <span id="facetNumber">1</span> of 96
+                </div>
+            </div>
+            
+            <h2>⚡ Angle Control (Planetary Gearbox)</h2>
+            <div class="control-group">
+                <label>Cutting Angle: <span class="value-display" id="angleValue">0</span>°</label>
+                <input type="range" id="cuttingAngle" min="0" max="180" value="45" step="0.5" />
+                <div style="font-size: 10px; color: #666; margin-top: 8px;">
+                    Gear Ratio: 1:50 Planetary | Precision: ±0.01°
+                </div>
+            </div>
+
+            <h2>💎 Lap & Speed</h2>
+            <div class="control-group">
+                <label>Lap Pressure: <span class="value-display" id="powerValue">50</span>%</label>
+                <input type="range" id="lapPressure" min="0" max="100" value="50" />
+            </div>
+
+            <div class="control-group">
+                <label>Spindle RPM: <span class="value-display" id="speedValue">1000</span> RPM</label>
+                <input type="range" id="rotationSpeed" min="0" max="5000" value="1000" step="100" />
+            </div>
+            
+            <div class="control-group">
+                <label>Feed Rate: <span class="value-display" id="feedRate">10</span> mm/min</label>
+                <input type="range" id="feedRateSlider" min="1" max="100" value="10" step="1" />
+            </div>
+
+            <h2>🎮 Operation Controls</h2>
+            <button onclick="startCutting()" class="primary">▶️ START CUTTING</button>
+            <button onclick="pauseCutting()">⏸️ PAUSE</button>
+            <button onclick="stopCutting()" class="danger">⬛ EMERGENCY STOP</button>
+            <button onclick="homeAllAxes()">🏠 HOME ALL AXES</button>
+            <button onclick="runAutoSequence()">🤖 AUTO SEQUENCE</button>
+            
+            <h2>💰 MGC Rewards</h2>
+            <div class="mgc-rewards-box">
+                <div class="mgc-rewards-label">TRAINING REWARDS</div>
+                <div class="mgc-rewards-amount">+<span id="mgcEarned">0</span> MGC</div>
+                <div class="mgc-rewards-description">Earn MGC by training & simulating!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine Status Panel -->
+    <div class="stats-panel">
+        <h2>📊 MACHINE STATUS</h2>
+        <div class="stat-item">
+            <span class="stat-label">Mode:</span>
+            <span class="stat-value" id="botStatus">READY</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Motor Temp:</span>
+            <span class="stat-value" id="temperature">25°C</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Cutting:</span>
+            <span class="stat-value" id="cuttingActive">OFF</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Facets Cut:</span>
+            <span class="stat-value" id="cutsCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Precision:</span>
+            <span class="stat-value" id="qualityScore">±0.01mm</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Training Time:</span>
+            <span class="stat-value" id="trainingTime">0:00</span>
+        </div>
+        <h2 style="margin-top: 20px;">📍 CURRENT POSITION</h2>
+        <div class="coordinates">
+            <div style="padding: 6px 0;">X-Axis: <span id="posX" style="color: #00ff00; font-weight: 700;">0.00</span> mm</div>
+            <div style="padding: 6px 0;">Y-Axis: <span id="posY" style="color: #00ff00; font-weight: 700;">0.00</span> mm</div>
+            <div style="padding: 6px 0;">Index: <span id="posIndex" style="color: #00ff00; font-weight: 700;">0</span>°</div>
+            <div style="padding: 6px 0;">Angle: <span id="posAngle" style="color: #00ff00; font-weight: 700;">45</span>°</div>
+        </div>
+    </div>
+
+    <!-- Bottom Toolbar -->
+    <div class="bottom-panel">
+        <button onclick="loadTrainingData()">📚 TRAINING MODE</button>
+        <button onclick="saveSession()">💾 SAVE SESSION</button>
+        <button onclick="toggleView()">🔄 CAMERA VIEW</button>
+        <button onclick="showNextionEmulator()">🖥️ NEXTION HMI</button>
+        <button onclick="window.open('https://gembot-ai-web-control.onrender.com/', '_blank', 'noopener,noreferrer')">🌐 WEB CONTROL</button>
+        <button onclick="window.location.href='cutTime.html'">⏱️ FACET TIMER</button>
+        <button onclick="window.location.href='index.html'">🏠 HOME</button>
+    </div>
+
+    <script>
+        // Three.js Scene Setup
+        let scene, camera, renderer, controls;
+        let gemModel, facetingLap, aluminumFrame, xAxisRail, yAxisRail, indexWheel, gearbox;
+        let isCutting = false;
+        let animationId;
+        let cuts = 0;
+        let mgcEarned = 0;
+        let trainingStartTime = Date.now();
+        let contactIndicator = null; // Visual indicator for gem-lap contact
+        
+        // Machine state
+        let machineState = {
+            xPos: 0,
+            yPos: 0,
+            indexPos: 0,
+            anglePos: 45,
+            lapPressure: 50,
+            spindleRPM: 1000,
+            feedRate: 10,
+            isInContact: false // Track if gem is touching lap
+        };
+
+        function initScene() {
+            // Scene - Bright Workshop Environment
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x3a4f5f); // Light gray-blue workshop color
+            scene.fog = new THREE.Fog(0x3a4f5f, 15, 60);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 3, 8);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lights - Bright Workshop Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Bright ambient
+            scene.add(ambientLight);
+
+            // Main overhead light
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.8);
+            mainLight.position.set(5, 15, 5);
+            mainLight.castShadow = true;
+            scene.add(mainLight);
+            
+            // Fill light from opposite side
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            fillLight.position.set(-5, 10, -5);
+            scene.add(fillLight);
+            
+            // Accent light from front
+            const accentLight = new THREE.PointLight(0xffffff, 0.6);
+            accentLight.position.set(0, 5, 10);
+            scene.add(accentLight);
+
+            // Create environment
+            createTronGrid();
+
+            // Create Gem Bot Mini hardware
+            // CRITICAL: Order matters! Gearbox must exist before gem (gem attaches to gearbox)
+            createAluminumFrame();
+            createAxisSystem();
+            createIndexWheel();
+            createFacetingLap();
+            createGearbox();      // Create gearbox first
+            createGemModel();     // Then attach gem to gearbox
+
+            // Start animation
+            animate();
+            
+            // Start training timer
+            updateTrainingTime();
+        }
+
+        function createTronGrid() {
+            // Bright workshop floor grid
+            const gridSize = 20;
+            const gridDivisions = 40;
+            const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x7f8c8d, 0xbdc3c7);
+            gridHelper.position.y = -2;
+            scene.add(gridHelper);
+            
+            // Workshop floor plane
+            const floorGeometry = new THREE.PlaneGeometry(gridSize, gridSize);
+            const floorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x95a5a6,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -2.01;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Add subtle grid lines
+            const gridMaterial = new THREE.LineBasicMaterial({
+                color: 0x7f8c8d,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            // Vertical lines
+            for (let i = -gridSize / 2; i <= gridSize / 2; i += gridSize / gridDivisions) {
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(i, -2, -gridSize / 2),
+                    new THREE.Vector3(i, -2, gridSize / 2)
+                ]);
+                const line = new THREE.Line(geometry, gridMaterial);
+                scene.add(line);
+            }
+        }
+
+        // Create 2020 aluminum extrusion frame (real Gem Bot Mini design)
+        function createAluminumFrame() {
+            const frameGroup = new THREE.Group();
+            
+            // 2020 Aluminum extrusion material (20mm x 20mm rails)
+            const aluminumMaterial = new THREE.MeshStandardMaterial({
+                color: 0xc0c0c0, // Brighter aluminum silver
+                metalness: 0.8,
+                roughness: 0.3
+            });
+            
+            // 2020 extrusion profile (20mm x 20mm square rails)
+            const railGeometry = new THREE.BoxGeometry(0.2, 0.2, 1);
+            
+            // Base frame - 300mm x 250mm rectangle
+            const baseExtrusions = [
+                { pos: [-3, -1, 0], rot: [0, 0, Math.PI/2], len: 6 },      // Front rail (300mm)
+                { pos: [3, -1, 0], rot: [0, 0, Math.PI/2], len: 6 },       // Back rail (300mm)
+                { pos: [0, -1, -2.9], rot: [0, Math.PI/2, 0], len: 5 },    // Left rail (250mm)
+                { pos: [0, -1, 2.9], rot: [0, Math.PI/2, 0], len: 5 }      // Right rail (250mm)
+            ];
+            
+            baseExtrusions.forEach(rail => {
+                const extrusionGeometry = new THREE.BoxGeometry(0.2, 0.2, rail.len);
+                const extrusion = new THREE.Mesh(extrusionGeometry, aluminumMaterial);
+                extrusion.position.set(...rail.pos);
+                extrusion.rotation.set(...rail.rot);
+                frameGroup.add(extrusion);
+            });
+            
+            // Vertical posts (4 corners) - 400mm height
+            const verticalPositions = [
+                [-3, 1, -2.9],  // Front-left
+                [3, 1, -2.9],   // Back-left
+                [-3, 1, 2.9],   // Front-right
+                [3, 1, 2.9]     // Back-right
+            ];
+            
+            verticalPositions.forEach(pos => {
+                const postGeometry = new THREE.BoxGeometry(0.2, 4, 0.2);
+                const post = new THREE.Mesh(postGeometry, aluminumMaterial);
+                post.position.set(...pos);
+                frameGroup.add(post);
+            });
+            
+            // Top frame rails
+            const topExtrusions = [
+                { pos: [-3, 3, 0], rot: [0, 0, Math.PI/2], len: 6 },
+                { pos: [3, 3, 0], rot: [0, 0, Math.PI/2], len: 6 },
+                { pos: [0, 3, -2.9], rot: [0, Math.PI/2, 0], len: 5 },
+                { pos: [0, 3, 2.9], rot: [0, Math.PI/2, 0], len: 5 }
+            ];
+            
+            topExtrusions.forEach(rail => {
+                const extrusionGeometry = new THREE.BoxGeometry(0.2, 0.2, rail.len);
+                const extrusion = new THREE.Mesh(extrusionGeometry, aluminumMaterial);
+                extrusion.position.set(...rail.pos);
+                extrusion.rotation.set(...rail.rot);
+                frameGroup.add(extrusion);
+            });
+            
+            // Corner brackets (L-brackets at joints)
+            const bracketMaterial = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                metalness: 0.7,
+                roughness: 0.4
+            });
+            
+            verticalPositions.forEach(pos => {
+                // Bottom corner bracket
+                const bracketGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                const bottomBracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+                bottomBracket.position.set(pos[0], pos[1] - 2, pos[2]);
+                frameGroup.add(bottomBracket);
+                
+                // Top corner bracket
+                const topBracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+                topBracket.position.set(pos[0], pos[1] + 2, pos[2]);
+                frameGroup.add(topBracket);
+            });
+            
+            aluminumFrame = frameGroup;
+            scene.add(aluminumFrame);
+        }
+        
+        // Create X/Y ball screw axis system
+        function createAxisSystem() {
+            const axisGroup = new THREE.Group();
+            
+            // Linear rail material (chrome/steel)
+            const railMaterial = new THREE.MeshStandardMaterial({
+                color: 0xaaaaaa,
+                metalness: 0.9,
+                roughness: 0.2
+            });
+            
+            // Ball screw material (steel shaft)
+            const screwMaterial = new THREE.MeshStandardMaterial({
+                color: 0x999999,
+                metalness: 0.8,
+                roughness: 0.3
+            });
+            
+            // X-Axis assembly (horizontal - 300mm)
+            // Linear guide rails (2 parallel rails)
+            const xRailGeometry = new THREE.CylinderGeometry(0.04, 0.04, 6, 16);
+            const xRail1 = new THREE.Mesh(xRailGeometry, railMaterial);
+            xRail1.rotation.z = Math.PI / 2;
+            xRail1.position.set(0, 1.5, 0.3);
+            axisGroup.add(xRail1);
+            
+            const xRail2 = new THREE.Mesh(xRailGeometry, railMaterial);
+            xRail2.rotation.z = Math.PI / 2;
+            xRail2.position.set(0, 1.5, -0.3);
+            axisGroup.add(xRail2);
+            
+            // X-Axis ball screw
+            const xScrewGeometry = new THREE.CylinderGeometry(0.03, 0.03, 6, 16);
+            const xScrew = new THREE.Mesh(xScrewGeometry, screwMaterial);
+            xScrew.rotation.z = Math.PI / 2;
+            xScrew.position.set(0, 1.2, 0);
+            axisGroup.add(xScrew);
+            
+            // X-Axis NEMA 17 motor
+            const xMotorGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.8);
+            const motorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a1a,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const xMotor = new THREE.Mesh(xMotorGeometry, motorMaterial);
+            xMotor.position.set(-3.4, 1.2, 0);
+            axisGroup.add(xMotor);
+            
+            // Y-Axis assembly (depth - 250mm)
+            // Linear guide rails
+            const yRailGeometry = new THREE.CylinderGeometry(0.04, 0.04, 5, 16);
+            const yRail1 = new THREE.Mesh(yRailGeometry, railMaterial);
+            yRail1.rotation.x = Math.PI / 2;
+            yRail1.position.set(0.3, 1.8, 0);
+            axisGroup.add(yRail1);
+            
+            const yRail2 = new THREE.Mesh(yRailGeometry, railMaterial);
+            yRail2.rotation.x = Math.PI / 2;
+            yRail2.position.set(-0.3, 1.8, 0);
+            axisGroup.add(yRail2);
+            
+            // Y-Axis ball screw
+            const yScrewGeometry = new THREE.CylinderGeometry(0.03, 0.03, 5, 16);
+            const yScrew = new THREE.Mesh(yScrewGeometry, screwMaterial);
+            yScrew.rotation.x = Math.PI / 2;
+            yScrew.position.set(0, 1.5, 0);
+            axisGroup.add(yScrew);
+            
+            // Y-Axis NEMA 17 motor
+            const yMotor = new THREE.Mesh(xMotorGeometry, motorMaterial);
+            yMotor.position.set(0, 1.5, -2.8);
+            yMotor.rotation.y = Math.PI / 2;
+            axisGroup.add(yMotor);
+            
+            // X/Y carriage (moving platform with linear bearings)
+            const carriageGeometry = new THREE.BoxGeometry(0.6, 0.3, 0.6);
+            const carriageMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2c3e50, // Dark blue-gray (3D printed part)
+                metalness: 0.2,
+                roughness: 0.7
+            });
+            const carriage = new THREE.Mesh(carriageGeometry, carriageMaterial);
+            carriage.position.set(0, 2.2, 0);
+            axisGroup.add(carriage);
+            
+            // Linear bearing blocks
+            const bearingGeometry = new THREE.BoxGeometry(0.3, 0.2, 0.3);
+            const bearingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x666666,
+                metalness: 0.8,
+                roughness: 0.3
+            });
+            
+            // 4 bearing blocks on carriage
+            const bearingPositions = [
+                [0.25, 2.1, 0.25], [-0.25, 2.1, 0.25],
+                [0.25, 2.1, -0.25], [-0.25, 2.1, -0.25]
+            ];
+            bearingPositions.forEach(pos => {
+                const bearing = new THREE.Mesh(bearingGeometry, bearingMaterial);
+                bearing.position.set(...pos);
+                axisGroup.add(bearing);
+            });
+            
+            scene.add(axisGroup);
+        }
+        
+        // Create 96-tooth index gear (Atlas_96_Tooth_Gear.stl)
+        // CRITICAL FIX: Index wheel should be vertical (spindle pointing down), positioned ABOVE the lap
+        function createIndexWheel() {
+            const wheelGroup = new THREE.Group();
+            
+            // Main gear body - brass/gold color (special first 10 units)
+            const gearGeometry = new THREE.CylinderGeometry(1.2, 1.2, 0.4, 96);
+            const gearMaterial = new THREE.MeshStandardMaterial({
+                color: 0xd4af37, // Brass/gold
+                metalness: 0.9,
+                roughness: 0.3
+            });
+            const gear = new THREE.Mesh(gearGeometry, gearMaterial);
+            // NO ROTATION - Keep vertical (default orientation for cylinder is vertical Y-axis)
+            wheelGroup.add(gear);
+            
+            // 96 gear teeth around perimeter
+            for (let i = 0; i < 96; i++) {
+                const angle = (i / 96) * Math.PI * 2;
+                const toothGeometry = new THREE.BoxGeometry(0.08, 0.4, 0.15);
+                const toothMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xc9a558, // Darker brass for teeth
+                    metalness: 0.8,
+                    roughness: 0.4
+                });
+                const tooth = new THREE.Mesh(toothGeometry, toothMaterial);
+                tooth.position.set(Math.cos(angle) * 1.3, 0, Math.sin(angle) * 1.3);
+                tooth.rotation.y = angle;
+                wheelGroup.add(tooth);
+            }
+            
+            // Position indicators every 12 degrees (8 major marks)
+            for (let i = 0; i < 96; i++) {
+                if (i % 12 === 0) {
+                    const angle = (i / 96) * Math.PI * 2;
+                    const markGeometry = new THREE.BoxGeometry(0.1, 0.45, 0.1);
+                    const markMaterial = new THREE.MeshBasicMaterial({
+                        color: 0x00ff00, // Green for major divisions
+                        emissive: 0x00ff00,
+                        emissiveIntensity: 0.5
+                    });
+                    const mark = new THREE.Mesh(markGeometry, markMaterial);
+                    mark.position.set(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5);
+                    wheelGroup.add(mark);
+                }
+            }
+            
+            // Index motor (NEMA 17) ABOVE gear (not behind)
+            const motorGeometry = new THREE.BoxGeometry(0.6, 0.8, 0.6);
+            const motorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a1a, // Black stepper motor
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const motor = new THREE.Mesh(motorGeometry, motorMaterial);
+            motor.position.y = 0.8; // Above the gear
+            wheelGroup.add(motor);
+            
+            // Motor shaft (vertical)
+            const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.6, 16);
+            const shaftMaterial = new THREE.MeshStandardMaterial({
+                color: 0xcccccc,
+                metalness: 1,
+                roughness: 0.2
+            });
+            const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+            // No rotation needed - already vertical
+            shaft.position.y = 0.4;
+            wheelGroup.add(shaft);
+            
+            indexWheel = wheelGroup;
+            // CRITICAL: Position index wheel ABOVE lap (at Y = 2.5), centered
+            indexWheel.position.set(0, 2.5, 0);
+            scene.add(indexWheel);
+        }
+        
+        // Create planetary gearbox and dop arm assembly
+        // CRITICAL FIX: Gearbox mechanically connected to dop holder, tilts gem for angle control
+        function createGearbox() {
+            const gearboxGroup = new THREE.Group();
+            
+            // Gearbox housing
+            const housingGeometry = new THREE.CylinderGeometry(0.6, 0.7, 0.8, 6);
+            const housingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+            gearboxGroup.add(housing);
+            
+            // Dop arm (articulating arm that holds the gem dop)
+            // This is the critical component that tilts to set faceting angles
+            const armGeometry = new THREE.BoxGeometry(0.2, 1.8, 0.2);
+            const armMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const dopArm = new THREE.Mesh(armGeometry, armMaterial);
+            dopArm.position.y = -0.9; // Extends downward from gearbox
+            gearboxGroup.add(dopArm);
+            
+            // Dop holder (the cone/holder where gem attaches)
+            const dopHolderGeometry = new THREE.ConeGeometry(0.15, 0.4, 8);
+            const dopHolderMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513, // Brown (brass or wood)
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const dopHolder = new THREE.Mesh(dopHolderGeometry, dopHolderMaterial);
+            dopHolder.position.y = -1.9; // At end of arm
+            dopHolder.rotation.x = Math.PI; // Point downward
+            gearboxGroup.add(dopHolder);
+            
+            gearbox = gearboxGroup;
+            // Position gearbox on carriage (will move with carriage)
+            gearbox.position.set(0, 2.2, 0);
+            scene.add(gearbox);
+        }
+        
+        // Create gem being cut
+        // CRITICAL FIX: Gem now attached to dop holder on gearbox, positioned correctly
+        function createGemModel() {
+            // Create diamond-shaped gem (more realistic faceted shape)
+            const gemGeometry = new THREE.OctahedronGeometry(0.3, 0);
+            const gemMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x00ffff,
+                metalness: 0.1,
+                roughness: 0.05,
+                transparent: true,
+                opacity: 0.9,
+                envMapIntensity: 1,
+                clearcoat: 1,
+                clearcoatRoughness: 0.1
+            });
+
+            gemModel = new THREE.Mesh(gemGeometry, gemMaterial);
+            gemModel.castShadow = true;
+            
+            // CRITICAL: Attach gem to dop holder on gearbox (not index wheel!)
+            // Gem should be at the bottom of the dop arm
+            gemModel.position.set(0, -2.1, 0);
+            gearbox.add(gemModel);
+
+            // Add glow effect
+            const glowGeometry = new THREE.OctahedronGeometry(0.35, 0);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            gemModel.add(glow);
+        }
+
+        function createFacetingLap() {
+            // Create a horizontal rotating lap (polishing disk) 
+            // CRITICAL FIX: Position BELOW gem work area, not above
+            const lapGroup = new THREE.Group();
+            
+            // Main lap disk (diamond-embedded polishing surface)
+            const lapGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 64);
+            const lapMaterial = new THREE.MeshStandardMaterial({
+                color: 0x444444, // Dark gray for lap surface
+                metalness: 0.6,
+                roughness: 0.4,
+                side: THREE.DoubleSide
+            });
+            
+            const lapDisk = new THREE.Mesh(lapGeometry, lapMaterial);
+            // Disk is already horizontal (cylinder with Y-axis up)
+            lapGroup.add(lapDisk);
+            
+            // Add texture pattern for diamond grit (concentric circles)
+            for (let i = 0; i < 8; i++) {
+                const ringGeometry = new THREE.TorusGeometry(0.3 + (i * 0.15), 0.02, 8, 32);
+                const ringMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x666666,
+                    metalness: 0.7,
+                    roughness: 0.3
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = Math.PI / 2; // Lie flat on top of disk
+                ring.position.y = 0.06;
+                lapGroup.add(ring);
+            }
+            
+            // Lap backing plate (aluminum)
+            const backingGeometry = new THREE.CylinderGeometry(1.6, 1.6, 0.2, 64);
+            const backingMaterial = new THREE.MeshStandardMaterial({
+                color: 0xc0c0c0,
+                metalness: 0.8,
+                roughness: 0.3
+            });
+            const backing = new THREE.Mesh(backingGeometry, backingMaterial);
+            backing.position.y = -0.15;
+            lapGroup.add(backing);
+            
+            // Lap motor mount (below)
+            const mountGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 16);
+            const mountMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a1a,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            const mount = new THREE.Mesh(mountGeometry, mountMaterial);
+            mount.position.y = -0.7;
+            lapGroup.add(mount);
+            
+            // CRITICAL: Position lap at table height, BELOW where gem will descend to
+            facetingLap = lapGroup;
+            facetingLap.position.set(0, -0.5, 0); // Below work area
+            scene.add(facetingLap);
+            
+            // Add contact indicator (glows when gem touches lap)
+            createContactIndicator();
+        }
+        
+        function createContactIndicator() {
+            // Create a glowing ring that appears at contact point
+            const ringGeometry = new THREE.TorusGeometry(0.5, 0.05, 16, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff0000, // Red for contact
+                transparent: true,
+                opacity: 0, // Hidden by default
+                emissive: 0xff0000,
+                emissiveIntensity: 2
+            });
+            contactIndicator = new THREE.Mesh(ringGeometry, ringMaterial);
+            contactIndicator.rotation.x = Math.PI / 2; // Horizontal
+            contactIndicator.position.set(0, -0.45, 0); // Just above lap surface
+            scene.add(contactIndicator);
+        }
+
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            // CRITICAL FIX: Rotate index wheel on Y-axis (vertical spindle)
+            if (indexWheel && isCutting) {
+                const rpm = machineState.spindleRPM;
+                const rps = rpm / 60; // revolutions per second
+                const radiansPerFrame = (rps * 2 * Math.PI) / 60; // at 60fps
+                indexWheel.rotation.y += radiansPerFrame; // Y-axis rotation (vertical)
+            }
+            
+            // Rotate faceting lap continuously (it's always spinning)
+            if (facetingLap) {
+                const lapRPM = 500; // Typical lap speed
+                const lapRPS = lapRPM / 60;
+                const lapRadiansPerFrame = (lapRPS * 2 * Math.PI) / 60;
+                facetingLap.rotation.y += lapRadiansPerFrame; // Y-axis rotation
+            }
+            
+            // CRITICAL FIX: Apply cutting angle by tilting the dop arm (gearbox)
+            // This tilts the gem relative to the lap surface
+            if (gearbox) {
+                const targetAngle = (machineState.anglePos * Math.PI) / 180;
+                // Tilt around Z-axis so gem approaches lap at an angle
+                gearbox.rotation.z += (targetAngle - gearbox.rotation.z) * 0.1; // Smooth interpolation
+            }
+            
+            // CRITICAL FIX: Implement Z-axis (vertical) movement during cutting
+            // Lower the carriage (and gearbox with gem) onto the lap when cutting
+            if (gearbox) {
+                if (isCutting) {
+                    // Lower gem towards lap (descend to contact)
+                    const targetHeight = 0.3; // Height when gem contacts lap
+                    gearbox.position.y += (targetHeight - gearbox.position.y) * 0.05;
+                    
+                    // Check if gem is in contact with lap (for visual feedback)
+                    const gemWorldPos = new THREE.Vector3();
+                    gemModel.getWorldPosition(gemWorldPos);
+                    const lapSurfaceY = -0.45; // Lap surface height
+                    machineState.isInContact = (gemWorldPos.y <= lapSurfaceY + 0.2);
+                } else {
+                    // Raise gem to safe height when not cutting
+                    const safeHeight = 2.2;
+                    gearbox.position.y += (safeHeight - gearbox.position.y) * 0.05;
+                    machineState.isInContact = false;
+                }
+            }
+            
+            // Update contact indicator visibility
+            if (contactIndicator) {
+                if (machineState.isInContact) {
+                    // Show contact indicator with pulsing effect
+                    contactIndicator.material.opacity = 0.3 + Math.sin(Date.now() * 0.01) * 0.2;
+                } else {
+                    contactIndicator.material.opacity = 0; // Hide when not in contact
+                }
+            }
+
+            // Create grinding/polishing effect when cutting and in contact
+            if (isCutting && machineState.isInContact && Math.random() > 0.85) {
+                const worldPos = new THREE.Vector3();
+                gemModel.getWorldPosition(worldPos);
+                createSparkEffect(worldPos);
+            }
+
+            // Update position display
+            document.getElementById('posX').textContent = machineState.xPos.toFixed(2);
+            document.getElementById('posY').textContent = machineState.yPos.toFixed(2);
+            document.getElementById('posIndex').textContent = machineState.indexPos;
+            document.getElementById('posAngle').textContent = machineState.anglePos.toFixed(1);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function createSparkEffect(position) {
+            const sparkGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const sparkMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00,
+                transparent: true,
+                opacity: 1
+            });
+
+            const spark = new THREE.Mesh(sparkGeometry, sparkMaterial);
+            spark.position.copy(position);
+            spark.position.x += (Math.random() - 0.5) * 2;
+            spark.position.y += (Math.random() - 0.5) * 2;
+            spark.position.z += (Math.random() - 0.5) * 2;
+            scene.add(spark);
+
+            // Animate and remove
+            let opacity = 1;
+            const fadeInterval = setInterval(() => {
+                opacity -= 0.05;
+                spark.material.opacity = opacity;
+                spark.scale.multiplyScalar(1.1);
+
+                if (opacity <= 0) {
+                    scene.remove(spark);
+                    clearInterval(fadeInterval);
+                }
+            }, 50);
+        }
+
+        function startCutting() {
+            isCutting = true;
+            document.getElementById('cuttingIndicator').classList.add('cutting-active');
+            document.getElementById('cuttingIndicator').classList.remove('cutting-inactive');
+            document.getElementById('modeText').textContent = 'CUTTING IN PROGRESS';
+            document.getElementById('botStatus').textContent = 'ACTIVE';
+            document.getElementById('cuttingActive').textContent = 'ON';
+
+            // Simulate facet cutting with MGC rewards
+            const cutInterval = setInterval(() => {
+                if (!isCutting) {
+                    clearInterval(cutInterval);
+                    return;
+                }
+
+                cuts++;
+                document.getElementById('cutsCount').textContent = cuts;
+
+                // Update temperature based on lap pressure and friction
+                const temp = 25 + (machineState.lapPressure * 0.4);
+                document.getElementById('temperature').textContent = Math.round(temp) + '°C';
+
+                // Earn MGC for each facet
+                mgcEarned += Math.floor(Math.random() * 5) + 1;
+                document.getElementById('mgcEarned').textContent = mgcEarned;
+            }, 2000);
+        }
+
+        function pauseCutting() {
+            isCutting = false;
+            document.getElementById('cuttingIndicator').classList.remove('cutting-active');
+            document.getElementById('cuttingIndicator').classList.add('cutting-inactive');
+            document.getElementById('modeText').textContent = 'PAUSED';
+            document.getElementById('botStatus').textContent = 'PAUSED';
+            document.getElementById('cuttingActive').textContent = 'NO';
+        }
+
+        function stopCutting() {
+            isCutting = false;
+            document.getElementById('cuttingIndicator').classList.remove('cutting-active');
+            document.getElementById('cuttingIndicator').classList.add('cutting-inactive');
+            document.getElementById('modeText').textContent = 'STOPPED';
+            document.getElementById('botStatus').textContent = 'STOPPED';
+            document.getElementById('cuttingActive').textContent = 'NO';
+        }
+
+        function runSimulation() {
+            alert('Running 3D cutting simulation...\n\nThis will simulate the complete cutting process with real-time visualization.');
+            startCutting();
+
+            setTimeout(() => {
+                pauseCutting();
+                alert('Simulation complete!\n\nCuts made: ' + cuts + '\nEstimated value: $' + (cuts * 1000).toLocaleString());
+            }, 10000);
+        }
+
+        function homeAllAxes() {
+            machineState.xPos = 0;
+            machineState.yPos = 0;
+            machineState.indexPos = 0;
+            machineState.anglePos = 45;
+            
+            document.getElementById('xAxis').value = 0;
+            document.getElementById('yAxis').value = 0;
+            document.getElementById('indexWheel').value = 0;
+            document.getElementById('cuttingAngle').value = 45;
+            
+            document.getElementById('xAxisValue').textContent = '0.00';
+            document.getElementById('yAxisValue').textContent = '0.00';
+            document.getElementById('indexValue').textContent = '0';
+            document.getElementById('angleValue').textContent = '45';
+            
+            cuts = 0;
+            document.getElementById('cutsCount').textContent = '0';
+            document.getElementById('temperature').textContent = '25°C';
+            document.getElementById('botStatus').textContent = 'READY';
+            stopCutting();
+            
+            console.log('✅ All axes homed');
+        }
+        
+        function runAutoSequence() {
+            alert('🤖 AUTO SEQUENCE\n\nStarting automated faceting sequence:\n\n1. Home all axes\n2. Set cutting angle to 45°\n3. Sequential cutting: Index -> Lower -> Cut -> Raise\n4. Cut facets 1-96 with index wheel\n5. Earn MGC rewards\n\nThis will take approximately 3 minutes.');
+            
+            homeAllAxes();
+            
+            // Sequential cutting cycle with precise timing
+            let currentFacet = 0;
+            let cyclePhase = 0; // 0=index, 1=lower, 2=cut, 3=raise
+            const startTime = Date.now();
+            const phaseDelayMs = 468; // Time per phase
+            
+            function executeCyclePhase() {
+                if (currentFacet >= 96) {
+                    stopCutting();
+                    alert(`✅ Auto sequence complete!\n\nFacets cut: ${currentFacet}\nMGC earned: +${mgcEarned}`);
+                    return;
+                }
+                
+                switch(cyclePhase) {
+                    case 0: // Index to next position
+                        currentFacet++;
+                        machineState.indexPos = currentFacet;
+                        document.getElementById('indexWheel').value = currentFacet;
+                        document.getElementById('indexValue').textContent = currentFacet;
+                        document.getElementById('facetNumber').textContent = currentFacet;
+                        if (indexWheel) {
+                            const targetRotation = (currentFacet / 96) * Math.PI * 2;
+                            indexWheel.rotation.y = targetRotation;
+                        }
+                        cyclePhase = 1;
+                        break;
+                        
+                    case 1: // Lower gem (start cutting)
+                        startCutting();
+                        cyclePhase = 2;
+                        break;
+                        
+                    case 2: // Cut (hold for polishing)
+                        // Cutting happens automatically in animate()
+                        cyclePhase = 3;
+                        break;
+                        
+                    case 3: // Raise gem (stop cutting)
+                        pauseCutting();
+                        cyclePhase = 0; // Back to index
+                        break;
+                }
+                
+                // Use setTimeout for precise timing without drift
+                const expectedTime = startTime + (currentFacet * 4 + cyclePhase) * phaseDelayMs;
+                const actualDelay = Math.max(0, expectedTime - Date.now());
+                setTimeout(executeCyclePhase, actualDelay);
+            }
+            
+            executeCyclePhase();
+        }
+
+        function loadTrainingData() {
+            const modes = ['Beginner', 'Intermediate', 'Expert'];
+            const selected = prompt('Select training mode:\n\n1 - Beginner (Learn basics)\n2 - Intermediate (Advanced techniques)\n3 - Expert (Master precision)\n\nEnter 1, 2, or 3:');
+            
+            if (selected && selected >= 1 && selected <= 3) {
+                alert(`🎓 Loading ${modes[selected-1]} Training Mode\n\n✅ Control tutorials\n✅ Cutting patterns\n✅ Safety protocols\n✅ Optimization tips\n\n+10 MGC for starting training!`);
+                mgcEarned += 10;
+                document.getElementById('mgcEarned').textContent = mgcEarned;
+            }
+        }
+
+        function saveSession() {
+            const session = {
+                cuts: cuts,
+                mgcEarned: mgcEarned,
+                machineState: machineState,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('gembot_session', JSON.stringify(session));
+            alert(`💾 SESSION SAVED\n\nFacets: ${cuts}\nMGC Earned: ${mgcEarned}\nTimestamp: ${new Date().toLocaleString()}\n\nYour progress is saved!`);
+        }
+
+        function toggleView() {
+            const views = [
+                { pos: [0, 3, 8], name: 'Front View' },
+                { pos: [8, 3, 0], name: 'Side View' },
+                { pos: [0, 8, 0], name: 'Top View' },
+                { pos: [5, 5, 5], name: 'Isometric' }
+            ];
+            
+            const view = views[Math.floor(Math.random() * views.length)];
+            camera.position.set(...view.pos);
+            controls.target.set(0, 0, 0);
+            console.log('📷 Camera:', view.name);
+        }
+        
+        function showNextionEmulator() {
+            alert('🖥️ NEXTION HMI EMULATOR\n\nThis feature mirrors the physical Nextion display interface.\n\n✅ Real-time machine status\n✅ Touch controls\n✅ Visual feedback\n✅ System diagnostics\n\nComing soon: Full HMI integration!');
+        }
+        
+        function updateTrainingTime() {
+            setInterval(() => {
+                const elapsed = Math.floor((Date.now() - trainingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('trainingTime').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Update sliders and machine state
+        document.getElementById('xAxis').addEventListener('input', (e) => {
+            machineState.xPos = parseFloat(e.target.value);
+            document.getElementById('xAxisValue').textContent = machineState.xPos.toFixed(2);
+        });
+        
+        document.getElementById('yAxis').addEventListener('input', (e) => {
+            machineState.yPos = parseFloat(e.target.value);
+            document.getElementById('yAxisValue').textContent = machineState.yPos.toFixed(2);
+        });
+        
+        document.getElementById('indexWheel').addEventListener('input', (e) => {
+            machineState.indexPos = parseInt(e.target.value);
+            document.getElementById('indexValue').textContent = machineState.indexPos;
+            document.getElementById('facetNumber').textContent = machineState.indexPos === 0 ? 1 : machineState.indexPos;
+            
+            // CRITICAL FIX: Rotate index wheel on Y-axis (vertical spindle)
+            if (indexWheel) {
+                const targetRotation = (machineState.indexPos / 96) * Math.PI * 2;
+                indexWheel.rotation.y = targetRotation; // Y-axis for vertical rotation
+            }
+        });
+        
+        document.getElementById('cuttingAngle').addEventListener('input', (e) => {
+            machineState.anglePos = parseFloat(e.target.value);
+            document.getElementById('angleValue').textContent = machineState.anglePos.toFixed(1);
+        });
+        
+        document.getElementById('lapPressure').addEventListener('input', (e) => {
+            machineState.lapPressure = parseInt(e.target.value);
+            document.getElementById('powerValue').textContent = machineState.lapPressure;
+        });
+
+        document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+            machineState.spindleRPM = parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = machineState.spindleRPM;
+        });
+
+        document.getElementById('feedRateSlider').addEventListener('input', (e) => {
+            machineState.feedRate = parseInt(e.target.value);
+            document.getElementById('feedRate').textContent = machineState.feedRate;
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize scene
+        initScene();
+        
+        // Load saved session if exists
+        const savedSession = localStorage.getItem('gembot_session');
+        if (savedSession) {
+            const session = JSON.parse(savedSession);
+            cuts = session.cuts || 0;
+            mgcEarned = session.mgcEarned || 0;
+            machineState = {...machineState, ...session.machineState};
+            
+            document.getElementById('cutsCount').textContent = cuts;
+            document.getElementById('mgcEarned').textContent = mgcEarned;
+            console.log('💾 Session restored from', new Date(session.timestamp).toLocaleString());
+        }
+
+        console.log('💎 Gem Bot Mini - Industrial Simulator initialized');
+        console.log('🏭 Aluminum frame: 400x300mm');
+        console.log('⚙️ X/Y axis control: ±100mm range');
+        console.log('🔄 96-degree indexing wheel: Ready');
+        console.log('⚡ Planetary gearbox (1:50): Active');
+        console.log('🎮 Training mode: Earn MGC rewards!');
+        console.log('🌐 Virtual + Physical sync: Available');
+    </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

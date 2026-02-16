@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: voiceNFT3DCards.html
+Declaration ID: IP-D7FC0D1-MLL2902P
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice NFT 3D Card Generator | BARBRICKDESIGN</title>
+  
+  <!-- Three.js for 3D rendering (multiple CDN fallbacks) -->
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js" onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'"></script>
+  
+  <!-- Web3 and Blockchain Integration -->
+  <script src="https://unpkg.com/web3@1.8.0/dist/web3.min.js" onerror="console.log('Web3 CDN blocked - using demo mode')"></script>
+  <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js" onerror="console.log('Solana Web3 CDN blocked')"></script>
+  
+  <!-- IPFS Integration (optional) -->
+  <script>
+    // IPFS client will be initialized in JavaScript
+  </script>
+  
+  <!-- Core Authentication System -->
+  <script src="js/universal-wallet-system.js"></script>
+  <script src="src/core/auth-integration.js"></script>
+  
+  <style>
+    :root {
+      --bg-primary: #050810;
+      --bg-secondary: #0f172a;
+      --bg-card: #111827;
+      --accent-cyan: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-gold: #fbbf24;
+      --text-primary: #e5e7eb;
+      --text-secondary: #9ca3af;
+      --border: #1f2937;
+      --success: #4ade80;
+      --danger: #f87171;
+      --glow-cyan: rgba(56, 189, 248, 0.3);
+      --glow-purple: rgba(168, 85, 247, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top left, #0f172a 0%, #050810 50%, #020617 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background grid */
+    .cosmic-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 20% 30%, var(--glow-cyan) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, var(--glow-purple) 0%, transparent 50%),
+        linear-gradient(90deg, transparent 49%, rgba(56, 189, 248, 0.05) 50%, transparent 51%),
+        linear-gradient(0deg, transparent 49%, rgba(168, 85, 247, 0.05) 50%, transparent 51%);
+      background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+      animation: cosmic-shift 30s ease-in-out infinite;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @keyframes cosmic-shift {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-20px, -20px); }
+    }
+
+    /* Header */
+    header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      background: rgba(15, 23, 42, 0.8);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav-menu {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .nav-menu a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-menu a:hover {
+      color: var(--accent-cyan);
+    }
+
+    .nav-divider {
+      color: var(--border);
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
+    .header-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-cyan);
+      border-bottom-color: var(--accent-cyan);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Card Styles */
+    .card {
+      background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+      opacity: 0.5;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-radius: 8px;
+      font-size: 1.2rem;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    input[type="text"],
+    input[type="file"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px var(--glow-cyan);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px var(--glow-cyan);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 3D Canvas Container */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    #card3DCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Voice Card Grid */
+    .voice-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .voice-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .voice-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(56, 189, 248, 0.2);
+      border-color: var(--accent-cyan);
+    }
+
+    .voice-card-image {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+      position: relative;
+    }
+
+    .voice-card-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .voice-card-content {
+      padding: 16px;
+    }
+
+    .voice-card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .voice-card-type {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--bg-primary);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .voice-card-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .voice-card-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .voice-card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      flex: 1;
+    }
+
+    /* Wallet Connection */
+    .wallet-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .wallet-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+    }
+
+    .wallet-indicator.connected {
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success);
+    }
+
+    .wallet-address {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Status Messages */
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+
+    .status-message.success {
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .status-message.error {
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+
+    .status-message.info {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Marketplace Styles */
+    .marketplace-filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tag {
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .filter-tag:hover,
+    .filter-tag.active {
+      border-color: var(--accent-cyan);
+      background: var(--bg-card);
+      color: var(--accent-cyan);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .header-left {
+        width: 100%;
+      }
+
+      .nav-menu {
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 0.8rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .tab-nav {
+        flex-wrap: nowrap;
+      }
+
+      .voice-cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .wallet-status {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+
+    /* Audio Visualization */
+    .audio-visualizer {
+      width: 100%;
+      height: 100px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 16px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .audio-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .audio-controls button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="cosmic-grid"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-content">
+      <div class="header-left">
+        <nav class="nav-menu" role="navigation" aria-label="Main navigation">
+          <a href="index.html" aria-label="Navigate to home page">🏠 Home</a>
+          <span class="nav-divider">|</span>
+          <a href="3Dweb.html" aria-label="Navigate to 3D Web editor">🌐 3D Web</a>
+          <span class="nav-divider">|</span>
+          <a href="#marketplace" aria-label="Navigate to voice marketplace" data-switch-tab="marketplace">🎤 Voice Marketplace</a>
+          <span class="nav-divider">|</span>
+          <a href="translator.html" aria-label="Navigate to translator to use your voice cards">🌐 Translator</a>
+          <span class="nav-divider">|</span>
+          <a href="mineralMarket.html" aria-label="Navigate to mineral marketplace">💎 Mineral Market</a>
+          <span class="nav-divider">|</span>
+          <a href="all-repos-hub.html" aria-label="Navigate to all projects hub">📦 All Projects</a>
+        </nav>
+        <div>
+          <h1>🎤 Voice NFT 3D Card Generator</h1>
+          <p class="header-subtitle">Create, collect, and trade voice NFTs in a decentralized marketplace</p>
+        </div>
+      </div>
+      <div class="wallet-status" id="walletStatus">
+        <div class="wallet-indicator" id="walletIndicator"></div>
+        <span id="walletText">Not Connected</span>
+        <button class="btn btn-secondary" id="connectWalletBtn">Connect Wallet</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <div class="container">
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="create">Create Voice NFT</button>
+      <button class="tab-btn" data-tab="collection">My Collection</button>
+      <button class="tab-btn" data-tab="marketplace">Marketplace</button>
+      <button class="tab-btn" data-tab="usage">Usage & Stats</button>
+    </nav>
+
+    <!-- Create Voice NFT Tab -->
+    <div class="tab-content active" id="create">
+      <div class="card">
+        <h2 class="card-title">
+          <span class="card-icon">🎨</span>
+          Create Your Voice NFT Card
+        </h2>
+
+        <div id="statusMessages"></div>
+
+        <form id="mintForm">
+          <div class="form-group">
+            <label for="voiceName">Voice Name *</label>
+            <input type="text" id="voiceName" placeholder="e.g., Morgan Freeman Style, Anime Character Voice" required />
+          </div>
+
+          <div class="form-group">
+            <label for="voiceType">Voice Type *</label>
+            <select id="voiceType" required>
+              <option value="">Select voice type</option>
+              <option value="narrator">Narrator</option>
+              <option value="character">Character Voice</option>
+              <option value="celebrity">Celebrity Impression</option>
+              <option value="original">Original Voice</option>
+              <option value="ai-generated">AI Generated</option>
+              <option value="voice-actor">Professional Voice Actor</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="voiceDescription">Description *</label>
+            <textarea id="voiceDescription" placeholder="Describe your voice, its characteristics, and potential use cases..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="audioFile">Voice Audio Sample * (MP3, WAV, OGG)</label>
+            <input type="file" id="audioFile" accept="audio/*" required />
+            <div class="audio-visualizer" id="audioVisualizer" style="display: none;"></div>
+            <div class="audio-controls" id="audioControls" style="display: none;">
+              <button type="button" class="btn btn-secondary" id="playAudioBtn">▶️</button>
+              <button type="button" class="btn btn-secondary" id="stopAudioBtn">⏹️</button>
+              <span id="audioDuration">00:00</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cardImage">Card Image (Optional - Auto-generated if not provided)</label>
+            <input type="file" id="cardImage" accept="image/*" />
+          </div>
+
+          <div class="card-title" style="margin-top: 24px;">
+            <span class="card-icon">👁️</span>
+            3D Card Preview
+          </div>
+          <div class="canvas-container">
+            <canvas id="card3DCanvas"></canvas>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="mintBtn">
+            <span>🚀 Mint Voice NFT</span>
+            <span class="spinner" style="display: none;"></span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- My Collection Tab -->
+    <div class="tab-content" id="collection">
+      <div class="card">
+        <h2 class="card-title">
+          <span class="card-icon">💎</span>
+          My Voice NFT Collection
+        </h2>
+        <p style="color: var(--text-secondary); margin-bottom: 12px;">
+          Your collected voice cards. Use them in your Web3 projects or list them on the marketplace.
+        </p>
+        
+        <!-- Info about translator integration -->
+        <div class="status-message info" style="margin-bottom: 20px;">
+          <span>🌐</span>
+          <div>
+            <strong>Use Your Voice in the Translator!</strong><br>
+            Click "🌐 Use in Translator" on any of your voice cards to export them for use in the 
+            <a href="translator.html" style="color: var(--accent-cyan); text-decoration: underline;">Live Multilingual Voice Translator</a>. 
+            Your translations will speak with YOUR unique voice characteristics!
+          </div>
+        </div>
+        
+        <div class="voice-cards-grid" id="myCardsGrid">
+          <!-- Cards will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Marketplace Tab -->
+    <div class="tab-content" id="marketplace">
+      <div class="card">
+        <h2 class="card-title">
+          <span class="card-icon">🏪</span>
+          Decentralized Marketplace
+        </h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px;">
+          Browse and purchase voice NFTs from creators worldwide. All transactions are logged on-chain.
+        </p>
+
+        <div class="marketplace-filters">
+          <div class="filter-tag active" data-filter="all">All</div>
+          <div class="filter-tag" data-filter="narrator">Narrator</div>
+          <div class="filter-tag" data-filter="character">Character</div>
+          <div class="filter-tag" data-filter="celebrity">Celebrity</div>
+          <div class="filter-tag" data-filter="original">Original</div>
+          <div class="filter-tag" data-filter="ai-generated">AI Generated</div>
+        </div>
+
+        <div class="voice-cards-grid" id="marketplaceGrid">
+          <!-- Marketplace cards will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Usage & Stats Tab -->
+    <div class="tab-content" id="usage">
+      <div class="card">
+        <h2 class="card-title">
+          <span class="card-icon">📊</span>
+          Usage Statistics & Analytics
+        </h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px;">
+          Track how your voice NFTs are being used across Web3 platforms and retain value from your creations.
+        </p>
+        <div id="statsContent">
+          <!-- Stats will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="voiceNFT3DCards.js"></script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

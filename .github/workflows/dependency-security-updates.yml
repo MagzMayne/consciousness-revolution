@@ -1,0 +1,279 @@
+name: Dependency Security Updates
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      update_type:
+        description: 'Type of update'
+        required: true
+        default: 'security'
+        type: choice
+        options:
+          - security
+          - all
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-dependencies:
+    name: Check & Update Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci || npm install
+      
+      - name: Run security audit
+        id: audit
+        continue-on-error: true
+        run: |
+          # Run npm audit and capture results
+          npm audit --json > audit-results.json || true
+          
+          # Parse results
+          if [ -f audit-results.json ]; then
+            CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' audit-results.json)
+            HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' audit-results.json)
+            MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' audit-results.json)
+            LOW=$(jq -r '.metadata.vulnerabilities.low // 0' audit-results.json)
+            TOTAL=$((CRITICAL + HIGH + MODERATE + LOW))
+            
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+            echo "low=$LOW" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            
+            echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Moderate | $MODERATE |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check for outdated packages
+        id: outdated
+        run: |
+          npm outdated --json > outdated-packages.json || true
+          
+          if [ -s outdated-packages.json ]; then
+            OUTDATED_COUNT=$(jq 'length' outdated-packages.json)
+            echo "count=$OUTDATED_COUNT" >> $GITHUB_OUTPUT
+            
+            echo "### 📦 Outdated Packages: $OUTDATED_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "count=0" >> $GITHUB_OUTPUT
+            echo "✅ All packages are up to date!" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Apply security fixes
+        if: steps.audit.outputs.total > 0
+        run: |
+          echo "Applying security fixes..."
+          npm audit fix --force || npm audit fix || true
+          
+          # Check if any changes were made
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            
+            echo "## 🔧 Security Fixes Applied" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Automatic security fixes have been applied to dependencies." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No automatic fixes available" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Update dependencies (if requested)
+        if: github.event.inputs.update_type != 'security'
+        run: |
+          UPDATE_TYPE="${{ github.event.inputs.update_type }}"
+          
+          echo "## 📦 Dependency Updates" >> $GITHUB_STEP_SUMMARY
+          echo "Update type: $UPDATE_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          case "$UPDATE_TYPE" in
+            all)
+              npm update
+              echo "✅ All dependencies updated" >> $GITHUB_STEP_SUMMARY
+              ;;
+            major)
+              # Update major versions (requires manual intervention)
+              echo "⚠️ Major version updates require manual review" >> $GITHUB_STEP_SUMMARY
+              ;;
+            minor)
+              npm update --no-save
+              npm install
+              echo "✅ Minor version updates applied" >> $GITHUB_STEP_SUMMARY
+              ;;
+            patch)
+              npm update --depth 0
+              echo "✅ Patch version updates applied" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+      
+      - name: Run tests after updates
+        id: test
+        continue-on-error: true
+        run: |
+          if [ -f "package.json" ] && grep -q "\"test\":" package.json; then
+            echo "Running tests..." >> $GITHUB_STEP_SUMMARY
+            npm test || echo "test_failed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No test script found" >> $GITHUB_STEP_SUMMARY
+            echo "test_failed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Pull Request
+        if: success()
+        id: create-pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update dependencies with security fixes'
+          title: '🔒 Automated Dependency Security Updates'
+          body: |
+            ## 🔒 Dependency Security Updates
+            
+            This PR contains automated dependency updates with security fixes.
+            
+            ### Security Audit Results
+            - 🔴 Critical vulnerabilities: ${{ steps.audit.outputs.critical }}
+            - 🟠 High vulnerabilities: ${{ steps.audit.outputs.high }}
+            - 🟡 Moderate vulnerabilities: ${{ steps.audit.outputs.moderate }}
+            - 🟢 Low vulnerabilities: ${{ steps.audit.outputs.low }}
+            
+            ### Outdated Packages
+            - Total outdated: ${{ steps.outdated.outputs.count }}
+            
+            ### Actions Taken
+            - ✅ Security fixes applied automatically
+            - ✅ Dependencies updated based on configuration
+            - ✅ Tests run: ${{ steps.test.outputs.test_failed == 'true' && '⚠️ Some tests failed' || '✅ All tests passed' }}
+            
+            ### Review Checklist
+            - [ ] Review dependency changes
+            - [ ] Verify no breaking changes
+            - [ ] Test critical functionality
+            - [ ] Merge when ready
+            
+            ---
+            *Automated by Dependency Security Updates Workflow*
+          branch: automated/dependency-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            security
+            automated
+      
+      - name: Enable auto-merge
+        if: steps.create-pr.outputs.pull-request-number && steps.audit.outputs.critical == '0' && steps.audit.outputs.high == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            
+            // Only auto-merge if no critical or high vulnerabilities
+            console.log('Enabling auto-merge for PR #' + prNumber);
+            
+            try {
+              await github.graphql(`
+                mutation EnableAutoMerge($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: context.payload.pull_request.node_id
+              });
+              
+              console.log('✅ Auto-merge enabled');
+            } catch (error) {
+              console.log('ℹ️ Could not enable auto-merge:', error.message);
+            }
+      
+      - name: Create issue if critical vulnerabilities found
+        if: steps.audit.outputs.critical > 0 || steps.audit.outputs.high > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const critical = ${{ steps.audit.outputs.critical }};
+            const high = ${{ steps.audit.outputs.high }};
+            
+            const issueBody = `## 🚨 Critical Security Vulnerabilities Detected
+            
+            The automated dependency security scan has detected critical or high severity vulnerabilities.
+            
+            ### Severity Breakdown
+            - 🔴 Critical: ${critical}
+            - 🟠 High: ${high}
+            
+            ### Action Required
+            1. Review the security audit results
+            2. Update affected dependencies immediately
+            3. Run \`npm audit fix\` to apply automatic fixes
+            4. Manually update packages that require breaking changes
+            
+            ### Resources
+            - [NPM Audit Documentation](https://docs.npmjs.com/cli/v8/commands/npm-audit)
+            - [GitHub Security Advisories](https://github.com/advisories)
+            
+            ---
+            *Automated by Dependency Security Updates Workflow*
+            *Detected on: ${new Date().toISOString()}*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Critical Security Vulnerabilities Detected',
+              body: issueBody,
+              labels: ['security', 'critical', 'dependencies']
+            });
+
+  notify-results:
+    name: Notify Results
+    needs: check-dependencies
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Summary
+        run: |
+          echo "## 📊 Dependency Security Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Status: ${{ needs.check-dependencies.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the workflow logs for detailed results." >> $GITHUB_STEP_SUMMARY

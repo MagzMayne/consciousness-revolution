@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: direction.html
+Declaration ID: IP-2ABD10BA-MLL28ZYP
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Directional Immersive World Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <style>
+    :root {
+      --bg-color: #05060a;
+      --fg-color: #f5f5f7;
+      --accent: #ffcc4d;
+      --shadow-color: rgba(0, 0, 0, 0.6);
+      --glare-color: rgba(255, 255, 255, 0.18);
+      --sun-x: 0;
+      --sun-y: -40;
+      --world-hue: 210;
+      --world-depth: 0.0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: radial-gradient(circle at 50% 0%, #151822, #020308 60%);
+      color: var(--fg-color);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1200px;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .world-container {
+      position: relative;
+      width: 90vw;
+      max-width: 420px;
+      height: 70vh;
+      max-height: 720px;
+      border-radius: 24px;
+      background: radial-gradient(circle at 50% 0%, #1b1f2b, #05060a 70%);
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transform: rotateX(12deg) rotateY(-18deg);
+      transition: box-shadow 0.3s ease;
+    }
+
+    .world-container::before {
+      /* Anti-glare / sun-reactive overlay */
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(
+          circle at calc(50% + var(--sun-x) * 1px)
+          calc(50% + var(--sun-y) * 1px),
+          var(--glare-color),
+          transparent 55%
+        );
+      mix-blend-mode: screen;
+      pointer-events: none;
+      transition: background 0.2s linear;
+    }
+
+    .world-inner {
+      position: absolute;
+      inset: 0;
+      padding: 18px 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transform-style: preserve-3d;
+      transform:
+        translateZ(0)
+        rotateX(calc(var(--world-depth) * 10deg))
+        rotateY(calc(var(--world-depth) * -8deg));
+      transition: transform 0.25s ease-out;
+    }
+
+    .world-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .world-title {
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    .world-badge {
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.8;
+    }
+
+    .world-core {
+      flex: 1;
+      display: grid;
+      grid-template-rows: 1.2fr 1.4fr;
+      gap: 12px;
+      z-index: 1;
+    }
+
+    .world-cube {
+      position: relative;
+      border-radius: 18px;
+      background: radial-gradient(circle at 20% 0%, #2a3144, #05060a 70%);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.9),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+      transform-style: preserve-3d;
+      transform:
+        rotateX(calc(var(--tilt-x, 0deg) * -0.4))
+        rotateY(calc(var(--tilt-y, 0deg) * 0.4));
+      transition: transform 0.12s linear, background 0.3s ease;
+    }
+
+    .world-cube-gradient {
+      position: absolute;
+      inset: 0;
+      background:
+        conic-gradient(
+          from 0deg,
+          hsl(calc(var(--world-hue) - 40), 80%, 60%),
+          hsl(calc(var(--world-hue) + 20), 80%, 55%),
+          hsl(calc(var(--world-hue) + 60), 80%, 50%),
+          hsl(calc(var(--world-hue) + 120), 80%, 55%),
+          hsl(calc(var(--world-hue) + 180), 80%, 60%)
+        );
+      opacity: 0.35;
+      mix-blend-mode: screen;
+      filter: blur(12px);
+    }
+
+    .world-cube-content {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .world-state-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.8;
+    }
+
+    .world-state-name {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .world-state-desc {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      margin-top: 6px;
+      max-width: 90%;
+    }
+
+    .world-state-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(0, 0, 0, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.9;
+    }
+
+    .world-metrics {
+      border-radius: 18px;
+      background: radial-gradient(circle at 0% 0%, #151822, #05060a 70%);
+      box-shadow:
+        0 14px 30px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: 1.2fr 1.1fr;
+      gap: 10px;
+      font-size: 0.75rem;
+    }
+
+    .metric-group-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2px;
+      opacity: 0.9;
+    }
+
+    .metric-label {
+      opacity: 0.7;
+    }
+
+    .metric-value {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .world-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    .world-footer span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(255, 204, 77, 0.8);
+    }
+
+    .permission-banner {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 0%, #151822, #020308 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .permission-banner h1 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .permission-banner p {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      margin-bottom: 16px;
+    }
+
+    .permission-banner button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      background: linear-gradient(135deg, #ffcc4d, #ff8a4d);
+      color: #111;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    .permission-banner button:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.7);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <div class="world-container" id="world">
+    <div class="permission-banner" id="permissionBanner">
+      <h1>Activate Directional Worldspace</h1>
+      <p>
+        This prototype responds to how you hold and turn your device. Turn your body to face different directions,
+        and tilt your phone up, down, or sideways to see 16 unique views. On iOS Safari you may be prompted to allow motion access.
+      </p>
+      <button id="enableBtn">Enable Immersive Mode</button>
+    </div>
+
+    <div class="world-inner">
+      <header class="world-header">
+        <div>
+          <div class="world-title">Immersive Directional Web</div>
+          <div style="font-size:0.75rem; opacity:0.7;">Turn & Tilt Your Device to Navigate 16 Spatial Views</div>
+        </div>
+        <div class="world-badge" id="worldModeLabel">World 01 · Forward / Level</div>
+      </header>
+
+      <main class="world-core">
+        <section class="world-cube" id="worldCube">
+          <div class="world-cube-gradient"></div>
+          <div class="world-cube-content">
+            <div>
+              <div class="world-state-label">Active World State</div>
+              <div class="world-state-name" id="stateName">Axis Prime</div>
+              <div class="world-state-desc" id="stateDesc">
+                Looking straight ahead in your default direction. This is your starting point—balanced and ready to explore.
+              </div>
+              <div class="world-state-tags" id="stateTags">
+                <span class="tag">North</span>
+                <span class="tag">Neutral Tilt</span>
+                <span class="tag">Primary Layer</span>
+              </div>
+            </div>
+            <div>
+              <div class="world-state-label">Worldspace Hint</div>
+              <div class="world-state-desc" id="stateHint">
+                Turn your body to face different directions and tilt your device to discover 16 unique views—each combination unlocks different content.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="world-metrics">
+          <div>
+            <div class="metric-group-title">Orientation</div>
+            <div class="metric-row">
+              <span class="metric-label">Tilt X (β)</span>
+              <span class="metric-value" id="tiltXVal">0°</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Tilt Y (γ)</span>
+              <span class="metric-value" id="tiltYVal">0°</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Heading</span>
+              <span class="metric-value" id="headingVal">—</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Sector</span>
+              <span class="metric-value" id="sectorVal">N</span>
+            </div>
+          </div>
+          <div>
+            <div class="metric-group-title">Environment</div>
+            <div class="metric-row">
+              <span class="metric-label">Local Time</span>
+              <span class="metric-value" id="timeVal">--:--</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Sun Elev.</span>
+              <span class="metric-value" id="sunElevVal">—°</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Sun Azim.</span>
+              <span class="metric-value" id="sunAzVal">—°</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Glare Offset</span>
+              <span class="metric-value" id="glareVal">0, 0</span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="world-footer">
+        <span><span class="dot"></span> Directional engine live</span>
+        <span id="worldIdLabel">State 01 / 16</span>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // -----------------------------
+    // CONFIG: WORLD STATES (16)
+    // -----------------------------
+    const WORLD_STATES = [
+      {
+        id: 1,
+        key: "N-neutral",
+        name: "Forward View",
+        desc: "Looking straight ahead in your default direction. You're centered and balanced, ready to explore what's in front of you.",
+        tags: ["Forward", "Level", "Default"],
+        hint: "Tilt your device downward to zoom in, or tilt back to get a wider view. Turn your body to face different directions.",
+        hue: 210,
+        depth: 0.0
+      },
+      {
+        id: 2,
+        key: "N-forward",
+        name: "Close Focus",
+        desc: "Looking down into the content below you. Perfect for reading text, examining details, or diving deep into focused work.",
+        tags: ["Forward", "Looking Down", "Detail View"],
+        hint: "You're leaning into the content—ideal for concentration. Tilt back up to regain perspective.",
+        hue: 220,
+        depth: 0.4
+      },
+      {
+        id: 3,
+        key: "N-back",
+        name: "Sky View",
+        desc: "Looking up and back from your forward position. You're taking in the bigger picture, seeing the whole landscape at once.",
+        tags: ["Forward", "Looking Up", "Wide View"],
+        hint: "Great for overviews and planning. Lean forward to drill into specifics when ready.",
+        hue: 200,
+        depth: -0.3
+      },
+      {
+        id: 4,
+        key: "N-side",
+        name: "Forward Edge",
+        desc: "Tilted sideways while facing forward. You're accessing peripheral tools and options at the edge of your primary view.",
+        tags: ["Forward", "Sideways Tilt", "Edge Tools"],
+        hint: "Auxiliary controls appear at the edges. Return to level tilt to focus on main content.",
+        hue: 190,
+        depth: 0.1
+      },
+      {
+        id: 5,
+        key: "E-neutral",
+        name: "Right View",
+        desc: "You\'ve turned to your right (east). Looking at what\'s beside you—often where action and activity flows happen.",
+        tags: ["Right Side", "Level", "Activity"],
+        hint: "This is your action quadrant. Tilt down to engage, or turn further to explore your full surroundings.",
+        hue: 140,
+        depth: 0.1
+      },
+      {
+        id: 6,
+        key: "E-forward",
+        name: "Right and Down",
+        desc: "Facing right with your device angled downward. You\'re actively working with tools or controls on your right side.",
+        tags: ["Right Side", "Looking Down", "Active Mode"],
+        hint: "Use this stance when you’re in motion—walking, commuting, or quickly triaging information.",
+        hue: 130,
+        depth: 0.5
+      },
+      {
+        id: 7,
+        key: "E-back",
+        name: "Right and Up",
+        desc: "Facing right with your device tilted back. You\'re surveying the activity timeline, seeing what\'s happened recently.",
+        tags: ["Right Side", "Looking Up", "Timeline"],
+        hint: "Review mode—scan through recent events and activity streams without deep diving.",
+        hue: 150,
+        depth: -0.2
+      },
+      {
+        id: 8,
+        key: "E-side",
+        name: "Right Edge",
+        desc: "Facing right with a sideways tilt. Split-screen mode where you can compare or view parallel streams side by side.",
+        tags: ["Right Side", "Sideways Tilt", "Split View"],
+        hint: "Compare different views or timelines. Twist your wrist to adjust the balance between them.",
+        hue: 160,
+        depth: 0.2
+      },
+      {
+        id: 9,
+        key: "S-neutral",
+        name: "Behind View",
+        desc: "You\'ve turned around to face backward (south). Looking at settings, controls, and what\'s behind the scenes.",
+        tags: ["Behind", "Level", "Settings"],
+        hint: "Use this orientation when you’re tuning the system rather than consuming its output.",
+        hue: 260,
+        depth: -0.1
+      },
+      {
+        id: 10,
+        key: "S-forward",
+        name: "Behind and Down",
+        desc: "Facing backward with device angled down. Deep inspection mode—diagnostics, logs, and technical details.",
+        tags: ["Behind", "Looking Down", "Inspect"],
+        hint: "Developer/power-user view. Perfect for understanding how things work beneath the surface.",
+        hue: 250,
+        depth: 0.3
+      },
+      {
+        id: 11,
+        key: "S-back",
+        name: "Behind and Up",
+        desc: "Facing backward, leaning back. Relaxed, low-intensity mode with softer visuals and reduced motion.",
+        tags: ["Behind", "Looking Up", "Relax Mode"],
+        hint: "Comfort mode for evening use. Gentle on your eyes with calm colors and minimal activity.",
+        hue: 280,
+        depth: -0.4
+      },
+      {
+        id: 12,
+        key: "S-side",
+        name: "Behind Edge",
+        desc: "Facing backward with a sideways tilt. Hidden features and experimental options live here.",
+        tags: ["Behind", "Sideways Tilt", "Discover"],
+        hint: "Easter egg zone—explore carefully to find hidden gems and special features.",
+        hue: 300,
+        depth: 0.15
+      },
+      {
+        id: 13,
+        key: "W-neutral",
+        name: "Left View",
+        desc: "You\'ve turned to your left (west). The social space where you connect with others and see shared content.",
+        tags: ["Left Side", "Level", "Social"],
+        hint: "Community area—see who else is here and what they\'re sharing. Turn to other directions for solo activities.",
+        hue: 40,
+        depth: 0.05
+      },
+      {
+        id: 14,
+        key: "W-forward",
+        name: "Left and Down",
+        desc: "Facing left with device angled down. Sharing and broadcasting mode—send your voice out to others.",
+        tags: ["Left Side", "Looking Down", "Share"],
+        hint: "Expression mode—what you do here becomes visible to the community. Tilt up to switch back to receiving.",
+        hue: 30,
+        depth: 0.35
+      },
+      {
+        id: 15,
+        key: "W-back",
+        name: "Left and Up",
+        desc: "Facing left, leaning back. Passive listening mode where you absorb what others are sharing.",
+        tags: ["Left Side", "Looking Up", "Receive"],
+        hint: "Audience mode—watch, listen, and learn from the community without actively participating.",
+        hue: 60,
+        depth: -0.25
+      },
+      {
+        id: 16,
+        key: "W-side",
+        name: "Left Edge",
+        desc: "Facing left with sideways tilt. Blended view showing both your personal content and the community stream.",
+        tags: ["Left Side", "Sideways Tilt", "Mixed"],
+        hint: "Balance between personal and social. Adjust the tilt to shift the balance in either direction.",
+        hue: 20,
+        depth: 0.18
+      }
+    ];
+
+    // -----------------------------
+    // STATE
+    // -----------------------------
+    let tiltX = 0; // beta
+    let tiltY = 0; // gamma
+    let heading = null; // degrees
+    let sector = "N";
+    let currentWorld = WORLD_STATES[0];
+    let sunAz = null;
+    let sunElev = null;
+    let sunOffsetX = 0;
+    let sunOffsetY = 0;
+
+    const worldEl = document.getElementById("world");
+    const cubeEl = document.getElementById("worldCube");
+    const worldModeLabel = document.getElementById("worldModeLabel");
+    const stateNameEl = document.getElementById("stateName");
+    const stateDescEl = document.getElementById("stateDesc");
+    const stateTagsEl = document.getElementById("stateTags");
+    const stateHintEl = document.getElementById("stateHint");
+    const worldIdLabel = document.getElementById("worldIdLabel");
+
+    const tiltXVal = document.getElementById("tiltXVal");
+    const tiltYVal = document.getElementById("tiltYVal");
+    const headingVal = document.getElementById("headingVal");
+    const sectorVal = document.getElementById("sectorVal");
+    const timeVal = document.getElementById("timeVal");
+    const sunElevVal = document.getElementById("sunElevVal");
+    const sunAzVal = document.getElementById("sunAzVal");
+    const glareVal = document.getElementById("glareVal");
+
+    const permissionBanner = document.getElementById("permissionBanner");
+    const enableBtn = document.getElementById("enableBtn");
+
+    // -----------------------------
+    // UTILS
+    // -----------------------------
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function headingToSector(h) {
+      if (h === null || isNaN(h)) return "N";
+      const deg = (h + 360) % 360;
+      if (deg >= 315 || deg < 45) return "N";
+      if (deg >= 45 && deg < 135) return "E";
+      if (deg >= 135 && deg < 225) return "S";
+      return "W";
+    }
+
+    function tiltToBand(beta, gamma) {
+      const forward = beta < -15;
+      const back = beta > 20;
+      const side = Math.abs(gamma) > 20;
+      if (forward) return "forward";
+      if (back) return "back";
+      if (side) return "side";
+      return "neutral";
+    }
+
+    function findWorldState(sector, band) {
+      const key = `${sector}-${band}`;
+      const found = WORLD_STATES.find(w => w.key === key);
+      return found || WORLD_STATES[0];
+    }
+
+    function updateWorldState() {
+      const band = tiltToBand(tiltX, tiltY);
+      sector = headingToSector(heading);
+      const nextWorld = findWorldState(sector, band);
+      if (nextWorld.id !== currentWorld.id) {
+        currentWorld = nextWorld;
+        applyWorldState();
+      }
+      sectorVal.textContent = sector;
+    }
+
+    function applyWorldState() {
+      stateNameEl.textContent = currentWorld.name;
+      stateDescEl.textContent = currentWorld.desc;
+      stateHintEl.textContent = currentWorld.hint;
+      worldModeLabel.textContent = `World ${String(currentWorld.id).padStart(2, "0")} · ${currentWorld.key.replace("-", " / ")}`;
+      worldIdLabel.textContent = `State ${String(currentWorld.id).padStart(2, "0")} / 16`;
+
+      stateTagsEl.innerHTML = "";
+      currentWorld.tags.forEach(t => {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = t;
+        stateTagsEl.appendChild(span);
+      });
+
+      document.documentElement.style.setProperty("--world-hue", currentWorld.hue);
+      document.documentElement.style.setProperty("--world-depth", currentWorld.depth.toString());
+    }
+
+    function updateMetricsUI() {
+      tiltXVal.textContent = `${tiltX.toFixed(1)}°`;
+      tiltYVal.textContent = `${tiltY.toFixed(1)}°`;
+      headingVal.textContent = heading === null ? "—" : `${Math.round(heading)}°`;
+      sunElevVal.textContent = sunElev === null ? "—°" : `${sunElev.toFixed(1)}°`;
+      sunAzVal.textContent = sunAz === null ? "—°" : `${sunAz.toFixed(1)}°`;
+      glareVal.textContent = `${sunOffsetX.toFixed(0)}, ${sunOffsetY.toFixed(0)}`;
+    }
+
+    function updateTime() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      timeVal.textContent = `${hh}:${mm}`;
+    }
+
+    // -----------------------------
+    // SUN POSITION (APPROX)
+    // -----------------------------
+    function computeSunPosition(lat, lon, date = new Date()) {
+      // Very rough approximation using NOAA-style formula (simplified)
+      const rad = Math.PI / 180;
+      const dayOfYear = Math.floor(
+        (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) -
+          Date.UTC(date.getFullYear(), 0, 0)) /
+          (1000 * 60 * 60 * 24)
+      );
+
+      const gamma =
+        (2 * Math.PI / 365) *
+        (dayOfYear - 1 + (date.getHours() - 12) / 24);
+
+      const decl =
+        0.006918 -
+        0.399912 * Math.cos(gamma) +
+        0.070257 * Math.sin(gamma) -
+        0.006758 * Math.cos(2 * gamma) +
+        0.000907 * Math.sin(2 * gamma) -
+        0.002697 * Math.cos(3 * gamma) +
+        0.00148 * Math.sin(3 * gamma);
+
+      const timeOffset =
+        0.000075 +
+        0.001868 * Math.cos(gamma) -
+        0.032077 * Math.sin(gamma) -
+        0.014615 * Math.cos(2 * gamma) -
+        0.040849 * Math.sin(2 * gamma);
+
+      const tst =
+        (date.getUTCHours() * 60 +
+          date.getUTCMinutes() +
+          date.getUTCSeconds() / 60 +
+          4 * lon +
+          timeOffset * 229.18) %
+        1440;
+
+      const hourAngle = (tst / 4 - 180) * rad;
+
+      const latRad = lat * rad;
+      const cosZenith =
+        Math.sin(latRad) * Math.sin(decl) +
+        Math.cos(latRad) * Math.cos(decl) * Math.cos(hourAngle);
+
+      const zenith = Math.acos(clamp(cosZenith, -1, 1));
+      const elevation = 90 - (zenith / rad);
+
+      const sinAz =
+        (-Math.sin(hourAngle) * Math.cos(decl)) / Math.sin(zenith);
+      const cosAz =
+        (Math.sin(decl) - Math.sin(latRad) * Math.cos(zenith)) /
+        (Math.cos(latRad) * Math.sin(zenith));
+
+      let azimuth = Math.atan2(sinAz, cosAz) / rad;
+      azimuth = (azimuth + 360) % 360;
+
+      return { elevation, azimuth };
+    }
+
+    function updateSunOffset() {
+      if (sunAz === null || sunElev === null) return;
+      const elevNorm = clamp((sunElev + 10) / 100, 0, 1); // rough
+      const radius = 80 * elevNorm;
+      const azRad = (sunAz - 180) * (Math.PI / 180); // invert to simulate opposite glare
+      sunOffsetX = radius * Math.cos(azRad);
+      sunOffsetY = radius * Math.sin(azRad);
+      document.documentElement.style.setProperty("--sun-x", sunOffsetX.toString());
+      document.documentElement.style.setProperty("--sun-y", sunOffsetY.toString());
+    }
+
+    function initSunTracking() {
+      if (!navigator.geolocation) {
+        // fallback: assume mid‑lat, generic sun
+        const { elevation, azimuth } = computeSunPosition(40, -86);
+        sunElev = elevation;
+        sunAz = azimuth;
+        updateSunOffset();
+        updateMetricsUI();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+          const { elevation, azimuth } = computeSunPosition(latitude, longitude);
+          sunElev = elevation;
+          sunAz = azimuth;
+          updateSunOffset();
+          updateMetricsUI();
+        },
+        () => {
+          const { elevation, azimuth } = computeSunPosition(40, -86);
+          sunElev = elevation;
+          sunAz = azimuth;
+          updateSunOffset();
+          updateMetricsUI();
+        },
+        { enableHighAccuracy: false, timeout: 3000, maximumAge: 600000 }
+      );
+    }
+
+    // -----------------------------
+    // ORIENTATION HANDLERS
+    // -----------------------------
+    function handleOrientation(event) {
+      // beta: -180..180 (front-back), gamma: -90..90 (left-right)
+      let rawBeta = event.beta || 0;
+      
+      // When beta > 90, the device is upside down/laying down with phone above head
+      // Normalize to -90..90 range while preserving the tilt direction
+      if (rawBeta > 90) {
+        // Device is past vertical, map 91-180° to 89..-90°
+        // e.g., 100° → 80°, 135° → 45°, 180° → 0°
+        tiltX = 180 - rawBeta;
+      } else if (rawBeta < -90) {
+        // Device is past vertical backwards, map -91..-180° to -89..90°
+        // e.g., -100° → -80°, -135° → -45°, -180° → 0°
+        tiltX = -180 - rawBeta;
+      } else {
+        tiltX = rawBeta;
+      }
+      
+      tiltY = clamp(event.gamma || 0, -90, 90);
+
+      cubeEl.style.setProperty("--tilt-x", `${tiltX}`);
+      cubeEl.style.setProperty("--tilt-y", `${tiltY}`);
+
+      updateWorldState();
+      updateMetricsUI();
+    }
+
+    function handleCompass(event) {
+      // Modern browsers often restrict true compass; we try best-effort
+      if (event.webkitCompassHeading !== undefined) {
+        heading = event.webkitCompassHeading; // iOS
+      } else if (event.alpha !== null) {
+        // Fallback: treat alpha as heading (approx)
+        heading = 360 - event.alpha;
+      }
+      updateWorldState();
+      updateMetricsUI();
+    }
+
+    function requestMotionPermission() {
+      if (
+        typeof DeviceMotionEvent !== "undefined" &&
+        typeof DeviceMotionEvent.requestPermission === "function"
+      ) {
+        DeviceMotionEvent.requestPermission()
+          .then(response => {
+            if (response === "granted") {
+              startOrientationListeners();
+            }
+          })
+          .catch(console.error);
+      } else {
+        startOrientationListeners();
+      }
+    }
+
+    function startOrientationListeners() {
+      window.addEventListener("deviceorientation", handleOrientation, true);
+      window.addEventListener("deviceorientationabsolute", handleCompass, true);
+      // Some browsers only fire one of these; we handle both.
+      window.addEventListener("deviceorientation", handleCompass, true);
+      permissionBanner.classList.add("hidden");
+    }
+
+    // -----------------------------
+    // INIT
+    // -----------------------------
+    enableBtn.addEventListener("click", () => {
+      requestMotionPermission();
+      initSunTracking();
+    });
+
+    applyWorldState();
+    updateTime();
+    setInterval(() => {
+      updateTime();
+      initSunTracking(); // refresh sun position periodically
+    }, 60 * 1000);
+  </script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

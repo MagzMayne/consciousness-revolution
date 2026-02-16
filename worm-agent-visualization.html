@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: worm-agent-visualization.html
+Declaration ID: IP-7574B489-MLL2902R
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worm Agent 3D Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            overflow: hidden;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 12px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        #status-hud {
+            top: 20px;
+            left: 20px;
+            min-width: 300px;
+        }
+
+        #agents-hud {
+            top: 20px;
+            right: 20px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        #stats-hud {
+            bottom: 20px;
+            left: 20px;
+            min-width: 300px;
+        }
+
+        #controls-hud {
+            bottom: 20px;
+            right: 20px;
+        }
+
+        .hud h3 {
+            color: #0ff;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #0ff;
+            font-size: 16px;
+        }
+
+        .stat-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .stat-label {
+            color: #0f0;
+        }
+
+        .stat-value {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .agent-item {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #0f0;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 3px;
+        }
+
+        .agent-item.active {
+            border-left-color: #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .agent-id {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .agent-status {
+            color: #0f0;
+            font-size: 10px;
+        }
+
+        button {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            pointer-events: auto;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(0, 255, 0, 0.4);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+        }
+
+        button:active {
+            background: rgba(0, 255, 255, 0.4);
+            border-color: #0ff;
+            color: #0ff;
+        }
+
+        button.danger {
+            border-color: #f00;
+            color: #f00;
+        }
+
+        button.danger:hover {
+            background: rgba(255, 0, 0, 0.4);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #0ff;
+            text-shadow: 0 0 20px #0ff;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 0, 0.8);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div id="overlay">
+            <!-- Status HUD -->
+            <div id="status-hud" class="hud">
+                <h3>⚡ SYSTEM STATUS</h3>
+                <div class="stat-line">
+                    <span class="stat-label">Coordinator:</span>
+                    <span class="stat-value" id="coord-status">IDLE</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Active Agents:</span>
+                    <span class="stat-value" id="active-agents">0</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Files Mapped:</span>
+                    <span class="stat-value" id="files-mapped">0</span>
+                </div>
+            </div>
+
+            <!-- Agents HUD -->
+            <div id="agents-hud" class="hud">
+                <h3>🐛 WORM AGENTS</h3>
+                <div id="agents-list"></div>
+            </div>
+
+            <!-- Stats HUD -->
+            <div id="stats-hud" class="hud">
+                <h3>📊 STATISTICS</h3>
+                <div class="stat-line">
+                    <span class="stat-label">Lines Processed:</span>
+                    <span class="stat-value" id="lines-processed">0</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Issues Found:</span>
+                    <span class="stat-value" id="issues-found">0</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Repairs Made:</span>
+                    <span class="stat-value" id="repairs-made">0</span>
+                </div>
+                <div class="stat-line">
+                    <span class="stat-label">Success Rate:</span>
+                    <span class="stat-value" id="success-rate">100%</span>
+                </div>
+            </div>
+
+            <!-- Controls HUD -->
+            <div id="controls-hud" class="hud">
+                <h3>🎮 CONTROLS</h3>
+                <button id="start-btn">🚀 START CRAWL</button>
+                <button id="stop-btn" class="danger">🛑 STOP ALL</button>
+                <button id="reset-btn">🔄 RESET</button>
+            </div>
+
+            <div id="loading" class="pulse hidden">
+                Initializing 3D Environment...
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="src/agents/agent-logger.js"></script>
+    <script src="src/agents/worm-agent.js"></script>
+    <script src="src/agents/worm-coordinator.js"></script>
+    <script src="src/systems/worm-agent-system.js"></script>
+    <script>
+        // Initialize Three.js scene
+        let scene, camera, renderer, controls;
+        let fileBubbles = [];
+        let wormPaths = [];
+        let coordinator;
+        let animationId;
+
+        // Initialize
+        async function init() {
+            // Setup Three.js
+            setupThreeJS();
+            
+            // Setup coordinator
+            if (typeof AgentLogger !== 'undefined') {
+                window.AgentLogger = new AgentLogger();
+            }
+            coordinator = new WormCoordinator(window.AgentLogger);
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Start animation loop
+            animate();
+            
+            // Hide loading
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function setupThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.Fog(0x000000, 50, 200);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 30, 50);
+            camera.lookAt(0, 0, 0);
+
+            // Renderer
+            const canvas = document.getElementById('canvas');
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x00ff00, 0.3);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0x00ffff, 1, 100);
+            pointLight.position.set(0, 20, 0);
+            scene.add(pointLight);
+
+            // Grid helper
+            const gridHelper = new THREE.GridHelper(100, 20, 0x00ff00, 0x003300);
+            scene.add(gridHelper);
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupEventListeners() {
+            // Start button
+            document.getElementById('start-btn').addEventListener('click', startCrawl);
+            
+            // Stop button
+            document.getElementById('stop-btn').addEventListener('click', stopCrawl);
+            
+            // Reset button
+            document.getElementById('reset-btn').addEventListener('click', resetVisualization);
+
+            // Coordinator events
+            if (coordinator) {
+                coordinator.on('agentDeployed', onAgentDeployed);
+                coordinator.on('agentStarted', onAgentStarted);
+                coordinator.on('resultsAggregated', onResultsAggregated);
+            }
+
+            // Mouse controls for camera
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+
+                    camera.position.x += deltaX * 0.1;
+                    camera.position.y -= deltaY * 0.1;
+                }
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Zoom with mouse wheel
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                camera.position.z += e.deltaY * 0.05;
+                camera.position.z = Math.max(10, Math.min(100, camera.position.z));
+            });
+        }
+
+        async function startCrawl() {
+            updateStatus('DEPLOYING');
+            
+            // Create file bubbles
+            createFileBubbles(10);
+            
+            // Start coordinator
+            setTimeout(async () => {
+                updateStatus('ACTIVE');
+                const files = await coordinator.scanRepository();
+                
+                // Monitor agents
+                coordinator.monitorAgents((positions) => {
+                    updateAgentPositions(positions);
+                    updateStats();
+                }, 100);
+                
+                // Start crawl
+                await coordinator.startCrawl(files);
+                
+                updateStatus('COMPLETE');
+            }, 1000);
+        }
+
+        function stopCrawl() {
+            if (coordinator) {
+                coordinator.stopAll();
+                updateStatus('STOPPED');
+            }
+        }
+
+        function resetVisualization() {
+            // Clear scene
+            fileBubbles.forEach(bubble => scene.remove(bubble));
+            wormPaths.forEach(path => scene.remove(path));
+            fileBubbles = [];
+            wormPaths = [];
+            
+            // Reset coordinator
+            if (coordinator) {
+                coordinator = new WormCoordinator(window.AgentLogger);
+                setupEventListeners();
+            }
+            
+            // Reset UI
+            updateStatus('IDLE');
+            document.getElementById('agents-list').innerHTML = '';
+            updateStats();
+        }
+
+        function createFileBubbles(count) {
+            const radius = 30;
+            for (let i = 0; i < count; i++) {
+                const geometry = new THREE.SphereGeometry(1 + Math.random() * 2, 16, 16);
+                const material = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(0, 1, Math.random() * 0.5 + 0.5),
+                    emissive: new THREE.Color(0, 0.5, 0.5),
+                    transparent: true,
+                    opacity: 0.7,
+                    wireframe: false
+                });
+                
+                const bubble = new THREE.Mesh(geometry, material);
+                
+                // Position in a sphere
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                bubble.position.x = radius * Math.sin(phi) * Math.cos(theta);
+                bubble.position.y = radius * Math.sin(phi) * Math.sin(theta);
+                bubble.position.z = radius * Math.cos(phi);
+                
+                // Store metadata
+                bubble.userData = {
+                    id: i,
+                    name: `File ${i}`,
+                    pulsePeriod: 1000 + Math.random() * 2000,
+                    startTime: Date.now()
+                };
+                
+                scene.add(bubble);
+                fileBubbles.push(bubble);
+            }
+        }
+
+        function updateAgentPositions(positions) {
+            // Update or create worm visualizations
+            positions.forEach((pos, index) => {
+                if (!wormPaths[index]) {
+                    // Create new worm
+                    const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: 0xff00ff,
+                        emissive: 0xff00ff,
+                        emissiveIntensity: 0.5
+                    });
+                    const worm = new THREE.Mesh(geometry, material);
+                    scene.add(worm);
+                    wormPaths[index] = worm;
+                }
+
+                // Move worm to file bubble
+                if (pos.file && fileBubbles.length > 0) {
+                    const targetBubble = fileBubbles[index % fileBubbles.length];
+                    if (targetBubble) {
+                        // Smooth movement
+                        wormPaths[index].position.lerp(targetBubble.position, 0.05);
+                        
+                        // Add trail effect
+                        createTrail(wormPaths[index].position);
+                    }
+                }
+            });
+
+            // Update agents list
+            updateAgentsList(positions);
+        }
+
+        function createTrail(position) {
+            const geometry = new THREE.SphereGeometry(0.2, 4, 4);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.5
+            });
+            const trail = new THREE.Mesh(geometry, material);
+            trail.position.copy(position);
+            scene.add(trail);
+
+            // Fade out and remove
+            setTimeout(() => {
+                scene.remove(trail);
+            }, 500);
+        }
+
+        function updateAgentsList(positions) {
+            const agentsList = document.getElementById('agents-list');
+            agentsList.innerHTML = '';
+            
+            positions.forEach(pos => {
+                const agentDiv = document.createElement('div');
+                agentDiv.className = 'agent-item' + (pos.status === 'crawling' ? ' active' : '');
+                agentDiv.innerHTML = `
+                    <div class="agent-id">Agent-${pos.agentId}</div>
+                    <div class="agent-status">Status: ${pos.status}</div>
+                    <div class="agent-status">File: ${pos.file || 'N/A'}</div>
+                    <div class="agent-status">Line: ${pos.line || 0}</div>
+                `;
+                agentsList.appendChild(agentDiv);
+            });
+        }
+
+        function updateStatus(status) {
+            document.getElementById('coord-status').textContent = status;
+            
+            if (coordinator) {
+                document.getElementById('active-agents').textContent = 
+                    coordinator.wormAgents.filter(a => a.active).length;
+                document.getElementById('files-mapped').textContent = fileBubbles.length;
+            }
+        }
+
+        function updateStats() {
+            if (coordinator) {
+                const stats = coordinator.getRealTimeStats();
+                document.getElementById('lines-processed').textContent = 
+                    stats.currentLinesProcessed || stats.totalLinesProcessed || 0;
+                document.getElementById('issues-found').textContent = 
+                    stats.currentIssuesFound || stats.totalIssuesFound || 0;
+                document.getElementById('repairs-made').textContent = 
+                    stats.currentRepairsMade || stats.totalRepairsMade || 0;
+                
+                const issuesFound = stats.currentIssuesFound || stats.totalIssuesFound || 0;
+                const repairsMade = stats.currentRepairsMade || stats.totalRepairsMade || 0;
+                const successRate = issuesFound > 0 
+                    ? ((repairsMade / issuesFound) * 100).toFixed(1) 
+                    : 100;
+                document.getElementById('success-rate').textContent = successRate + '%';
+            }
+        }
+
+        function onAgentDeployed(data) {
+            console.log('Agent deployed:', data);
+        }
+
+        function onAgentStarted(data) {
+            console.log('Agent started:', data);
+        }
+
+        function onResultsAggregated(data) {
+            console.log('Results aggregated:', data);
+            updateStats();
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            // Rotate camera slowly
+            camera.position.x = Math.sin(Date.now() * 0.0001) * 50;
+            camera.position.z = Math.cos(Date.now() * 0.0001) * 50;
+            camera.lookAt(0, 0, 0);
+
+            // Animate file bubbles (pulsing)
+            fileBubbles.forEach(bubble => {
+                const elapsed = Date.now() - bubble.userData.startTime;
+                const pulse = Math.sin(elapsed / bubble.userData.pulsePeriod * Math.PI * 2);
+                bubble.scale.setScalar(1 + pulse * 0.1);
+                
+                // Rotate slowly
+                bubble.rotation.y += 0.001;
+            });
+
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

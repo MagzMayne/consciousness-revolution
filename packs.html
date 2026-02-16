@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: packs.html
+Declaration ID: IP-1D553B9F-MLL2901G
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Packs - 3D Marketplace | BARBRICKDESIGN</title>
+    
+    <!-- Three.js for 3D rendering -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    
+    <!-- Wallet Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+    <script src="js/universal-wallet-system.js"></script>
+    <script src="src/core/auth-integration.js"></script>
+    <script src="src/utils/shared-wallet-system.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #050810;
+            --bg-secondary: #0f172a;
+            --bg-card: #111827;
+            --accent-cyan: #38bdf8;
+            --accent-purple: #a855f7;
+            --accent-gold: #fbbf24;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --border: #1f2937;
+            --success: #4ade80;
+            --danger: #f87171;
+            --glow-cyan: rgba(56, 189, 248, 0.3);
+            --glow-purple: rgba(168, 85, 247, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top left, #0f172a 0%, #050810 50%, #020617 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Animated background grid */
+        .cosmic-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 30%, var(--glow-cyan) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, var(--glow-purple) 0%, transparent 50%),
+                linear-gradient(90deg, transparent 49%, rgba(56, 189, 248, 0.05) 50%, transparent 51%),
+                linear-gradient(0deg, transparent 49%, rgba(168, 85, 247, 0.05) 50%, transparent 51%);
+            background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+            animation: cosmic-shift 30s ease-in-out infinite;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        @keyframes cosmic-shift {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-20px, -20px); }
+        }
+
+        /* Header */
+        header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .wallet-address {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+        }
+
+        .balance {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 40px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .page-title {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-title h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-title p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* 3D Pack Display Area */
+        .packs-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin-bottom: 80px;
+        }
+
+        .pack-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pack-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 20px 60px rgba(56, 189, 248, 0.2);
+        }
+
+        .pack-3d-viewer {
+            width: 100%;
+            height: 300px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pack-info {
+            text-align: center;
+        }
+
+        .pack-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .pack-description {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+
+        .pack-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(56, 189, 248, 0.1);
+            border-radius: 12px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .pack-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px var(--glow-cyan);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-cyan);
+            background: var(--bg-card);
+        }
+
+        /* Footer Navigation */
+        footer {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            padding: 0;
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .footer-nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            padding: 16px 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-item:hover {
+            color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .nav-item.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .nav-icon {
+            font-size: 1.5rem;
+        }
+
+        .nav-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: var(--accent-cyan);
+        }
+
+        .modal-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+        }
+
+        .transaction-status {
+            padding: 20px;
+            background: rgba(56, 189, 248, 0.1);
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 3px solid rgba(56, 189, 248, 0.3);
+            border-top: 3px solid var(--accent-cyan);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .page-title h2 {
+                font-size: 2rem;
+            }
+
+            .packs-container {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-label {
+                font-size: 0.75rem;
+            }
+
+            .nav-icon {
+                font-size: 1.3rem;
+            }
+        }
+
+        /* Pack rarity colors */
+        .pack-card.common { --pack-glow: rgba(156, 163, 175, 0.3); }
+        .pack-card.rare { --pack-glow: rgba(59, 130, 246, 0.3); }
+        .pack-card.epic { --pack-glow: rgba(168, 85, 247, 0.3); }
+        .pack-card.legendary { --pack-glow: rgba(251, 191, 36, 0.3); }
+
+        .pack-card.common:hover { box-shadow: 0 20px 60px var(--pack-glow); }
+        .pack-card.rare:hover { box-shadow: 0 20px 60px var(--pack-glow); }
+        .pack-card.epic:hover { box-shadow: 0 20px 60px var(--pack-glow); }
+        .pack-card.legendary:hover { box-shadow: 0 20px 60px var(--pack-glow); }
+
+        /* Themed pack colors */
+        .pack-card.disney { --pack-color: 0x4169E1; --pack-glow: rgba(65, 105, 225, 0.4); }
+        .pack-card.marvel { --pack-color: 0xEC1C24; --pack-glow: rgba(236, 28, 36, 0.4); }
+        .pack-card.starwars { --pack-color: 0xFFE81F; --pack-glow: rgba(255, 232, 31, 0.4); }
+        .pack-card.dc { --pack-color: 0x0074E8; --pack-glow: rgba(0, 116, 232, 0.4); }
+        .pack-card.pixar { --pack-color: 0x1FB6FF; --pack-glow: rgba(31, 182, 255, 0.4); }
+        .pack-card.classic { --pack-color: 0xFF6B6B; --pack-glow: rgba(255, 107, 107, 0.4); }
+        .pack-card.scifi { --pack-color: 0x9D4EDD; --pack-glow: rgba(157, 78, 221, 0.4); }
+        .pack-card.fantasy { --pack-color: 0x7209B7; --pack-glow: rgba(114, 9, 183, 0.4); }
+        .pack-card.gaming { --pack-color: 0x00F5FF; --pack-glow: rgba(0, 245, 255, 0.4); }
+        .pack-card.anime { --pack-color: 0xFF006E; --pack-glow: rgba(255, 0, 110, 0.4); }
+
+        .pack-card.disney:hover,
+        .pack-card.marvel:hover,
+        .pack-card.starwars:hover,
+        .pack-card.dc:hover,
+        .pack-card.pixar:hover,
+        .pack-card.classic:hover,
+        .pack-card.scifi:hover,
+        .pack-card.fantasy:hover,
+        .pack-card.gaming:hover,
+        .pack-card.anime:hover {
+            box-shadow: 0 20px 60px var(--pack-glow);
+        }
+
+        /* Pack purchase animation */
+        @keyframes pack-spin-shrink {
+            0% {
+                transform: scale(1) rotate(0deg) translateY(0);
+                opacity: 1;
+            }
+            40% {
+                transform: scale(1.2) rotate(360deg) translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.1) rotate(720deg) translateY(-80vh);
+                opacity: 0;
+            }
+        }
+
+        .pack-card.purchasing {
+            animation: pack-spin-shrink 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+            pointer-events: none;
+        }
+
+        /* Collection button highlight */
+        .nav-item.collection-highlight {
+            animation: collection-pulse 1s ease-in-out;
+            background: rgba(56, 189, 248, 0.2) !important;
+            border-bottom-color: var(--accent-cyan) !important;
+        }
+
+        @keyframes collection-pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 rgba(56, 189, 248, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(56, 189, 248, 0.8);
+            }
+        }
+
+        .rarity-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .rarity-badge.common { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+        .rarity-badge.rare { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .rarity-badge.epic { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+        .rarity-badge.legendary { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+    </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+    <div class="cosmic-grid"></div>
+
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>🎴 3D Card Packs</h1>
+            </div>
+            <div class="user-info" id="userInfo">
+                <span class="wallet-address" id="walletAddress">Connect Wallet</span>
+                <span class="balance" id="balance">—</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-title">
+            <h2>Choose Your Pack</h2>
+            <p>Select a pack to purchase and open. Each pack is recorded on the blockchain.</p>
+        </div>
+
+        <div class="packs-container" id="packsContainer">
+            <!-- Packs will be dynamically generated -->
+        </div>
+    </main>
+
+    <footer>
+        <nav class="footer-nav">
+            <a href="packs.html" class="nav-item active">
+                <span class="nav-icon">📦</span>
+                <span class="nav-label">Packs</span>
+            </a>
+            <a href="showroom.html" class="nav-item">
+                <span class="nav-icon">✨</span>
+                <span class="nav-label">Showroom</span>
+            </a>
+            <a href="collection.html" class="nav-item">
+                <span class="nav-icon">🗂️</span>
+                <span class="nav-label">Collection</span>
+            </a>
+            <a href="account.html" class="nav-item">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Account</span>
+            </a>
+        </nav>
+    </footer>
+
+    <!-- Purchase Modal -->
+    <div class="modal" id="purchaseModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePurchaseModal()">×</button>
+            <h3 class="modal-title">Purchase Pack</h3>
+            <div id="modalBody">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Pack data configuration - 10 Themed Packs
+        const PACK_TYPES = [
+            {
+                id: 'disney',
+                name: 'Disney Classics Pack',
+                description: '8 magical Disney character cards',
+                price: 0.8,
+                cards: 8,
+                rarity: 'rare',
+                theme: 'disney',
+                chances: { common: 50, rare: 35, epic: 12, legendary: 3 }
+            },
+            {
+                id: 'marvel',
+                name: 'Marvel Heroes Pack',
+                description: '10 legendary Marvel superhero cards',
+                price: 1.2,
+                cards: 10,
+                rarity: 'epic',
+                theme: 'marvel',
+                chances: { common: 35, rare: 40, epic: 20, legendary: 5 }
+            },
+            {
+                id: 'starwars',
+                name: 'Star Wars Universe Pack',
+                description: '12 iconic Star Wars character cards',
+                price: 1.5,
+                cards: 12,
+                rarity: 'epic',
+                theme: 'starwars',
+                chances: { common: 30, rare: 40, epic: 25, legendary: 5 }
+            },
+            {
+                id: 'dc',
+                name: 'DC Universe Pack',
+                description: '10 powerful DC superhero cards',
+                price: 1.2,
+                cards: 10,
+                rarity: 'epic',
+                theme: 'dc',
+                chances: { common: 35, rare: 40, epic: 20, legendary: 5 }
+            },
+            {
+                id: 'pixar',
+                name: 'Pixar Adventures Pack',
+                description: '8 beloved Pixar character cards',
+                price: 0.8,
+                cards: 8,
+                rarity: 'rare',
+                theme: 'pixar',
+                chances: { common: 50, rare: 35, epic: 12, legendary: 3 }
+            },
+            {
+                id: 'classic',
+                name: 'Classic Animation Pack',
+                description: '10 timeless animation character cards',
+                price: 0.6,
+                cards: 10,
+                rarity: 'rare',
+                theme: 'classic',
+                chances: { common: 60, rare: 30, epic: 8, legendary: 2 }
+            },
+            {
+                id: 'scifi',
+                name: 'Sci-Fi Universe Pack',
+                description: '12 epic sci-fi character cards',
+                price: 1.0,
+                cards: 12,
+                rarity: 'epic',
+                theme: 'scifi',
+                chances: { common: 40, rare: 35, epic: 20, legendary: 5 }
+            },
+            {
+                id: 'fantasy',
+                name: 'Fantasy Realm Pack',
+                description: '10 mythical fantasy character cards',
+                price: 1.0,
+                cards: 10,
+                rarity: 'epic',
+                theme: 'fantasy',
+                chances: { common: 40, rare: 35, epic: 20, legendary: 5 }
+            },
+            {
+                id: 'gaming',
+                name: 'Gaming Legends Pack',
+                description: '15 iconic gaming character cards',
+                price: 1.8,
+                cards: 15,
+                rarity: 'legendary',
+                theme: 'gaming',
+                chances: { common: 30, rare: 35, epic: 25, legendary: 10 }
+            },
+            {
+                id: 'anime',
+                name: 'Anime Legends Pack',
+                description: '15 legendary anime character cards',
+                price: 1.8,
+                cards: 15,
+                rarity: 'legendary',
+                theme: 'anime',
+                chances: { common: 30, rare: 35, epic: 25, legendary: 10 }
+            }
+        ];
+
+        // Blockchain simulation layer
+        class BlockchainLedger {
+            constructor() {
+                this.transactions = [];
+                this.userPacks = {};
+                this.loadFromLocalStorage();
+            }
+
+            loadFromLocalStorage() {
+                const saved = localStorage.getItem('blockchain_ledger');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    this.transactions = data.transactions || [];
+                    this.userPacks = data.userPacks || {};
+                }
+            }
+
+            save() {
+                localStorage.setItem('blockchain_ledger', JSON.stringify({
+                    transactions: this.transactions,
+                    userPacks: this.userPacks
+                }));
+            }
+
+            async recordPurchase(userId, packId, price) {
+                const transaction = {
+                    id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+                    type: 'PACK_PURCHASE',
+                    userId: userId,
+                    packId: packId,
+                    price: price,
+                    timestamp: new Date().toISOString(),
+                    blockNumber: this.transactions.length + 1,
+                    status: 'confirmed'
+                };
+
+                this.transactions.push(transaction);
+
+                if (!this.userPacks[userId]) {
+                    this.userPacks[userId] = [];
+                }
+                this.userPacks[userId].push({
+                    packId: packId,
+                    purchaseId: transaction.id,
+                    opened: false,
+                    timestamp: transaction.timestamp
+                });
+
+                this.save();
+                return transaction;
+            }
+
+            getUserPacks(userId) {
+                return this.userPacks[userId] || [];
+            }
+
+            getTransactionHistory(userId) {
+                return this.transactions.filter(tx => tx.userId === userId);
+            }
+        }
+
+        // Initialize blockchain ledger
+        const blockchain = new BlockchainLedger();
+
+        // Wallet state
+        let currentWallet = null;
+        let currentBalance = 10.0; // Demo balance
+
+        // Initialize wallet
+        async function initWallet() {
+            if (window.SharedWalletSystem) {
+                const wallet = new SharedWalletSystem();
+                if (wallet.connected) {
+                    currentWallet = wallet.address;
+                    updateWalletUI();
+                }
+            }
+        }
+
+        function updateWalletUI() {
+            const walletEl = document.getElementById('walletAddress');
+            const balanceEl = document.getElementById('balance');
+
+            if (currentWallet) {
+                walletEl.textContent = currentWallet.substring(0, 6) + '...' + currentWallet.substring(currentWallet.length - 4);
+                balanceEl.textContent = `${currentBalance.toFixed(2)} SOL`;
+            } else {
+                walletEl.textContent = 'Connect Wallet';
+                balanceEl.textContent = '—';
+            }
+        }
+
+        // Render packs
+        function renderPacks() {
+            const container = document.getElementById('packsContainer');
+            container.innerHTML = '';
+
+            PACK_TYPES.forEach(pack => {
+                const packCard = document.createElement('div');
+                packCard.className = `pack-card ${pack.theme || pack.rarity}`;
+                packCard.innerHTML = `
+                    <span class="rarity-badge ${pack.rarity}">${pack.rarity}</span>
+                    <div class="pack-3d-viewer" id="pack-viewer-${pack.id}"></div>
+                    <div class="pack-info">
+                        <h3 class="pack-name">${pack.name}</h3>
+                        <p class="pack-description">${pack.description}</p>
+                        <div class="pack-stats">
+                            <div class="stat">
+                                <div class="stat-label">Cards</div>
+                                <div class="stat-value">${pack.cards}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Legendary</div>
+                                <div class="stat-value">${pack.chances.legendary}%</div>
+                            </div>
+                        </div>
+                        <div class="pack-price">${pack.price} SOL</div>
+                        <button class="btn btn-primary" onclick="purchasePack('${pack.id}')">
+                            Purchase Pack
+                        </button>
+                    </div>
+                `;
+                container.appendChild(packCard);
+
+                // Initialize 3D viewer for this pack
+                init3DViewer(`pack-viewer-${pack.id}`, pack.theme || pack.rarity, pack);
+            });
+        }
+
+        // 3D Pack Viewer with parallax
+        function init3DViewer(containerId, theme, packData) {
+            const container = document.getElementById(containerId);
+            if (!container || !window.THREE) return;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Create pack geometry
+            const geometry = new THREE.BoxGeometry(2, 3, 0.5);
+            
+            // Rarity-based colors (fallback)
+            const rarityColors = {
+                common: 0x9ca3af,
+                rare: 0x3b82f6,
+                epic: 0xa855f7,
+                legendary: 0xfbbf24
+            };
+
+            // Theme-based colors
+            const themeColors = {
+                disney: 0x4169E1,
+                marvel: 0xEC1C24,
+                starwars: 0xFFE81F,
+                dc: 0x0074E8,
+                pixar: 0x1FB6FF,
+                classic: 0xFF6B6B,
+                scifi: 0x9D4EDD,
+                fantasy: 0x7209B7,
+                gaming: 0x00F5FF,
+                anime: 0xFF006E
+            };
+
+            const color = themeColors[theme] || (packData && rarityColors[packData.rarity]) || 0x38bdf8;
+
+            const material = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.3,
+                shininess: 100
+            });
+
+            const pack = new THREE.Mesh(geometry, material);
+            scene.add(pack);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(color, 1.5, 100);
+            pointLight.position.set(0, 5, 5);
+            scene.add(pointLight);
+
+            camera.position.z = 6;
+
+            // Mouse parallax effect
+            let mouseX = 0;
+            let mouseY = 0;
+
+            container.addEventListener('mousemove', (e) => {
+                const rect = container.getBoundingClientRect();
+                mouseX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouseY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            });
+
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+
+                // Slow rotation
+                pack.rotation.y += 0.005;
+
+                // Parallax effect
+                pack.rotation.x = mouseY * 0.3;
+                pack.rotation.y += mouseX * 0.01;
+
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        }
+
+        // Purchase pack
+        async function purchasePack(packId) {
+            const pack = PACK_TYPES.find(p => p.id === packId);
+            if (!pack) return;
+
+            // Check if wallet connected
+            if (!currentWallet) {
+                currentWallet = 'demo_' + Math.random().toString(36).substring(2, 11);
+            }
+
+            // Check balance
+            if (currentBalance < pack.price) {
+                alert('Insufficient balance!');
+                return;
+            }
+
+            // Get the pack card element for animation
+            const packCard = event.target.closest('.pack-card');
+
+            // Show purchase modal
+            const modal = document.getElementById('purchaseModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalBody.innerHTML = `
+                <div class="transaction-status">
+                    <div class="spinner"></div>
+                    <p>Processing purchase...</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 8px;">
+                        Recording transaction on blockchain
+                    </p>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+
+            // Simulate blockchain transaction
+            setTimeout(async () => {
+                try {
+                    // Deduct balance
+                    currentBalance -= pack.price;
+                    updateWalletUI();
+
+                    // Record on blockchain
+                    const transaction = await blockchain.recordPurchase(currentWallet, packId, pack.price);
+
+                    // Trigger pack animation
+                    if (packCard) {
+                        packCard.classList.add('purchasing');
+                        
+                        // Highlight collection button
+                        const collectionBtn = document.querySelector('.nav-item[href="collection.html"]');
+                        if (collectionBtn) {
+                            collectionBtn.classList.add('collection-highlight');
+                            setTimeout(() => {
+                                collectionBtn.classList.remove('collection-highlight');
+                            }, 1500);
+                        }
+                    }
+
+                    // Success message
+                    modalBody.innerHTML = `
+                        <div class="transaction-status" style="background: rgba(74, 222, 128, 0.1);">
+                            <div style="font-size: 3rem; margin-bottom: 12px;">✅</div>
+                            <h4 style="color: var(--success); margin-bottom: 12px;">Purchase Successful!</h4>
+                            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                ${pack.name} has been added to your collection
+                            </p>
+                            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin: 16px 0;">
+                                <p style="font-size: 0.85rem; color: var(--text-secondary);">Transaction ID</p>
+                                <p style="font-family: monospace; font-size: 0.9rem; color: var(--accent-cyan); word-break: break-all;">
+                                    ${transaction.id}
+                                </p>
+                            </div>
+                            <button class="btn btn-primary" onclick="openPack('${packId}', '${transaction.id}')">
+                                Open Pack Now
+                            </button>
+                            <button class="btn btn-secondary" onclick="closePurchaseModal()" style="margin-top: 12px;">
+                                Open Later
+                            </button>
+                        </div>
+                    `;
+                } catch (error) {
+                    modalBody.innerHTML = `
+                        <div class="transaction-status" style="background: rgba(248, 113, 113, 0.1);">
+                            <div style="font-size: 3rem; margin-bottom: 12px;">❌</div>
+                            <h4 style="color: var(--danger);">Transaction Failed</h4>
+                            <p style="color: var(--text-secondary);">${error.message}</p>
+                            <button class="btn btn-secondary" onclick="closePurchaseModal()" style="margin-top: 16px;">
+                                Close
+                            </button>
+                        </div>
+                    `;
+                }
+            }, 2000);
+        }
+
+        function closePurchaseModal() {
+            document.getElementById('purchaseModal').classList.remove('active');
+        }
+
+        function openPack(packId, transactionId) {
+            // Redirect to pack opening page (to be implemented)
+            window.location.href = `pack-opening.html?pack=${packId}&tx=${transactionId}`;
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initWallet();
+            renderPacks();
+            updateWalletUI();
+        });
+    </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

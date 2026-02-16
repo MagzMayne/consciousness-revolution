@@ -1,0 +1,364 @@
+name: Performance Monitoring
+
+on:
+  # Run weekly performance audit only
+  workflow_dispatch:
+  schedule:
+    # Run weekly performance audit on Sunday at 10 AM UTC
+    - cron: '0 10 * * 0'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  performance-audit:
+    name: Web Performance Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.13.x
+      
+      - name: Analyze Bundle Sizes
+        id: bundle-analysis
+        run: |
+          echo "## ⚡ Performance Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Calculate JavaScript bundle size
+          JS_TOTAL=0
+          JS_COUNT=0
+          while IFS= read -r file; do
+            SIZE=$(wc -c < "$file")
+            JS_TOTAL=$((JS_TOTAL + SIZE))
+            JS_COUNT=$((JS_COUNT + 1))
+          done < <(find . -name "*.js" ! -path "./node_modules/*" ! -path "./.git/*")
+          
+          JS_TOTAL_KB=$((JS_TOTAL / 1024))
+          
+          # Calculate HTML size
+          HTML_TOTAL=0
+          HTML_COUNT=0
+          while IFS= read -r file; do
+            SIZE=$(wc -c < "$file")
+            HTML_TOTAL=$((HTML_TOTAL + SIZE))
+            HTML_COUNT=$((HTML_COUNT + 1))
+          done < <(find . -name "*.html" ! -path "./node_modules/*" ! -path "./.git/*")
+          
+          HTML_TOTAL_KB=$((HTML_TOTAL / 1024))
+          
+          # Calculate CSS size
+          CSS_TOTAL=0
+          CSS_COUNT=0
+          while IFS= read -r file; do
+            SIZE=$(wc -c < "$file")
+            CSS_TOTAL=$((CSS_TOTAL + SIZE))
+            CSS_COUNT=$((CSS_COUNT + 1))
+          done < <(find . -name "*.css" ! -path "./node_modules/*" ! -path "./.git/*")
+          
+          CSS_TOTAL_KB=$((CSS_TOTAL / 1024))
+          
+          echo "| Resource Type | Files | Total Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|-------|------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| JavaScript | $JS_COUNT | ${JS_TOTAL_KB} KB |" >> $GITHUB_STEP_SUMMARY
+          echo "| HTML | $HTML_COUNT | ${HTML_TOTAL_KB} KB |" >> $GITHUB_STEP_SUMMARY
+          echo "| CSS | $CSS_COUNT | ${CSS_TOTAL_KB} KB |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Set outputs
+          echo "js_size_kb=$JS_TOTAL_KB" >> $GITHUB_OUTPUT
+          echo "html_size_kb=$HTML_TOTAL_KB" >> $GITHUB_OUTPUT
+          echo "css_size_kb=$CSS_TOTAL_KB" >> $GITHUB_OUTPUT
+          
+          # Warnings for large bundles
+          if [ $JS_TOTAL_KB -gt 1000 ]; then
+            echo "⚠️ JavaScript bundle exceeds 1MB - consider code splitting" >> $GITHUB_STEP_SUMMARY
+            echo "js_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "js_warning=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ $CSS_TOTAL_KB -gt 200 ]; then
+            echo "⚠️ CSS bundle exceeds 200KB - consider optimization" >> $GITHUB_STEP_SUMMARY
+            echo "css_warning=true" >> $GITHUB_OUTPUT
+          else
+            echo "css_warning=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check for Performance Anti-patterns
+        id: antipatterns
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Anti-pattern Detection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          ISSUES_FOUND=0
+          
+          # Check for document.write
+          DOC_WRITE=$(grep -r "document\.write" . --include="*.js" --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$DOC_WRITE" -gt 0 ]; then
+            echo "- ❌ Found $DOC_WRITE instances of \`document.write\` (blocks parsing)" >> $GITHUB_STEP_SUMMARY
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Check for synchronous XHR (look for .open with false as third parameter)
+          SYNC_XHR=$(grep -r "\.open\s*(" . --include="*.js" ! -path "./node_modules/*" | grep -E "\.open\s*\([^,]+,[^,]+,\s*false\s*\)" | wc -l || echo "0")
+          if [ "$SYNC_XHR" -gt 0 ]; then
+            echo "- ⚠️ Found $SYNC_XHR synchronous XHR calls" >> $GITHUB_STEP_SUMMARY
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Check for inefficient selectors
+          QUERY_ALL=$(grep -r "document\.querySelectorAll\|getElementsBy" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          echo "- ℹ️ DOM query operations: $QUERY_ALL (cache results when possible)" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for addEventListener in loops
+          EVENT_LOOPS=$(grep -r "for.*addEventListener" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$EVENT_LOOPS" -gt 0 ]; then
+            echo "- ⚠️ Found $EVENT_LOOPS potential event listener loops (consider event delegation)" >> $GITHUB_STEP_SUMMARY
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Check for heavy computations without debounce
+          SCROLL_HANDLERS=$(grep -r "addEventListener.*scroll" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$SCROLL_HANDLERS" -gt 0 ]; then
+            echo "- ℹ️ Found $SCROLL_HANDLERS scroll handlers (consider throttle/debounce)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for memory leaks patterns
+          SET_INTERVAL=$(grep -r "setInterval" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          CLEAR_INTERVAL=$(grep -r "clearInterval" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$SET_INTERVAL" -gt "$CLEAR_INTERVAL" ]; then
+            echo "- ⚠️ More setInterval ($SET_INTERVAL) than clearInterval ($CLEAR_INTERVAL) - check for memory leaks" >> $GITHUB_STEP_SUMMARY
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "issues_found=$ISSUES_FOUND" >> $GITHUB_OUTPUT
+          
+          if [ "$ISSUES_FOUND" -eq 0 ]; then
+            echo "✅ No critical performance anti-patterns detected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Found $ISSUES_FOUND potential performance issues" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Analyze Resource Loading
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resource Loading Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for async/defer on scripts
+          BLOCKING_SCRIPTS=$(grep -r '<script src=' . --include="*.html" ! -path "./node_modules/*" | grep -v "async\|defer" | wc -l || echo "0")
+          ASYNC_SCRIPTS=$(grep -r '<script.*async' . --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          DEFER_SCRIPTS=$(grep -r '<script.*defer' . --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          
+          echo "- Blocking scripts: $BLOCKING_SCRIPTS" >> $GITHUB_STEP_SUMMARY
+          echo "- Async scripts: $ASYNC_SCRIPTS" >> $GITHUB_STEP_SUMMARY
+          echo "- Defer scripts: $DEFER_SCRIPTS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$BLOCKING_SCRIPTS" -gt 5 ]; then
+            echo "⚠️ Consider adding async/defer to improve page load time" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for lazy loading
+          LAZY_IMAGES=$(grep -r 'loading="lazy"' . --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          TOTAL_IMAGES=$(grep -r '<img' . --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          
+          echo "- Images with lazy loading: $LAZY_IMAGES / $TOTAL_IMAGES" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$TOTAL_IMAGES" -gt 10 ] && [ "$LAZY_IMAGES" -lt 5 ]; then
+            echo "💡 Recommendation: Add lazy loading to images for better performance" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check Caching Strategy
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Caching & Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for service worker
+          if [ -f "service-worker.js" ] || [ -f "sw.js" ]; then
+            echo "✅ Service Worker detected" >> $GITHUB_STEP_SUMMARY
+            
+            # Check service worker registration
+            SW_REG=$(grep -r "serviceWorker.register" . --include="*.js" --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+            if [ "$SW_REG" -gt 0 ]; then
+              echo "✅ Service Worker registration found" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ Service Worker file exists but no registration found" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "ℹ️ No Service Worker detected (consider for offline support)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for local storage usage
+          LOCAL_STORAGE=$(grep -r "localStorage\|sessionStorage" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          echo "- Client-side storage usage: $LOCAL_STORAGE instances" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for IndexedDB
+          INDEXED_DB=$(grep -r "indexedDB" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$INDEXED_DB" -gt 0 ]; then
+            echo "✅ IndexedDB usage detected (good for large data)" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Mobile Performance Checks
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Mobile Performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for viewport meta tag
+          VIEWPORT=$(grep -r '<meta name="viewport"' . --include="*.html" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$VIEWPORT" -gt 0 ]; then
+            echo "✅ Viewport meta tag found (mobile-friendly)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Missing viewport meta tag (required for mobile)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for touch events
+          TOUCH_EVENTS=$(grep -r "touchstart\|touchend\|touchmove" . --include="*.js" ! -path "./node_modules/*" | wc -l || echo "0")
+          if [ "$TOUCH_EVENTS" -gt 0 ]; then
+            echo "✅ Touch events implemented: $TOUCH_EVENTS" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for responsive CSS
+          MEDIA_QUERIES=$(grep -r "@media" . --include="*.css" ! -path "./node_modules/*" | wc -l || echo "0")
+          echo "- Media queries: $MEDIA_QUERIES (responsive design)" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for mobile CSS file
+          if [ -f "mobile-responsive.css" ] || [ -f "css/mobile-responsive.css" ]; then
+            echo "✅ Dedicated mobile CSS detected" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Generate Performance Report
+        run: |
+          mkdir -p reports
+          
+          cat > reports/performance-report.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "repository": "${{ github.repository }}",
+            "branch": "${{ github.ref_name }}",
+            "commit": "${{ github.sha }}",
+            "metrics": {
+              "bundle_size": {
+                "javascript_kb": ${{ steps.bundle-analysis.outputs.js_size_kb }},
+                "html_kb": ${{ steps.bundle-analysis.outputs.html_size_kb }},
+                "css_kb": ${{ steps.bundle-analysis.outputs.css_size_kb }}
+              },
+              "issues_found": ${{ steps.antipatterns.outputs.issues_found }},
+              "warnings": {
+                "js_size": ${{ steps.bundle-analysis.outputs.js_warning }},
+                "css_size": ${{ steps.bundle-analysis.outputs.css_warning }}
+              }
+            }
+          }
+          EOF
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Performance audit complete**" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Detailed report saved to artifacts" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: reports/performance-report.json
+          retention-days: 90
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jsSize = ${{ steps.bundle-analysis.outputs.js_size_kb }};
+            const htmlSize = ${{ steps.bundle-analysis.outputs.html_size_kb }};
+            const cssSize = ${{ steps.bundle-analysis.outputs.css_size_kb }};
+            const issues = ${{ steps.antipatterns.outputs.issues_found }};
+            
+            const jsWarning = '${{ steps.bundle-analysis.outputs.js_warning }}' === 'true';
+            const cssWarning = '${{ steps.bundle-analysis.outputs.css_warning }}' === 'true';
+            
+            let message = `## ⚡ Performance Analysis Results\n\n`;
+            message += `### Bundle Sizes\n`;
+            message += `| Resource | Size |\n`;
+            message += `|----------|------|\n`;
+            message += `| JavaScript | ${jsSize} KB ${jsWarning ? '⚠️' : '✅'} |\n`;
+            message += `| HTML | ${htmlSize} KB |\n`;
+            message += `| CSS | ${cssSize} KB ${cssWarning ? '⚠️' : '✅'} |\n\n`;
+            
+            if (issues > 0) {
+              message += `### ⚠️ Performance Issues\n`;
+              message += `Found ${issues} potential performance issues. Review the workflow logs for details.\n\n`;
+            } else {
+              message += `### ✅ Performance Check\n`;
+              message += `No critical performance issues detected.\n\n`;
+            }
+            
+            if (jsWarning || cssWarning) {
+              message += `### 💡 Recommendations\n`;
+              if (jsWarning) message += `- Consider code splitting to reduce JavaScript bundle size\n`;
+              if (cssWarning) message += `- Optimize and minify CSS files\n`;
+              message += `\n`;
+            }
+            
+            message += `---\n*Automated by Performance Monitoring Workflow*`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
+
+  create-performance-issue:
+    name: Create Performance Issue
+    needs: performance-audit
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'schedule'
+    
+    steps:
+      - name: Create Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueBody = `## ⚡ Performance Degradation Detected
+            
+            The scheduled performance monitoring workflow has detected issues.
+            
+            ### Action Required
+            1. Review the workflow run logs
+            2. Address performance anti-patterns
+            3. Optimize bundle sizes if needed
+            4. Re-run the workflow to verify improvements
+            
+            ### Workflow Run
+            [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            *Automated by Performance Monitoring Workflow*
+            *Detected on: ${new Date().toISOString()}*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚡ Performance Issues Detected',
+              body: issueBody,
+              labels: ['performance', 'automated']
+            });

@@ -1,0 +1,282 @@
+name: Documentation Sync
+
+# Automatically updates workflow documentation when workflows are modified
+# Ensures README stays in sync with actual workflow implementations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/*.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Analyze workflows
+        id: analyze
+        run: |
+          echo "Analyzing workflow files..."
+
+          WORKFLOW_COUNT=$(find .github/workflows -name "*.yml" | wc -l)
+          echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
+
+          echo "Found $WORKFLOW_COUNT workflow files"
+
+          # Generate workflow list
+          echo "## Workflow Inventory" > workflow_inventory.md
+          echo "" >> workflow_inventory.md
+          echo "Total workflows: $WORKFLOW_COUNT" >> workflow_inventory.md
+          echo "" >> workflow_inventory.md
+
+          for workflow in .github/workflows/*.yml; do
+            if [ -f "$workflow" ]; then
+              NAME=$(grep "^name:" "$workflow" | head -1 | sed 's/name: *//' | tr -d '"')
+
+              # Extract triggers
+              TRIGGERS=$(grep -A 5 "^on:" "$workflow" | grep -E "  [a-z_]+" | sed 's/:.*//' | xargs | head -3)
+
+              echo "### $(basename $workflow)" >> workflow_inventory.md
+              echo "**Name**: $NAME" >> workflow_inventory.md
+              echo "**Triggers**: $TRIGGERS" >> workflow_inventory.md
+              echo "" >> workflow_inventory.md
+            fi
+          done
+
+          cat workflow_inventory.md
+
+      - name: Check if README exists
+        id: check-readme
+        run: |
+          if [ -f ".github/workflows/README.md" ]; then
+            echo "readme_exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Workflows README exists"
+          else
+            echo "readme_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Workflows README does not exist"
+          fi
+
+      - name: Update README timestamp
+        if: steps.check-readme.outputs.readme_exists == 'true'
+        run: |
+          README=".github/workflows/README.md"
+
+          # Update last updated timestamp
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+
+          if grep -q "Last updated:" "$README"; then
+            # Update existing timestamp
+            sed -i "s/Last updated:.*/Last updated: $CURRENT_DATE/" "$README"
+            echo "✅ Updated timestamp in README"
+          else
+            # Add timestamp at the end
+            echo "" >> "$README"
+            echo "---" >> "$README"
+            echo "Last updated: $CURRENT_DATE" >> "$README"
+            echo "✅ Added timestamp to README"
+          fi
+
+          # Append workflow inventory
+          if ! grep -q "## Workflow Inventory" "$README"; then
+            echo "" >> "$README"
+            echo "---" >> "$README"
+            echo "" >> "$README"
+            cat workflow_inventory.md >> "$README"
+            echo "✅ Added workflow inventory to README"
+          fi
+
+          echo "docs_updated=true" >> $GITHUB_ENV
+
+      - name: Check for workflow documentation
+        run: |
+          echo "Checking for workflow-specific documentation..."
+
+          DOCS_MISSING=0
+
+          # Check for automated flows documentation
+          if [ ! -f ".github/workflows/AUTOMATED_FLOWS_README.md" ]; then
+            echo "⚠️ AUTOMATED_FLOWS_README.md missing"
+            DOCS_MISSING=$((DOCS_MISSING + 1))
+          else
+            echo "✅ AUTOMATED_FLOWS_README.md exists"
+          fi
+
+          # Check for conflict resolution docs
+          if [ ! -f ".github/workflows/CONFLICT_RESOLUTION_GUIDE.md" ]; then
+            echo "ℹ️ CONFLICT_RESOLUTION_GUIDE.md missing (optional)"
+          else
+            echo "✅ CONFLICT_RESOLUTION_GUIDE.md exists"
+          fi
+
+          # Check for backup/rollback docs
+          if [ ! -f ".github/workflows/BACKUP_ROLLBACK_GUIDE.md" ]; then
+            echo "ℹ️ BACKUP_ROLLBACK_GUIDE.md missing (optional)"
+          else
+            echo "✅ BACKUP_ROLLBACK_GUIDE.md exists"
+          fi
+
+          echo "docs_missing=$DOCS_MISSING" >> $GITHUB_ENV
+
+      - name: Generate quickstart guide
+        run: |
+          echo "# GitHub Actions Quick Start" > quickstart.md
+          echo "" >> quickstart.md
+          echo "## Running Workflows Manually" >> quickstart.md
+          echo "" >> quickstart.md
+          echo "### Via GitHub UI" >> quickstart.md
+          echo "1. Go to Actions tab" >> quickstart.md
+          echo "2. Select workflow from left sidebar" >> quickstart.md
+          echo "3. Click 'Run workflow' button" >> quickstart.md
+          echo "4. Select branch and click 'Run workflow'" >> quickstart.md
+          echo "" >> quickstart.md
+          echo "### Via GitHub CLI" >> quickstart.md
+          echo "\`\`\`bash" >> quickstart.md
+          echo "# List all workflows" >> quickstart.md
+          echo "gh workflow list" >> quickstart.md
+          echo "" >> quickstart.md
+          echo "# Run a specific workflow" >> quickstart.md
+          echo "gh workflow run <workflow-name.yml>" >> quickstart.md
+          echo "" >> quickstart.md
+          echo "# View workflow runs" >> quickstart.md
+          echo "gh run list" >> quickstart.md
+          echo "\`\`\`" >> quickstart.md
+          echo "" >> quickstart.md
+          echo "## Available Workflows" >> quickstart.md
+          echo "" >> quickstart.md
+
+          # List workflows with manual dispatch
+          for workflow in .github/workflows/*.yml; do
+            if grep -q "workflow_dispatch" "$workflow"; then
+              NAME=$(grep "^name:" "$workflow" | head -1 | sed 's/name: *//' | tr -d '"')
+              FILENAME=$(basename "$workflow")
+              echo "- **$NAME** (\`$FILENAME\`)" >> quickstart.md
+            fi
+          done
+
+          echo "" >> quickstart.md
+          echo "---" >> quickstart.md
+          echo "*Auto-generated by Documentation Sync workflow*" >> quickstart.md
+
+          cp quickstart.md .github/workflows/QUICKSTART.md
+          echo "✅ Generated quickstart guide"
+
+      - name: Validate workflow YAML
+        run: |
+          echo "Validating workflow YAML syntax..."
+
+          # Install yamllint if needed
+          pip install --user yamllint > /dev/null 2>&1 || echo "yamllint installation skipped or already available"
+
+          INVALID=0
+
+          for workflow in .github/workflows/*.yml; do
+            if [ -f "$workflow" ]; then
+              echo "Checking: $(basename $workflow)"
+
+              if yamllint -d relaxed "$workflow" 2>&1 | grep -i "error"; then
+                echo "❌ $(basename $workflow) has YAML errors"
+                INVALID=$((INVALID + 1))
+              else
+                echo "✅ $(basename $workflow) is valid"
+              fi
+            fi
+          done
+
+          echo "yaml_invalid=$INVALID" >> $GITHUB_ENV
+
+          if [ $INVALID -gt 0 ]; then
+            echo "⚠️ $INVALID workflow(s) have YAML errors"
+          else
+            echo "✅ All workflows have valid YAML"
+          fi
+
+      - name: Commit documentation updates
+        if: github.event_name != 'pull_request' && env.docs_updated == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .github/workflows/*.md
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "docs: auto-update workflow documentation [skip ci]"
+            git push
+            echo "✅ Documentation updates committed"
+          else
+            echo "ℹ️ No documentation changes to commit"
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const workflowCount = '${{ steps.analyze.outputs.workflow_count }}';
+            const yamlInvalid = parseInt('${{ env.yaml_invalid }}' || '0');
+            const docsMissing = parseInt('${{ env.docs_missing }}' || '0');
+
+            let status = '✅ All checks passed';
+            let icon = '✅';
+
+            if (yamlInvalid > 0) {
+              status = `❌ ${yamlInvalid} workflow(s) have YAML errors`;
+              icon = '❌';
+            } else if (docsMissing > 0) {
+              status = `⚠️ ${docsMissing} documentation file(s) missing`;
+              icon = '⚠️';
+            }
+
+            const inventory = fs.readFileSync('workflow_inventory.md', 'utf8');
+
+            const body = `${icon} **Workflow Documentation Check**\n\n` +
+              `**Status**: ${status}\n\n` +
+              `**Workflow Count**: ${workflowCount}\n\n` +
+              `${inventory}\n\n` +
+              `---\n` +
+              `*Automated by Documentation Sync Workflow*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Documentation Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflows analyzed**: ${{ steps.analyze.outputs.workflow_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "**YAML errors**: ${yaml_invalid:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "**Missing docs**: ${docs_missing:-0}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat workflow_inventory.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if YAML invalid
+        if: env.yaml_invalid > 0
+        run: |
+          echo "❌ Workflow YAML validation failed"
+          exit 1

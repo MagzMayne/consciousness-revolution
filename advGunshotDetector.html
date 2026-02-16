@@ -1,0 +1,690 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: advGunshotDetector.html
+Declaration ID: IP-4CC003F4-MLL28ZXU
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Advanced Gunshot Detector — Mobile</title>
+<meta name="description" content="Browser-based gunshot detection, classifier training from reference audio, distance estimation, and multilateration using multiple device logs." />
+<style>
+  :root{--bg:#0e1620;--panel:#0a0f16;--muted:#9fb0be;--accent:#2dd4bf;--danger:#f97373}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:linear-gradient(180deg,#07121a,#08121a);color:#e6f7f9}
+  .wrap{max-width:980px;margin:12px auto;padding:12px}
+  header{display:flex;align-items:center;gap:12px}
+  h1{font-size:18px;margin:0}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:12px;border-radius:12px;margin-top:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{background:var(--accent);color:#002827;border:0;padding:8px 10px;border-radius:10px;font-weight:700}
+  button.warn{background:var(--danger);color:white}
+  label{font-size:13px;color:var(--muted)}
+  input[type=range]{vertical-align:middle}
+  canvas{width:100%;height:120px;border-radius:8px;background:#02121b;display:block;margin-top:8px}
+  #log{max-height:220px;overflow:auto;padding:8px;border-radius:8px;background:#02181d;color:#cfeffc;font-size:13px;margin-top:8px}
+  .small{font-size:13px;padding:6px 8px}
+  .sectionTitle{font-weight:800;margin-bottom:6px}
+  pre{white-space:pre-wrap;background:#031a20;padding:8px;border-radius:8px;color:#bfe9e0}
+  input[type=file]{color:transparent}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:6px;border-bottom:1px solid rgba(255,255,255,0.02);font-size:13px;text-align:left}
+</style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  
+  <!-- Ethical Safeguards - Required for surveillance features -->
+  <script src="ethical-safeguards.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <!-- Fibonacci Vehicle Safety System -->
+  <script src="/fibonacci-vehicle-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="6" fill="#04141a"/><path d="M3 12h18" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <div>
+      <h1>Advanced Gunshot Detector — Mobile</h1>
+      <div style="font-size:13px;color:var(--muted)">Realtime detection, trainable classifier from reference audio, distance estimator, and multilateration tool</div>
+    </div>
+  </header>
+
+  <section class="panel" id="capturePanel">
+    <div class="sectionTitle">Microphone capture & realtime detection</div>
+    <div class="row">
+      <button id="btnRequest" class="small">Enable Microphone</button>
+      <button id="btnStart" class="small" disabled>Start Logging</button>
+      <button id="btnStop" class="small warn" disabled>Stop Logging</button>
+      <label>Sensitivity</label>
+      <input id="sens" type="range" min="0.2" max="5" step="0.1" value="1">
+      <label>FFT</label>
+      <select id="fft" class="small"><option>2048</option><option selected>4096</option><option>8192</option></select>
+      <button id="btnExport" class="small" disabled>Export CSV</button>
+    </div>
+    <canvas id="viz"></canvas>
+    <div id="status" style="margin-top:8px;color:var(--muted)">Status: Idle</div>
+  </section>
+
+  <section class="panel" id="trainingPanel">
+    <div class="sectionTitle">Reference dataset & classifier training</div>
+    <div style="font-size:13px;color:var(--muted)">Upload labeled reference audio (short WAV/MP3). The app extracts spectral features and trains a simple k-NN classifier in-browser to distinguish gunshots vs confusers.</div>
+    <div class="row" style="margin-top:8px">
+      <label>Choose class label</label>
+      <select id="labelSelect" class="small">
+        <option value="gunshot">gunshot</option>
+        <option value="firework">firework</option>
+        <option value="door">door-slam</option>
+        <option value="dumpster">dumpster</option>
+        <option value="construction">construction</option>
+        <option value="other">other</option>
+      </select>
+      <input id="refFiles" type="file" accept="audio/*" multiple />
+      <button id="btnAddRef" class="small">Add to Dataset</button>
+      <button id="btnTrain" class="small">Train Classifier</button>
+      <div style="margin-left:auto">
+        <label>k (k-NN)</label>
+        <input id="knnK" type="number" min="1" max="25" value="5" style="width:60px" />
+      </div>
+    </div>
+    <div id="datasetSummary" style="margin-top:8px;color:var(--muted)"></div>
+  </section>
+
+  <section class="panel" id="analysisPanel">
+    <div class="sectionTitle">Event log, features, and distance estimate</div>
+    <div style="font-size:13px;color:var(--muted)">Each detected impulse includes spectral features, classifier result, an estimated distance (meters) based on calibrated amplitude decay, and an echo-analysis score (used to help filter confusers).</div>
+    <div class="row" style="margin-top:8px">
+      <label>SPL calibration (dB @ 1m)</label>
+      <input id="splCal" type="number" value="140" class="small" style="width:100px" />
+      <label style="margin-left:8px">Ambient noise floor (dB)</label>
+      <input id="noiseFloor" type="number" value="40" class="small" style="width:100px" />
+      <button id="btnClear" class="small warn">Clear Events</button>
+    </div>
+    <div id="log"></div>
+  </section>
+
+  <section class="panel" id="multilaterationPanel">
+    <div class="sectionTitle">Multilateration from multiple devices' logs</div>
+    <div style="font-size:13px;color:var(--muted)">Upload CSV logs (this device or others) with timestamp (ISO), latitude, longitude. The app computes estimated origin by solving for emission time and location using time differences of arrival (TDOA). Timestamps must be synchronized (or corrected) for millisecond accuracy for high precision.</div>
+    <div class="row" style="margin-top:8px">
+      <input id="csvFiles" type="file" accept=".csv,text/csv" multiple />
+      <button id="btnSolve" class="small">Compute Location</button>
+    </div>
+    <div id="tdoaResult" style="margin-top:8px"></div>
+  </section>
+
+  <footer style="margin-top:12px;font-size:13px;color:var(--muted)">Notes: classifier is trainable in-browser. Distance and localization are model-based estimates and require calibration and synchronized logs for accuracy.</footer>
+</div>
+
+<script>
+/* Advanced single-file app:
+   - Realtime capture and impulse detection
+   - Feature extraction: spectral centroid, bandwidth, rolloff, flux, ZCR, peak freq, MFCC-lite (approx)
+   - Trainable in-browser k-NN classifier from user-uploaded labeled audio
+   - Distance estimator from calibrated source SPL and measured amplitude (inverse-square law with atmospheric absorption factor)
+   - Multilateration (TDOA) solver for multiple CSV logs with timestamps + GPS
+   - All processing client-side; requires user-provided reference audio for best accuracy
+*/
+
+/* ---- Globals ---- */
+let audioCtx = null;
+let mediaStream = null;
+let sourceNode = null;
+let scriptNode = null;
+let running = false;
+let sensitivity = 1.0;
+let fftSize = 4096;
+let dataset = []; // {label, features}
+let classifier = null; // simple k-NN
+let events = []; // recorded events
+const c = {soundSpeed: 343.0}; // m/s (approx) - temperature dependent
+
+/* DOM */
+const btnRequest = document.getElementById('btnRequest');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const viz = document.getElementById('viz');
+const status = document.getElementById('status');
+const sensEl = document.getElementById('sens');
+const fftEl = document.getElementById('fft');
+const refFiles = document.getElementById('refFiles');
+const btnAddRef = document.getElementById('btnAddRef');
+const btnTrain = document.getElementById('btnTrain');
+const labelSelect = document.getElementById('labelSelect');
+const datasetSummary = document.getElementById('datasetSummary');
+const logEl = document.getElementById('log');
+const splCal = document.getElementById('splCal');
+const noiseFloor = document.getElementById('noiseFloor');
+const btnExport = document.getElementById('btnExport');
+const btnClear = document.getElementById('btnClear');
+const knnK = document.getElementById('knnK');
+const csvFiles = document.getElementById('csvFiles');
+const btnSolve = document.getElementById('btnSolve');
+const tdoaResult = document.getElementById('tdoaResult');
+
+const canvCtx = viz.getContext('2d');
+function resizeCanvas(){ viz.width = viz.clientWidth * devicePixelRatio; viz.height = viz.clientHeight * devicePixelRatio; canvCtx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+/* ---- Helpers: basic DSP ---- */
+function rms(buf){ let s=0; for(let i=0;i<buf.length;i++){ s+=buf[i]*buf[i]; } return Math.sqrt(s / buf.length); }
+function zcr(buf){ let z=0; for(let i=1;i<buf.length;i++){ if(buf[i-1]*buf[i]<0) z++; } return z / buf.length; }
+function hann(N){ const w=new Float32Array(N); for(let i=0;i<N;i++) w[i]=0.5*(1-Math.cos((2*Math.PI*i)/(N-1))); return w; }
+function fftMag(floatTime, N, sampleRate){
+  // Lightweight FFT using built-in OfflineAudioContext analyser trick to get frequency bins quickly
+  return new Promise((resolve, reject)=>{
+    const offline = new OfflineAudioContext(1, N, sampleRate);
+    const buf = offline.createBuffer(1, N, sampleRate);
+    const data = buf.getChannelData(0);
+    // copy and window
+    const w = hann(floatTime.length);
+    for(let i=0;i<floatTime.length && i<N;i++) data[i] = floatTime[i]*w[i];
+    const src = offline.createBufferSource(); src.buffer = buf;
+    const analyser = offline.createAnalyser();
+    analyser.fftSize = N;
+    src.connect(analyser);
+    analyser.connect(offline.destination);
+    src.start();
+    offline.startRendering().then(rendered=>{
+      const bins = new Float32Array(analyser.frequencyBinCount);
+      analyser.getFloatFrequencyData(bins);
+      // convert dB to linear magnitude
+      const out = new Float32Array(bins.length);
+      for(let i=0;i<bins.length;i++) out[i] = Math.pow(10, bins[i]/20);
+      resolve(out);
+    }).catch(reject);
+  });
+}
+function freqFromBins(bins, sampleRate){
+  let maxVal = -1; let idx = 0;
+  for(let i=1;i<bins.length;i++){ if(bins[i]>maxVal){ maxVal=bins[i]; idx=i; } }
+  const binHz = sampleRate / (2 * bins.length);
+  return {freq: idx*binHz, strength: maxVal};
+}
+function spectralCentroid(bins, sampleRate){
+  let num=0, den=0;
+  const binHz = sampleRate / (2 * bins.length);
+  for(let i=0;i<bins.length;i++){ const f=i*binHz; const mag=bins[i]; num += f*mag; den += mag; }
+  return den>0 ? num/den : 0;
+}
+function spectralRolloff(bins, sampleRate, roll=0.85){
+  const total = bins.reduce((a,b)=>a+b,0);
+  const target = total*roll;
+  let cum=0;
+  const binHz = sampleRate / (2 * bins.length);
+  for(let i=0;i<bins.length;i++){ cum+=bins[i]; if(cum>=target) return i*binHz; }
+  return 0;
+}
+function spectralFlux(prevBins, bins){
+  if(!prevBins) return 0;
+  let sum=0;
+  for(let i=0;i<bins.length;i++){ const d=bins[i]-prevBins[i]; if(d>0) sum+=d; }
+  return sum;
+}
+
+/* ---- Feature extraction pipeline ---- */
+async function extractFeatures(float32Audio, sampleRate){
+  // short-time window the central portion if long
+  const N = Math.min(fftSize, float32Audio.length);
+  const centerStart = Math.max(0, Math.floor((float32Audio.length - N)/2));
+  const frame = float32Audio.subarray(centerStart, centerStart+N);
+  const energy = rms(frame);
+  const z = zcr(frame);
+  const bins = await fftMag(frame, fftSize, sampleRate);
+  const freqPeak = freqFromBins(bins, sampleRate);
+  const centroid = spectralCentroid(bins, sampleRate);
+  const roll = spectralRolloff(bins, sampleRate);
+  let flux = 0;
+  // quick flux estimate: split into two halves
+  const half = Math.floor(frame.length/2);
+  const b1 = await fftMag(frame.subarray(0,half), fftSize, sampleRate);
+  const b2 = await fftMag(frame.subarray(half, frame.length), fftSize, sampleRate);
+  flux = spectralFlux(b1,b2);
+  // echo / reflection estimate: autocorrelation to detect repeated micro-arrivals
+  const ac = autocorrPeak(frame, sampleRate);
+  return {energy, zcr:z, peakFreq:freqPeak.freq, peakStrength:freqPeak.strength, centroid, roll, flux, echoLagMs:ac.lagMs, echoStrength:ac.strength};
+}
+
+/* quick autocorrelation-based echo micro-peak detection */
+function autocorrPeak(buf, sampleRate){
+  // compute normalized autocorrelation limited to small lag window (0.0005s to 0.020s)
+  const minLag = Math.floor(0.0005 * sampleRate); // 0.5 ms
+  const maxLag = Math.min(Math.floor(0.020 * sampleRate), Math.floor(buf.length/2)); // 20 ms
+  let best = {lag:0, val:0};
+  for(let lag=minLag; lag<=maxLag; lag++){
+    let s=0;
+    for(let i=0;i<buf.length - lag;i++) s += buf[i]*buf[i+lag];
+    if(s>best.val){ best.val=s; best.lag=lag; }
+  }
+  // normalize by energy
+  const energy = buf.reduce((a,b)=>a+b*b,0);
+  const strength = energy>0 ? best.val/energy : 0;
+  return {lagMs: best.lag / sampleRate * 1000, strength};
+}
+
+/* ---- k-NN Classifier (simple) ---- */
+function trainKNN(datasetFeatures){
+  // datasetFeatures: array of {label, features}
+  classifier = {k: Math.max(1, parseInt(knnK.value,10)), data: datasetFeatures};
+}
+function predictKNN(feat){
+  if(!classifier || classifier.data.length===0) return {label:'unknown', votes:[]};
+  const distarr = classifier.data.map(d => {
+    const dist = euclideanDistance(Object.values(d.features), Object.values(feat));
+    return {label: d.label, dist};
+  });
+  distarr.sort((a,b)=>a.dist-b.dist);
+  const k = Math.min(classifier.k, distarr.length);
+  const votes = {};
+  for(let i=0;i<k;i++){ votes[distarr[i].label] = (votes[distarr[i].label]||0)+1; }
+  // pick max
+  let bestLabel = 'unknown', bestVotes=0;
+  for(const l in votes){ if(votes[l]>bestVotes){ bestVotes=votes[l]; bestLabel = l; } }
+  return {label:bestLabel, votes};
+}
+function euclideanDistance(a,b){
+  // expect arrays same length; if lengths mismatch, pad
+  let s=0;
+  const L=Math.max(a.length,b.length);
+  for(let i=0;i<L;i++){ const x = a[i]||0; const y = b[i]||0; s += (x-y)*(x-y); }
+  return Math.sqrt(s);
+}
+
+/* ---- Detection engine (realtime) ---- */
+let prevBinsGlobal = null;
+function startCapture(stream){
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  mediaStream = stream;
+  sourceNode = audioCtx.createMediaStreamSource(stream);
+  const bufferSize = 2048;
+  const spn = audioCtx.createScriptProcessor(bufferSize,1,1);
+  spn.onaudioprocess = async (ev) => {
+    if(!running) return;
+    const s = ev.inputBuffer.getChannelData(0);
+    drawViz(s);
+    // short-time RMS energy
+    const e = rms(s);
+    const threshold = 0.12 * parseFloat(sensEl.value);
+    if(e > threshold){
+      // debounce by time
+      const now = performance.now();
+      if(!startCapture.lastEvent || (now - startCapture.lastEvent) > 600){
+        startCapture.lastEvent = now;
+        status.textContent = 'Impulse detected — analyzing...';
+        // make a copy and perform features
+        const copy = new Float32Array(s.length);
+        copy.set(s);
+        try{
+          const feats = await extractFeatures(copy, audioCtx.sampleRate);
+          // classification
+          const pred = predictKNN({energy:feats.energy, zcr:feats.zcr, peakFreq:feats.peakFreq, centroid:feats.centroid, roll:feats.roll, flux:feats.flux, echoLagMs:feats.echoLagMs, echoStrength:feats.echoStrength});
+          // estimate distance using SPL model: user-provided source dB @1m (splCal)
+          const sourceDb = parseFloat(splCal.value) || 140; // typical muzzle blast 140 dB @1m (user calibrates)
+          // convert measured RMS to approximate dBFS -> dBSPL requires microphone calibration; we approximate via relative scale:
+          const measured = 20*Math.log10(feats.energy + 1e-12); // rough dBFS
+          // We map dBFS to dBSPL with a configurable offset; since we can't calibrate the mic here, allow user to tweak splCal
+          // Estimate distance via inverse-square: distance ~ 10^((sourceDb - measuredSPL)/(20))
+          // We'll let user provide calibration offset (here we approximate measuredSPL = measured + calibOffset)
+          const calibOffset = 120; // heuristic offset to move from dBFS to dBSPL; user should adjust splCal results vs ground truth
+          const measuredSPL = measured + calibOffset;
+          let estimatedDistance = Math.pow(10, (sourceDb - measuredSPL)/20);
+          if(!isFinite(estimatedDistance) || estimatedDistance<0) estimatedDistance = null;
+          // echo-based confidence (echo strength linked to reflections which help differentiate barrel shots)
+          const echoScore = feats.echoStrength;
+          const rec = {
+            timestamp: new Date().toISOString(),
+            amplitude: feats.energy,
+            peakFreq: feats.peakFreq,
+            centroid: feats.centroid,
+            rolloff: feats.roll,
+            zcr: feats.zcr,
+            flux: feats.flux,
+            echoLagMs: feats.echoLagMs,
+            echoStrength: feats.echoStrength,
+            predicted: pred.label,
+            votes: pred.votes,
+            estimatedDistance,
+            measuredSPL,
+            lat:null, lon:null
+          };
+          // try geolocation (best effort)
+          navigator.geolocation.getCurrentPosition(pos=>{
+            rec.lat = pos.coords.latitude;
+            rec.lon = pos.coords.longitude;
+            addEventToLog(rec);
+          }, ()=>{
+            addEventToLog(rec);
+          }, {maximumAge:5000, timeout:3000, enableHighAccuracy:false});
+        }catch(err){
+          console.error(err);
+        } finally { status.textContent = 'Ready'; }
+      }
+    }
+  };
+  sourceNode.connect(spn);
+  spn.connect(audioCtx.destination);
+  scriptNode = spn;
+}
+
+/* ---- UI: add event ---- */
+function addEventToLog(rec){
+  events.push(rec);
+  btnExport.disabled = false;
+  const row = document.createElement('div');
+  row.style.padding='8px'; row.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+  row.innerHTML = `<div style="font-weight:700">${rec.timestamp} — ${rec.predicted}</div>
+    <div style="color:var(--muted);font-size:13px">Peak ${rec.peakFreq.toFixed(0)} Hz • Echo ${rec.echoLagMs.toFixed(2)} ms (s:${rec.echoStrength.toFixed(3)}) • Dist est: ${rec.estimatedDistance?rec.estimatedDistance.toFixed(1)+' m':'unknown'}</div>`;
+  logEl.prepend(row);
+}
+
+/* ---- Reference dataset ingestion and training ---- */
+btnAddRef.addEventListener('click', async ()=>{
+  const files = refFiles.files;
+  if(!files || files.length===0) return alert('Select one or more audio files first');
+  const label = labelSelect.value;
+  status.textContent = 'Processing reference audio...';
+  for(const f of files){
+    const ab = await f.arrayBuffer();
+    // decode audio
+    if(!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    const decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    // pick mono mixdown
+    let data = decoded.numberOfChannels>1 ? mixdown(decoded) : decoded.getChannelData(0);
+    // extract features
+    const feats = await extractFeatures(data, decoded.sampleRate);
+    dataset.push({label, features:feats});
+  }
+  status.textContent = 'Reference audio added';
+  updateDatasetSummary();
+});
+
+btnTrain.addEventListener('click', ()=>{
+  if(dataset.length===0) return alert('No reference data. Upload labeled audio samples first.');
+  trainKNN(dataset);
+  status.textContent = 'Classifier trained (k=' + Math.max(1, parseInt(knnK.value,10)) + ')';
+  updateDatasetSummary();
+});
+
+function updateDatasetSummary(){
+  const counts = {};
+  for(const d of dataset) counts[d.label] = (counts[d.label]||0)+1;
+  datasetSummary.textContent = 'Dataset: ' + Object.entries(counts).map(([k,v])=>`${k}:${v}`).join(', ');
+}
+
+/* ---- CSV Export/Import ---- */
+btnExport.addEventListener('click', ()=>{
+  if(events.length===0) return;
+  const hdr = ['timestamp,lat,lon,amplitude,peakFreq,centroid,rolloff,zcr,flux,echoLagMs,echoStrength,predicted,estimatedDistance,measuredSPL'];
+  const rows = events.map(e=>{
+    return `${e.timestamp},${e.lat||''},${e.lon||''},${e.amplitude},${e.peakFreq.toFixed(1)},${e.centroid.toFixed(1)},${e.rolloff.toFixed(1)},${e.zcr.toFixed(6)},${e.flux.toFixed(6)},${e.echoLagMs.toFixed(3)},${e.echoStrength.toFixed(6)},${e.predicted},${e.estimatedDistance?e.estimatedDistance.toFixed(2):''},${e.measuredSPL.toFixed(2)}`;
+  });
+  const csv = hdr.concat(rows).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='events.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+btnClear.addEventListener('click', ()=>{ if(confirm('Clear all events?')){ events=[]; logEl.innerHTML=''; btnExport.disabled=true; } });
+
+/* ---- Multilateration solver (TDOA) ----
+   Accepts CSV with rows that include at least timestamp (ISO),lat,lon
+   If multiple CSVs are uploaded, finds events with matching timestamps (within window) and solves for origin using least-squares
+*/
+btnSolve.addEventListener('click', async ()=>{
+  const files = csvFiles.files;
+  if(!files || files.length<2){ alert('Upload at least two CSV logs for multilateration'); return; }
+  // parse CSVs
+  const logs = [];
+  for(const f of files){
+    const txt = await f.text();
+    const rows = txt.split(/\r?\n/).map(r=>r.trim()).filter(r=>r);
+    const parsed = [];
+    for(const r of rows.slice(1)){ // skip header
+      const cols = r.split(',');
+      if(cols.length<3) continue;
+      const ts = cols[0];
+      const lat = parseFloat(cols[1]);
+      const lon = parseFloat(cols[2]);
+      if(!isNaN(Date.parse(ts)) && !isNaN(lat) && !isNaN(lon)) parsed.push({ts: new Date(ts).getTime()/1000.0, lat, lon});
+    }
+    if(parsed.length===0) continue;
+    logs.push(parsed);
+  }
+  if(logs.length<2) return alert('No usable logs found or not enough logs');
+  // find candidate event times by clustering timestamps across logs
+  const allTimes = [];
+  logs.forEach((l,i)=> l.forEach(row=> allTimes.push({t:row.ts, source:i, lat:row.lat, lon:row.lon})));
+  allTimes.sort((a,b)=>a.t-b.t);
+  // sliding window grouping within 0.5s to find coincident events
+  const groups = [];
+  for(const t of allTimes){
+    let g = groups.length? groups[groups.length-1] : null;
+    if(!g || (t.t - g.center) > 0.5) groups.push({center:t.t, items:[t]});
+    else { g.items.push(t); g.center = (g.center + t.t)/2; }
+  }
+  // for each group with at least 2 unique sources, attempt TDOA solve
+  const results = [];
+  for(const g of groups){
+    const bySource = {};
+    g.items.forEach(it=> bySource[it.source] = bySource[it.source] || it);
+    const sources = Object.keys(bySource).map(k=> parseInt(k,10));
+    if(sources.length<2) continue;
+    // build positions and times
+    const pos = sources.map(s=> [bySource[s].lat, bySource[s].lon]);
+    const times = sources.map(s=> bySource[s].t);
+    // convert lat/lon to meters using equirectangular approx around centroid
+    const lat0 = pos.reduce((a,b)=>a+b[0],0)/pos.length;
+    const R = 6371000;
+    const meters = pos.map(p=>{
+      const x = (p[1]-pos[0][1]) * Math.PI/180 * R * Math.cos(lat0*Math.PI/180);
+      const y = (p[0]-pos[0][0]) * Math.PI/180 * R;
+      return [x,y];
+    });
+    // choose first sensor as reference
+    const t0 = times[0];
+    const deltas = times.map(ti => (ti - t0));
+    // Solve for source (x,y) and emit time te by non-linear least squares (simple gradient descent)
+    let x = 0, y = 0, te = t0 - 0.1;
+    const iters = 800;
+    const lr = 0.1;
+    for(let iter=0; iter<iters; iter++){
+      let gx=0, gy=0, gte=0;
+      for(let i=0;i<meters.length;i++){
+        const sx = meters[i][0], sy = meters[i][1];
+        const ri = Math.hypot(x - sx, y - sy);
+        const predicted = te + ri / c.soundSpeed;
+        const err = predicted - times[i];
+        if(ri===0) continue;
+        gx += (err * (x - sx) / (ri * c.soundSpeed));
+        gy += (err * (y - sy) / (ri * c.soundSpeed));
+        gte += err;
+      }
+      x -= lr * gx;
+      y -= lr * gy;
+      te -= lr * gte;
+    }
+    // map x,y back to lat/lon
+    const lon0 = pos[0][1];
+    const latEst = pos[0][0] + (y / R) * 180/Math.PI;
+    const lonEst = lon0 + (x / (R * Math.cos(lat0 * Math.PI/180))) * 180/Math.PI;
+    results.push({groupCenter:g.center, lat:latEst, lon:lonEst, sensors:sources.length});
+  }
+  if(results.length===0) { tdoaResult.innerText = 'No coincident events found across logs.'; return; }
+  let out = 'Multilateration results:\n';
+  for(const r of results) out += `Time ~ ${new Date(r.groupCenter*1000).toISOString()} → lat:${r.lat.toFixed(6)}, lon:${r.lon.toFixed(6)} (sensors:${r.sensors})\n`;
+  tdoaResult.innerText = out;
+});
+
+/* ---- Draw waveform ---- */
+function drawViz(buf){
+  const w = viz.clientWidth, h = viz.clientHeight;
+  canvCtx.clearRect(0,0,w,h);
+  canvCtx.fillStyle = '#02181d';
+  canvCtx.fillRect(0,0,w,h);
+  canvCtx.strokeStyle = '#2dd4bf';
+  canvCtx.beginPath();
+  const step = Math.ceil(buf.length / w);
+  for(let i=0;i<w;i++){
+    const v = buf[i*step] || 0;
+    const y = (1 - (v + 1)/2) * h;
+    if(i===0) canvCtx.moveTo(i,y); else canvCtx.lineTo(i,y);
+  }
+  canvCtx.stroke();
+}
+
+/* ---- Utility: mixdown audio buffer to Float32Array ---- */
+function mixdown(decoded){
+  const l = decoded.length; const ch = decoded.numberOfChannels;
+  const out = new Float32Array(l);
+  for(let c=0;c<ch;c++){ const d = decoded.getChannelData(c); for(let i=0;i<l;i++) out[i] += d[i]/ch; }
+  return out;
+}
+
+/* ---- Controls ---- */
+btnRequest.addEventListener('click', async ()=>{
+  try{
+    status.textContent = 'Requesting microphone...';
+    const s = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:true, noiseSuppression:true}});
+    status.textContent = 'Microphone granted';
+    mediaStream = s;
+    btnStart.disabled = false;
+    btnRequest.disabled = true;
+  }catch(e){
+    status.textContent = 'Microphone unavailable or denied';
+    console.error(e);
+  }
+});
+
+btnStart.addEventListener('click', async ()=>{
+  if(!mediaStream){
+    try{ mediaStream = await navigator.mediaDevices.getUserMedia({audio:{}}); } catch(e){ status.textContent='No mic'; return; }
+  }
+  sensitivity = parseFloat(sensEl.value);
+  fftSize = parseInt(fftEl.value,10);
+  running = true;
+  status.textContent = 'Logging active';
+  btnStart.disabled = true; btnStop.disabled = false;
+  startCapture(mediaStream);
+});
+
+btnStop.addEventListener('click', ()=>{ running=false; if(scriptNode) scriptNode.disconnect(); if(sourceNode) sourceNode.disconnect(); if(audioCtx) audioCtx.close(); audioCtx=null; status.textContent='Stopped'; btnStart.disabled=false; btnStop.disabled=true; btnRequest.disabled=false; });
+
+/* ---- Initial UI state ---- */
+status.textContent = 'Ready';
+btnExport.disabled = true;
+
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

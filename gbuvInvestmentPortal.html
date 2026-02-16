@@ -1,0 +1,369 @@
+<!doctype html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: gbuvInvestmentPortal.html
+Declaration ID: IP-27C8ABBE-MLL28ZZS
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+  <head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>$GBUV Investment Portal</title>
+
+    <!-- Head script injection: styles + app bootstrap -->
+    <script>
+      // --- Minimal mobile styles injected from head ---
+      const style = document.createElement('style');
+      style.textContent = `
+        :root {
+          --bg: #0b0f14; --card: #121821; --text: #e7eef7; --muted: #9fb0c3;
+          --accent: #6be675; --accent2: #7aa9ff; --danger: #ff6b6b; --border: #1f2a38;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", Roboto, "Segoe UI", Arial; }
+        .wrap { max-width: 680px; margin: 0 auto; padding: 20px; }
+        .title { font-weight: 700; font-size: 22px; margin: 8px 0 2px; }
+        .sub { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin: 12px 0; }
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .row { display:flex; gap:10px; align-items:center; justify-content:space-between; margin: 8px 0; }
+        .label { color: var(--muted); font-size: 12px; }
+        .val { font-size: 18px; font-weight: 600; }
+        .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#0e141c; font-size:12px; color:var(--muted); }
+        input, select { width:100%; background:#0e141c; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px 12px; font-size:14px; }
+        input::placeholder { color: #5f6f84; }
+        .btn { width:100%; background:var(--accent2); color:#061020; border:none; border-radius:12px; padding:12px; font-weight:700; font-size:15px; cursor:pointer; }
+        .btn.secondary { background: var(--accent); }
+        .btn.link { background: transparent; color: var(--accent2); border:1px dashed var(--border); }
+        .hint { font-size: 12px; color: var(--muted); }
+        .kbd { background:#0e141c; border:1px solid var(--border); border-radius:6px; padding:2px 6px; font-size:12px; color:var(--muted); }
+        .space { height:6px; }
+        a { color: var(--accent2); text-decoration: none; }
+      `;
+      document.head.appendChild(style);
+
+      // --- App state & helpers ---
+      const STATE_KEY = 'gbuv_portal_state';
+      const DEFAULT_STATE = {
+        // Demo values — replace with live data feeds if available
+        investmentPoolUSD: 25000,          // Total pool in USD
+        userContributionUSD: 500,          // User’s contributed amount in USD
+        aprPercent: 12,                    // Assumed APR for projections
+        nextPayoutDateISO: nextCycle(15),  // Next payout in 15 days
+        payoutCadenceDays: 30,             // Monthly payouts
+        payoutDestination: { type: 'paypal', value: '' }, // PayPal email or Solana address
+      };
+
+      function nextCycle(offsetDays = 30) {
+        const d = new Date();
+        d.setDate(d.getDate() + offsetDays);
+        d.setHours(12,0,0,0);
+        return d.toISOString();
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STATE_KEY);
+          return raw ? JSON.parse(raw) : DEFAULT_STATE;
+        } catch { return DEFAULT_STATE; }
+      }
+
+      function saveState(s) {
+        localStorage.setItem(STATE_KEY, JSON.stringify(s));
+      }
+
+      function fmtUSD(n) {
+        return `$${(Math.round(n * 100) / 100).toLocaleString()}`;
+      }
+
+      function monthlyFromAPR(amount, aprPercent) {
+        const monthlyRate = (aprPercent / 100) / 12;
+        return amount * monthlyRate;
+      }
+
+      function paypalLink(email, amountUSD) {
+        // Classic PayPal "Buy Now" with email as business receiver
+        const params = new URLSearchParams({
+          cmd: '_xclick',
+          business: email,
+          item_name: 'Convert to $GBUV',
+          currency_code: 'USD',
+          amount: String(Math.round(amountUSD * 100) / 100),
+        });
+        return `https://www.paypal.com/cgi-bin/webscr?${params.toString()}`;
+      }
+
+      function render() {
+        const s = loadState();
+        const root = document.createElement('div');
+        root.className = 'wrap';
+
+        // Header
+        const header = document.createElement('div');
+        header.innerHTML = `
+          <div class="pill">$GBUV • Investment hub</div>
+          <div class="title">Pool overview</div>
+          <div class="sub">Invest, track your share, and set your payout destination.</div>
+        `;
+        root.appendChild(header);
+
+        // Pool card
+        const pool = document.createElement('div');
+        pool.className = 'card';
+        const userShare = s.userContributionUSD / Math.max(1, s.investmentPoolUSD);
+        const userMonthly = monthlyFromAPR(s.userContributionUSD, s.aprPercent);
+        const nextDate = new Date(s.nextPayoutDateISO);
+        const nextDateStr = nextDate.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        pool.innerHTML = `
+          <div class="grid">
+            <div>
+              <div class="label">Investment pool</div>
+              <div class="val">${fmtUSD(s.investmentPoolUSD)}</div>
+              <div class="hint">Total current pool</div>
+            </div>
+            <div>
+              <div class="label">Your portion</div>
+              <div class="val">${fmtUSD(s.userContributionUSD)} <span class="hint">(${(userShare*100).toFixed(2)}%)</span></div>
+              <div class="hint">Based on your contributed amount</div>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="label">Projected monthly payout</div>
+              <div class="val">${fmtUSD(userMonthly)}</div>
+            </div>
+            <div>
+              <div class="label">Next payout date</div>
+              <div class="val">${nextDateStr}</div>
+            </div>
+          </div>
+        `;
+        root.appendChild(pool);
+
+        // Contribution editor
+        const contrib = document.createElement('div');
+        contrib.className = 'card';
+        contrib.innerHTML = `
+          <div class="label">Adjust your contribution (USD)</div>
+          <div class="space"></div>
+          <input id="contrib" type="number" min="0" step="1" placeholder="Enter amount e.g., 250"
+                 value="${s.userContributionUSD}" />
+          <div class="hint">This updates your portion and payout projection locally.</div>
+          <div class="space"></div>
+          <button class="btn secondary" id="saveContrib">Save contribution</button>
+        `;
+        root.appendChild(contrib);
+
+        // Payout destination
+        const payout = document.createElement('div');
+        payout.className = 'card';
+        const solDefault = 'DPHcbu7wJEbcrnCYjXC8vHBkM39kT9xZg4mYayvrpump';
+        payout.innerHTML = `
+          <div class="label">Payout destination</div>
+          <div class="space"></div>
+          <select id="destType">
+            <option value="paypal" ${s.payoutDestination.type === 'paypal' ? 'selected' : ''}>PayPal email</option>
+            <option value="solana" ${s.payoutDestination.type === 'solana' ? 'selected' : ''}>Solana wallet ($GBUV)</option>
+          </select>
+          <div class="space"></div>
+          <input id="destValue" type="text" placeholder="you@example.com or Solana address"
+                 value="${s.payoutDestination.value || (s.payoutDestination.type==='solana' ? solDefault : '')}" />
+          <div class="space"></div>
+          <button class="btn" id="saveDest">Save payout destination</button>
+          <div class="space"></div>
+          <div class="hint">Link your PayPal for fiat payouts or Solana for $GBUV.</div>
+        `;
+        root.appendChild(payout);
+
+        // PayPal payment to convert to $GBUV
+        const pay = document.createElement('div');
+        pay.className = 'card';
+        const paypalEmail = 'BarbrickDesign@gmail.com';
+        pay.innerHTML = `
+          <div class="label">Convert via PayPal → $GBUV</div>
+          <div class="space"></div>
+          <div class="row">
+            <div class="hint">Receiver</div>
+            <div class="kbd">${paypalEmail}</div>
+          </div>
+          <div class="space"></div>
+          <input id="convertAmount" type="number" min="1" step="1" placeholder="Amount in USD to convert" value="${Math.max(25, Math.round(s.userContributionUSD))}" />
+          <div class="space"></div>
+          <button class="btn" id="payBtn">Proceed with PayPal</button>
+          <div class="space"></div>
+          <div class="hint">You’ll be taken to PayPal to complete payment for conversion to $GBUV.</div>
+        `;
+        root.appendChild(pay);
+
+        // Pump.fun link
+        const pump = document.createElement('div');
+        pump.className = 'card';
+        pump.innerHTML = `
+          <div class="label">Link your pump.fun account (optional)</div>
+          <div class="space"></div>
+          <a class="btn link" href="https://join.pump.fun/HSag/usycgoz3" target="_blank" rel="noopener">Open pump.fun linking</a>
+          <div class="space"></div>
+          <div class="hint">If you already use pump.fun, link your account for seamless $GBUV payouts.</div>
+        `;
+        root.appendChild(pump);
+
+        // Footer
+        const foot = document.createElement('div');
+        foot.className = 'sub';
+        foot.style.textAlign = 'center';
+        foot.innerHTML = `Local-first demo. Your settings are stored on-device. Update values anytime.`;
+        root.appendChild(foot);
+
+        // Mount
+        document.body.innerHTML = '';
+        document.body.appendChild(root);
+
+        // Events
+        root.querySelector('#saveContrib').addEventListener('click', () => {
+          const amt = Number(root.querySelector('#contrib').value || 0);
+          const state = loadState();
+          state.userContributionUSD = Math.max(0, Math.round(amt * 100) / 100);
+          // Optionally adjust pool when user contributes (demo: add to pool)
+          state.investmentPoolUSD = Math.max(state.userContributionUSD, state.investmentPoolUSD);
+          saveState(state);
+          render();
+        });
+
+        root.querySelector('#saveDest').addEventListener('click', () => {
+          const type = root.querySelector('#destType').value;
+          const value = root.querySelector('#destValue').value.trim();
+          const state = loadState();
+          state.payoutDestination = { type, value };
+          saveState(state);
+          render();
+        });
+
+        root.querySelector('#payBtn').addEventListener('click', () => {
+          const amt = Number(root.querySelector('#convertAmount').value || 0);
+          const url = paypalLink('BarbrickDesign@gmail.com', Math.max(1, amt));
+          window.location.href = url;
+        });
+      }
+
+      // Bootstrap
+      window.addEventListener('DOMContentLoaded', render);
+    </script>
+  
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+  <body>
+    <!-- Head script will inject the app -->
+  
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+  <!-- Mobile Enhanced JS -->
+  <script src="/js/mobile-enhancer.js"></script>
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: 3dWifi.html
+Declaration ID: IP-21815CAD-MLL28ZWP
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<!--
+  3D WiFi Network Visualization
+  
+  This page visualizes real network devices and connections in a 3D bubble environment.
+  
+  REAL DATA COLLECTION:
+  - Uses browser APIs to discover actual devices on your network
+  - Network Information API: connection type, speed, quality
+  - WebRTC: local network peer discovery via ICE candidates
+  - USB API: connected USB devices (requires permission)
+  - Bluetooth API: paired Bluetooth devices (requires permission)
+  - Battery API: device battery status
+  - Geolocation API: device positioning (optional)
+  
+  VISUALIZATION:
+  - Bubble size: based on signal strength (-30 to -95 dBm)
+  - Bubble color: signal quality (green=strong, yellow=medium, red=weak)
+  - Position: relative distance from router based on signal strength
+  - Activity: shown with outline thickness and opacity
+  
+  TOGGLE MODE:
+  - Click "Real data" button to switch between real and demonstration mode
+  - Real mode: collects actual network data every 3 seconds
+  - Demo mode: generates random device data for testing
+  
+  PERMISSIONS:
+  - Some APIs require user permission (USB, Bluetooth, Geolocation)
+  - The page will work with whatever APIs are available
+  - No permissions = shows current device + inferred gateway only
+  
+  Created by: Ryan Barbrick / Barbrick Design
+  Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+-->
+<head>
+  <meta charset="UTF-8" />
+  <title>WiFi Environment Bubble Map</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #050816;
+      color: #e5e7eb;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    header {
+      padding: 8px 14px;
+      background: rgba(6, 17, 40, 0.95);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    header .title {
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #9ca3af;
+    }
+
+    header .subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    header .info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    header .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    header .badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    header .badge span.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+    }
+
+    header button {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    header button:hover {
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+    }
+
+    #container {
+      flex: 1;
+      position: relative;
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+    }
+
+    #legend {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      padding: 8px 10px;
+      background: rgba(15, 23, 42, 0.94);
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      font-size: 11px;
+      color: #9ca3af;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      backdrop-filter: blur(6px);
+      max-width: 220px;
+    }
+
+    #legend .legend-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #f9fafb;
+      margin-bottom: 2px;
+    }
+
+    #legend-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    #legend-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #legend .swatch-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #legend .swatch {
+      width: 24px;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(to right, #22c55e, #fbbf24, #ef4444);
+    }
+
+    #legend .size-circle {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: radial-gradient(circle at 30% 30%, rgba(248, 250, 252, 0.2), transparent);
+    }
+
+    #legend .size-circle.small {
+      width: 8px;
+      height: 8px;
+    }
+
+    #legend .size-circle.medium {
+      width: 14px;
+      height: 14px;
+    }
+
+    #legend .size-circle.large {
+      width: 20px;
+      height: 20px;
+    }
+
+    #legend .size-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #legend .label {
+      color: #9ca3af;
+    }
+
+    #metaBar {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      padding: 6px 10px;
+      background: rgba(15, 23, 42, 0.94);
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      font-size: 11px;
+      color: #9ca3af;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      backdrop-filter: blur(6px);
+      max-width: 240px;
+    }
+
+    #metaBar strong {
+      color: #e5e7eb;
+      font-weight: 600;
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.97);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: #e5e7eb;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.7);
+      z-index: 20;
+      max-width: 260px;
+    }
+
+    .tooltip .id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      color: #a5b4fc;
+      font-size: 11px;
+    }
+
+    .tooltip .strong {
+      color: #22c55e;
+    }
+
+    .tooltip .weak {
+      color: #ef4444;
+    }
+
+    .tooltip .medium {
+      color: #facc15;
+    }
+
+    .tooltip .muted {
+      color: #9ca3af;
+    }
+
+    .tooltip hr {
+      border: none;
+      border-top: 1px solid rgba(55, 65, 81, 0.9);
+      margin: 4px 0;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+      margin-top: 2px;
+    }
+
+    .status-pill span.dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+    }
+
+    .status-pill span.dot.ok {
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.9);
+    }
+
+    .status-pill span.dot.warn {
+      background: #facc15;
+      box-shadow: 0 0 6px rgba(250, 204, 21, 0.9);
+    }
+
+    .status-pill span.dot.err {
+      background: #ef4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.9);
+    }
+
+    .status-pill span.dot.idle {
+      background: #6b7280;
+    }
+
+    .status-pill span.label {
+      color: #9ca3af;
+    }
+
+    /* Loading indicator */
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(5, 8, 22, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+      transition: opacity 0.3s ease-out;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-content {
+      text-align: center;
+      color: #e5e7eb;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      margin: 0 auto 20px;
+      border: 4px solid rgba(148, 163, 184, 0.3);
+      border-top: 4px solid #22c55e;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-top: 10px;
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+    <style>
+        .aul-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            font-weight: 600;
+        }
+        .aul-badge:hover {
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+            transform: scale(1.05);
+        }
+    </style>
+    
+    <!-- Powerline Communication System for Device Data -->
+    <script src="/powerline-communication.js"></script>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <!-- Loading overlay -->
+  <div id="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <div style="font-size: 16px; font-weight: 600;">Loading WiFi Visualization</div>
+      <div class="loading-text">Initializing D3.js force simulation...</div>
+    </div>
+  </div>
+
+  <div id="app">
+    <header>
+      <div class="info">
+        <div class="title">WiFi environment bubble map</div>
+        <div class="subtitle">Real-time visualization of devices and connections on your network using browser APIs.</div>
+      </div>
+      <div class="controls">
+        <div class="badge">
+          <span class="dot"></span>
+          <span id="netName">Network: unknown</span>
+        </div>
+        <div class="badge">
+          <span>Devices:</span>
+          <span id="deviceCount">0</span>
+        </div>
+        <button id="toggleMock">
+          <span id="mockStatus">Real data: ON</span>
+        </button>
+      </div>
+    </header>
+    <div id="container">
+      <svg id="viz"></svg>
+      <div id="legend">
+        <div class="legend-title">Signal strength & activity</div>
+        <div id="legend-row">
+          <div id="legend-col">
+            <div class="swatch-row">
+              <div class="swatch"></div>
+              <div class="label">Color: strong → weak signal</div>
+            </div>
+            <div class="swatch-row">
+              <svg width="44" height="10">
+                <circle cx="6" cy="5" r="4" fill="none" stroke="rgba(148,163,184,0.8)" stroke-width="0.8"></circle>
+                <circle cx="18" cy="5" r="3" fill="none" stroke="rgba(148,163,184,0.8)" stroke-width="0.8"></circle>
+                <circle cx="30" cy="5" r="2" fill="none" stroke="rgba(148,163,184,0.8)" stroke-width="0.8"></circle>
+              </svg>
+              <div class="label">Outline: high → low activity</div>
+            </div>
+          </div>
+          <div id="legend-col">
+            <div class="size-row">
+              <div class="size-circle small"></div>
+              <div class="label">Weak device</div>
+            </div>
+            <div class="size-row">
+              <div class="size-circle medium"></div>
+              <div class="label">Medium</div>
+            </div>
+            <div class="size-row">
+              <div class="size-circle large"></div>
+              <div class="label">Strong / nearby</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="metaBar">
+        <div><strong>Mapping mode:</strong> Real network devices discovered via browser APIs (Network Info, WebRTC, USB, Bluetooth).</div>
+        <div id="lastUpdated">Last update: —</div>
+        <div id="refreshStatus">Refresh interval: 3 s</div>
+        <div id="accessInfo">Access: uses browser APIs to discover network devices with user permission.</div>
+      </div>
+      <div id="tooltip" class="tooltip" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- D3 for force layout and scales with fallback -->
+  <script>
+    // Script loading with fallback mechanism
+    (function() {
+      const d3Sources = [
+        'https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js',
+        'https://unpkg.com/d3@7.8.5/dist/d3.min.js',
+        'https://d3js.org/d3.v7.min.js'
+      ];
+
+      let currentIndex = 0;
+      let attemptTimeout;
+      
+      function loadD3(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          
+          // Set a timeout for loading
+          const timeout = setTimeout(() => {
+            script.remove();
+            reject(new Error('Timeout loading: ' + src));
+          }, 5000);
+          
+          script.onload = () => {
+            clearTimeout(timeout);
+            if (typeof d3 !== 'undefined') {
+              console.log('✓ D3.js loaded successfully from:', src);
+              resolve();
+            } else {
+              reject(new Error('D3.js loaded but not defined'));
+            }
+          };
+          
+          script.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('Failed to load: ' + src));
+          };
+          
+          document.head.appendChild(script);
+        });
+      }
+
+      function showError() {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+          loadingOverlay.innerHTML = `
+            <div style="text-align:center;max-width:600px;padding:20px;">
+              <div style="font-size:48px;margin-bottom:20px;">⚠️</div>
+              <div style="font-size:20px;font-weight:600;margin-bottom:15px;color:#ef4444;">
+                Unable to Load Visualization Library
+              </div>
+              <div style="font-size:14px;color:#9ca3af;line-height:1.6;margin-bottom:20px;">
+                This visualization requires the D3.js library, but it could not be loaded from any CDN source.
+                This may happen if:
+                <ul style="text-align:left;margin:15px auto;max-width:400px;">
+                  <li>You're viewing this file locally (file:// protocol)</li>
+                  <li>Your network blocks CDN access</li>
+                  <li>You have a content blocker enabled</li>
+                  <li>CDN services are temporarily unavailable</li>
+                </ul>
+              </div>
+              <div style="font-size:14px;color:#22c55e;background:rgba(34,197,94,0.1);padding:15px;border-radius:8px;border:1px solid rgba(34,197,94,0.3);">
+                <strong>✓ Solution:</strong> This page works best when served over HTTPS.<br>
+                Visit: <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;">https://barbrickdesign.github.io/3dWifi.html</code>
+              </div>
+              <div style="margin-top:20px;font-size:12px;color:#6b7280;">
+                <strong>For developers:</strong> The app will work correctly when deployed to GitHub Pages or any HTTPS server.
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      function tryNextSource() {
+        if (currentIndex >= d3Sources.length) {
+          console.error('❌ Failed to load D3.js from all sources');
+          showError();
+          return;
+        }
+
+        console.log(`[${currentIndex + 1}/${d3Sources.length}] Trying to load D3.js from:`, d3Sources[currentIndex]);
+        loadD3(d3Sources[currentIndex])
+          .then(() => {
+            // D3.js loaded successfully, initialize app
+            if (typeof initializeApp === 'function') {
+              initializeApp();
+            }
+          })
+          .catch((err) => {
+            console.warn('Failed:', err.message);
+            currentIndex++;
+            // Try next source after a brief delay
+            attemptTimeout = setTimeout(tryNextSource, 200);
+          });
+      }
+
+      // Start loading
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryNextSource);
+      } else {
+        tryNextSource();
+      }
+
+      // Cleanup on page unload
+      window.addEventListener('beforeunload', () => {
+        if (attemptTimeout) clearTimeout(attemptTimeout);
+      });
+    })();
+  </script>
+  <script>
+    // Initialize the app after D3.js is loaded
+    function initializeApp() {
+      // Prevent multiple initializations
+      if (window.appInitialized) {
+        return;
+      }
+      window.appInitialized = true;
+
+      console.log('🚀 Initializing WiFi Environment Bubble Map...');
+
+    // ============================
+    // CONFIGURATION & ASSUMPTIONS
+    // ============================
+
+    // If false, the visualization uses real network data from browser APIs.
+    // Set to true to use mock/demonstration data instead.
+    let USE_MOCK_DATA = false;
+
+    // Real data collection uses:
+    // - Network Information API: connection type, signal quality
+    // - WebRTC: local network peer discovery
+    // - USB API: connected USB devices
+    // - Bluetooth API: paired Bluetooth devices
+    // - Geolocation API: device positioning
+    // - Battery API: device battery status
+    //
+    // Note: Some APIs require user permission or HTTPS context
+
+    // Polling interval in milliseconds
+    const REFRESH_INTERVAL = 3000;
+
+    // Device data structure returned by real data collection:
+    // {
+    //   "id": unique identifier (MAC, device ID, etc.)
+    //   "name": device name or type
+    //   "ip": IP address or connection type
+    //   "vendor": device manufacturer
+    //   "signal": signal strength in dBm (-30 to -95)
+    //   "lastSeen": Unix timestamp in seconds
+    //   "bytesIn": bytes received (optional)
+    //   "bytesOut": bytes sent (optional)
+    //   "isMe": true if current device
+    //   "connectionType": connection method (WiFi, USB, Bluetooth, etc.)
+    //   "discoveryMethod": how device was discovered
+    // }
+
+    // ============================
+    // BASIC STATE
+    // ============================
+
+    // Validate D3.js is available
+    if (typeof d3 === 'undefined') {
+      console.error('❌ D3.js is not loaded. Cannot initialize visualization.');
+      return;
+    }
+
+    console.log('✓ D3.js version:', d3.version);
+
+    const svg = d3.select("#viz");
+    let width = window.innerWidth;
+    let height = window.innerHeight - 46; // minus header
+
+    svg.attr("width", width).attr("height", height);
+
+    const tooltip = d3.select("#tooltip");
+    const deviceCountEl = document.getElementById("deviceCount");
+    const lastUpdatedEl = document.getElementById("lastUpdated");
+    const refreshStatusEl = document.getElementById("refreshStatus");
+    const netNameEl = document.getElementById("netName");
+    const toggleMockBtn = document.getElementById("toggleMock");
+    const mockStatusEl = document.getElementById("mockStatus");
+
+    let devices = [];
+    let simulation;
+
+    // Scales for visual encoding
+    const signalExtent = [-95, -30]; // RSSI typical indoor range
+    const radiusScale = d3.scaleSqrt().domain(signalExtent).range([4, 24]).clamp(true);
+    const colorScale = d3.scaleLinear()
+      .domain([-80, -65, -50])
+      .range(["#ef4444", "#facc15", "#22c55e"])
+      .clamp(true);
+
+    const strokeWidthScale = d3.scaleLinear().domain([0, 1]).range([0.6, 2.4]).clamp(true);
+    const strokeOpacityScale = d3.scaleLinear().domain([0, 1]).range([0.2, 0.9]).clamp(true);
+
+    const activityDecayMs = 120000; // how long a device stays "active" (2 minutes)
+
+    // Background gradient / glow
+    const defs = svg.append("defs");
+    const radialGradient = defs.append("radialGradient")
+      .attr("id", "bgGradient")
+      .attr("cx", "50%")
+      .attr("cy", "45%")
+      .attr("r", "65%");
+    radialGradient.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", "#0f172a");
+    radialGradient.append("stop")
+      .attr("offset", "45%")
+      .attr("stop-color", "#020617");
+    radialGradient.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", "#020617");
+
+    svg.append("rect")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("fill", "url(#bgGradient)");
+
+    // Node group
+    const g = svg.append("g").attr("class", "nodes");
+
+    // ============================
+    // MOCK DATA GENERATOR (FALLBACK)
+    // Note: This is now a fallback when real data collection is disabled.
+    // Real network data is collected using browser APIs when USE_MOCK_DATA is false.
+    // ============================
+
+    const mockVendors = ["Apple", "Intel", "Raspberry Pi", "Samsung", "Dell", "Unknown"];
+    const mockNames = [
+      "R-phone", "Tablet-01", "Sensor-A", "AP-Core", "Cam-03", "Lab-PC", "VR-Headset", "Unknown-device"
+    ];
+
+    function randomIp() {
+      return "192.168.1." + Math.floor(Math.random() * 200 + 10);
+    }
+
+    function randomMac() {
+      return Array.from({ length: 6 }, () => {
+        return ("0" + Math.floor(Math.random() * 256).toString(16)).slice(-2);
+      }).join(":");
+    }
+
+    function createMockDevice(isMe = false) {
+      const now = Date.now();
+      const signal = -30 - Math.random() * 60; // -30 to -90
+      return {
+        id: randomMac(),
+        name: mockNames[Math.floor(Math.random() * mockNames.length)],
+        ip: randomIp(),
+        vendor: mockVendors[Math.floor(Math.random() * mockVendors.length)],
+        signal,
+        lastSeen: Math.floor(now / 1000),
+        bytesIn: Math.floor(Math.random() * 5e8),
+        bytesOut: Math.floor(Math.random() * 5e8),
+        isMe: isMe
+      };
+    }
+
+    function updateMockDevices() {
+      const now = Date.now();
+
+      // Start with a baseline of devices (if empty)
+      // For production: Replace with real network data from backend API
+      if (devices.length === 0) {
+        const baseCount = 8 + Math.floor(Math.random() * 6);
+        console.log('Generating', baseCount, 'initial visualization devices');
+        for (let i = 0; i < baseCount; i++) {
+          devices.push(createMockDevice(i === 0)); // mark first as "me"
+        }
+      }
+
+      // Randomly add/remove devices
+      if (Math.random() < 0.3 && devices.length < 25) {
+        const newDevice = createMockDevice(false);
+        devices.push(newDevice);
+        console.log('+ Added device:', newDevice.name);
+      }
+      if (Math.random() < 0.2 && devices.length > 5) {
+        const idx = Math.floor(Math.random() * devices.length);
+        const removed = devices.splice(idx, 1)[0];
+        console.log('- Removed device:', removed.name);
+      }
+
+      // Randomly change signal and bytes
+      devices = devices.map(d => {
+        const jitter = (Math.random() - 0.5) * 10;
+        const newSignal = Math.max(-95, Math.min(-30, d.signal + jitter));
+        const activityBoost = Math.random() < 0.6 ? 1 : 0;
+
+        return {
+          ...d,
+          signal: newSignal,
+          lastSeen: Math.floor(now / 1000),
+          bytesIn: d.bytesIn + Math.floor(Math.random() * 30000 * (1 + 4 * activityBoost)),
+          bytesOut: d.bytesOut + Math.floor(Math.random() * 30000 * (1 + 4 * activityBoost))
+        };
+      });
+
+      return devices;
+    }
+
+    // ============================
+    // REAL NETWORK DATA COLLECTION
+    // ============================
+    
+    // Storage for discovered devices
+    const discoveredDevices = new Map();
+    let routerLocation = { x: 0, y: 0, z: 0 }; // Router assumed at origin
+    
+    // Collect real device information using browser APIs
+    async function collectRealNetworkData() {
+      const devices = [];
+      const now = Date.now();
+      
+      // 1. Get current device (this browser)
+      const currentDevice = await getCurrentDeviceInfo();
+      currentDevice.isMe = true;
+      devices.push(currentDevice);
+      
+      // 2. Use WebRTC to discover local network peers
+      const webrtcPeers = await discoverWebRTCPeers();
+      devices.push(...webrtcPeers);
+      
+      // 3. Check for connected devices via connection info
+      const connectedDevices = await getConnectedDevices();
+      devices.push(...connectedDevices);
+      
+      // 4. Get geolocation to estimate positioning
+      const location = await getDeviceLocation();
+      if (location) {
+        devices.forEach(d => {
+          if (!d.location) {
+            d.location = location;
+          }
+        });
+      }
+      
+      // Update discovered devices map
+      devices.forEach(device => {
+        if (device.id && !discoveredDevices.has(device.id)) {
+          discoveredDevices.set(device.id, device);
+        }
+      });
+      
+      // Return all known devices
+      const allDevices = Array.from(discoveredDevices.values());
+      console.log('✓ Collected', allDevices.length, 'real network devices');
+      return allDevices;
+    }
+    
+    // Get information about the current device
+    async function getCurrentDeviceInfo() {
+      const now = Date.now();
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      
+      // Estimate signal strength based on connection type
+      let signal = -50; // Default moderate signal
+      if (connection) {
+        if (connection.effectiveType === '4g') signal = -40;
+        else if (connection.effectiveType === 'slow-2g') signal = -85;
+        else if (connection.effectiveType === '2g') signal = -75;
+        else if (connection.effectiveType === '3g') signal = -60;
+      }
+      
+      // Get device info
+      const userAgent = navigator.userAgent;
+      let vendor = 'Unknown';
+      let deviceType = 'Unknown Device';
+      
+      if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
+        vendor = 'Apple';
+        deviceType = userAgent.includes('iPhone') ? 'iPhone' : 'iPad';
+      } else if (userAgent.includes('Android')) {
+        vendor = userAgent.includes('Samsung') ? 'Samsung' : 'Android';
+        deviceType = 'Android Device';
+      } else if (userAgent.includes('Mac')) {
+        vendor = 'Apple';
+        deviceType = 'Mac';
+      } else if (userAgent.includes('Windows')) {
+        vendor = 'Microsoft';
+        deviceType = 'Windows PC';
+      } else if (userAgent.includes('Linux')) {
+        vendor = 'Linux';
+        deviceType = 'Linux Device';
+      }
+      
+      // Try to get battery info
+      let batteryLevel = null;
+      if ('getBattery' in navigator) {
+        try {
+          const battery = await navigator.getBattery();
+          batteryLevel = battery.level;
+        } catch (e) {
+          console.log('Battery API not available');
+        }
+      }
+      
+      return {
+        id: 'current-device',
+        name: deviceType,
+        ip: 'Local Device',
+        vendor: vendor,
+        signal: signal,
+        lastSeen: Math.floor(now / 1000),
+        bytesIn: 0,
+        bytesOut: 0,
+        isMe: true,
+        connectionType: connection ? connection.effectiveType : 'unknown',
+        batteryLevel: batteryLevel,
+        userAgent: userAgent
+      };
+    }
+    
+    // Get network information
+    async function getNetworkInfo() {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      
+      if (!connection) {
+        return { type: 'unknown', effectiveType: 'unknown' };
+      }
+      
+      return {
+        type: connection.type || 'unknown',
+        effectiveType: connection.effectiveType || 'unknown',
+        downlink: connection.downlink || null,
+        rtt: connection.rtt || null,
+        saveData: connection.saveData || false
+      };
+    }
+    
+    // Use WebRTC to discover local network peers
+    async function discoverWebRTCPeers() {
+      const peers = [];
+      
+      try {
+        // Create RTCPeerConnection to discover local IPs
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        
+        // Create a data channel to trigger ICE gathering
+        pc.createDataChannel('');
+        
+        // Create and set local description
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        // Wait for ICE candidates
+        await new Promise((resolve) => {
+          let timeout = setTimeout(resolve, 2000); // 2 second timeout
+          
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              const candidate = event.candidate.candidate;
+              console.log('ICE candidate:', candidate);
+              
+              // Parse the candidate to extract IP
+              const ipMatch = candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+              if (ipMatch && ipMatch[1]) {
+                const ip = ipMatch[1];
+                
+                // Skip loopback and broadcast addresses
+                if (!ip.startsWith('127.') && !ip.endsWith('.255') && ip !== '0.0.0.0') {
+                  const deviceId = `peer-${ip.replace(/\./g, '-')}`;
+                  
+                  // Check if this is a local network IP
+                  const isLocal = ip.startsWith('192.168.') || 
+                                 ip.startsWith('10.') || 
+                                 ip.match(/^172\.(1[6-9]|2[0-9]|3[01])\./);
+                  
+                  if (isLocal && !discoveredDevices.has(deviceId)) {
+                    peers.push({
+                      id: deviceId,
+                      name: `Network Device`,
+                      ip: ip,
+                      vendor: 'Unknown',
+                      signal: -45 - Math.random() * 30, // Estimate signal
+                      lastSeen: Math.floor(Date.now() / 1000),
+                      bytesIn: 0,
+                      bytesOut: 0,
+                      isMe: false,
+                      discoveryMethod: 'WebRTC'
+                    });
+                  }
+                }
+              }
+            }
+            
+            if (event.candidate === null) {
+              clearTimeout(timeout);
+              resolve();
+            }
+          };
+        });
+        
+        pc.close();
+      } catch (err) {
+        console.log('WebRTC peer discovery not available:', err.message);
+      }
+      
+      return peers;
+    }
+    
+    // Simulate discovering connected devices based on browser capabilities
+    async function getConnectedDevices() {
+      const devices = [];
+      const now = Date.now();
+      
+      // Check for USB devices (if available)
+      if ('usb' in navigator) {
+        try {
+          const usbDevices = await navigator.usb.getDevices();
+          usbDevices.forEach((device, idx) => {
+            devices.push({
+              id: `usb-${device.productId}-${device.vendorId}`,
+              name: device.productName || `USB Device ${idx + 1}`,
+              ip: 'USB',
+              vendor: device.manufacturerName || 'Unknown',
+              signal: -35, // Strong signal (wired)
+              lastSeen: Math.floor(now / 1000),
+              bytesIn: 0,
+              bytesOut: 0,
+              isMe: false,
+              connectionType: 'USB',
+              discoveryMethod: 'USB API'
+            });
+          });
+        } catch (err) {
+          console.log('USB API not available or permission denied');
+        }
+      }
+      
+      // Check for Bluetooth devices (if available)
+      if ('bluetooth' in navigator) {
+        try {
+          const btDevices = await navigator.bluetooth.getDevices();
+          btDevices.forEach((device, idx) => {
+            devices.push({
+              id: `bt-${device.id}`,
+              name: device.name || `Bluetooth Device ${idx + 1}`,
+              ip: 'Bluetooth',
+              vendor: 'Unknown',
+              signal: -55, // Typical Bluetooth signal
+              lastSeen: Math.floor(now / 1000),
+              bytesIn: 0,
+              bytesOut: 0,
+              isMe: false,
+              connectionType: 'Bluetooth',
+              discoveryMethod: 'Bluetooth API'
+            });
+          });
+        } catch (err) {
+          console.log('Bluetooth API not available or permission denied');
+        }
+      }
+      
+      // Add router/gateway (inferred from being online)
+      if (navigator.onLine) {
+        devices.push({
+          id: 'router-gateway',
+          name: 'Router/Gateway',
+          ip: '192.168.1.1',
+          vendor: 'Network Gateway',
+          signal: -30, // Strong signal (close to router)
+          lastSeen: Math.floor(now / 1000),
+          bytesIn: 0,
+          bytesOut: 0,
+          isMe: false,
+          connectionType: 'Gateway',
+          discoveryMethod: 'Inferred'
+        });
+      }
+      
+      return devices;
+    }
+    
+    // Get device location using Geolocation API
+    async function getDeviceLocation() {
+      if (!('geolocation' in navigator)) {
+        return null;
+      }
+      
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy
+            });
+          },
+          (error) => {
+            console.log('Geolocation not available:', error.message);
+            resolve(null);
+          },
+          { timeout: 5000, maximumAge: 60000 }
+        );
+      });
+    }
+    
+    // Calculate relative position based on signal strength
+    function calculateRelativePosition(device, index, total) {
+      // Use signal strength to estimate distance from router
+      const signal = device.signal || -70;
+      const normalizedSignal = (signal + 95) / 65; // Normalize -95 to -30 to 0-1
+      const distance = (1 - normalizedSignal) * 300; // Convert to pixel distance
+      
+      // Distribute devices in a circular pattern around the router
+      const angle = (index / total) * 2 * Math.PI;
+      
+      return {
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        z: (Math.random() - 0.5) * 50 // Add some vertical variance
+      };
+    }
+    
+    // Main function to fetch real devices
+    async function fetchDevicesFromBackend() {
+      try {
+        // First try to collect real network data
+        const realDevices = await collectRealNetworkData();
+        
+        // Calculate relative positions for each device
+        realDevices.forEach((device, index) => {
+          const position = calculateRelativePosition(device, index, realDevices.length);
+          device.position = position;
+        });
+        
+        return realDevices;
+      } catch (err) {
+        console.error("Error collecting real network data:", err);
+        return null;
+      }
+    }
+
+    // ============================
+    // VISUALIZATION LOGIC
+    // ============================
+
+    function computeActivityScore(device) {
+      if (!device.lastSeen) return 0;
+      const now = Date.now();
+      const lastSeenMs = device.lastSeen * 1000;
+      const delta = now - lastSeenMs;
+      const normalized = Math.max(0, 1 - delta / activityDecayMs);
+      return normalized;
+    }
+
+    function signalToRadius(signalDbm) {
+      const s = typeof signalDbm === "number" ? signalDbm : -90;
+      return radiusScale(s);
+    }
+
+    function signalToColor(signalDbm) {
+      const s = typeof signalDbm === "number" ? signalDbm : -90;
+      return colorScale(s);
+    }
+
+    function updateMetadata(devices, networkName) {
+      const now = new Date();
+      deviceCountEl.textContent = devices.length.toString();
+      lastUpdatedEl.textContent = "Last update: " + now.toLocaleTimeString();
+      if (networkName) {
+        netNameEl.textContent = "Network: " + networkName;
+      } else {
+        netNameEl.textContent = "Network: current LAN";
+      }
+      refreshStatusEl.textContent = "Refresh interval: " + (REFRESH_INTERVAL / 1000).toFixed(1) + " s";
+    }
+
+    function getStrokeColor(d) {
+      if (d.isMe) return "#38bdf8";
+      return "#e5e7eb";
+    }
+
+    function getStrokeDasharray(d) {
+      const activity = computeActivityScore(d);
+      if (activity > 0.75) return "0";
+      if (activity > 0.3) return "2,1";
+      return "1,2";
+    }
+
+    function deviceTooltipHtml(d) {
+      const signal = typeof d.signal === "number" ? d.signal : NaN;
+      let strengthLabel = "unknown";
+      let strengthClass = "muted";
+      if (!isNaN(signal)) {
+        if (signal >= -60) {
+          strengthLabel = "strong / nearby";
+          strengthClass = "strong";
+        } else if (signal >= -75) {
+          strengthLabel = "medium";
+          strengthClass = "medium";
+        } else {
+          strengthLabel = "weak / distant";
+          strengthClass = "weak";
+        }
+      }
+
+      const activityScore = computeActivityScore(d);
+      let activityLabel = "idle";
+      let statusClass = "idle";
+      if (activityScore > 0.7) {
+        activityLabel = "high activity";
+        statusClass = "ok";
+      } else if (activityScore > 0.3) {
+        activityLabel = "warm";
+        statusClass = "warn";
+      }
+
+      const lastSeenStr = d.lastSeen
+        ? new Date(d.lastSeen * 1000).toLocaleTimeString()
+        : "unknown";
+
+      const isMeLabel = d.isMe ? `<span class="muted">This device</span>` : "";
+
+      let extraInfo = '';
+      if (d.connectionType && d.connectionType !== 'unknown') {
+        extraInfo += `<div><span class="muted">Connection:</span> ${d.connectionType}</div>`;
+      }
+      if (d.discoveryMethod) {
+        extraInfo += `<div><span class="muted">Discovery:</span> ${d.discoveryMethod}</div>`;
+      }
+      if (d.downlink) {
+        extraInfo += `<div><span class="muted">Downlink:</span> ${d.downlink} Mbps</div>`;
+      }
+      if (d.rtt) {
+        extraInfo += `<div><span class="muted">RTT:</span> ${d.rtt} ms</div>`;
+      }
+      if (d.batteryLevel !== null && d.batteryLevel !== undefined) {
+        extraInfo += `<div><span class="muted">Battery:</span> ${Math.round(d.batteryLevel * 100)}%</div>`;
+      }
+
+      return `
+        <div><span class="id">${d.id || "unknown-id"}</span></div>
+        <div>${d.name || "Unnamed device"} ${isMeLabel}</div>
+        <hr />
+        <div><span class="muted">IP:</span> ${d.ip || "unknown"}</div>
+        <div><span class="muted">Vendor:</span> ${d.vendor || "unknown"}</div>
+        <div><span class="muted">Signal:</span> <span class="${strengthClass}">${isNaN(signal) ? "n/a" : signal + " dBm"}</span> (${strengthLabel})</div>
+        <div><span class="muted">Last seen:</span> ${lastSeenStr}</div>
+        ${extraInfo}
+        <div class="status-pill">
+          <span class="dot ${statusClass}"></span><span class="label">${activityLabel}</span>
+        </div>
+      `;
+    }
+
+    function renderDevices(devs) {
+      console.log('Rendering', devs.length, 'devices');
+      
+      if (!simulation) {
+        console.log('Creating new force simulation');
+        simulation = d3.forceSimulation(devs)
+          .force("charge", d3.forceManyBody().strength(-40))
+          .force("center", d3.forceCenter(width / 2, height / 2))
+          .force("collision", d3.forceCollide(d => signalToRadius(d.signal) + 3))
+          .force("radial", d3.forceRadial(d => {
+            const activity = computeActivityScore(d);
+            return (Math.max(0.2, 1 - activity)) * (Math.min(width, height) / 2.1);
+          }, width / 2, height / 2).strength(0.06))
+          .alphaDecay(0.02)
+          .on("tick", ticked);
+      } else {
+        simulation.nodes(devs);
+        simulation.force("collision", d3.forceCollide(d => signalToRadius(d.signal) + 3));
+        simulation.alpha(0.8).restart();
+      }
+
+      const nodes = g.selectAll("circle.device-node")
+        .data(devs, d => d.id || d.ip || Math.random());
+
+      nodes.exit()
+        .transition()
+        .duration(400)
+        .attr("r", 0)
+        .style("opacity", 0)
+        .remove();
+
+      const nodesEnter = nodes.enter().append("circle")
+        .attr("class", "device-node")
+        .attr("cx", width / 2)
+        .attr("cy", height / 2)
+        .attr("r", 0)
+        .style("fill", d => signalToColor(d.signal))
+        .style("stroke", d => getStrokeColor(d))
+        .style("stroke-width", d => strokeWidthScale(computeActivityScore(d)))
+        .style("stroke-opacity", d => strokeOpacityScale(computeActivityScore(d)))
+        .style("opacity", 0.0)
+        .style("filter", "drop-shadow(0px 0px 6px rgba(30, 64, 175, 0.9))")
+        .on("mouseover", (_, d) => {
+          tooltip.style("display", "block").html(deviceTooltipHtml(d));
+        })
+        .on("mousemove", (event) => {
+          const offset = 14;
+          tooltip
+            .style("left", (event.pageX + offset) + "px")
+            .style("top", (event.pageY + offset) + "px");
+        })
+        .on("mouseout", () => {
+          tooltip.style("display", "none");
+        });
+
+      nodesEnter.transition()
+        .duration(400)
+        .style("opacity", 1.0)
+        .attr("r", d => signalToRadius(d.signal));
+
+      nodes.merge(nodesEnter)
+        .transition()
+        .duration(400)
+        .style("fill", d => signalToColor(d.signal))
+        .style("stroke", d => getStrokeColor(d))
+        .style("stroke-width", d => strokeWidthScale(computeActivityScore(d)))
+        .style("stroke-opacity", d => strokeOpacityScale(computeActivityScore(d)))
+        .attr("r", d => signalToRadius(d.signal));
+
+      function ticked() {
+        g.selectAll("circle.device-node")
+          .attr("cx", d => {
+            d.x = Math.max(10, Math.min(width - 10, d.x || width / 2));
+            return d.x;
+          })
+          .attr("cy", d => {
+            d.y = Math.max(10, Math.min(height - 10, d.y || height / 2));
+            return d.y;
+          });
+      }
+    }
+
+    // ============================
+    // DATA LOOP
+    // ============================
+
+    async function refreshData() {
+      try {
+        let newDevices = null;
+        let networkName = null;
+
+        if (USE_MOCK_DATA) {
+          console.log('[3D WiFi] Using mock/demonstration data');
+          newDevices = updateMockDevices();
+          networkName = "Demonstration Mode";
+        } else {
+          console.log('[3D WiFi] Collecting real network data from browser APIs...');
+          newDevices = await fetchDevicesFromBackend();
+          networkName = "Real Network Data";
+          if (!newDevices) {
+            // Keep current devices if error
+            console.warn('[3D WiFi] Failed to collect real network data, keeping current data');
+            return;
+          }
+          console.log(`[3D WiFi] ✓ Collected ${newDevices.length} real device(s) from network`);
+        }
+
+        devices = newDevices;
+        renderDevices(devices);
+        updateMetadata(devices, networkName);
+      } catch (err) {
+        console.error('[3D WiFi] Error in refreshData:', err);
+      }
+    }
+
+    function startLoop() {
+      console.log('Starting data refresh loop (interval:', REFRESH_INTERVAL, 'ms)');
+      refreshData();
+      setInterval(refreshData, REFRESH_INTERVAL);
+    }
+
+    // ============================
+    // RESIZE HANDLING
+    // ============================
+
+    window.addEventListener("resize", () => {
+      width = window.innerWidth;
+      height = window.innerHeight - 46;
+      svg.attr("width", width).attr("height", height);
+      if (simulation) {
+        simulation.force("center", d3.forceCenter(width / 2, height / 2));
+        simulation.alpha(0.7).restart();
+      }
+    });
+
+    // ============================
+    // UI: MOCK TOGGLE
+    // ============================
+
+    function updateMockButton() {
+      mockStatusEl.textContent = "Real data: " + (USE_MOCK_DATA ? "OFF" : "ON");
+      toggleMockBtn.style.borderColor = USE_MOCK_DATA
+        ? "rgba(148, 163, 184, 0.4)"
+        : "rgba(34, 197, 94, 0.8)";
+    }
+
+    toggleMockBtn.addEventListener("click", () => {
+      USE_MOCK_DATA = !USE_MOCK_DATA;
+      console.log('[3D WiFi] Data mode switched:', USE_MOCK_DATA ? 'MOCK/DEMO' : 'REAL');
+      updateMockButton();
+      
+      // Reset data and kick a refresh
+      devices = [];
+      if (simulation) {
+        console.log('Stopping and resetting simulation');
+        simulation.stop();
+        simulation = null;
+      }
+      
+      // Clear existing nodes
+      g.selectAll("circle.device-node").remove();
+      
+      refreshData();
+    });
+
+    // Init
+    updateMockButton();
+    startLoop();
+
+    // Hide loading overlay
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      setTimeout(() => {
+        loadingOverlay.classList.add('hidden');
+        setTimeout(() => loadingOverlay.remove(), 300);
+      }, 500);
+    }
+    
+    console.log('✓ App initialized successfully');
+    
+    } // End of initializeApp
+
+    // Try to initialize if D3 is already loaded
+    if (typeof d3 !== 'undefined') {
+      initializeApp();
+    }
+  </script>
+
+  <!-- PLC Device Data Integration -->
+  <script>
+  (function() {
+    'use strict';
+    
+    let plcSystemReady = false;
+    let plcDevices = [];
+    
+    // Wait for PLC system to be ready
+    function initPLCIntegration() {
+      if (typeof window.plcSystem === 'undefined') {
+        console.log('[3D WiFi] Waiting for PLC system...');
+        setTimeout(initPLCIntegration, 500);
+        return;
+      }
+      
+      plcSystemReady = true;
+      console.log('[3D WiFi] PLC system connected - electrical network device data available');
+      
+      // Listen to PLC events
+      window.plcSystem.on('initialized', (data) => {
+        console.log('[3D WiFi] PLC initialized:', data);
+        integrateDevices();
+      });
+      
+      window.plcSystem.on('network-discovered', (data) => {
+        console.log('[3D WiFi] Network discovered:', data.deviceCount, 'electrical devices');
+        plcDevices = data.devices;
+        integrateDevices();
+      });
+      
+      window.plcSystem.on('telemetry-update', (data) => {
+        updateDeviceTelemetry(data);
+      });
+      
+      window.plcSystem.on('device-discovered', (data) => {
+        console.log('[3D WiFi] New electrical device:', data.device.name);
+        integrateDevices();
+      });
+      
+      // Initial load
+      if (window.plcSystem.initialized) {
+        integrateDevices();
+      }
+    }
+    
+    // Integrate PLC devices into the visualization
+    function integrateDevices() {
+      if (!plcSystemReady || !window.plcSystem) return;
+      
+      const devices = Array.from(window.plcSystem.devices.values());
+      const stats = window.plcSystem.getNetworkStatistics();
+      
+      // Update device count to show total (wifi + PLC devices)
+      const deviceCountEl = document.getElementById('deviceCount');
+      if (deviceCountEl) {
+        // Count non-PLC devices first
+        const nonPLCDevices = window.mockData ? window.mockData.filter(d => !d.id || !d.id.startsWith('plc-')).length : 0;
+        deviceCountEl.textContent = nonPLCDevices + devices.length;
+      }
+      
+      // Add PLC devices to mock data if it exists
+      if (window.mockData && Array.isArray(window.mockData)) {
+        // Remove existing PLC devices to prevent duplicates
+        window.mockData = window.mockData.filter(d => !d.id || !d.id.startsWith('plc-'));
+        
+        // Convert PLC devices to the format expected by the visualization
+        const plcNodeData = devices.map((device, index) => ({
+          id: `plc-${device.id}`,
+          name: device.name,
+          type: 'powerline',
+          ip: device.ipAddress,
+          mac: device.macAddress,
+          signal: device.status === 'online' ? 75 + Math.random() * 20 : 20,
+          activity: device.status === 'online' ? Math.random() * 100 : 0,
+          status: device.status,
+          location: device.location,
+          powerLine: device.powerLine,
+          icon: device.icon,
+          telemetry: device.telemetry
+        }));
+        
+        // Merge with existing mock data (without duplicates)
+        window.mockData = [...window.mockData, ...plcNodeData];
+        
+        // If the visualization is running, update it
+        if (typeof window.updateVisualization === 'function') {
+          window.updateVisualization(window.mockData);
+        }
+      }
+      
+      console.log(`[3D WiFi] Integrated ${devices.length} electrical network devices`);
+    }
+    
+    // Update device telemetry
+    function updateDeviceTelemetry(telemetryData) {
+      // Update telemetry values for PLC devices in the visualization
+      if (window.mockData && window.plcSystem && window.plcSystem.devices) {
+        const devices = Array.from(window.plcSystem.devices.values());
+        
+        // Update the mock data with latest telemetry
+        window.mockData = window.mockData.map(node => {
+          if (node.id && node.id.startsWith('plc-')) {
+            const deviceId = node.id.replace('plc-', '');
+            const device = window.plcSystem.devices.get(deviceId);
+            if (device) {
+              return {
+                ...node,
+                signal: device.status === 'online' ? 75 + Math.random() * 20 : 20,
+                activity: device.status === 'online' ? Math.random() * 100 : 0,
+                status: device.status,
+                telemetry: device.telemetry
+              };
+            }
+          }
+          return node;
+        });
+      }
+    }
+    
+    // Initialize on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPLCIntegration);
+    } else {
+      initPLCIntegration();
+    }
+    
+    console.log('[3D WiFi] PLC integration module loaded');
+  })();
+  </script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

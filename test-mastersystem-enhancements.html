@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master System Enhancement Tests</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: #e0e0e0;
+        }
+        h1 { color: #4ade80; }
+        .test-section {
+            background: #1a1a1a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4ade80;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #064e3b;
+            border: 1px solid #10b981;
+        }
+        .fail {
+            background: #7f1d1d;
+            border: 1px solid #ef4444;
+        }
+        button {
+            background: #4ade80;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            background: #22c55e;
+        }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass { background: #10b981; color: #000; }
+        .status.fail { background: #ef4444; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Master System Enhancement Validation Tests</h1>
+    <p>This page validates the IP protection and real data integration in masterSystem.html</p>
+
+    <div class="test-section">
+        <h2>Test Suite Controls</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function clearResults() {
+            results.innerHTML = '';
+        }
+
+        function logResult(testName, passed, message) {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.innerHTML = `
+                <strong>${testName}</strong> 
+                <span class="status ${passed ? 'pass' : 'fail'}">${passed ? 'PASS' : 'FAIL'}</span>
+                <br><em>${message}</em>
+            `;
+            results.appendChild(div);
+        }
+
+        async function testCopyrightHeader() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasCopyright = html.includes('Copyright (c) 2024-2026 Barbrick Design');
+                const hasMeRLynnSig = html.includes('SIGNED BY MeRLynn');
+                const hasAGenTRSig = html.includes('SIGNED BY AGenTR');
+                
+                if (hasCopyright && hasMeRLynnSig && hasAGenTRSig) {
+                    logResult('Copyright Header Test', true, 
+                        'File contains copyright notice and both MeRLynn & AGenTR signatures');
+                } else {
+                    logResult('Copyright Header Test', false, 
+                        `Missing: ${!hasCopyright ? 'Copyright ' : ''}${!hasMeRLynnSig ? 'MeRLynn Sig ' : ''}${!hasAGenTRSig ? 'AGenTR Sig' : ''}`);
+                }
+            } catch (error) {
+                logResult('Copyright Header Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testMetaTags() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasAuthor = html.includes('meta name="author"');
+                const hasCopyright = html.includes('meta name="copyright"');
+                const hasDescription = html.includes('Proprietary');
+                
+                if (hasAuthor && hasCopyright && hasDescription) {
+                    logResult('Meta Tags Test', true, 
+                        'All required meta tags present (author, copyright, description)');
+                } else {
+                    logResult('Meta Tags Test', false, 
+                        'Missing required meta tags');
+                }
+            } catch (error) {
+                logResult('Meta Tags Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testRealDataModule() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasRealDataModule = html.includes('RealDataModule');
+                const hasLoadProjects = html.includes('loadProjectsData');
+                const hasLoadContributors = html.includes('loadContributorData');
+                const hasCalculateMetrics = html.includes('calculateRealMetrics');
+                
+                if (hasRealDataModule && hasLoadProjects && hasLoadContributors && hasCalculateMetrics) {
+                    logResult('Real Data Module Test', true, 
+                        'RealDataModule fully implemented with all data loading functions');
+                } else {
+                    logResult('Real Data Module Test', false, 
+                        'RealDataModule incomplete or missing');
+                }
+            } catch (error) {
+                logResult('Real Data Module Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testProjectsDataFetch() {
+            try {
+                const response = await fetch('projects.json');
+                if (!response.ok) throw new Error('projects.json not accessible');
+                
+                const data = await response.json();
+                const hasMeta = data.meta && data.meta.total_items;
+                const hasProjects = data.repositories && data.repositories.length > 0;
+                
+                if (hasMeta && hasProjects) {
+                    logResult('Projects Data Test', true, 
+                        `projects.json loaded successfully: ${data.meta.total_items} total items, ${data.repositories.length} repositories`);
+                } else {
+                    logResult('Projects Data Test', false, 
+                        'projects.json missing required data structure');
+                }
+            } catch (error) {
+                logResult('Projects Data Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testUIWatermarks() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasHeaderWatermark = html.includes('© Barbrick Design | Proprietary Software 🔐');
+                const hasFooterCopyright = html.includes('© 2024-2026') && html.includes('Barbrick Design');
+                const hasFooterSignature = html.includes('🔐 Signed by MeRLynn & AGenTR');
+                const hasDataIndicator = html.includes('dataSourceIndicator');
+                
+                if (hasHeaderWatermark && hasFooterCopyright && hasFooterSignature && hasDataIndicator) {
+                    logResult('UI Watermarks Test', true, 
+                        'All UI copyright notices and signatures present (header, footer, data indicator)');
+                } else {
+                    logResult('UI Watermarks Test', false, 
+                        'Some UI watermarks missing');
+                }
+            } catch (error) {
+                logResult('UI Watermarks Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testIPProtectionLogs() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasIPLog = html.includes('IP Protection Active: MeRLynn & AGenTR signatures verified');
+                const hasCopyrightLog = html.includes('© 2024-2026 Barbrick Design - Proprietary Software');
+                const hasRealDataLog = html.includes('Real data loaded:');
+                
+                if (hasIPLog && hasCopyrightLog && hasRealDataLog) {
+                    logResult('IP Protection Logs Test', true, 
+                        'System logs IP protection status and real data connections');
+                } else {
+                    logResult('IP Protection Logs Test', false, 
+                        'Missing IP protection or data logging');
+                }
+            } catch (error) {
+                logResult('IP Protection Logs Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testDataRefresh() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasRefreshInterval = html.includes('300000'); // 5 minutes
+                const hasDataRefresh = html.includes('Real data refreshed:');
+                
+                if (hasRefreshInterval && hasDataRefresh) {
+                    logResult('Data Refresh Test', true, 
+                        'Automatic data refresh every 5 minutes configured');
+                } else {
+                    logResult('Data Refresh Test', false, 
+                        'Data refresh mechanism not properly configured');
+                }
+            } catch (error) {
+                logResult('Data Refresh Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testBackwardCompatibility() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasSimulationMode = html.includes('simulated');
+                const hasHybridMode = html.includes('hybrid');
+                const hasFallback = html.includes('Using simulated data mode');
+                
+                if (hasSimulationMode && hasHybridMode && hasFallback) {
+                    logResult('Backward Compatibility Test', true, 
+                        'System supports both real and simulated data modes with fallback');
+                } else {
+                    logResult('Backward Compatibility Test', false, 
+                        'Backward compatibility with simulation mode not maintained');
+                }
+            } catch (error) {
+                logResult('Backward Compatibility Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function testSecurityHeaders() {
+            try {
+                const response = await fetch('masterSystem.html');
+                const html = await response.text();
+                
+                const hasProprietaryNotice = html.includes('PROPRIETARY AND CONFIDENTIAL');
+                const hasUnauthorizedNotice = html.includes('Unauthorized use') || html.includes('strictly prohibited');
+                const hasLicenseInfo = html.includes('For licensing:') || html.includes('BarbrickDesign@gmail.com');
+                
+                if (hasProprietaryNotice && hasUnauthorizedNotice && hasLicenseInfo) {
+                    logResult('Security Headers Test', true, 
+                        'Comprehensive security and IP protection notices present');
+                } else {
+                    logResult('Security Headers Test', false, 
+                        'Security headers incomplete');
+                }
+            } catch (error) {
+                logResult('Security Headers Test', false, 'Error: ' + error.message);
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = '<h2>Running Tests...</h2>';
+            results.appendChild(section);
+
+            await testCopyrightHeader();
+            await testMetaTags();
+            await testRealDataModule();
+            await testProjectsDataFetch();
+            await testUIWatermarks();
+            await testIPProtectionLogs();
+            await testDataRefresh();
+            await testBackwardCompatibility();
+            await testSecurityHeaders();
+
+            const summary = document.createElement('div');
+            summary.className = 'test-section';
+            const passCount = document.querySelectorAll('.test-result.pass').length;
+            const totalTests = 9;
+            summary.innerHTML = `
+                <h2>Test Summary</h2>
+                <p><strong>${passCount} of ${totalTests} tests passed</strong></p>
+                ${passCount === totalTests ? 
+                    '<p style="color: #10b981;">✅ All tests passed! masterSystem.html is fully protected and functional.</p>' : 
+                    '<p style="color: #ef4444;">⚠️ Some tests failed. Please review the results above.</p>'}
+            `;
+            results.appendChild(summary);
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

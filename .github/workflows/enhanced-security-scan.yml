@@ -1,0 +1,312 @@
+name: Enhanced Security Scan
+
+# Comprehensive security scanning based on recurring issues:
+# - API key leaks
+# - XSS vulnerabilities (innerHTML usage)
+# - Insecure authentication patterns
+# - Client-side secret storage
+
+on:
+  pull_request:
+    paths:
+      - '**.html'
+      - '**.js'
+      - 'js/**'
+      - 'src/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '**.html'
+      - '**.js'
+      - 'js/**'
+      - 'src/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  issues: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: API Key Leak Detection
+        id: api-leak
+        run: |
+          echo "Scanning for API key leaks..."
+
+          LEAKS_FOUND=0
+
+          # Pattern 1: API keys in code
+          API_KEY_PATTERN='(api[_-]?key|apiKey)\s*[:=]\s*["'"'"'][a-zA-Z0-9_-]{20,}["'"'"']'
+          if grep -r -E "$API_KEY_PATTERN" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . > api_leak_report.txt 2>&1; then
+            echo "⚠️ Potential API key leak detected"
+            LEAKS_FOUND=$((LEAKS_FOUND + 1))
+          fi
+
+          # Pattern 2: OpenAI keys specifically
+          OPENAI_PATTERN='sk-[a-zA-Z0-9]{40,}'
+          if grep -r -E "$OPENAI_PATTERN" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . >> api_leak_report.txt 2>&1; then
+            echo "⚠️ Potential OpenAI API key detected"
+            LEAKS_FOUND=$((LEAKS_FOUND + 1))
+          fi
+
+          # Pattern 3: PayPal keys
+          PAYPAL_PATTERN='(client[_-]?id|client[_-]?secret)\s*[:=]\s*["'"'"'][a-zA-Z0-9_-]{20,}["'"'"']'
+          if grep -r -E "$PAYPAL_PATTERN" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . >> api_leak_report.txt 2>&1; then
+            echo "⚠️ Potential PayPal credential detected"
+            LEAKS_FOUND=$((LEAKS_FOUND + 1))
+          fi
+
+          echo "api_leaks=$LEAKS_FOUND" >> $GITHUB_OUTPUT
+
+          if [ $LEAKS_FOUND -gt 0 ]; then
+            echo "⚠️ Total potential leaks: $LEAKS_FOUND"
+          else
+            echo "✅ No API key leaks detected"
+          fi
+
+      - name: XSS Vulnerability Scan
+        id: xss-scan
+        run: |
+          echo "Scanning for XSS vulnerabilities..."
+
+          XSS_RISKS=0
+
+          # Pattern 1: innerHTML usage without sanitization (catches both = and +=)
+          echo "Checking innerHTML usage..."
+          INNERHTML_COUNT=$(grep -r "\.innerHTML\s*[+]\?=" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . | \
+            grep -v "sanitize\|escape\|DOMPurify" | wc -l || echo "0")
+
+          if [ "$INNERHTML_COUNT" -gt 0 ]; then
+            echo "⚠️ Found $INNERHTML_COUNT potentially unsafe innerHTML usages"
+            XSS_RISKS=$((XSS_RISKS + INNERHTML_COUNT))
+
+            grep -n "\.innerHTML\s*[+]\?=" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . | \
+              grep -v "sanitize\|escape\|DOMPurify" | head -10 > xss_report.txt
+          fi
+
+          # Pattern 2: eval() usage
+          echo "Checking for eval() usage..."
+          EVAL_COUNT=$(grep -r "\beval\s*(" --include="*.js" --exclude-dir=node_modules --exclude-dir=.git . | wc -l || echo "0")
+
+          if [ "$EVAL_COUNT" -gt 0 ]; then
+            echo "⚠️ Found $EVAL_COUNT eval() usages"
+            XSS_RISKS=$((XSS_RISKS + EVAL_COUNT))
+          fi
+
+          # Pattern 3: document.write
+          echo "Checking for document.write()..."
+          DOCWRITE_COUNT=$(grep -r "document\.write" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . | wc -l || echo "0")
+
+          if [ "$DOCWRITE_COUNT" -gt 0 ]; then
+            echo "⚠️ Found $DOCWRITE_COUNT document.write() usages"
+            XSS_RISKS=$((XSS_RISKS + DOCWRITE_COUNT))
+          fi
+
+          echo "xss_risks=$XSS_RISKS" >> $GITHUB_OUTPUT
+
+          if [ $XSS_RISKS -eq 0 ]; then
+            echo "✅ No XSS vulnerabilities detected"
+          fi
+
+      - name: Insecure Storage Scan
+        id: storage-scan
+        run: |
+          echo "Scanning for insecure storage patterns..."
+
+          STORAGE_ISSUES=0
+
+          # Pattern 1: Passwords in localStorage
+          PASSWORD_STORAGE=$(grep -r "localStorage.*password\|password.*localStorage" --include="*.js" --exclude-dir=node_modules --exclude-dir=.git . | \
+            grep -v "hash\|encrypt\|SHA-256" | wc -l || echo "0")
+
+          if [ "$PASSWORD_STORAGE" -gt 0 ]; then
+            echo "⚠️ Potential plaintext password storage in localStorage"
+            STORAGE_ISSUES=$((STORAGE_ISSUES + 1))
+          fi
+
+          # Pattern 2: API keys in localStorage without warning
+          APIKEY_STORAGE=$(grep -r "localStorage.*api.*key\|api.*key.*localStorage" --include="*.js" --exclude-dir=node_modules --exclude-dir=.git . | \
+            wc -l || echo "0")
+
+          if [ "$APIKEY_STORAGE" -gt 0 ]; then
+            echo "⚠️ API keys stored in localStorage (check for security warnings)"
+            STORAGE_ISSUES=$((STORAGE_ISSUES + 1))
+          fi
+
+          echo "storage_issues=$STORAGE_ISSUES" >> $GITHUB_OUTPUT
+
+          if [ $STORAGE_ISSUES -eq 0 ]; then
+            echo "✅ No insecure storage patterns detected"
+          fi
+
+      - name: Authentication Security Check
+        id: auth-check
+        run: |
+          echo "Checking authentication security..."
+
+          AUTH_ISSUES=0
+
+          # Check for weak hashing
+          WEAK_HASH=$(grep -r "btoa\|atob" --include="*.js" --exclude-dir=node_modules --exclude-dir=.git . | \
+            grep -i "password\|secret" | wc -l || echo "0")
+
+          if [ "$WEAK_HASH" -gt 0 ]; then
+            echo "⚠️ Potential weak encoding (btoa/atob) used for sensitive data"
+            AUTH_ISSUES=$((AUTH_ISSUES + 1))
+          fi
+
+          # Check for hardcoded credentials
+          HARDCODED_CREDS=$(grep -r -i "password\s*[:=]\s*['\"][^'\"]\{5,\}['\"]" --include="*.js" --include="*.html" --exclude-dir=node_modules --exclude-dir=.git . | \
+            wc -l || echo "0")
+
+          if [ "$HARDCODED_CREDS" -gt 0 ]; then
+            echo "⚠️ Potential hardcoded credentials found"
+            AUTH_ISSUES=$((AUTH_ISSUES + 1))
+          fi
+
+          echo "auth_issues=$AUTH_ISSUES" >> $GITHUB_OUTPUT
+
+          if [ $AUTH_ISSUES -eq 0 ]; then
+            echo "✅ No authentication security issues detected"
+          fi
+
+      - name: Generate Security Report
+        if: always()
+        run: |
+          API_LEAKS=${{ steps.api-leak.outputs.api_leaks }}
+          XSS_RISKS=${{ steps.xss-scan.outputs.xss_risks }}
+          STORAGE_ISSUES=${{ steps.storage-scan.outputs.storage_issues }}
+          AUTH_ISSUES=${{ steps.auth-check.outputs.auth_issues }}
+
+          TOTAL_ISSUES=$((API_LEAKS + XSS_RISKS + STORAGE_ISSUES + AUTH_ISSUES))
+
+          echo "# Security Scan Report" > security_report.md
+          echo "" >> security_report.md
+          echo "**Total Issues Found**: $TOTAL_ISSUES" >> security_report.md
+          echo "" >> security_report.md
+
+          if [ $API_LEAKS -gt 0 ]; then
+            echo "## 🔑 API Key Leaks: $API_LEAKS" >> security_report.md
+            echo "" >> security_report.md
+            if [ -f api_leak_report.txt ]; then
+              head -10 api_leak_report.txt | while read line; do
+                echo "- \`$line\`" >> security_report.md
+              done
+            fi
+            echo "" >> security_report.md
+          else
+            echo "## 🔑 API Key Leaks: ✅ None detected" >> security_report.md
+            echo "" >> security_report.md
+          fi
+
+          if [ $XSS_RISKS -gt 0 ]; then
+            echo "## 🛡️ XSS Vulnerabilities: $XSS_RISKS potential risks" >> security_report.md
+            echo "" >> security_report.md
+            if [ -f xss_report.txt ]; then
+              head -10 xss_report.txt | while read line; do
+                echo "- \`$line\`" >> security_report.md
+              done
+            fi
+            echo "" >> security_report.md
+            echo "**Recommendation**: Use \`textContent\` instead of \`innerHTML\`, or sanitize with DOMPurify" >> security_report.md
+            echo "" >> security_report.md
+          else
+            echo "## 🛡️ XSS Vulnerabilities: ✅ None detected" >> security_report.md
+            echo "" >> security_report.md
+          fi
+
+          if [ $STORAGE_ISSUES -gt 0 ]; then
+            echo "## 💾 Insecure Storage: $STORAGE_ISSUES issues" >> security_report.md
+            echo "" >> security_report.md
+            echo "**Recommendation**: Hash passwords with SHA-256 or better, warn users about client-side storage limitations" >> security_report.md
+            echo "" >> security_report.md
+          else
+            echo "## 💾 Insecure Storage: ✅ None detected" >> security_report.md
+            echo "" >> security_report.md
+          fi
+
+          if [ $AUTH_ISSUES -gt 0 ]; then
+            echo "## 🔐 Authentication Security: $AUTH_ISSUES issues" >> security_report.md
+            echo "" >> security_report.md
+            echo "**Recommendation**: Use Web Crypto API for hashing, never hardcode credentials" >> security_report.md
+            echo "" >> security_report.md
+          else
+            echo "## 🔐 Authentication Security: ✅ None detected" >> security_report.md
+            echo "" >> security_report.md
+          fi
+
+          echo "---" >> security_report.md
+          echo "" >> security_report.md
+          echo "*Automated Security Scan - GitHub Actions*" >> security_report.md
+
+          cat security_report.md
+
+          echo "total_issues=$TOTAL_ISSUES" >> $GITHUB_ENV
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security_report.md', 'utf8');
+            const totalIssues = parseInt('${{ env.total_issues }}');
+
+            let icon = '✅';
+            if (totalIssues > 0) {
+              icon = '⚠️';
+            }
+
+            const body = `${icon} **Enhanced Security Scan Results**\n\n${report}\n\n---\n*Automated by GitHub Actions - Enhanced Security Scan Workflow*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      - name: Create Security Issue if Critical
+        if: steps.api-leak.outputs.api_leaks > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security_report.md', 'utf8');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 CRITICAL: Potential API Key Leak Detected',
+              body: `**Automated security scan detected potential API key leaks**\n\n${report}\n\n**Action Required**: Review the flagged files immediately and remove any exposed API keys.\n\n---\n*Created by Enhanced Security Scan Workflow*`,
+              labels: ['security', 'critical', 'automated']
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat security_report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if critical issues found
+        if: steps.api-leak.outputs.api_leaks > 0
+        run: |
+          echo "❌ Critical security issues found"
+          exit 1

@@ -1,0 +1,307 @@
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: gbuvInvestmentPortalScript.html
+Declaration ID: IP-2DEE360D-MLL28ZZS
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<!-- Inject this in <head>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css"> of any Gem Bot universe app -->
+<script>
+;(()=>{ // GemHub head script
+  const NS='GemHub', VER='0.2.0';
+  const BUS = (()=>{ const subs={}; return {
+    sub:(t,fn)=>((subs[t]??=(new Set())).add(fn),()=>subs[t].delete(fn)),
+    pub:(t,p)=>subs[t]?.forEach(fn=>{ try{fn(p)}catch(e){console.error(e)} })
+  }})();
+
+  // Storage + hash-chain logger
+  const SKEY='gbuv.state', LKEY='gbuv.log';
+  const sha = async str => {
+    const data = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  };
+  const now = () => new Date().toISOString();
+  const load = k => { try{ return JSON.parse(localStorage.getItem(k) || 'null') }catch{ return null } };
+  const save = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+  const log = async (evt, data={})=>{
+    const logArr = load(LKEY) || [];
+    const prev = logArr.length ? logArr[logArr.length-1].hash : 'GENESIS';
+    const rec = { ts: now(), evt, data, prev };
+    rec.hash = await sha(JSON.stringify(rec));
+    logArr.push(rec); save(LKEY, logArr);
+    BUS.pub('log', rec);
+  };
+
+  // Defaults
+  const DEF = {
+    user:{ id:'anon', name:'Investor' },
+    wallets:{ paypal:'', solana:'', token:'$GBUV' },
+    holdings:{ gbuv: 0, // token units
+               basisUSD: 0, // total cost basis in USD
+               poolUSD: 0 }, // visible pool total
+    aprPercent: 12, // projection only
+    pricing:{ gbuvUSD: 0.10 }, // fallback price if feed unavailable
+    payout:{ cadenceDays: 30, nextISO: null, destination:{ type:'paypal', value:'' } }
+  };
+
+  let STATE = Object.assign({}, DEF, load(SKEY) || {});
+  if(!STATE.payout.nextISO){ const d=new Date(); d.setDate(d.getDate()+STATE.payout.cadenceDays); STATE.payout.nextISO=d.toISOString(); }
+
+  const setState = async (patch)=>{
+    STATE = { ...STATE, ...patch };
+    save(SKEY, STATE);
+    await log('state.update', patch);
+    BUS.pub('state', STATE);
+  };
+
+  // Price feed adapter (pluggable)
+  const Price = (()=> {
+    let last = STATE.pricing.gbuvUSD, ts = Date.now();
+    const MIN = 0.001, MAX = 1000;
+    return {
+      get: ()=>({ gbuvUSD: last, ts }),
+      set: async v=>{
+        if(typeof v==='number' && v>MIN && v<MAX){
+          last=v; ts=Date.now();
+          STATE.pricing.gbuvUSD=last;
+          save(SKEY, STATE);
+          await log('price.update', { gbuvUSD:last });
+          BUS.pub('price', { gbuvUSD:last });
+        }
+      },
+      // Optional: host can push updates
+      attachHostFeed: (fn)=> BUS.sub('host.price', p=>fn?.(p))
+    };
+  })();
+
+  // Wallet adapters
+  const Wallet = {
+    setPayPal: async (email)=> setState({ wallets:{ ...STATE.wallets, paypal: email }, payout:{ ...STATE.payout, destination:{ type:'paypal', value: email } } }),
+    setSolana: async (addr)=> setState({ wallets:{ ...STATE.wallets, solana: addr }, payout:{ ...STATE.payout, destination:{ type:'solana', value: addr } } }),
+    // Host can provide a provider for read-only balance
+    attachSolanaProvider: (provider)=>{
+      // Example: provider.getBalance(tokenMint, addr) → returns units
+      BUS.sub('wallet.refresh', async ()=>{
+        if(provider && STATE.wallets.solana){
+          try{
+            const units = await provider.getBalance('GBUV_MINT', STATE.wallets.solana);
+            STATE.holdings.gbuv = units;
+            save(SKEY, STATE);
+            BUS.pub('holdings', STATE.holdings);
+            await log('wallet.balance', { gbuv: units });
+          }catch(e){ console.warn('Solana balance fetch failed', e) }
+        }
+      });
+    }
+  };
+
+  // Valuation engine (per-frame)
+  const Valuation = (()=> {
+    let lastFrame=0;
+    const tick = ts=>{
+      const dt = (ts - lastFrame) / 1000; // seconds between frames
+      lastFrame = ts || performance.now();
+
+      const price = Price.get().gbuvUSD;
+      const units = STATE.holdings.gbuv;
+      const totalUSD = units * price;
+
+      // Earnings per second: APR projection on totalUSD
+      const eps = (STATE.aprPercent/100) * totalUSD / (365*24*3600);
+
+      BUS.pub('valuation', { totalUSD, units, price, eps });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return { start:()=>{}, stop:()=>{} };
+  })();
+
+  // PayPal conversion
+  const paypalLink = (email, amountUSD) => {
+    const params = new URLSearchParams({
+      cmd:'_xclick', business: email,
+      item_name:'Convert to $GBUV', currency_code:'USD',
+      amount: String(Math.round(amountUSD*100)/100)
+    });
+    return `https://www.paypal.com/cgi-bin/webscr?${params.toString()}`;
+  };
+
+  // UI injection
+  const injectUI = ()=>{
+    const style = document.createElement('style');
+    style.textContent = `
+      :root{ --bg:#0b0f14; --card:#121821; --text:#e7eef7; --muted:#9fb0c3; --border:#1f2a38; --accent:#7aa9ff; --green:#6be675; }
+      .gh-wrap{ position:fixed; bottom:12px; right:12px; left:12px; z-index:99999; pointer-events:none; }
+      .gh-card{ max-width:780px; margin:0 auto; background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; pointer-events:auto; }
+      .gh-head{ display:flex; justify-content:space-between; align-items:center; padding:12px 14px; }
+      .gh-title{ font-weight:700; font-size:14px; color:var(--muted); }
+      .gh-body{ display:grid; grid-template-columns: 1fr; gap:10px; padding:12px; }
+      .gh-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+      .gh-val{ font-size:20px; font-weight:700; color:var(--text); }
+      .gh-sub{ font-size:12px; color:var(--muted); }
+      .gh-pill{ background:#0e141c; color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:4px 8px; font-size:12px; }
+      .gh-input{ width:100%; background:#0e141c; border:1px solid var(--border); border-radius:10px; color:var(--text); padding:8px 10px; font-size:13px; }
+      .gh-btn{ background:var(--accent); color:#061020; border:none; border-radius:10px; padding:8px 10px; font-weight:700; font-size:13px; cursor:pointer; }
+      .gh-btn.secondary{ background:var(--green); }
+      @media(min-width:720px){ .gh-body{ grid-template-columns: repeat(2,1fr) } }
+    `;
+    document.head.appendChild(style);
+
+    const wrap = document.createElement('div');
+    wrap.className='gh-wrap';
+    wrap.innerHTML = `
+      <div class="gh-card">
+        <div class="gh-head">
+          <div class="gh-title">$GBUV • Live</div>
+          <div class="gh-pill">APR ${STATE.aprPercent}%</div>
+        </div>
+        <div class="gh-body">
+          <div class="gh-row">
+            <div>
+              <div class="gh-sub">Total value</div>
+              <div class="gh-val" id="gh-total">$0.00</div>
+            </div>
+            <div>
+              <div class="gh-sub">Earnings / sec</div>
+              <div class="gh-val" id="gh-eps">$0.00000</div>
+            </div>
+          </div>
+          <div class="gh-row">
+            <div>
+              <div class="gh-sub">Holdings</div>
+              <div class="gh-val" id="gh-units">0 $GBUV</div>
+            </div>
+            <div>
+              <div class="gh-sub">Price</div>
+              <div class="gh-val" id="gh-price">$0.00</div>
+            </div>
+          </div>
+          <div class="gh-row">
+            <input class="gh-input" id="gh-sol" placeholder="Solana wallet for $GBUV payouts" value="${STATE.wallets.solana||''}">
+            <button class="gh-btn secondary" id="gh-save-sol">Link Solana</button>
+          </div>
+          <div class="gh-row">
+            <input class="gh-input" id="gh-paypal" placeholder="PayPal email for fiat conversions" value="${STATE.wallets.paypal||''}">
+            <button class="gh-btn" id="gh-save-paypal">Link PayPal</button>
+          </div>
+          <div class="gh-row">
+            <input class="gh-input" id="gh-amt" type="number" min="1" step="1" placeholder="Amount (USD) to convert">
+            <button class="gh-btn" id="gh-convert">Convert via PayPal</button>
+          </div>
+          <div class="gh-row">
+            <a class="gh-btn" href="https://join.pump.fun/HSag/usycgoz3" target="_blank" rel="noopener">Link pump.fun</a>
+            <div class="gh-sub" id="gh-next">Next payout: ${new Date(STATE.payout.nextISO).toLocaleDateString()}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    // DOM bindings
+    const $ = id => wrap.querySelector(id);
+    const fmtUSD = n => `$${(Math.round(n*100)/100).toLocaleString()}`;
+    const fmtEPS = n => `$${n.toFixed(5)}`;
+
+    BUS.sub('valuation', v=>{
+      $('##gh-total')?.removeAttribute; // noop to avoid errors when not ready
+      const total = wrap.querySelector('#gh-total');
+      const eps = wrap.querySelector('#gh-eps');
+      const units = wrap.querySelector('#gh-units');
+      const price = wrap.querySelector('#gh-price');
+      if(total) total.textContent = fmtUSD(v.totalUSD);
+      if(eps) eps.textContent = fmtEPS(v.eps);
+      if(units) units.textContent = `${(v.units).toLocaleString()} $GBUV`;
+      if(price) price.textContent = fmtUSD(v.price);
+    });
+
+    wrap.querySelector('#gh-save-sol').addEventListener('click', async ()=>{
+      const addr = wrap.querySelector('#gh-sol').value.trim();
+      await Wallet.setSolana(addr);
+      await log('wallet.link.solana', { addr });
+      BUS.pub('wallet.refresh');
+    });
+
+    wrap.querySelector('#gh-save-paypal').addEventListener('click', async ()=>{
+      const email = wrap.querySelector('#gh-paypal').value.trim();
+      await Wallet.setPayPal(email);
+      await log('wallet.link.paypal', { email });
+    });
+
+    wrap.querySelector('#gh-convert').addEventListener('click', async ()=>{
+      const amt = Number(wrap.querySelector('#gh-amt').value || 0);
+      if(amt>0){
+        const url = paypalLink('BarbrickDesign@gmail.com', amt);
+        await log('paypal.convert', { amt });
+        location.href = url;
+      }
+    });
+  };
+
+  // Public API for host apps
+  const API = {
+    version: VER,
+    mount: injectUI,
+    bus: BUS,
+    state: ()=>STATE,
+    setAPR: p => setState({ aprPercent: p }),
+    setPriceUSD: v => Price.set(v),
+    setHoldings: async units => { STATE.holdings.gbuv = units; save(SKEY, STATE); BUS.pub('holdings', STATE.holdings); await log('holdings.set', { gbuv: units }); },
+    setPoolUSD: async v => { STATE.holdings.poolUSD = v; save(SKEY, STATE); BUS.pub('pool', v); await log('pool.set', { poolUSD:v }); },
+    wallets: Wallet
+  };
+  window[NS] = API;
+
+  // Auto-mount unless host disables
+  if(!document.documentElement.hasAttribute('data-gemhub-nomount')){
+    injectUI();
+  }
+  Valuation.start();
+  log('boot', { version: VER });
+
+})();
+</script>
+
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+<!-- Anti-Nuclear Safety System Active -->
+<script src="/anti-nuke-safety.js"></script>

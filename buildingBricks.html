@@ -1,0 +1,1583 @@
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: buildingBricks.html
+Declaration ID: IP-2E90A073-MLL28ZYC
+Date: 2026-02-13
+Innovation Type: Web Application, User Interface, System Design
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+Here’s buildingBricks.html as a single, self-contained prototype with polymorphic rendering, basic world/object modes, and LOD switching:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Building Bricks – Molecular 3D World Builder</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
+      background: radial-gradient(ellipse at bottom, #0a0e1a 0%, #000000 100%);
+      color: #ffffff;
+    }
+    
+    /* Splash Screen Styles */
+    #splash-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: radial-gradient(ellipse at center, #1a1f2e 0%, #000000 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 1;
+      transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #splash-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .splash-logo {
+      font-size: 64px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .splash-subtitle {
+      font-size: 18px;
+      opacity: 0.8;
+      margin-bottom: 48px;
+      text-align: center;
+    }
+    
+    .splash-button {
+      padding: 16px 48px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+    
+    .splash-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(102, 126, 234, 0.6);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    /* Gallery Screen Styles */
+    #gallery-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: radial-gradient(ellipse at bottom, #0a0e1a 0%, #000000 100%);
+      display: none;
+      opacity: 0;
+      transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+    }
+    
+    #gallery-screen.active {
+      display: block;
+      opacity: 1;
+    }
+    
+    .gallery-header {
+      padding: 32px 48px;
+      background: rgba(0, 0, 0, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(24px);
+    }
+    
+    .gallery-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .gallery-subtitle {
+      font-size: 16px;
+      opacity: 0.7;
+    }
+    
+    .gallery-content {
+      padding: 48px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+    
+    .world-card {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(0, 0, 0, 0.6) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(16px);
+    }
+    
+    .world-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(102, 126, 234, 0.5);
+      box-shadow: 0 16px 48px rgba(102, 126, 234, 0.3);
+    }
+    
+    .world-card.create-new {
+      background: linear-gradient(135deg, rgba(118, 75, 162, 0.15) 0%, rgba(0, 0, 0, 0.6) 100%);
+      border-style: dashed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+    
+    .world-thumbnail {
+      width: 100%;
+      height: 180px;
+      background: radial-gradient(ellipse at center, #1a1f2e 0%, #0a0e1a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .world-thumbnail-icon {
+      font-size: 48px;
+      opacity: 0.6;
+    }
+    
+    .world-info {
+      padding: 20px;
+    }
+    
+    .world-name {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .world-description {
+      font-size: 13px;
+      opacity: 0.7;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    
+    .world-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .world-tag {
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(102, 126, 234, 0.15);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    /* Main UI Root */
+    #ui-root {
+      position: fixed;
+      inset: 0;
+      display: none;
+      grid-template-columns: 260px 1fr 280px;
+      grid-template-rows: 48px 1fr 32px;
+      grid-template-areas:
+        "topbar topbar topbar"
+        "left   viewport right"
+        "status status status";
+      pointer-events: none;
+    }
+    
+    #ui-root.active {
+      display: grid;
+    }
+    #topbar {
+      grid-area: topbar;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.75);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: auto;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+    }
+    #left-panel, #right-panel {
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.5);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(32px) saturate(180%);
+      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      padding: 16px;
+      font-size: 13px;
+    }
+    #left-panel {
+      grid-area: left;
+      border-left: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #right-panel {
+      grid-area: right;
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #viewport-container {
+      grid-area: viewport;
+      position: relative;
+      pointer-events: none;
+    }
+    #three-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      pointer-events: auto;
+    }
+    #status-bar {
+      grid-area: status;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 20px;
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.75);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: auto;
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+    }
+    .pill-group {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .pill {
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pill:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .pill.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      opacity: 0.6;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .panel-card {
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(0, 0, 0, 0.4) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .panel-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(0, 0, 0, 0.5) 100%);
+    }
+    .panel-card.secondary {
+      background: linear-gradient(135deg, rgba(148, 163, 184, 0.08) 0%, rgba(0, 0, 0, 0.4) 100%);
+    }
+    .panel-card.secondary:hover {
+      background: linear-gradient(135deg, rgba(148, 163, 184, 0.12) 0%, rgba(0, 0, 0, 0.5) 100%);
+    }
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      opacity: 0.8;
+      margin-bottom: 2px;
+    }
+    .slider {
+      width: 100%;
+    }
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.4);
+      color: #ffffff;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      outline: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    textarea:focus {
+      border-color: rgba(102, 126, 234, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+    button.primary {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    button.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    button.primary:active {
+      transform: translateY(0);
+      filter: brightness(0.95);
+    }
+    .small {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(102, 126, 234, 0.15);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      opacity: 0.95;
+    }
+    .mono {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    a {
+      color: #667eea;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    a:hover {
+      color: #8a9efb;
+      text-decoration: underline;
+    }
+    
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+  </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="5bd55d4">
+  <meta name="git-commit-date" content="2026-01-31T16:02:58-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Create buildingBricks.html">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+    <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div id="splash-screen">
+    <div class="splash-logo">Building Bricks</div>
+    <div class="splash-subtitle">
+      Molecular-Level 3D World Builder<br/>
+      Interactive • Polymorphic • Detailed
+    </div>
+    <button class="splash-button" onclick="showGallery()">Enter Worlds</button>
+  </div>
+
+  <!-- Gallery Screen -->
+  <div id="gallery-screen">
+    <div class="gallery-header">
+      <div class="gallery-title">World Gallery</div>
+      <div class="gallery-subtitle">Choose a world to explore or create your own molecular universe</div>
+    </div>
+    <div class="gallery-content">
+      <div class="gallery-grid" id="worlds-grid">
+        <!-- Worlds will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Viewport (hidden initially) -->
+  <div id="viewport-container">
+    <canvas id="three-canvas"></canvas>
+  </div>
+
+  <!-- Main Editor UI (hidden initially) -->
+
+  <div id="ui-root">
+    <div id="topbar">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-weight:600;">buildingBricks</span>
+        <span class="badge">Polymorphic World Prototype</span>
+      </div>
+      <div class="pill-group" id="mode-group">
+        <div class="pill active" data-mode="explore">Explore</div>
+        <div class="pill" data-mode="edit-world">Edit World</div>
+        <div class="pill" data-mode="edit-object">Edit Object</div>
+      </div>
+      <div class="pill-group" id="overlay-group">
+        <div class="pill active" data-overlay="final">Final</div>
+        <div class="pill" data-overlay="mesh">Mesh</div>
+        <div class="pill" data-overlay="debug">Debug LOD</div>
+      </div>
+    </div>
+
+    <div id="left-panel">
+      <div class="panel-card">
+        <div class="section-title">Scene</div>
+        <div class="label-row">
+          <span>Environment</span>
+          <span class="small">Hybrid splats + mesh</span>
+        </div>
+        <div class="small">
+          This prototype simulates:
+          <ul style="margin:4px 0 0 16px;padding:0;">
+            <li>Gaussian splat layer (far)</li>
+            <li>Proxy mesh layer (mid)</li>
+            <li>High-detail mesh (near)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel-card secondary">
+        <div class="section-title">Performance budget</div>
+        <div class="label-row">
+          <span>GPU budget</span>
+          <span id="perf-label" class="small mono">Balanced</span>
+        </div>
+        <input id="perf-slider" class="slider" type="range" min="0" max="2" step="1" value="1" />
+        <div class="small">
+          0 = Low (more splats) · 1 = Balanced · 2 = High (more high-detail meshes)
+        </div>
+      </div>
+
+      <div class="panel-card secondary">
+        <div class="section-title">LOD thresholds</div>
+        <div class="label-row">
+          <span>Near → High detail</span>
+          <span id="near-label" class="small mono"></span>
+        </div>
+        <input id="near-slider" class="slider" type="range" min="4" max="20" step="1" value="10" />
+        <div class="label-row" style="margin-top:4px;">
+          <span>Mid → Mesh</span>
+          <span id="mid-label" class="small mono"></span>
+        </div>
+        <input id="mid-slider" class="slider" type="range" min="20" max="80" step="2" value="40" />
+      </div>
+    </div>
+
+    <div id="right-panel">
+      <div class="panel-card">
+        <div class="section-title">Context-aware prompt</div>
+        <div id="prompt-context" class="small" style="margin-bottom:4px;">
+          Mode: <span class="mono">Explore</span> · Prompt will target: <span class="mono">World (style, lighting)</span>
+        </div>
+        <textarea id="prompt-input" placeholder="e.g. “Turn this into a foggy, blue-toned cyberpunk alley at night.”"></textarea>
+        <button id="prompt-apply" class="primary">Simulate AI Edit</button>
+        <div id="prompt-log" class="small" style="margin-top:4px;max-height:80px;overflow:auto;"></div>
+      </div>
+
+      <div class="panel-card secondary">
+        <div class="section-title">Selection</div>
+        <div id="selection-info" class="small">
+          No object selected. Click a brick in Edit Object mode to inspect its polymorphic state.
+        </div>
+      </div>
+
+      <div class="panel-card secondary">
+        <div class="section-title">About this prototype</div>
+        <div class="small">
+          This is a minimal, in-browser sketch of the polymorphic architecture:
+          <ul style="margin:4px 0 0 16px;padding:0;">
+            <li>Each “brick” can render as splats, proxy mesh, or high-detail mesh.</li>
+            <li>Runtime chooses representation per frame based on distance, mode, and budget.</li>
+            <li>Overlay toggles show how LOD and polymorphism behave.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="status-bar">
+      <div class="small mono" id="status-left">
+        Camera: (0, 0, 0)
+      </div>
+      <div class="small mono" id="status-center">
+        Mode: Explore · Overlay: Final · Objects: 0
+      </div>
+      <div class="small mono" id="status-right">
+        FPS: —
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js and OrbitControls from local files -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script>
+    // ------------------------------------------------------------
+    // World Templates & Gallery System
+    // ------------------------------------------------------------
+    
+    const WORLD_TEMPLATES = [
+      {
+        id: 'molecular-forest',
+        name: 'Molecular Forest',
+        description: 'Explore nature at the molecular level. Chop trees for wood, mine rocks for minerals.',
+        theme: 'nature',
+        tags: ['Interactive', 'Resources', 'Molecular'],
+        icon: '🌲',
+        config: {
+          colors: [
+            new THREE.Color('#2d5016'), // Forest green
+            new THREE.Color('#3d6b1f'),
+            new THREE.Color('#4a7c2a'),
+            new THREE.Color('#8b7355'), // Brown
+            new THREE.Color('#654321')
+          ],
+          density: 'high',
+          interactiveObjects: ['tree', 'rock', 'plant']
+        }
+      },
+      {
+        id: 'cyber-city',
+        name: 'Cyber Metropolis',
+        description: 'Futuristic urban environment with interactive buildings and neon structures.',
+        theme: 'urban',
+        tags: ['Cyberpunk', 'Urban', 'Neon'],
+        icon: '🏙️',
+        config: {
+          colors: [
+            new THREE.Color('#667eea'),
+            new THREE.Color('#764ba2'),
+            new THREE.Color('#f093fb'),
+            new THREE.Color('#00ffff'),
+            new THREE.Color('#ff00ff')
+          ],
+          density: 'medium',
+          interactiveObjects: ['building', 'vehicle', 'hologram']
+        }
+      },
+      {
+        id: 'crystal-cavern',
+        name: 'Crystal Cavern',
+        description: 'Mine precious crystals and minerals in this subterranean molecular world.',
+        theme: 'mineral',
+        tags: ['Mining', 'Crystals', 'Underground'],
+        icon: '💎',
+        config: {
+          colors: [
+            new THREE.Color('#4facfe'),
+            new THREE.Color('#00f2fe'),
+            new THREE.Color('#43e97b'),
+            new THREE.Color('#fa709a'),
+            new THREE.Color('#fee140')
+          ],
+          density: 'high',
+          interactiveObjects: ['crystal', 'mineral', 'gem']
+        }
+      },
+      {
+        id: 'quantum-lab',
+        name: 'Quantum Laboratory',
+        description: 'Scientific environment to experiment with molecular structures and physics.',
+        theme: 'scientific',
+        tags: ['Science', 'Experimental', 'Physics'],
+        icon: '⚛️',
+        config: {
+          colors: [
+            new THREE.Color('#ffffff'),
+            new THREE.Color('#e0e0e0'),
+            new THREE.Color('#667eea'),
+            new THREE.Color('#43e97b'),
+            new THREE.Color('#fa709a')
+          ],
+          density: 'low',
+          interactiveObjects: ['molecule', 'atom', 'equipment']
+        }
+      },
+      {
+        id: 'desert-oasis',
+        name: 'Desert Oasis',
+        description: 'Vast desert with rare resources and hidden molecular treasures.',
+        theme: 'desert',
+        tags: ['Exploration', 'Resources', 'Rare'],
+        icon: '🏜️',
+        config: {
+          colors: [
+            new THREE.Color('#f5deb3'),
+            new THREE.Color('#daa520'),
+            new THREE.Color('#cd853f'),
+            new THREE.Color('#8b7355'),
+            new THREE.Color('#6b8e23')
+          ],
+          density: 'low',
+          interactiveObjects: ['cactus', 'stone', 'artifact']
+        }
+      },
+      {
+        id: 'ocean-depths',
+        name: 'Ocean Depths',
+        description: 'Underwater molecular world with coral, minerals, and marine life.',
+        theme: 'ocean',
+        tags: ['Underwater', 'Marine', 'Blue'],
+        icon: '🌊',
+        config: {
+          colors: [
+            new THREE.Color('#006994'),
+            new THREE.Color('#1e90ff'),
+            new THREE.Color('#00bfff'),
+            new THREE.Color('#40e0d0'),
+            new THREE.Color('#48d1cc')
+          ],
+          density: 'medium',
+          interactiveObjects: ['coral', 'shell', 'mineral']
+        }
+      }
+    ];
+    
+    let currentWorld = null;
+    
+    // Initialize gallery
+    function initGallery() {
+      const grid = document.getElementById('worlds-grid');
+      
+      // Add "Create New" card
+      const createCard = document.createElement('div');
+      createCard.className = 'world-card create-new';
+      createCard.innerHTML = `
+        <div style="font-size: 64px; margin-bottom: 16px;">✨</div>
+        <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">Create New World</div>
+        <div style="font-size: 13px; opacity: 0.7; text-align: center; padding: 0 20px;">
+          Generate your own custom molecular environment
+        </div>
+      `;
+      createCard.onclick = () => createNewWorld();
+      grid.appendChild(createCard);
+      
+      // Add template worlds
+      WORLD_TEMPLATES.forEach(world => {
+        const card = document.createElement('div');
+        card.className = 'world-card';
+        card.innerHTML = `
+          <div class="world-thumbnail">
+            <div class="world-thumbnail-icon">${world.icon}</div>
+          </div>
+          <div class="world-info">
+            <div class="world-name">${world.name}</div>
+            <div class="world-description">${world.description}</div>
+            <div class="world-tags">
+              ${world.tags.map(tag => `<span class="world-tag">${tag}</span>`).join('')}
+            </div>
+          </div>
+        `;
+        card.onclick = () => loadWorld(world);
+        grid.appendChild(card);
+      });
+    }
+    
+    // Show gallery from splash screen
+    function showGallery() {
+      const splash = document.getElementById('splash-screen');
+      const gallery = document.getElementById('gallery-screen');
+      
+      splash.classList.add('fade-out');
+      setTimeout(() => {
+        splash.style.display = 'none';
+        gallery.classList.add('active');
+      }, 800);
+    }
+    
+    // Load a world template
+    function loadWorld(world) {
+      currentWorld = world;
+      const gallery = document.getElementById('gallery-screen');
+      const uiRoot = document.getElementById('ui-root');
+      
+      gallery.classList.remove('active');
+      setTimeout(() => {
+        gallery.style.display = 'none';
+        uiRoot.classList.add('active');
+        initThreeScene(world);
+      }, 600);
+    }
+    
+    // Create new world (custom generation)
+    function createNewWorld() {
+      const customWorld = {
+        id: 'custom-' + Date.now(),
+        name: 'Custom World',
+        description: 'Your custom molecular environment',
+        theme: 'custom',
+        tags: ['Custom', 'Generated'],
+        icon: '✨',
+        config: {
+          colors: [
+            new THREE.Color('#667eea'),
+            new THREE.Color('#764ba2'),
+            new THREE.Color('#f093fb'),
+            new THREE.Color('#4facfe'),
+            new THREE.Color('#43e97b')
+          ],
+          density: 'medium',
+          interactiveObjects: ['brick', 'block', 'structure']
+        }
+      };
+      loadWorld(customWorld);
+    }
+    
+    // Initialize gallery on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      initGallery();
+    });
+    
+    // ------------------------------------------------------------
+    // Core types & polymorphic representation
+    // ------------------------------------------------------------
+
+    class RenderContext {
+      constructor(camera, overlayMode, perfBudget, nearThreshold, midThreshold, mode) {
+        this.camera = camera;
+        this.overlayMode = overlayMode; // "final" | "mesh" | "debug"
+        this.perfBudget = perfBudget;   // 0 | 1 | 2
+        this.nearThreshold = nearThreshold;
+        this.midThreshold = midThreshold;
+        this.mode = mode;               // "explore" | "edit-world" | "edit-object"
+      }
+    }
+
+    const LOD = {
+      SPLAT: "splat",
+      MESH: "mesh",
+      HIGH: "high"
+    };
+
+    class Renderable {
+      render(context) {}
+      getLOD(distance, perfBudget) { return LOD.SPLAT; }
+      getBounds() { return new THREE.Box3(); }
+    }
+
+    // ------------------------------------------------------------
+    // Simulated polymorphic "Brick" object
+    // ------------------------------------------------------------
+
+    class Brick extends Renderable {
+      constructor(scene, position, baseColor, objectType = 'brick') {
+        super();
+        this.scene = scene;
+        this.position = position.clone();
+        this.baseColor = baseColor.clone();
+        this.objectType = objectType; // 'brick', 'tree', 'rock', 'crystal', etc.
+        this.resourceYield = this._getResourceYield(objectType);
+        this.health = 100;
+        this.isInteractive = true;
+
+        // Simulated representations
+        this.splatPoints = this._createSplatCloud();
+        this.mesh = this._createProxyMesh();
+        this.highMesh = this._createHighDetailMesh();
+
+        this.currentLOD = null;
+        this.selected = false;
+
+        this.scene.add(this.splatPoints);
+        this.scene.add(this.mesh);
+        this.scene.add(this.highMesh);
+
+        this._setVisible(LOD.SPLAT);
+      }
+      
+      _getResourceYield(type) {
+        const yields = {
+          'tree': { type: 'wood', amount: 5 },
+          'rock': { type: 'stone', amount: 3 },
+          'crystal': { type: 'crystal', amount: 2 },
+          'brick': { type: 'material', amount: 1 }
+        };
+        return yields[type] || { type: 'material', amount: 1 };
+      }
+      
+      // Interact with object (harvest resources)
+      interact() {
+        if (!this.isInteractive || this.health <= 0) return null;
+        
+        this.health -= 25;
+        
+        if (this.health <= 0) {
+          // Object destroyed - return full yield
+          const yield_ = { ...this.resourceYield };
+          this.destroy();
+          return yield_;
+        }
+        
+        // Partial yield
+        return {
+          type: this.resourceYield.type,
+          amount: Math.ceil(this.resourceYield.amount * 0.25)
+        };
+      }
+      
+      destroy() {
+        this.isInteractive = false;
+        // Fade out animation
+        const fadeOut = () => {
+          [this.splatPoints, this.mesh, this.highMesh].forEach(obj => {
+            if (obj.material) {
+              obj.material.opacity = Math.max(0, obj.material.opacity - 0.05);
+              obj.material.transparent = true;
+            }
+          });
+          
+          if (this.splatPoints.material.opacity > 0) {
+            requestAnimationFrame(fadeOut);
+          } else {
+            this.dispose();
+          }
+        };
+        fadeOut();
+      }
+
+      _createSplatCloud() {
+        const geometry = new THREE.BufferGeometry();
+        const count = 120;
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+
+        for (let i = 0; i < count; i++) {
+          const idx = i * 3;
+          positions[idx + 0] = this.position.x + (Math.random() - 0.5) * 1.2;
+          positions[idx + 1] = this.position.y + (Math.random() - 0.5) * 0.8;
+          positions[idx + 2] = this.position.z + (Math.random() - 0.5) * 1.2;
+
+          const jitter = 0.25;
+          colors[idx + 0] = THREE.MathUtils.clamp(this.baseColor.r + (Math.random() - 0.5) * jitter, 0, 1);
+          colors[idx + 1] = THREE.MathUtils.clamp(this.baseColor.g + (Math.random() - 0.5) * jitter, 0, 1);
+          colors[idx + 2] = THREE.MathUtils.clamp(this.baseColor.b + (Math.random() - 0.5) * jitter, 0, 1);
+        }
+
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+          size: 0.08,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false
+        });
+
+        const points = new THREE.Points(geometry, material);
+        return points;
+      }
+
+      _createProxyMesh() {
+        const geometry = new THREE.BoxGeometry(1.2, 0.6, 1.2);
+        const material = new THREE.MeshStandardMaterial({
+          color: this.baseColor,
+          metalness: 0.3,
+          roughness: 0.5,
+          envMapIntensity: 1.0
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(this.position);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        return mesh;
+      }
+
+      _createHighDetailMesh() {
+        const geometry = new THREE.BoxGeometry(1.2, 0.6, 1.2, 6, 3, 6);
+        const material = new THREE.MeshStandardMaterial({
+          color: this.baseColor.clone().offsetHSL(0, 0.1, 0.08),
+          metalness: 0.4,
+          roughness: 0.3,
+          envMapIntensity: 1.2
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(this.position);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        return mesh;
+      }
+
+      _setVisible(lod) {
+        this.splatPoints.visible = (lod === LOD.SPLAT);
+        this.mesh.visible = (lod === LOD.MESH);
+        this.highMesh.visible = (lod === LOD.HIGH);
+        this.currentLOD = lod;
+
+        const highlight = this.selected ? 0.5 : 0.0;
+        const emissiveColor = new THREE.Color("#667eea").multiplyScalar(highlight);
+
+        [this.mesh, this.highMesh].forEach(m => {
+          m.material.emissive = emissiveColor;
+          m.material.emissiveIntensity = this.selected ? 1.2 : 0.0;
+        });
+      }
+
+      getLOD(distance, perfBudget) {
+        // perfBudget: 0 = low, 1 = balanced, 2 = high
+        // We'll bias thresholds slightly based on perfBudget.
+        const bias = perfBudget === 0 ? 1.3 : perfBudget === 2 ? 0.7 : 1.0;
+        const near = window.__LOD_NEAR * bias;
+        const mid = window.__LOD_MID * bias;
+
+        if (distance < near) return LOD.HIGH;
+        if (distance < mid) return LOD.MESH;
+        return LOD.SPLAT;
+      }
+
+      getBounds() {
+        const box = new THREE.Box3();
+        box.setFromObject(this.mesh);
+        return box;
+      }
+
+      render(context) {
+        const distance = context.camera.position.distanceTo(this.position);
+        let lod = this.getLOD(distance, context.perfBudget);
+
+        // In Edit Object mode, bias toward higher detail for selected objects
+        if (context.mode === "edit-object" && this.selected) {
+          lod = LOD.HIGH;
+        }
+
+        // Overlay modes
+        if (context.overlayMode === "mesh") {
+          lod = (lod === LOD.SPLAT) ? LOD.MESH : lod;
+        } else if (context.overlayMode === "debug") {
+          // Color-code by LOD
+          if (lod === LOD.SPLAT) {
+            this.mesh.material.color.set("#4b5563");
+            this.highMesh.material.color.set("#4b5563");
+          } else if (lod === LOD.MESH) {
+            this.mesh.material.color.set("#22c55e");
+            this.highMesh.material.color.set("#22c55e");
+          } else if (lod === LOD.HIGH) {
+            this.mesh.material.color.set("#3b82f6");
+            this.highMesh.material.color.set("#3b82f6");
+          }
+        } else {
+          // Reset to base color in final mode
+          this.mesh.material.color.copy(this.baseColor);
+          this.highMesh.material.color.copy(this.baseColor.clone().offsetHSL(0, 0.1, 0.05));
+        }
+
+        this._setVisible(lod);
+      }
+
+      setSelected(selected) {
+        this.selected = selected;
+      }
+
+      dispose() {
+        this.scene.remove(this.splatPoints);
+        this.scene.remove(this.mesh);
+        this.scene.remove(this.highMesh);
+      }
+    }
+
+    // ------------------------------------------------------------
+    // Scene setup (wrapped in function for world loading)
+    // ------------------------------------------------------------
+    
+    // Global variables
+    let canvas, renderer, scene, camera, controls;
+    let bricks = [];
+    let currentMode = "explore";
+    let overlayMode = "final";
+    let perfBudget = 1;
+    let selectedBrick = null;
+    let playerInventory = {};
+    
+    function initThreeScene(world) {
+      // Check if THREE.js is loaded
+      if (typeof THREE === 'undefined') {
+        console.error("THREE.js library not loaded. Please check script tags.");
+        return;
+      }
+      
+      // Clear previous scene if exists
+      if (scene) {
+        bricks.forEach(brick => brick.dispose());
+        bricks = [];
+      }
+      
+      canvas = document.getElementById("three-canvas");
+      
+      if (!canvas) {
+        console.error("Canvas element 'three-canvas' not found");
+        return;
+      }
+      
+      if (!renderer) {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      }
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color("#000000");
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+      camera.position.set(12, 8, 18);
+
+      if (!controls) {
+        // Check if OrbitControls exists
+        if (!THREE.OrbitControls) {
+          console.error("THREE.OrbitControls not found. Make sure OrbitControls.js is loaded.");
+          return;
+        }
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI * 0.48;
+      }
+      controls.target.set(0, 1, 0);
+      controls.update();
+
+      // Lights - Enhanced cinematic lighting
+      const ambientLight = new THREE.AmbientLight("#ffffff", 0.3);
+      scene.add(ambientLight);
+
+      const hemi = new THREE.HemisphereLight("#8a9ba8", "#1a1f2e", 0.6);
+      scene.add(hemi);
+
+      const dir = new THREE.DirectionalLight("#ffffff", 1.2);
+      dir.position.set(10, 15, 8);
+      dir.castShadow = true;
+      dir.shadow.camera.near = 0.5;
+      dir.shadow.camera.far = 50;
+      dir.shadow.camera.left = -30;
+      dir.shadow.camera.right = 30;
+      dir.shadow.camera.top = 30;
+      dir.shadow.camera.bottom = -30;
+      dir.shadow.mapSize.width = 2048;
+      dir.shadow.mapSize.height = 2048;
+      dir.shadow.bias = -0.0001;
+      scene.add(dir);
+
+      // Add rim light for depth
+      const rimLight = new THREE.DirectionalLight("#667eea", 0.5);
+      rimLight.position.set(-8, 3, -10);
+      scene.add(rimLight);
+
+      // Add point lights for atmosphere
+      const pointLight1 = new THREE.PointLight("#667eea", 0.8, 30);
+      pointLight1.position.set(-15, 5, -15);
+      scene.add(pointLight1);
+
+      const pointLight2 = new THREE.PointLight("#764ba2", 0.6, 25);
+      pointLight2.position.set(15, 4, 15);
+      scene.add(pointLight2);
+
+      // Ground plane - Enhanced with better material
+      const groundGeo = new THREE.PlaneGeometry(100, 100, 50, 50);
+      const groundMat = new THREE.MeshStandardMaterial({
+        color: "#0a0e1a",
+        metalness: 0.1,
+        roughness: 0.8,
+        envMapIntensity: 0.5
+      });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.position.y = 0;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Add subtle grid lines for depth perception
+      const gridHelper = new THREE.GridHelper(100, 50, "#667eea", "#1a1f2e");
+      gridHelper.material.opacity = 0.15;
+      gridHelper.material.transparent = true;
+      scene.add(gridHelper);
+
+      // Fog - Enhanced atmosphere
+      scene.fog = new THREE.FogExp2("#000000", 0.02);
+
+      // ------------------------------------------------------------
+      // Create a grid of polymorphic bricks using world config
+      // ------------------------------------------------------------
+
+      const colors = world.config.colors;
+      const objectTypes = world.config.interactiveObjects;
+      const densityMultiplier = world.config.density === 'high' ? 1.2 : world.config.density === 'low' ? 0.7 : 1.0;
+      
+      const gridSize = Math.floor(6 * densityMultiplier);
+      const spacing = 3.0;
+
+      for (let x = -gridSize; x <= gridSize; x++) {
+        for (let z = -gridSize; z <= gridSize; z++) {
+          const pos = new THREE.Vector3(x * spacing, 0.6, z * spacing);
+          const color = colors[(Math.abs(x) + Math.abs(z)) % colors.length];
+          const objectType = objectTypes[Math.floor(Math.random() * objectTypes.length)];
+          const brick = new Brick(scene, pos, color, objectType);
+          bricks.push(brick);
+        }
+      }
+      
+      // Display world name in UI
+      document.querySelector('#topbar .badge').textContent = world.name;
+      
+      // Initialize UI if not already done
+      if (!window.uiInitialized) {
+        initUI();
+        window.uiInitialized = true;
+      }
+      
+      // Start animation loop if not already running
+      if (!window.animationRunning) {
+        animate();
+        window.animationRunning = true;
+      }
+    }
+
+    // ------------------------------------------------------------
+    // UI wiring (initialize after scene loads)
+    // ------------------------------------------------------------
+
+    function initUI() {
+      const modeGroup = document.getElementById("mode-group");
+      const overlayGroup = document.getElementById("overlay-group");
+      const perfSlider = document.getElementById("perf-slider");
+      const perfLabel = document.getElementById("perf-label");
+      const nearSlider = document.getElementById("near-slider");
+      const midSlider = document.getElementById("mid-slider");
+      const nearLabel = document.getElementById("near-label");
+      const midLabel = document.getElementById("mid-label");
+      const statusLeft = document.getElementById("status-left");
+      const statusCenter = document.getElementById("status-center");
+      const statusRight = document.getElementById("status-right");
+      const promptContext = document.getElementById("prompt-context");
+      const promptInput = document.getElementById("prompt-input");
+      const promptApply = document.getElementById("prompt-apply");
+      const promptLog = document.getElementById("prompt-log");
+      const selectionInfo = document.getElementById("selection-info");
+
+      // Add null checks for sliders before accessing their values
+      if (!nearSlider || !midSlider) {
+        console.error("LOD sliders not found in DOM");
+        // Set default values if sliders are missing
+        window.__LOD_NEAR = 10.0;
+        window.__LOD_MID = 40.0;
+      } else {
+        window.__LOD_NEAR = parseFloat(nearSlider.value);
+        window.__LOD_MID = parseFloat(midSlider.value);
+      }
+
+      function updatePerfLabel() {
+        if (!perfLabel) return;
+        const labels = ["Low", "Balanced", "High"];
+        perfLabel.textContent = labels[perfBudget] || "Balanced";
+      }
+
+      function updateLODLabels() {
+        if (nearLabel && window.__LOD_NEAR !== undefined) {
+          nearLabel.textContent = `${window.__LOD_NEAR.toFixed(1)} u`;
+        }
+        if (midLabel && window.__LOD_MID !== undefined) {
+          midLabel.textContent = `${window.__LOD_MID.toFixed(1)} u`;
+        }
+      }
+
+      updatePerfLabel();
+      updateLODLabels();
+
+    if (modeGroup) {
+      modeGroup.addEventListener("click", (e) => {
+      const pill = e.target.closest(".pill");
+      if (!pill) return;
+      modeGroup.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      currentMode = pill.dataset.mode;
+
+      let targetText = "";
+      if (currentMode === "explore") {
+        targetText = "World (style, lighting)";
+      } else if (currentMode === "edit-world") {
+        targetText = "World regions (materials, layout)";
+      } else {
+        targetText = "Selected object (material, replacement)";
+      }
+
+      if (promptContext) {
+        promptContext.innerHTML = `Mode: <span class="mono">${pill.textContent}</span> · Prompt will target: <span class="mono">${targetText}</span>`;
+      }
+      updateStatusCenter();
+    });
+    }
+
+    if (overlayGroup) {
+      overlayGroup.addEventListener("click", (e) => {
+      const pill = e.target.closest(".pill");
+      if (!pill) return;
+      overlayGroup.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      overlayMode = pill.dataset.overlay;
+      updateStatusCenter();
+    });
+    }
+
+    if (perfSlider) {
+      perfSlider.addEventListener("input", () => {
+        perfBudget = parseInt(perfSlider.value, 10);
+        updatePerfLabel();
+      });
+    }
+
+    if (nearSlider) {
+      nearSlider.addEventListener("input", () => {
+        window.__LOD_NEAR = parseFloat(nearSlider.value);
+        updateLODLabels();
+      });
+    }
+
+    if (midSlider) {
+      midSlider.addEventListener("input", () => {
+        window.__LOD_MID = parseFloat(midSlider.value);
+        updateLODLabels();
+      });
+    }
+
+    if (promptApply && promptInput && promptLog) {
+      promptApply.addEventListener("click", () => {
+        const text = promptInput.value.trim();
+        if (!text) return;
+        const time = new Date().toLocaleTimeString();
+        const modeLabel = currentMode === "explore"
+          ? "World-style"
+          : currentMode === "edit-world"
+          ? "World-structural"
+          : "Object-local";
+
+        const entry = document.createElement("div");
+        entry.innerHTML = `<span class="mono">[${time}]</span> <span class="badge">${modeLabel}</span> ${text}`;
+        promptLog.prepend(entry);
+        promptInput.value = "";
+      });
+    }
+
+      // ------------------------------------------------------------
+      // Raycasting for object selection and interaction
+      // ------------------------------------------------------------
+
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      function onPointerDown(event) {
+        if (!renderer || !camera) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        mouse.set(x * 2 - 1, -(y * 2 - 1));
+
+        raycaster.setFromCamera(mouse, camera);
+
+        // We raycast against the proxy meshes (mid LOD) for simplicity
+        const meshObjects = bricks.filter(b => b.isInteractive).map(b => b.mesh);
+        const intersects = raycaster.intersectObjects(meshObjects, false);
+
+        if (intersects.length > 0) {
+          const mesh = intersects[0].object;
+          const brick = bricks.find(b => b.mesh === mesh);
+          if (brick) {
+            if (currentMode === "edit-object") {
+              // Selection mode
+              if (selectedBrick) selectedBrick.setSelected(false);
+              selectedBrick = brick;
+              selectedBrick.setSelected(true);
+              updateSelectionInfo();
+            } else if (currentMode === "explore") {
+              // Interaction mode - gather resources
+              const yield_ = brick.interact();
+              if (yield_) {
+                playerInventory[yield_.type] = (playerInventory[yield_.type] || 0) + yield_.amount;
+                showResourceGained(yield_);
+                updateInventoryDisplay();
+              }
+            }
+          }
+        } else {
+          if (selectedBrick && currentMode === "edit-object") {
+            selectedBrick.setSelected(false);
+            selectedBrick = null;
+            updateSelectionInfo();
+          }
+        }
+      }
+
+      renderer.domElement.addEventListener("pointerdown", onPointerDown);
+
+      function showResourceGained(yield_) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+          padding: 20px 40px;
+          border-radius: 12px;
+          font-size: 18px;
+          font-weight: 600;
+          color: white;
+          z-index: 10000;
+          pointer-events: none;
+          animation: fadeInOut 2s ease-in-out;
+        `;
+        notification.textContent = `+${yield_.amount} ${yield_.type}`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => document.body.removeChild(notification), 2000);
+      }
+      
+      function updateInventoryDisplay() {
+        const inventoryText = Object.entries(playerInventory)
+          .map(([type, amount]) => `${type}: ${amount}`)
+          .join(' | ') || 'Empty';
+        
+        // Add inventory display to status bar
+        const statusLeft = document.getElementById('status-left');
+        if (statusLeft) {
+          statusLeft.innerHTML = `
+            <div>Camera: (${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})</div>
+            <div style="margin-top: 4px; opacity: 0.8;">📦 Inventory: ${inventoryText}</div>
+          `;
+        }
+      }
+
+      function updateSelectionInfo() {
+        if (!selectedBrick) {
+          selectionInfo.innerHTML = `
+            <strong>No object selected.</strong><br/>
+            <span style="opacity: 0.8;">
+              • In <strong>Explore</strong> mode: Click objects to gather resources<br/>
+              • In <strong>Edit Object</strong> mode: Click to inspect molecular structure
+            </span>
+          `;
+          return;
+        }
+        const pos = selectedBrick.position;
+        selectionInfo.innerHTML = `
+          <strong>Selected:</strong> ${selectedBrick.objectType}<br/>
+          Position: <span class="mono">(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})</span><br/>
+          Health: <span class="mono">${selectedBrick.health}%</span><br/>
+          Resource: <span class="mono">${selectedBrick.resourceYield.amount}x ${selectedBrick.resourceYield.type}</span><br/>
+          LOD: <span class="mono">${selectedBrick.currentLOD}</span><br/>
+          <span style="opacity: 0.7; font-size: 11px;">High-detail rendering active in Edit Object mode</span>
+        `;
+      }
+      
+      // Initialize status display
+      updateSelectionInfo();
+      updateInventoryDisplay();
+    } // End initUI()
+
+    // ------------------------------------------------------------
+    // Resize handling
+    // ------------------------------------------------------------
+
+    function onWindowResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener("resize", onWindowResize);
+
+    // ------------------------------------------------------------
+    // Animation loop
+    // ------------------------------------------------------------
+
+    let lastTime = performance.now();
+    let fps = 0;
+
+    function updateStatusCenter() {
+      const statusCenter = document.getElementById("status-center");
+      if (!statusCenter) return;
+      
+      const modeLabel = currentMode === "explore"
+        ? "Explore"
+        : currentMode === "edit-world"
+        ? "Edit World"
+        : "Edit Object";
+      const overlayLabel = overlayMode.charAt(0).toUpperCase() + overlayMode.slice(1);
+      statusCenter.textContent = `Mode: ${modeLabel} · Overlay: ${overlayLabel} · Objects: ${bricks.length}`;
+    }
+
+    function animate() {
+      if (!scene || !camera || !renderer) return;
+      
+      requestAnimationFrame(animate);
+
+      const now = performance.now();
+      const delta = now - lastTime;
+      fps = 1000 / delta;
+      lastTime = now;
+
+      if (controls) controls.update();
+
+      const ctx = new RenderContext(
+        camera,
+        overlayMode,
+        perfBudget,
+        window.__LOD_NEAR,
+        window.__LOD_MID,
+        currentMode
+      );
+
+      for (const brick of bricks) {
+        brick.render(ctx);
+      }
+
+      renderer.render(scene, camera);
+
+      // Status bar updates
+      const statusLeft = document.getElementById("status-left");
+      const statusRight = document.getElementById("status-right");
+      
+      if (statusLeft && camera) {
+        const cp = camera.position;
+        const inventoryText = Object.entries(playerInventory)
+          .map(([type, amount]) => `${type}: ${amount}`)
+          .join(' | ') || 'Empty';
+        statusLeft.innerHTML = `
+          <div>Camera: (${cp.x.toFixed(1)}, ${cp.y.toFixed(1)}, ${cp.z.toFixed(1)})</div>
+          <div style="margin-top: 4px; opacity: 0.8;">📦 Inventory: ${inventoryText}</div>
+        `;
+      }
+      
+      if (statusRight) {
+        statusRight.textContent = `FPS: ${fps.toFixed(1)}`;
+      }
+    }
+  </script>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+                
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

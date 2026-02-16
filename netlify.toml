@@ -1,11 +1,45 @@
+# Netlify Configuration for Barbrick Design Repository
+# This configuration allows the entire repository to be deployed to Netlify
+# https://app.netlify.com/
+
 [build]
+  # Publish directory - the entire repository
   publish = "."
+  
+  # Build command - install dependencies and run any build steps
+  command = "npm install && npm run build"
+  
+  # Functions directory for serverless functions
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "18"
+  
+  # NPM version
+  NPM_VERSION = "9"
 
-# Security Headers for all pages
+# Redirects and rewrites
+# Handle SPA routing - all routes should serve index.html
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+  conditions = {Role = ["admin"]}
+
+# Default redirect for non-API routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -13,32 +47,10 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=()"
-    # Content Security Policy
-    Content-Security-Policy = """
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://js.stripe.com https://unpkg.com;
-      style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com;
-      img-src 'self' data: https: blob:;
-      font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.anthropic.com https://api.deepseek.com https://api.openai.com;
-      frame-src 'self' https://js.stripe.com;
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      frame-ancestors 'self';
-      upgrade-insecure-requests;
-    """
-    # Strict Transport Security (HSTS)
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.paypal.com https://www.paypalobjects.com https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https: wss: ws:; frame-src 'self' https://www.paypal.com;"
 
-# Cache control for HTML files
-[[headers]]
-  for = "/*.html"
-  [headers.values]
-    Cache-Control = "no-cache, must-revalidate"
-
-# Cache control for static assets
+# Cache static assets
 [[headers]]
   for = "/css/*"
   [headers.values]
@@ -50,31 +62,36 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/icons/*"
+  for = "/images/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Markdown files (for robot site map discovery)
 [[headers]]
-  for = "/*.md"
+  for = "*.html"
   [headers.values]
-    Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=3600"
-    Access-Control-Allow-Origin = "*"
 
-# Redirects for cleaner URLs
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# Deploy contexts for different environments
+[context.production]
+  command = "npm install && npm run build"
+  [context.production.environment]
+    NODE_ENV = "production"
 
-# Redirect old Araya to new version
-[[redirects]]
-  from = "/araya-light-mvp.html"
-  to = "/araya-chat.html"
-  status = 301
+[context.deploy-preview]
+  command = "npm install && npm run build"
+  [context.deploy-preview.environment]
+    NODE_ENV = "development"
 
-[[redirects]]
-  from = "/araya-light-mvp"
-  to = "/araya-chat.html"
-  status = 301
+[context.branch-deploy]
+  command = "npm install && npm run build"
+
+# Dev command for local development
+[dev]
+  command = "npm run dev"
+  port = 3000
+  targetPort = 3000
+  framework = "#static"
+  
+# Plugin configuration
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"

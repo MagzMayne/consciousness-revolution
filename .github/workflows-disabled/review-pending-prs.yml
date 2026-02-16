@@ -1,0 +1,280 @@
+name: Review Pending PRs
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Specific PR number to review (optional)'
+        required: false
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  review-pending:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: List open PRs
+        id: list-prs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prs = [];
+            
+            // If specific PR number provided
+            if ('${{ inputs.pr_number }}') {
+              const prNumber = parseInt('${{ inputs.pr_number }}');
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              prs = pr.state === 'open' ? [pr] : [];
+            } else {
+              // Get all open PRs
+              const { data: allPrs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100
+              });
+              prs = allPrs;
+            }
+            
+            console.log(`Found ${prs.length} open PR(s)`);
+            
+            // Filter out draft PRs
+            const nonDraftPrs = prs.filter(pr => !pr.draft);
+            
+            console.log(`Found ${nonDraftPrs.length} non-draft PR(s)`);
+            
+            core.setOutput('pr_count', nonDraftPrs.length);
+            core.setOutput('pr_numbers', JSON.stringify(nonDraftPrs.map(pr => pr.number)));
+            
+            return nonDraftPrs;
+      
+      - name: Process each PR
+        if: steps.list-prs.outputs.pr_count > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumbers = JSON.parse('${{ steps.list-prs.outputs.pr_numbers }}');
+            
+            console.log(`Processing ${prNumbers.length} PR(s)...`);
+            
+            for (const prNumber of prNumbers) {
+              console.log(`\n===== Processing PR #${prNumber} =====`);
+              
+              try {
+                // Get PR details
+                const { data: pr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                
+                console.log(`PR: ${pr.title}`);
+                console.log(`Author: ${pr.user.login}`);
+                console.log(`State: ${pr.state}`);
+                console.log(`Mergeable: ${pr.mergeable}`);
+                
+                // Check if already approved
+                const { data: reviews } = await github.rest.pulls.listReviews({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                
+                const hasApproval = reviews.some(review => review.state === 'APPROVED');
+                
+                if (hasApproval) {
+                  console.log('✅ PR already has approval');
+                  
+                  // Check if merged
+                  if (pr.merged) {
+                    console.log('✅ PR already merged');
+                    continue;
+                  }
+                  
+                  // Try to merge if not merged yet
+                  if (pr.mergeable && pr.state === 'open') {
+                    try {
+                      await github.rest.pulls.merge({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: prNumber,
+                        commit_title: `Merge PR #${prNumber}: ${pr.title}`,
+                        commit_message: 'Automatically merged by scheduled review workflow',
+                        merge_method: 'squash'
+                      });
+                      console.log('✅ PR merged successfully');
+                    } catch (mergeError) {
+                      console.log('⚠️ Could not merge PR:', mergeError.message);
+                    }
+                  }
+                  continue;
+                }
+                
+                // Get files
+                const { data: files } = await github.rest.pulls.listFiles({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+                
+                console.log(`Files changed: ${files.length}`);
+                
+                // Validation
+                const validationResults = {
+                  passed: true,
+                  checks: [],
+                  issues: []
+                };
+                
+                // Check 1: Has files
+                if (files.length === 0) {
+                  validationResults.passed = false;
+                  validationResults.issues.push('No files changed');
+                } else {
+                  validationResults.checks.push(`${files.length} files changed`);
+                }
+                
+                // Check 2: No sensitive files
+                const sensitivePatterns = ['.env', 'secret', 'password', 'token', 'key'];
+                const hasSensitiveFiles = files.some(file => 
+                  sensitivePatterns.some(pattern => 
+                    file.filename.toLowerCase().includes(pattern)
+                  )
+                );
+                
+                if (hasSensitiveFiles) {
+                  validationResults.passed = false;
+                  validationResults.issues.push('Contains sensitive files');
+                } else {
+                  validationResults.checks.push('No sensitive files');
+                }
+                
+                // Check 3: Status checks
+                const { data: checks } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: pr.head.sha
+                });
+                
+                const allPassed = checks.check_runs
+                  .filter(check => !check.name.includes('Review Pending PRs'))
+                  .every(check => 
+                    check.status === 'completed' && 
+                    check.conclusion === 'success'
+                  );
+                
+                if (checks.check_runs.length > 0 && !allPassed) {
+                  validationResults.passed = false;
+                  validationResults.issues.push('Status checks failed or pending');
+                } else {
+                  validationResults.checks.push('Status checks passed');
+                }
+                
+                // Check 4: PR is mergeable
+                if (!pr.mergeable) {
+                  validationResults.passed = false;
+                  validationResults.issues.push('PR has merge conflicts');
+                } else {
+                  validationResults.checks.push('No merge conflicts');
+                }
+                
+                console.log('Validation results:', validationResults);
+                
+                if (validationResults.passed) {
+                  // Approve PR
+                  const reviewBody = '✅ **Automated Review (Scheduled)**\n\n' +
+                    'This PR has been automatically reviewed and validated.\n\n' +
+                    '**Validation Checks:**\n' +
+                    validationResults.checks.map(check => `- ✅ ${check}`).join('\n') + '\n\n' +
+                    'All checks passed. Approving for merge.\n\n' +
+                    '---\n' +
+                    '*Automated by GitHub Actions - Scheduled Review Workflow*';
+
+                  await github.rest.pulls.createReview({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    event: 'APPROVE',
+                    body: reviewBody
+                  });
+                  
+                  console.log('✅ PR approved');
+                  
+                  // Wait a moment
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                  
+                  // Try to merge
+                  if (pr.mergeable) {
+                    try {
+                      await github.rest.pulls.merge({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: prNumber,
+                        commit_title: `Merge PR #${prNumber}: ${pr.title}`,
+                        commit_message: 'Automatically merged by scheduled review workflow',
+                        merge_method: 'squash'
+                      });
+                      console.log('✅ PR merged successfully');
+                    } catch (mergeError) {
+                      console.log('⚠️ Could not merge PR:', mergeError.message);
+                      
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: prNumber,
+                        body: '✅ Auto-review approved but merge failed. Please check branch protection rules or merge manually.'
+                      });
+                    }
+                  }
+                } else {
+                  // Comment on issues
+                  const commentBody = '⚠️ **Automated Review Issues (Scheduled)**\n\n' +
+                    'This PR did not pass automated validation checks.\n\n' +
+                    '**Issues Found:**\n' +
+                    validationResults.issues.map(issue => `- ❌ ${issue}`).join('\n') + '\n\n' +
+                    'Please address these issues for automatic approval.\n\n' +
+                    '---\n' +
+                    '*Automated by GitHub Actions - Scheduled Review Workflow*';
+
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    body: commentBody
+                  });
+                  
+                  console.log('❌ Validation failed, comment added');
+                }
+                
+              } catch (error) {
+                console.error(`Error processing PR #${prNumber}:`, error);
+                continue;
+              }
+            }
+            
+            console.log('\n===== Processing complete =====');
+      
+      - name: Summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prCount = '${{ steps.list-prs.outputs.pr_count }}';
+            
+            console.log(`\n📊 Summary:`);
+            console.log(`- Total PRs processed: ${prCount}`);
+            console.log(`✅ Scheduled review workflow completed`);
