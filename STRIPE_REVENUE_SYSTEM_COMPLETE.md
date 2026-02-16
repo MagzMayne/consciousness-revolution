@@ -213,7 +213,7 @@ netlify deploy --prod --dir=.
 
 **URL:** https://dashboard.stripe.com
 **Login:** darrickpreble@proton.me
-**Password:** Kill50780630#
+**Password:** [Use password manager - contact Commander for access]
 
 **Key Sections:**
 - **Products:** https://dashboard.stripe.com/products (view your 3 products)

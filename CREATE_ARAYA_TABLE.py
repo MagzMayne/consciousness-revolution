@@ -3,13 +3,20 @@
 
 import psycopg2
 import os
+import sys
 
 # Supabase connection details
-DB_HOST = "db.lgibygzcbvrrykfaxvbg.supabase.co"
-DB_PORT = 5432
-DB_NAME = "postgres"
-DB_USER = "postgres"
-DB_PASSWORD = "G3EONIIXPXKI6HLGVKR4HYYPZU4OIFFN"
+DB_HOST = os.environ.get('SUPABASE_DB_HOST', 'db.lgibygzcbvrrykfaxvbg.supabase.co')
+DB_PORT = int(os.environ.get('SUPABASE_DB_PORT', '5432'))
+DB_NAME = os.environ.get('SUPABASE_DB_NAME', 'postgres')
+DB_USER = os.environ.get('SUPABASE_DB_USER', 'postgres')
+DB_PASSWORD = os.environ.get('SUPABASE_DB_PASSWORD')
+
+if not DB_PASSWORD:
+    print("ERROR: SUPABASE_DB_PASSWORD environment variable not set!")
+    print("Please set: export SUPABASE_DB_PASSWORD='your_password'")
+    print("Or use the Supabase connection string from your dashboard")
+    sys.exit(1)
 
 # SQL to create the table
 SQL = """

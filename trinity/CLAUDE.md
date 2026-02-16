@@ -508,11 +508,13 @@ sqlite3 .consciousness/cyclotron_core/atoms.db "SELECT * FROM atoms WHERE conten
 
 | Service | Login | Password |
 |---------|-------|----------|
-| Namecheap | darrickpreble | Kill50780630# |
-| GitHub | overkillkulture | Kill50780630# |
+| Namecheap | darrickpreble | [Use password manager] |
+| GitHub | overkillkulture | [Use password manager] |
 | Gmail | darrick.preble@gmail.com | [app password in .env.gmail] |
-| Claude | darrickpreble@proton.me | Kill50780630# |
-| Commander | commander@100xbuilder.io | Kill50780630# |
+| Claude | darrickpreble@proton.me | [Use password manager] |
+| Commander | commander@100xbuilder.io | [Use password manager] |
+
+**⚠️ SECURITY NOTE:** All passwords are stored in the team's password manager. Never commit credentials to the repository.
 
 ---
 
