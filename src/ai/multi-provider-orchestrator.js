@@ -764,10 +764,24 @@ class MultiProviderAIOrchestrator {
                     provider: 'mock'
                 };
             
-            default:
+            case 'audio':
+                // Mock audio transcription response
                 return {
-                    error: 'Mock response not implemented for this task type',
+                    text: '[Mock transcription] No API keys configured. To transcribe audio, add a Groq API key for free transcription using Whisper.',
+                    model: 'mock',
                     provider: 'mock'
+                };
+            
+            default:
+                // Provide a generic mock response for unknown task types
+                console.warn(`Unknown task type "${taskType}" - returning generic mock response`);
+                return {
+                    success: false,
+                    message: `Mock response for task type: ${taskType}`,
+                    data: null,
+                    error: `No mock implementation available for "${taskType}". Please configure API keys for real provider access.`,
+                    provider: 'mock',
+                    supportedTypes: ['chat', 'image', 'embeddings', 'audio']
                 };
         }
     }
