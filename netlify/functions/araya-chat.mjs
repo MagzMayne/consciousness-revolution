@@ -30,6 +30,10 @@ async function loadSupabase() {
     return _supabaseClient;
 }
 
+// Global Supabase config (used by multiple functions for REST API calls)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
