@@ -9,7 +9,26 @@
 // NOW WITH IMAGE STORAGE - Store and recall images for case building!
 // NOW WITH CASE BUILDER - Create cases, timelines, link evidence!
 
-import { createClient } from '@supabase/supabase-js';
+// Lazy-load Supabase to avoid crash if module unavailable
+let _supabaseClient = null;
+let _supabaseLoaded = false;
+
+async function loadSupabase() {
+    if (_supabaseLoaded) return _supabaseClient;
+    _supabaseLoaded = true;
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+        if (SUPABASE_URL && SUPABASE_KEY) {
+            _supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('[ARAYA] Supabase client initialized');
+        }
+    } catch (e) {
+        console.log('[ARAYA] Supabase module not available - image/memory features disabled');
+    }
+    return _supabaseClient;
+}
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -83,24 +102,17 @@ async function proxyToRailway(requestBody) {
     }
 }
 // ═══════════════════════════════════════════════════════════════
-// SUPABASE CLIENT - For Image & Case Storage
+// SUPABASE CLIENT - For Image & Case Storage (lazy-loaded above)
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
-
-function getSupabase() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-        console.log('Supabase not configured - image storage disabled');
-        return null;
-    }
-    return createClient(SUPABASE_URL, SUPABASE_KEY);
+async function getSupabase() {
+    return await loadSupabase();
 }
 
 // ═══════════════════════════════════════════════════════════════
 // IMAGE STORAGE - Store images for case building
 // ═══════════════════════════════════════════════════════════════
 async function storeImageToSupabase(userId, imageData, description, mimeType = 'image/png') {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         console.log('Cannot store image: Supabase not configured or no user_id');
         return null;
@@ -150,7 +162,7 @@ async function storeImageToSupabase(userId, imageData, description, mimeType = '
 
 // Function to recall user's images
 async function recallUserImages(userId, query = null, limit = 10) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -188,7 +200,7 @@ async function recallUserImages(userId, query = null, limit = 10) {
 
 // Create a new case
 async function createCase(userId, caseName, caseType = null, opposingParty = null, courtName = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         console.log('Cannot create case: Supabase not configured or no user_id');
         return null;
@@ -223,7 +235,7 @@ async function createCase(userId, caseName, caseType = null, opposingParty = nul
 
 // List user's cases
 async function listUserCases(userId, status = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -255,7 +267,7 @@ async function listUserCases(userId, status = null) {
 
 // Get a specific case with all details
 async function getCase(userId, caseId) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -282,7 +294,7 @@ async function getCase(userId, caseId) {
 
 // Add event to case timeline
 async function addCaseEvent(userId, caseId, eventData) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -322,7 +334,7 @@ async function addCaseEvent(userId, caseId, eventData) {
 
 // Get case timeline
 async function getCaseTimeline(userId, caseId) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -349,7 +361,7 @@ async function getCaseTimeline(userId, caseId) {
 
 // Add document to case
 async function addCaseDocument(userId, caseId, docData) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -384,7 +396,7 @@ async function addCaseDocument(userId, caseId, docData) {
 
 // Link an image to a case
 async function linkImageToCase(userId, imageId, caseId, eventId = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return false;
     }
@@ -428,7 +440,7 @@ async function linkImageToCase(userId, imageId, caseId, eventId = null) {
 
 // Update case summary
 async function updateCaseSummary(userId, caseId, summary) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return false;
     }
