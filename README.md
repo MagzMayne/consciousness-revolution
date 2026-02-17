@@ -85,11 +85,18 @@ This platform exists to support YOU in:
 **Ready to discover YOUR path?** Every journey begins with a single step:
 
 1. **[Main Portal](index.html)** - Enter YOUR personal 7 Sacred Chambers
-2. **[Consciousness Tools](consciousness-tools.html)** - Tools for YOUR self-discovery
-3. **[Seven Domains Dashboard](SEVEN_DOMAINS_DASHBOARD.html)** - Explore at YOUR pace
-4. **[Self-Discovery Course](pattern-recognition-course.html)** - Learn to see YOUR path clearly
+2. **[Life Journey Explorer](life-journey-explorer.html)** - 🌟 **NEW!** Discover YOUR unique path and calling
+3. **[Journey Dashboard](journey-dashboard.html)** - Track YOUR personal evolution and progress
+4. **[Consciousness Tools](consciousness-tools.html)** - Tools for YOUR self-discovery
+5. **[Seven Domains Dashboard](SEVEN_DOMAINS_DASHBOARD.html)** - Explore at YOUR pace
+6. **[Self-Discovery Course](pattern-recognition-course.html)** - Learn to see YOUR path clearly
 
 ### 🌟 Featured Tools for Your Journey
+
+**Life Journey & Path Discovery (NEW!):**
+- 🌟 **[Life Journey Explorer](life-journey-explorer.html)** - Discover YOUR unique phase, callings, and personalized path
+- 📊 **[Journey Dashboard](journey-dashboard.html)** - Track YOUR evolution and see YOUR progress over time
+- 🧭 **[Journey Tracker](js/journey-tracker.js)** - Automatic progress tracking and milestone celebration
 
 **Self-Creation & Discovery:**
 - 🧘 **[Daily Consciousness Check](DAILY_CONSCIOUSNESS_CHECK.html)** - Connect with YOUR authentic self daily
