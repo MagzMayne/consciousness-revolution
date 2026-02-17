@@ -205,7 +205,7 @@ class StateSnapshot:
 class VerificationResult:
     """
     Verification result - outcome of constraint checking
-    Schema: 3.4 from specification
+    Schema: 3.4 from specification (extended with probabilistic analysis)
     """
     task_id: str
     step_id: int
@@ -214,6 +214,12 @@ class VerificationResult:
     reasons: List[str] = field(default_factory=list)
     violated_constraints: List[str] = field(default_factory=list)
     suggested_fixes: List[Any] = field(default_factory=list)
+    
+    # Extended: Probabilistic validation
+    probabilistic_analysis: Optional[Dict[str, Any]] = None
+    
+    # Extended: Failure mode analysis
+    failure_mode_analysis: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

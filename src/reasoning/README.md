@@ -416,8 +416,10 @@ sys.path.insert(0, '..')
 - [x] State Manager
 - [x] Protocol Agent
 
-### ✅ Phase 2: Reasoning Loop (Partial)
+### ✅ Phase 2: Reasoning Loop (Enhanced)
 - [x] Reasoning Compiler
+- [x] **Probabilistic Validator** (NEW)
+- [x] **Failure Mode Analyzer** (NEW)
 - [ ] LLM Orchestrator (planned)
 - [ ] Planner Agent (planned)
 - [ ] Solver Agent (planned)
@@ -429,6 +431,181 @@ sys.path.insert(0, '..')
 - [ ] Scheduling Domain Pack
 - [ ] Relationships Domain Pack
 - [ ] Workflow Domain Pack
+
+## Enhanced Validation System
+
+### Probabilistic Validation Layer
+
+The system now includes a **probabilistic validation layer** that wraps deterministic constraints with probability estimation, acknowledging that "validation reduces error probability but does not guarantee correctness."
+
+#### Key Philosophy
+- Real software has architecture tradeoffs, side effects, race conditions, memory issues
+- Constraint surfaces become enormous in production systems  
+- Human intuition and failure mode anticipation are critical
+- Experienced engineers simulate mentally: "What if this runs concurrently?"
+
+#### ProbabilisticValidator Features
+
+**Located in**: `src/reasoning/probabilistic_validator.py`
+
+```python
+from reasoning.probabilistic_validator import ProbabilisticValidator
+
+validator = ProbabilisticValidator()
+prob_result = validator.validate(task_spec, state, step, deterministic_result)
+
+# Access results
+print(f"Validation Probability: {prob_result.validation_probability:.2f}")
+print(f"Recommendation: {prob_result.combined_recommendation}")
+print(f"Confidence Scores: {prob_result.confidence_scores}")
+print(f"Edge Cases: {prob_result.edge_case_risks}")
+print(f"Limitations: {prob_result.applicable_limitations}")
+```
+
+**Capabilities:**
+- **Confidence Scoring**: Per-aspect confidence (structural, logical, dependency, state_change, llm_confidence, complexity)
+- **Complexity Assessment**: Evaluates operation complexity (low/medium/high/very_high)
+- **Uncertainty Tracking**: Identifies sources of uncertainty (large state, many constraints, low LLM confidence)
+- **Edge Case Detection**: Finds potential edge cases (concurrency, boundaries, state explosion, dependency chains)
+- **Known Limitations**: Acknowledges what validation cannot detect (race conditions, performance, side effects, emergent behavior, external dependencies)
+- **Human-Readable Interpretations**: Explains confidence levels and risks
+- **Combined Recommendations**: accept/accept_with_caution/human_review/reject/needs_revision
+
+#### FailureModeAnalyzer Features
+
+**Located in**: `src/reasoning/failure_mode_analyzer.py`
+
+```python
+from reasoning.failure_mode_analyzer import FailureModeAnalyzer
+
+analyzer = FailureModeAnalyzer()
+analysis = analyzer.analyze(task_spec, state, step)
+
+# Access results
+print(f"Risk Score: {analysis.risk_score:.2f}")
+print(f"Failure Modes: {len(analysis.identified_failure_modes)}")
+print(f"Critical Questions: {analysis.critical_questions}")
+print(f"Recommendations: {analysis.recommended_actions}")
+```
+
+**Failure Categories** (7 types):
+1. **Concurrency**: Race conditions, shared resource access, atomicity issues
+2. **Input**: Malformed data, boundary conditions, validation gaps
+3. **Performance**: Large state operations, latency, recursion risks
+4. **Integration**: External dependencies, API failures, network issues
+5. **State**: Consistency, rollback, transaction semantics
+6. **Resource**: Memory leaks, connection pools, cleanup failures
+7. **Emergent**: Complex interactions, cascading failures, scale effects
+
+**Critical Questions** (per category):
+- "What if this runs concurrently with other operations?"
+- "What if the input is malformed or unexpected?"
+- "What if this operation takes much longer than expected?"
+- "What if external systems are unavailable?"
+- "What if the state is inconsistent or corrupted?"
+- "What if resources (memory, disk, connections) are exhausted?"
+- "What if components interact in unexpected ways?"
+
+**Output:**
+- Severity assessment (low/medium/high/critical)
+- Likelihood estimation (low/medium/high)
+- Specific trigger conditions
+- Observable symptoms
+- Mitigation strategies
+- Example scenarios
+- Overall risk score (0-1)
+- Actionable recommendations
+
+### Using Enhanced Validation
+
+#### Basic Usage
+
+```python
+from reasoning.constraint_engine import DeterministicConstraintEngine
+from reasoning.reasoning_compiler import ReasoningCompiler
+from reasoning.schemas import TaskSpecification, StateSnapshot, ReasoningStep
+
+# Create compiler with enhancements enabled (default)
+constraint_engine = DeterministicConstraintEngine()
+compiler = ReasoningCompiler(
+    constraint_engine,
+    enable_probabilistic_validation=True,  # Enable probabilistic analysis
+    enable_failure_mode_analysis=True      # Enable failure mode detection
+)
+
+# Compile a step
+result = compiler.compile_step(task_spec, state, step)
+
+# Access deterministic result
+print(f"Status: {result.status}")
+print(f"Reasons: {result.reasons}")
+
+# Access probabilistic analysis
+if result.probabilistic_analysis:
+    prob = result.probabilistic_analysis['validation_probability']
+    recommendation = result.probabilistic_analysis['combined_recommendation']
+    print(f"Validation Probability: {prob:.2f}")
+    print(f"Recommendation: {recommendation}")
+
+# Access failure mode analysis
+if result.failure_mode_analysis:
+    risk = result.failure_mode_analysis['risk_score']
+    modes = result.failure_mode_analysis['identified_failure_modes']
+    print(f"Risk Score: {risk:.2f}")
+    print(f"Identified {len(modes)} failure modes")
+```
+
+#### Disabling Enhancements
+
+```python
+# Use only deterministic validation (original behavior)
+compiler = ReasoningCompiler(
+    constraint_engine,
+    enable_probabilistic_validation=False,
+    enable_failure_mode_analysis=False
+)
+
+result = compiler.compile_step(task_spec, state, step)
+# result.probabilistic_analysis will be None
+# result.failure_mode_analysis will be None
+```
+
+### Extended VerificationResult Schema
+
+The `VerificationResult` schema has been extended to include probabilistic and failure mode analysis:
+
+```python
+@dataclass
+class VerificationResult:
+    # Original fields
+    task_id: str
+    step_id: int
+    verifier_id: str
+    status: Literal["accepted", "rejected", "needs_revision"]
+    reasons: List[str]
+    violated_constraints: List[str]
+    suggested_fixes: List[Any]
+    
+    # Extended fields (new)
+    probabilistic_analysis: Optional[Dict[str, Any]] = None
+    failure_mode_analysis: Optional[Dict[str, Any]] = None
+```
+
+### Testing
+
+Comprehensive test suite available:
+
+```bash
+# Run probabilistic validation tests
+python3 src/reasoning/test_probabilistic_validation.py
+
+# Expected output: 5 tests, all passing
+# - Test 1: Probabilistic Validator standalone
+# - Test 2: Failure Mode Analyzer standalone  
+# - Test 3: Integrated Reasoning Compiler
+# - Test 4: Compiler with enhancements disabled
+# - Test 5: Complex high-risk scenario
+```
 
 ## Non-Negotiables
 
@@ -445,8 +622,12 @@ As per the specification:
 - [ ] Complete domain packs for scheduling, relationships, workflows
 - [ ] Explainer agent for human-readable output
 - [ ] Web API interface
-- [ ] Visualization dashboard
+- [ ] Visualization dashboard for probabilistic analysis and failure modes
 - [ ] Performance optimizations for large state spaces
+- [ ] Red team agent role for adversarial edge case discovery
+- [ ] Expanded failure mode heuristics database from production experience
+- [ ] Interactive "what if" scenario simulator
+- [ ] Machine learning-based failure mode prediction
 
 ## License
 
@@ -455,3 +636,7 @@ MIT License - See repository root for details
 ## Contact
 
 For questions or contributions, please refer to the main repository documentation.
+
+---
+
+**Acknowledgment**: The probabilistic validation and failure mode analysis enhancements acknowledge a key insight: **"Validation reduces error probability but does not guarantee correctness."** This system combines deterministic constraint checking with probabilistic risk assessment and human intuition simulation to provide a more complete picture of reasoning step reliability in real-world scenarios.
