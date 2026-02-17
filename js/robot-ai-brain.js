@@ -38,7 +38,9 @@
         SAFE_BOUNDARY_WIDTH: 200,       // Safe width from right edge
         SAFE_BOUNDARY_HEIGHT: 100,      // Safe height from top/bottom edges
         BUBBLE_OFFSET_FROM_ROBOT: 100,  // Distance bubble appears above robot
-        SCROLL_VISIBILITY_MARGIN: 50    // Margin for scroll visibility checks
+        SCROLL_VISIBILITY_MARGIN: 50,   // Margin for scroll visibility checks
+        TOUR_OFFER_DELAY_AFTER_NAME: 6000,    // Delay before showing tour offer after name input (ms)
+        TOUR_OFFER_DELAY_AFTER_GREETING: 12000 // Delay before showing tour offer after greeting (ms)
     };
     
     /**
@@ -64,7 +66,9 @@
         tourMode: false,
         currentTourStep: 0,
         tourSequence: [],
-        isActive: true
+        isActive: true,
+        nameOfferPending: false, // Track if name offer is awaiting user response
+        pendingTourOffer: null // Store tour offer data to show after name input
     };
 
     // Speech bubble for robot communication
@@ -719,20 +723,24 @@
                 // Re-add tail after typing completes
                 addSpeechBubbleTail();
                 
-                // Hide after duration
-                typingTimeout = setTimeout(() => {
-                    hideSpeechBubble();
-                }, duration);
+                // Hide after duration (only if duration > 0)
+                if (duration > 0) {
+                    typingTimeout = setTimeout(() => {
+                        hideSpeechBubble();
+                    }, duration);
+                }
             });
         } else {
             // Show immediately without typing
             speechBubble.innerHTML = message;
             addSpeechBubbleTail();
             
-            // Hide after duration
-            typingTimeout = setTimeout(() => {
-                hideSpeechBubble();
-            }, duration);
+            // Hide after duration (only if duration > 0)
+            if (duration > 0) {
+                typingTimeout = setTimeout(() => {
+                    hideSpeechBubble();
+                }, duration);
+            }
         }
     }
     
@@ -853,6 +861,8 @@
      * Offer to remember user's name
      */
     function offerToRememberName() {
+        brain.nameOfferPending = true; // Mark that we're waiting for user response
+        
         const offer = `
             <div style="padding: 5px 0;">
                 I'd love to personalize your experience! What should I call you?
@@ -894,7 +904,7 @@
             </div>
         `;
         
-        speak(offer, 30000, false);
+        speak(offer, 0, false); // No timeout - wait for user interaction
         speechBubble.style.pointerEvents = 'auto';
         
         // Focus the input field after a brief delay
@@ -921,8 +931,17 @@
         if (name && name.length > 0) {
             brain.userProfile.userName = name;
             saveMemory();
+            brain.nameOfferPending = false; // Name offer completed
             hideSpeechBubble();
             speak(`✨ Great to meet you, ${name}! I'll remember that for next time!`, 5000);
+            
+            // After greeting, check if we should offer tour
+            setTimeout(() => {
+                if (brain.pendingTourOffer) {
+                    offerTour(brain.pendingTourOffer);
+                    brain.pendingTourOffer = null;
+                }
+            }, CONFIG.TOUR_OFFER_DELAY_AFTER_NAME);
         } else {
             speak(`Please enter your name first!`, 3000);
         }
@@ -932,8 +951,17 @@
      * Dismiss the name offer
      */
     function dismissNameOffer() {
+        brain.nameOfferPending = false; // Name offer completed
         hideSpeechBubble();
         speak(`No problem! You can always tell me your name later by clicking on me and choosing "Settings".`, 5000);
+        
+        // After dismissal message, check if we should offer tour
+        setTimeout(() => {
+            if (brain.pendingTourOffer) {
+                offerTour(brain.pendingTourOffer);
+                brain.pendingTourOffer = null;
+            }
+        }, CONFIG.TOUR_OFFER_DELAY_AFTER_NAME);
     }
 
     /**
@@ -969,11 +997,15 @@
         
         if (shouldOfferTour) {
             setTimeout(() => {
-                // Double-check tour mode hasn't been activated in the meantime
-                if (!brain.tourMode) {
+                // If name offer is pending, store the tour offer for later
+                if (brain.nameOfferPending) {
+                    console.log('🔄 Name offer pending, deferring tour offer');
+                    brain.pendingTourOffer = unvisitedPages;
+                } else if (!brain.tourMode) {
+                    // Show tour offer immediately if no name offer
                     offerTour(unvisitedPages);
                 }
-            }, 12000); // Wait for greeting to finish
+            }, CONFIG.TOUR_OFFER_DELAY_AFTER_GREETING); // Wait for greeting to finish
         }
     }
 
