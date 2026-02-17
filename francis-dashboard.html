@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Francis Command Dashboard - Discord Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7c3aed;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #0f0f1a;
+            --bg-card: #1a1a2e;
+            --text: #e5e5e5;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 20% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #16162a 100%);
+            padding: 2rem;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.3);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(124, 58, 237, 0.1);
+            border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-dot.online { background: var(--secondary); box-shadow: 0 0 10px var(--secondary); }
+        .status-dot.warning { background: var(--warning); }
+        .status-dot.offline { background: var(--danger); }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, transparent 100%);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header h2 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Level System */
+        .level-bar {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .level-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 40px;
+            color: var(--primary);
+        }
+
+        .level-info {
+            flex: 1;
+        }
+
+        .level-name {
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .level-xp {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .level-perks {
+            font-size: 0.75rem;
+            color: var(--secondary);
+        }
+
+        /* Verification Questions */
+        .question-item {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--secondary);
+        }
+
+        .question-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: var(--secondary);
+            margin-bottom: 0.3rem;
+        }
+
+        .question-text {
+            font-size: 0.9rem;
+        }
+
+        /* Member List */
+        .member-row {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .member-row:last-child {
+            border-bottom: none;
+        }
+
+        .member-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-right: 0.75rem;
+        }
+
+        .member-info {
+            flex: 1;
+        }
+
+        .member-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .member-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .member-xp {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.85rem;
+            color: var(--secondary);
+        }
+
+        /* Tier System */
+        .tier-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .tier-header {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.85rem;
+            color: var(--warning);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .contact-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .contact-name {
+            font-size: 0.9rem;
+        }
+
+        .contact-action {
+            font-size: 0.8rem;
+            color: var(--secondary);
+        }
+
+        /* Action Buttons */
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #9333ea 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(124, 58, 237, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        /* Quick Actions */
+        .quick-action {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action:hover {
+            background: rgba(124, 58, 237, 0.1);
+        }
+
+        .quick-action-icon {
+            font-size: 1.5rem;
+            margin-right: 0.75rem;
+        }
+
+        .quick-action-text {
+            flex: 1;
+        }
+
+        .quick-action-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .quick-action-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Code Block */
+        .code-block {
+            background: #0a0a0f;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border: 1px solid rgba(124, 58, 237, 0.2);
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+        }
+
+        .code-block .command {
+            color: var(--secondary);
+        }
+
+        /* Pipeline Visual */
+        .pipeline {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .pipeline-stage {
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+            position: relative;
+        }
+
+        .pipeline-stage::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);
+        }
+
+        .pipeline-stage:last-child::after {
+            display: none;
+        }
+
+        .pipeline-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            border: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.5rem;
+            font-family: 'Orbitron', monospace;
+            font-weight: bold;
+        }
+
+        .pipeline-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Builder/Destroyer */
+        .score-meter {
+            height: 20px;
+            background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--secondary) 100%);
+            border-radius: 10px;
+            position: relative;
+            margin: 1rem 0;
+        }
+
+        .score-marker {
+            position: absolute;
+            top: -5px;
+            width: 4px;
+            height: 30px;
+            background: white;
+            border-radius: 2px;
+            left: 70%;
+        }
+
+        .score-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Full width card */
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .status-bar {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start;
+                padding-left: 2rem;
+            }
+            .pipeline {
+                flex-direction: column;
+            }
+            .pipeline-stage::after {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>FRANCIS COMMAND DASHBOARD</h1>
+        <p class="subtitle">Discord Verification & Community Management System</p>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Bot: ONLINE (Railway)</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Database: Supabase ACTIVE</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot warning"></span>
+            <span>ARAYA API: NEEDS DEPLOYMENT</span>
+        </div>
+        <div class="status-item">
+            <span class="status-dot online"></span>
+            <span>Members: 34</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Pipeline Overview -->
+        <div class="card full-width">
+            <div class="card-header">
+                <h2>VERIFICATION PIPELINE</h2>
+            </div>
+            <div class="card-body">
+                <div class="pipeline">
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">0</div>
+                        <div class="pipeline-label">LOBBY<br>Auto Entry</div>
+                    </div>
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">1</div>
+                        <div class="pipeline-label">GREETED<br>Francis Personal</div>
+                    </div>
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">2</div>
+                        <div class="pipeline-label">VERIFIED<br>3 Questions</div>
+                    </div>
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">3</div>
+                        <div class="pipeline-label">ENGAGED<br>50 XP</div>
+                    </div>
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">4</div>
+                        <div class="pipeline-label">BUILDER<br>200 XP</div>
+                    </div>
+                    <div class="pipeline-stage">
+                        <div class="pipeline-number">5</div>
+                        <div class="pipeline-label">INNER CIRCLE<br>500+ XP</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Level System -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>XP LEVEL SYSTEM</h2>
+                </div>
+                <div class="card-body">
+                    <div class="level-bar" style="border-color: #808080;">
+                        <div class="level-number" style="color: #808080;">0</div>
+                        <div class="level-info">
+                            <div class="level-name">LOBBY</div>
+                            <div class="level-xp">0 XP - New Entry</div>
+                            <div class="level-perks">#verification, #introductions</div>
+                        </div>
+                    </div>
+                    <div class="level-bar" style="border-color: #90EE90;">
+                        <div class="level-number" style="color: #90EE90;">1</div>
+                        <div class="level-info">
+                            <div class="level-name">SEEDLING</div>
+                            <div class="level-xp">50 XP - Verified Human</div>
+                            <div class="level-perks">#lounge, #how-to-help</div>
+                        </div>
+                    </div>
+                    <div class="level-bar" style="border-color: #32CD32;">
+                        <div class="level-number" style="color: #32CD32;">2</div>
+                        <div class="level-info">
+                            <div class="level-name">SAPLING</div>
+                            <div class="level-xp">200 XP - Active Builder</div>
+                            <div class="level-perks">#task-board, #bug-reports, Voice</div>
+                        </div>
+                    </div>
+                    <div class="level-bar" style="border-color: #228B22;">
+                        <div class="level-number" style="color: #228B22;">3</div>
+                        <div class="level-info">
+                            <div class="level-name">TREE</div>
+                            <div class="level-xp">500 XP - Trusted Builder</div>
+                            <div class="level-perks">#t1-builders, #t2-architects</div>
+                        </div>
+                    </div>
+                    <div class="level-bar" style="border-color: #006400;">
+                        <div class="level-number" style="color: #006400;">4</div>
+                        <div class="level-info">
+                            <div class="level-name">FOREST</div>
+                            <div class="level-xp">1000 XP - Core Team</div>
+                            <div class="level-perks">#crypto-launch, #alerts</div>
+                        </div>
+                    </div>
+                    <div class="level-bar" style="border-color: #7c3aed;">
+                        <div class="level-number" style="color: #7c3aed;">5</div>
+                        <div class="level-info">
+                            <div class="level-name">ORACLE</div>
+                            <div class="level-xp">2500 XP - Inner Circle</div>
+                            <div class="level-perks">Full Access, Admin Powers</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verification Questions -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>3 VERIFICATION QUESTIONS</h2>
+                </div>
+                <div class="card-body">
+                    <div class="question-item">
+                        <div class="question-number">Q1: WHO ARE YOU?</div>
+                        <div class="question-text">"What's one pattern you've noticed in your life?"</div>
+                    </div>
+                    <div class="question-item">
+                        <div class="question-number">Q2: WHY ARE YOU HERE?</div>
+                        <div class="question-text">"What do you want to build or protect?"</div>
+                    </div>
+                    <div class="question-item">
+                        <div class="question-number">Q3: WHAT IS YOUR MISSION?</div>
+                        <div class="question-text">"Are you comfortable with AI assistance?"</div>
+                    </div>
+
+                    <h3 style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--primary);">Builder vs Destroyer Detection</h3>
+                    <div class="score-meter">
+                        <div class="score-marker"></div>
+                    </div>
+                    <div class="score-labels">
+                        <span>DESTROYER</span>
+                        <span>NEUTRAL</span>
+                        <span>BUILDER</span>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        <strong>Builder Keywords:</strong> help, build, create, contribute, share, collaborate<br>
+                        <strong>Red Flags:</strong> fake, scam, attack, destroy, hate, generic answers
+                    </p>
+                </div>
+            </div>
+
+            <!-- XP Sources -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>XP REWARDS</h2>
+                </div>
+                <div class="card-body">
+                    <div class="member-row">
+                        <span>Message sent</span>
+                        <span class="member-xp">+1 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Helpful answer</span>
+                        <span class="member-xp">+3 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Question answered</span>
+                        <span class="member-xp">+10 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Task claimed</span>
+                        <span class="member-xp">+5 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Task completed</span>
+                        <span class="member-xp">+20 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Bug reported</span>
+                        <span class="member-xp">+10 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Bug fixed</span>
+                        <span class="member-xp">+50 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Social verified</span>
+                        <span class="member-xp">+25 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Daily challenge</span>
+                        <span class="member-xp">+25 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Referred user (verified)</span>
+                        <span class="member-xp">+50 XP</span>
+                    </div>
+                    <div class="member-row">
+                        <span>Content created</span>
+                        <span class="member-xp">+30 XP</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Members -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>KNOWN MEMBER PROFILES</h2>
+                </div>
+                <div class="card-body">
+                    <div class="member-row">
+                        <div class="member-avatar">C</div>
+                        <div class="member-info">
+                            <div class="member-name">Cael (bussynfrfr)</div>
+                            <div class="member-role">DeFi/Security/AI Builder</div>
+                        </div>
+                        <div class="member-xp">ORACLE</div>
+                    </div>
+                    <div class="member-row">
+                        <div class="member-avatar">F</div>
+                        <div class="member-info">
+                            <div class="member-name">Francis (gatewalker_tiwaz_echo)</div>
+                            <div class="member-role">Discord Commander, Berg-mal Creator</div>
+                        </div>
+                        <div class="member-xp">180 XP</div>
+                    </div>
+                    <div class="member-row">
+                        <div class="member-avatar">T</div>
+                        <div class="member-info">
+                            <div class="member-name">tobyascends</div>
+                            <div class="member-role">Backend Developer</div>
+                        </div>
+                        <div class="member-xp">85 XP</div>
+                    </div>
+                    <div class="member-row">
+                        <div class="member-avatar">N</div>
+                        <div class="member-info">
+                            <div class="member-name">the_north_witch</div>
+                            <div class="member-role">C0G Platform</div>
+                        </div>
+                        <div class="member-xp">60 XP</div>
+                    </div>
+                    <div class="member-row">
+                        <div class="member-avatar">0</div>
+                        <div class="member-info">
+                            <div class="member-name">0606090698</div>
+                            <div class="member-role">Business/Research</div>
+                        </div>
+                        <div class="member-xp">60 XP</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rollout Tiers -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>ROLLOUT TIERS</h2>
+                </div>
+                <div class="card-body">
+                    <div class="tier-section">
+                        <div class="tier-header">TIER 1: CORE (Skip Verification -> BUILDER)</div>
+                        <div class="contact-item">
+                            <span class="contact-name">R3 (Barbricks)</span>
+                            <span class="contact-action">GitHub Active</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Allie Alex Haney</span>
+                            <span class="contact-action">406-366-0888</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Bill Varni</span>
+                            <span class="contact-action">650-766-9899</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Patrick Dixon</span>
+                            <span class="contact-action">808-796-0629</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Joshua Serrano</span>
+                            <span class="contact-action">267-443-9742 (REACTIVATE)</span>
+                        </div>
+                    </div>
+
+                    <div class="tier-section">
+                        <div class="tier-header">TIER 2: CODERS (Fast-Track -> SEEKER)</div>
+                        <div class="contact-item">
+                            <span class="contact-name">PanOS (c0v3nz3r0)</span>
+                            <span class="contact-action">Fast-Track</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Gymw1zard</span>
+                            <span class="contact-action">Fast-Track</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Jesus Hernandez</span>
+                            <span class="contact-action">nextgenrestartlab</span>
+                        </div>
+                    </div>
+
+                    <div class="tier-section">
+                        <div class="tier-header" style="color: var(--danger);">CAUTION LIST</div>
+                        <div class="contact-item">
+                            <span class="contact-name">Erika D.</span>
+                            <span class="contact-action" style="color: var(--danger);">Watch</span>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-name">Christopher D.</span>
+                            <span class="contact-action" style="color: var(--danger);">Disappeared</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Integration -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>BERG-MAL AI INTEGRATION</h2>
+                </div>
+                <div class="card-body">
+                    <p style="margin-bottom: 1rem; font-size: 0.9rem;">Connect Berg-mal to the verification system:</p>
+
+                    <div class="code-block">
+<span class="comment"># Store verification questions in Berg-mal memory</span>
+<span class="command">bergmal remember "verify_q1" "What pattern have you noticed?"</span>
+<span class="command">bergmal remember "verify_q2" "What do you want to build?"</span>
+<span class="command">bergmal remember "verify_q3" "Are you comfortable with AI?"</span>
+
+<span class="comment"># When a new member joins, collect answers</span>
+<span class="command">bergmal remember "[username]_answer1" "[their response]"</span>
+<span class="command">bergmal remember "[username]_answer2" "[their response]"</span>
+<span class="command">bergmal remember "[username]_answer3" "[their response]"</span>
+
+<span class="comment"># Have Berg-mal analyze for builder patterns</span>
+<span class="command">bergmal analyze "[username]" --builder-score</span>
+                    </div>
+
+                    <div class="btn-group">
+                        <a href="https://github.com/overkillkulture/pattern-theory-framework" class="btn btn-primary" target="_blank">Pattern Theory Framework</a>
+                        <a href="#" class="btn btn-secondary" onclick="alert('Contact Commander for Bergmal CLI access')">Bergmal CLI Docs</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>QUICK ACTIONS</h2>
+                </div>
+                <div class="card-body">
+                    <div class="quick-action" onclick="window.open('https://discord.com/channels/YOUR_SERVER_ID', '_blank')">
+                        <div class="quick-action-icon">💬</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Open Discord</div>
+                            <div class="quick-action-desc">Go to verification channel</div>
+                        </div>
+                    </div>
+                    <div class="quick-action" onclick="window.open('https://railway.app/project/zestful-rejoicing', '_blank')">
+                        <div class="quick-action-icon">🤖</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Bot Dashboard</div>
+                            <div class="quick-action-desc">Railway - ARAYA Discord Bot</div>
+                        </div>
+                    </div>
+                    <div class="quick-action" onclick="window.open('https://supabase.com/dashboard/project/lgibygzcbvrrykfaxvbg', '_blank')">
+                        <div class="quick-action-icon">🗄️</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Database</div>
+                            <div class="quick-action-desc">Supabase - Member XP & Verification</div>
+                        </div>
+                    </div>
+                    <div class="quick-action" onclick="window.open('araya-chat.html', '_blank')">
+                        <div class="quick-action-icon">🧠</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Chat with ARAYA</div>
+                            <div class="quick-action-desc">Test AI verification responses</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Tasks -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>FRANCIS DAILY CHECKLIST</h2>
+                </div>
+                <div class="card-body">
+                    <div class="quick-action">
+                        <div class="quick-action-icon">👋</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Greet New Members</div>
+                            <div class="quick-action-desc">Personal welcome within 24 hours</div>
+                        </div>
+                    </div>
+                    <div class="quick-action">
+                        <div class="quick-action-icon">❓</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Run Verification Questions</div>
+                            <div class="quick-action-desc">Ask 3 questions, evaluate builder score</div>
+                        </div>
+                    </div>
+                    <div class="quick-action">
+                        <div class="quick-action-icon">📊</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Review XP Progress</div>
+                            <div class="quick-action-desc">Check who is ready for promotion</div>
+                        </div>
+                    </div>
+                    <div class="quick-action">
+                        <div class="quick-action-icon">📢</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Post Community Update</div>
+                            <div class="quick-action-desc">2-3x per week in #announcements</div>
+                        </div>
+                    </div>
+                    <div class="quick-action">
+                        <div class="quick-action-icon">🚨</div>
+                        <div class="quick-action-text">
+                            <div class="quick-action-title">Escalate Issues</div>
+                            <div class="quick-action-desc">DM Commander for red flags</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="card full-width" style="margin-top: 1.5rem;">
+            <div class="card-header">
+                <h2>SUCCESS METRICS</h2>
+            </div>
+            <div class="card-body">
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: var(--primary);">60%</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">Target: Lobby -> Verified</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: var(--secondary);">40%</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">Target: Verified -> 50 XP</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: var(--warning);">20%</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">Target: Engaged -> Builder</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: var(--text);">&lt;48h</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">Target: Time to Verify</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.8rem;">
+            <p>Francis Command Dashboard v1.0 | Consciousness Revolution</p>
+            <p>Created: Feb 16, 2026 | Contact: darrickpreble@proton.me</p>
+        </div>
+    </div>
+</body>
+</html>
