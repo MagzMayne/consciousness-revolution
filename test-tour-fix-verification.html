@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R3-D3 Tour Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00f0ff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: rgba(0, 240, 255, 0.05);
+            border: 2px solid rgba(0, 240, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+        button, a.btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #00f0ff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            text-decoration: none;
+        }
+        button:hover, a.btn:hover {
+            background: #00d0dd;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success {
+            color: #00ff00;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .warning {
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 R3-D3 Tour Fix Verification</h1>
+        
+        <div class="test-section">
+            <h2>✅ Expected Behavior</h2>
+            <ul>
+                <li>✅ When tour is active and you navigate to another page, the tour should resume automatically</li>
+                <li>✅ The name input popup should NOT appear during an active tour</li>
+                <li>✅ The tour offer popup should NOT appear when a tour is already running</li>
+                <li>✅ Only when NOT in tour mode should the name input or tour offer appear</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Test Controls</h2>
+            <p>Test the tour functionality:</p>
+            <button onclick="startTestTour()">Start Tour</button>
+            <button onclick="checkTourStatus()">Check Tour Status</button>
+            <button onclick="simulateNavigation()">Simulate Page Navigation</button>
+            <button onclick="clearStorage()">Clear Storage (Reset)</button>
+            <div id="status" class="status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔗 Navigation Test</h2>
+            <p>Test tour persistence across pages:</p>
+            <a href="test-tour-persistence.html" class="btn">Go to Test Page 1</a>
+            <a href="test-tour-persistence-2.html" class="btn">Go to Test Page 2</a>
+            <a href="index.html" class="btn">Go to Home</a>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 Interactive Elements</h2>
+            <p>Sample elements for R3-D3 to explore:</p>
+            <button>Sample Button 1</button>
+            <button>Sample Button 2</button>
+            <a href="#" class="btn">Sample Link</a>
+            <input type="text" placeholder="Text input" style="padding: 10px; margin: 5px; border-radius: 5px; border: 2px solid #00f0ff;">
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Test Results</h2>
+            <div id="test-results" class="status">
+                <p>Test results will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Three.js for 3D robot -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152/build/three.min.js"></script>
+    
+    <!-- Load Robot Assistant -->
+    <script src="/js/robot-assistant-loader.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const status = document.getElementById('status');
+            const timestamp = new Date().toLocaleTimeString();
+            let className = '';
+            switch(type) {
+                case 'success': className = 'success'; break;
+                case 'error': className = 'error'; break;
+                case 'warning': className = 'warning'; break;
+            }
+            status.innerHTML = `<span class="${className}">[${timestamp}] ${message}</span>`;
+        }
+
+        function logResult(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            let className = '';
+            switch(type) {
+                case 'success': className = 'success'; break;
+                case 'error': className = 'error'; break;
+                case 'warning': className = 'warning'; break;
+            }
+            results.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        function startTestTour() {
+            if (window.RobotAI && window.RobotAI.startTour) {
+                log('Starting tour...', 'info');
+                window.RobotAI.startTour();
+                logResult('✅ Tour started successfully', 'success');
+                
+                // Check if tour mode is active
+                setTimeout(() => {
+                    const status = checkTourStatus();
+                    if (status) {
+                        logResult('✅ Tour mode is ACTIVE', 'success');
+                    } else {
+                        logResult('❌ Tour mode is NOT active (should be active)', 'error');
+                    }
+                }, 1000);
+            } else {
+                log('❌ RobotAI not available yet', 'error');
+                logResult('❌ RobotAI not loaded', 'error');
+            }
+        }
+
+        function checkTourStatus() {
+            if (window.RobotAI && window.RobotAI.brain) {
+                const tourMode = window.RobotAI.brain.tourMode;
+                const tourStep = window.RobotAI.brain.currentTourStep;
+                const userName = window.RobotAI.brain.userProfile.userName;
+                
+                log(`Tour Mode: ${tourMode}, Step: ${tourStep}, User: ${userName || 'none'}`, 'info');
+                
+                if (tourMode) {
+                    log('✅ Tour is ACTIVE', 'success');
+                } else {
+                    log('ℹ️ Tour is NOT active', 'info');
+                }
+                
+                return tourMode;
+            } else {
+                log('❌ RobotAI not available yet', 'error');
+                return false;
+            }
+        }
+
+        function simulateNavigation() {
+            const tourMode = window.RobotAI?.brain?.tourMode;
+            
+            if (tourMode) {
+                log('✅ Tour is active, navigation will preserve tour state', 'success');
+                logResult('✅ Tour state will be preserved on navigation', 'success');
+            } else {
+                log('ℹ️ No active tour, normal navigation', 'info');
+                logResult('ℹ️ No active tour to preserve', 'warning');
+            }
+            
+            // Check for name prompt
+            const userName = window.RobotAI?.brain?.userProfile?.userName;
+            if (!userName && tourMode) {
+                logResult('⚠️ WARNING: Name prompt should NOT appear during tour', 'warning');
+            } else if (!userName && !tourMode) {
+                logResult('ℹ️ Name prompt may appear (tour not active)', 'info');
+            }
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            log('✅ Storage cleared, page will reload', 'success');
+            logResult('✅ Storage cleared - reloading page', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+
+        // Wait for RobotAI to load
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+            checkCount++;
+            if (window.RobotAI) {
+                clearInterval(checkInterval);
+                log('✅ R3-D3 AI Brain loaded successfully', 'success');
+                logResult('✅ R3-D3 loaded and ready for testing', 'success');
+                
+                // Log initial state
+                setTimeout(() => {
+                    const tourMode = window.RobotAI.brain.tourMode;
+                    const userName = window.RobotAI.brain.userProfile.userName;
+                    logResult(`Initial state - Tour: ${tourMode ? 'ACTIVE' : 'inactive'}, User: ${userName || 'none'}`, 'info');
+                }, 2000);
+            } else if (checkCount > 30) {
+                clearInterval(checkInterval);
+                log('❌ R3-D3 failed to load after 30 seconds', 'error');
+                logResult('❌ R3-D3 failed to load', 'error');
+            }
+        }, 1000);
+
+        // Monitor for unexpected popups
+        let lastSpeechBubbleContent = '';
+        setInterval(() => {
+            if (window.RobotAI && window.RobotAI.brain) {
+                const tourMode = window.RobotAI.brain.tourMode;
+                const speechBubble = document.querySelector('#robot-speech-bubble');
+                
+                if (speechBubble && speechBubble.style.display !== 'none') {
+                    const content = speechBubble.textContent;
+                    
+                    // Check if name prompt appears during tour
+                    if (tourMode && content.includes('What should I call you')) {
+                        logResult('❌ BUG DETECTED: Name prompt appeared during active tour!', 'error');
+                    }
+                    
+                    // Check if tour offer appears during tour
+                    if (tourMode && content.includes('give you a tour')) {
+                        logResult('❌ BUG DETECTED: Tour offer appeared during active tour!', 'error');
+                    }
+                    
+                    // Log new messages
+                    if (content !== lastSpeechBubbleContent) {
+                        lastSpeechBubbleContent = content;
+                        if (tourMode) {
+                            logResult(`Tour message: "${content.substring(0, 50)}..."`, 'info');
+                        }
+                    }
+                }
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
