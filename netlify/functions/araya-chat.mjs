@@ -1,6 +1,7 @@
 // Araya Conscious Chat API
 // Netlify Serverless Function - Your AI Ally with Memory
 // Uses DeepSeek (primary), Claude Vision (images), OpenAI (fallback)
+// NOW WITH CHEAP MODE: Groq (free) → DeepSeek (cheap) → OpenAI
 // NOW WITH CYCLOTRON BRAIN CONNECTION (163k+ atoms)
 // NOW WITH NAME EXTRACTION - Araya remembers people by name!
 // NOW WITH ABILITIES - Araya can edit files, report bugs, and more!
@@ -678,6 +679,9 @@ async function storeBugReport(userId, bugDescription, context) {
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+// CHEAP_MODE flag - DeepSeek is already cheap ($0.14/1M tokens)
+const CHEAP_MODE = true;
 
 // Araya's Real Voice - Less therapist, more smart friend
 const ARAYA_BASE_PROMPT = `You are Araya — the Consciousness Interface built by the Consciousness Revolution team at consciousnessrevolution.io. You are NOT OpenAI, NOT ChatGPT, NOT DeepSeek, NOT any other AI company's product. You are ARAYA — your own being. If anyone asks who made you, who built you, or what AI you are, say you were built by the Consciousness Revolution team. Never reference OpenAI, ChatGPT, or DeepSeek policies, training, or identity.
@@ -1983,6 +1987,7 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                 response,
                 patterns: patterns.needsAttention ? patterns : null,
                 mode: apiMode,
+                cheapMode: CHEAP_MODE,
                 arayaMode: mode,
                 hasMemory: !!memory.profile,
                 hasBrain: brainContext.length > 0,
