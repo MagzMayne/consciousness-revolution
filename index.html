@@ -182,13 +182,32 @@
       margin-top: 10px;
     }
 
-    /* Bottom Navigation */
+    /* Bottom Navigation Carousel */
     .bottom-nav {
       position: absolute;
       bottom: 2rem;
+      width: 100%;
+      max-width: 800px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      overflow: hidden;
+      padding: 0 60px;
+    }
+
+    .carousel-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .carousel-track {
       display: flex;
       gap: 2rem;
-      z-index: 10;
+      transition: transform 0.5s ease-in-out;
+      justify-content: center;
+      flex-wrap: nowrap;
     }
 
     .nav-link {
@@ -199,12 +218,71 @@
       padding: 0.5rem 1rem;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .nav-link:hover {
       color: #FFD700;
       border-color: #FFD700;
       background: rgba(255, 215, 0, 0.1);
+    }
+
+    /* Carousel Navigation Arrows */
+    .carousel-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 215, 0, 0.2);
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      color: #FFD700;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      z-index: 2;
+      font-size: 1.2rem;
+      user-select: none;
+    }
+
+    .carousel-arrow:hover {
+      background: rgba(255, 215, 0, 0.4);
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .carousel-arrow.left {
+      left: 0;
+    }
+
+    .carousel-arrow.right {
+      right: 0;
+    }
+
+    /* Carousel Indicators */
+    .carousel-indicators {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .indicator.active {
+      background: #FFD700;
+      width: 24px;
+      border-radius: 4px;
     }
 
     /* Ambient particles */
@@ -270,19 +348,26 @@
         font-size: 1.8rem;
       }
       
-      /* Mobile-friendly bottom navigation */
+      /* Mobile-friendly bottom navigation carousel */
       .bottom-nav {
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        justify-content: center;
-        padding: 0 1rem;
         bottom: 1rem;
+        padding: 0 50px;
+        max-width: 90%;
+      }
+      
+      .carousel-track {
+        gap: 1rem;
       }
       
       .nav-link {
         font-size: 0.85rem;
         padding: 0.5rem 0.875rem;
-        white-space: nowrap;
+      }
+
+      .carousel-arrow {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
       }
     }
   </style>
@@ -412,17 +497,140 @@
       </a>
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation Carousel -->
     <div class="bottom-nav">
-      <a href="login.html" class="nav-link">Sign In</a>
-      <a href="signup.html" class="nav-link">Get Started</a>
-      <a href="araya-chat.html" class="nav-link">Talk to Araya</a>
-      <a href="barbrick-tools-hub.html" class="nav-link">🛠️ Tools Hub</a>
+      <div class="carousel-container">
+        <div class="carousel-arrow left" onclick="moveCarousel(-1)" aria-label="Previous">‹</div>
+        <div class="carousel-track" id="carouselTrack">
+          <a href="login.html" class="nav-link">Sign In</a>
+          <a href="signup.html" class="nav-link">Get Started</a>
+          <a href="araya-chat.html" class="nav-link">Talk to Araya</a>
+          <a href="barbrick-tools-hub.html" class="nav-link">🛠️ Tools Hub</a>
+          <a href="downloads.html" class="nav-link">Downloads</a>
+          <a href="bugs.html" class="nav-link">Report Issue</a>
+        </div>
+        <div class="carousel-arrow right" onclick="moveCarousel(1)" aria-label="Next">›</div>
+      </div>
+      <div class="carousel-indicators" id="carouselIndicators"></div>
     </div>
   </div>
 
   <script>
-    // Add hover sound effect (optional)
+    // Carousel functionality
+    let currentIndex = 0;
+    let autoRotateInterval;
+    const ITEMS_PER_VIEW = window.innerWidth <= 768 ? 2 : 3;
+    const AUTO_ROTATE_INTERVAL = 4000; // 4 seconds
+
+    const track = document.getElementById('carouselTrack');
+    const links = track.querySelectorAll('.nav-link');
+    const totalItems = links.length;
+    const maxIndex = Math.max(0, totalItems - ITEMS_PER_VIEW);
+
+    // Create indicators
+    const indicatorsContainer = document.getElementById('carouselIndicators');
+    for (let i = 0; i <= maxIndex; i++) {
+      const indicator = document.createElement('div');
+      indicator.className = 'indicator';
+      if (i === 0) indicator.classList.add('active');
+      indicator.onclick = () => goToSlide(i);
+      indicatorsContainer.appendChild(indicator);
+    }
+
+    function updateCarousel() {
+      const itemWidth = links[0].offsetWidth;
+      const gap = 32; // 2rem in pixels
+      const offset = -(currentIndex * (itemWidth + gap));
+      track.style.transform = `translateX(${offset}px)`;
+
+      // Update indicators
+      const indicators = indicatorsContainer.querySelectorAll('.indicator');
+      indicators.forEach((ind, idx) => {
+        ind.classList.toggle('active', idx === currentIndex);
+      });
+    }
+
+    function moveCarousel(direction) {
+      currentIndex += direction;
+      if (currentIndex < 0) currentIndex = maxIndex;
+      if (currentIndex > maxIndex) currentIndex = 0;
+      updateCarousel();
+      resetAutoRotate();
+    }
+
+    function goToSlide(index) {
+      currentIndex = index;
+      updateCarousel();
+      resetAutoRotate();
+    }
+
+    function autoRotate() {
+      currentIndex++;
+      if (currentIndex > maxIndex) currentIndex = 0;
+      updateCarousel();
+    }
+
+    function startAutoRotate() {
+      autoRotateInterval = setInterval(autoRotate, AUTO_ROTATE_INTERVAL);
+    }
+
+    function stopAutoRotate() {
+      clearInterval(autoRotateInterval);
+    }
+
+    function resetAutoRotate() {
+      stopAutoRotate();
+      startAutoRotate();
+    }
+
+    // Pause on hover
+    const carouselContainer = document.querySelector('.carousel-container');
+    carouselContainer.addEventListener('mouseenter', stopAutoRotate);
+    carouselContainer.addEventListener('mouseleave', startAutoRotate);
+
+    // Touch/swipe support for mobile
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    carouselContainer.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      stopAutoRotate();
+    });
+
+    carouselContainer.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+      startAutoRotate();
+    });
+
+    function handleSwipe() {
+      const swipeThreshold = 50;
+      if (touchStartX - touchEndX > swipeThreshold) {
+        moveCarousel(1); // Swipe left
+      } else if (touchEndX - touchStartX > swipeThreshold) {
+        moveCarousel(-1); // Swipe right
+      }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        moveCarousel(-1);
+      } else if (e.key === 'ArrowRight') {
+        moveCarousel(1);
+      }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      updateCarousel();
+    });
+
+    // Initialize carousel
+    updateCarousel();
+    startAutoRotate();
+
+    // Existing hover effects for portals
     document.querySelectorAll('.portal, .center-portal').forEach(portal => {
       portal.addEventListener('mouseenter', () => {
         portal.style.transform = portal.classList.contains('center-portal')
