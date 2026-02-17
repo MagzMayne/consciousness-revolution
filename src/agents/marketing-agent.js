@@ -119,8 +119,62 @@ class MarketingAgent {
       popularityScore: 0 // Overall popularity metric
     };
     
+    // Main product configuration (RepoPilot)
+    this.mainProduct = {
+      name: 'RepoPilot',
+      tagline: 'AI-Powered GitHub Copilot Enhancement',
+      url: 'https://barbrickdesign.github.io/repopilot-landing.html',
+      description: 'Autonomous repository management and AI-powered development acceleration',
+      targetAudience: ['developers', 'engineering teams', 'tech companies', 'startups'],
+      keyBenefits: [
+        'Accelerate development with AI-powered automation',
+        'Reduce code review time by 80%',
+        'Autonomous repository management and maintenance',
+        'Intelligent code suggestions and improvements',
+        'Automated testing and quality assurance'
+      ],
+      pricing: {
+        free: { price: 0, features: ['Basic AI assistance', 'Limited monthly usage'] },
+        pro: { price: 29, interval: 'monthly', features: ['Unlimited AI assistance', 'Advanced automation', 'Priority support'] },
+        enterprise: { price: 'custom', features: ['Custom AI models', 'Dedicated support', 'SLA guarantees'] }
+      },
+      platforms: ['twitter', 'reddit', 'linkedin', 'github', 'producthunt', 'hackernews', 'devto']
+    };
+    
     // Content templates for different platforms
     this.contentTemplates = {
+      // RepoPilot-specific templates (main product)
+      repopilot: {
+        twitter: [
+          '🚀 Introducing RepoPilot: AI-powered GitHub Copilot enhancement that accelerates development by 10x! 🤖\n\nTry it free: https://barbrickdesign.github.io/repopilot-landing.html\n\n#AI #DevTools #GitHub #Automation',
+          '⚡ Reduce code review time by 80% with RepoPilot!\n\nAutonomous repository management + intelligent code suggestions = developer productivity paradise 🎯\n\nhttps://barbrickdesign.github.io/repopilot-landing.html #AITools #DevOps',
+          '🤖 RepoPilot: The AI assistant every developer needs!\n\n✅ Automated testing\n✅ Smart code reviews\n✅ Continuous improvements\n✅ Enterprise-ready\n\nStart free: https://barbrickdesign.github.io/repopilot-landing.html #DevTools',
+          '💡 What if your GitHub Copilot could manage your entire repo autonomously?\n\nMeet RepoPilot: AI-powered development acceleration 🚀\n\nhttps://barbrickdesign.github.io/repopilot-landing.html #AI #Developers'
+        ],
+        reddit: [
+          'I built RepoPilot - AI-powered GitHub Copilot enhancement for autonomous repository management\n\nKey features:\n• Autonomous code reviews and improvements\n• Intelligent automation that learns from your codebase\n• Reduces review time by 80%\n• Works with any GitHub repository\n\nTry it free: https://barbrickdesign.github.io/repopilot-landing.html\n\nWould love your feedback!',
+          'RepoPilot: Accelerate development with AI-powered automation\n\nAfter months of development, I\'m excited to share RepoPilot - an AI assistant that autonomously manages your GitHub repositories.\n\nIt handles code reviews, suggests improvements, automates testing, and continuously learns from your codebase.\n\nCheck it out: https://barbrickdesign.github.io/repopilot-landing.html',
+          'What if GitHub Copilot could manage your entire repository?\n\nI built RepoPilot to do exactly that. It\'s an AI-powered enhancement that:\n\n• Autonomously reviews and improves code\n• Manages repository maintenance\n• Provides intelligent suggestions\n• Integrates seamlessly with your workflow\n\nFree tier available: https://barbrickdesign.github.io/repopilot-landing.html'
+        ],
+        linkedin: [
+          'Excited to announce RepoPilot! 🚀\n\nAn AI-powered GitHub Copilot enhancement designed for modern development teams.\n\n✨ Key Features:\n• Autonomous repository management\n• AI-driven code reviews\n• 80% faster review cycles\n• Enterprise-ready security\n\nPerfect for engineering teams looking to accelerate development while maintaining code quality.\n\nLearn more: https://barbrickdesign.github.io/repopilot-landing.html\n\n#AI #DevOps #SoftwareEngineering #Innovation',
+          'The future of software development is autonomous 🤖\n\nRepoPilot brings AI-powered automation to your GitHub repositories, handling code reviews, testing, and continuous improvements autonomously.\n\nEngineering teams are already seeing 10x productivity gains.\n\nDiscover how: https://barbrickdesign.github.io/repopilot-landing.html\n\n#DeveloperTools #AI #Automation'
+        ],
+        github: [
+          '⭐ RepoPilot - AI-Powered Repository Management\n\nAutonomous code reviews, intelligent suggestions, and continuous improvements for your GitHub repositories.\n\nTry it now: https://barbrickdesign.github.io/repopilot-landing.html',
+          '🚀 New: RepoPilot v1.0\n\nFeatures:\n• Autonomous repository management\n• AI-powered code reviews\n• Automated testing and quality checks\n• Seamless GitHub integration\n\nStart free: https://barbrickdesign.github.io/repopilot-landing.html'
+        ],
+        producthunt: [
+          'RepoPilot - AI-Powered GitHub Copilot Enhancement\n\nAccelerate development with autonomous repository management. RepoPilot handles code reviews, suggests improvements, and maintains your codebase - all powered by AI.\n\nPerfect for developers and teams who want to ship faster without sacrificing quality.\n\nLaunch: https://barbrickdesign.github.io/repopilot-landing.html'
+        ],
+        hackernews: [
+          'Show HN: RepoPilot - AI-powered autonomous repository management\n\nI built RepoPilot to solve the problem of code review bottlenecks. It\'s an AI agent that autonomously reviews code, suggests improvements, and manages repository maintenance.\n\nKey features:\n- Integrates with GitHub Copilot\n- Learns from your codebase\n- Reduces review time by 80%\n- Free tier available\n\nhttps://barbrickdesign.github.io/repopilot-landing.html'
+        ],
+        devto: [
+          '# Introducing RepoPilot: AI-Powered Repository Management\n\nAre code reviews slowing down your team? RepoPilot is an AI assistant that autonomously manages your GitHub repositories.\n\n## Features\n- Autonomous code reviews\n- Intelligent suggestions\n- Automated testing\n- Continuous improvements\n\n## Get Started\nTry RepoPilot free: https://barbrickdesign.github.io/repopilot-landing.html\n\n#ai #devtools #automation'
+        ]
+      },
+      // Generic templates (backward compatibility)
       twitter: [
         '🚀 Check out {projectName} - {description} #WebDev #OpenSource #JavaScript',
         '🔥 New feature alert! {projectName} now has {feature}! Try it now at {url}',
@@ -432,6 +486,90 @@ class MarketingAgent {
     }
   }
   
+  
+  /**
+   * Generate marketing content for RepoPilot (main product)
+   */
+  async generateRepoPilotContent() {
+    try {
+      this.log('Generating RepoPilot marketing content...', 'info');
+      
+      const content = {
+        twitter: this.generateRepoPilotTwitterContent(),
+        reddit: this.generateRepoPilotRedditContent(),
+        linkedin: this.generateRepoPilotLinkedInContent(),
+        github: this.generateRepoPilotGitHubContent(),
+        producthunt: this.generateRepoPilotProductHuntContent(),
+        hackernews: this.generateRepoPilotHackerNewsContent(),
+        devto: this.generateRepoPilotDevToContent()
+      };
+      
+      this.metrics.contentGenerated++;
+      this.log('RepoPilot marketing content generated', 'success');
+      
+      return content;
+    } catch (error) {
+      this.log(`RepoPilot content generation failed: ${error.message}`, 'error');
+      return null;
+    }
+  }
+  
+  /**
+   * Generate RepoPilot Twitter content
+   */
+  generateRepoPilotTwitterContent() {
+    const templates = this.contentTemplates.repopilot.twitter;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  /**
+   * Generate RepoPilot Reddit content
+   */
+  generateRepoPilotRedditContent() {
+    const templates = this.contentTemplates.repopilot.reddit;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  /**
+   * Generate RepoPilot LinkedIn content
+   */
+  generateRepoPilotLinkedInContent() {
+    const templates = this.contentTemplates.repopilot.linkedin;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  /**
+   * Generate RepoPilot GitHub content
+   */
+  generateRepoPilotGitHubContent() {
+    const templates = this.contentTemplates.repopilot.github;
+    return templates[Math.floor(Math.random() * templates.length)];
+  }
+  
+  /**
+   * Generate RepoPilot Product Hunt content
+   */
+  generateRepoPilotProductHuntContent() {
+    const templates = this.contentTemplates.repopilot.producthunt;
+    return templates[0]; // Use first template for Product Hunt
+  }
+  
+  /**
+   * Generate RepoPilot Hacker News content
+   */
+  generateRepoPilotHackerNewsContent() {
+    const templates = this.contentTemplates.repopilot.hackernews;
+    return templates[0]; // Use first template for Hacker News
+  }
+  
+  /**
+   * Generate RepoPilot Dev.to content
+   */
+  generateRepoPilotDevToContent() {
+    const templates = this.contentTemplates.repopilot.devto;
+    return templates[0]; // Use first template for Dev.to
+  }
+  
   /**
    * Generate marketing content for all platforms
    */
@@ -439,6 +577,14 @@ class MarketingAgent {
     try {
       this.log('Generating marketing content...', 'info');
       
+      // Prioritize RepoPilot (main product) - 80% of the time
+      const shouldPromoteRepoPilot = Math.random() < 0.8;
+      
+      if (shouldPromoteRepoPilot) {
+        return await this.generateRepoPilotContent();
+      }
+      
+      // Otherwise, generate generic content (20% of the time)
       const content = {
         twitter: await this.generateTwitterContent(),
         reddit: await this.generateRedditContent(),
