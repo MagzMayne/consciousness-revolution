@@ -108,6 +108,7 @@
         if (brain.tourMode) {
             console.log('🔄 Resuming active tour...');
             setTimeout(() => resumeTour(), 2000);
+            // Don't check for tour offer when tour is already active
         } else {
             // Check if user needs a tour
             checkForTourOffer();
@@ -834,11 +835,14 @@
             greeting = `👋 Welcome back! This is visit #${visitCount}. You've explored ${pagesVisited} of ${totalPages} pages (${explorationScore.toFixed(0)}%).`;
         }
         
-        // If user doesn't have a name, offer to ask for it
-        if (!userName && visitCount >= 2) {
+        // If user doesn't have a name, offer to ask for it (but not during active tour)
+        if (!userName && visitCount >= 2 && !brain.tourMode) {
             greeting += ` Would you like me to remember your name for future visits?`;
             setTimeout(() => {
-                offerToRememberName();
+                // Double-check tour mode hasn't been activated in the meantime
+                if (!brain.tourMode) {
+                    offerToRememberName();
+                }
             }, 8000);
         }
         
@@ -936,6 +940,12 @@
      * Check if user needs a tour offer
      */
     function checkForTourOffer() {
+        // Don't offer tour if one is already active
+        if (brain.tourMode) {
+            console.log('🔄 Tour already active, skipping tour offer');
+            return;
+        }
+        
         // First, greet the user based on their history
         setTimeout(() => greetUser(), 1000);
         
@@ -958,7 +968,12 @@
             (unvisitedPages.length > 0 && timeSinceInteraction > 86400000);
         
         if (shouldOfferTour) {
-            setTimeout(() => offerTour(unvisitedPages), 12000); // Wait for greeting to finish
+            setTimeout(() => {
+                // Double-check tour mode hasn't been activated in the meantime
+                if (!brain.tourMode) {
+                    offerTour(unvisitedPages);
+                }
+            }, 12000); // Wait for greeting to finish
         }
     }
 
