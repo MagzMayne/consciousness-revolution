@@ -38,7 +38,9 @@
         SAFE_BOUNDARY_WIDTH: 200,       // Safe width from right edge
         SAFE_BOUNDARY_HEIGHT: 100,      // Safe height from top/bottom edges
         BUBBLE_OFFSET_FROM_ROBOT: 100,  // Distance bubble appears above robot
-        SCROLL_VISIBILITY_MARGIN: 50    // Margin for scroll visibility checks
+        SCROLL_VISIBILITY_MARGIN: 50,   // Margin for scroll visibility checks
+        TOUR_OFFER_DELAY_AFTER_NAME: 6000,    // Delay before showing tour offer after name input (ms)
+        TOUR_OFFER_DELAY_AFTER_GREETING: 12000 // Delay before showing tour offer after greeting (ms)
     };
     
     /**
@@ -939,7 +941,7 @@
                     offerTour(brain.pendingTourOffer);
                     brain.pendingTourOffer = null;
                 }
-            }, 6000);
+            }, CONFIG.TOUR_OFFER_DELAY_AFTER_NAME);
         } else {
             speak(`Please enter your name first!`, 3000);
         }
@@ -959,7 +961,7 @@
                 offerTour(brain.pendingTourOffer);
                 brain.pendingTourOffer = null;
             }
-        }, 6000);
+        }, CONFIG.TOUR_OFFER_DELAY_AFTER_NAME);
     }
 
     /**
@@ -1003,7 +1005,7 @@
                     // Show tour offer immediately if no name offer
                     offerTour(unvisitedPages);
                 }
-            }, 12000); // Wait for greeting to finish
+            }, CONFIG.TOUR_OFFER_DELAY_AFTER_GREETING); // Wait for greeting to finish
         }
     }
 
