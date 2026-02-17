@@ -2,6 +2,15 @@
 <!-- v2.3.0 - Elite: header overlap fix, enhanced mobile view - 2026-02-12 -->
 <html lang="en">
 <head>
+<!-- Google Analytics (GA4) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPHEQZPHPZ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CPHEQZPHPZ');
+</script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A R A Y A</title>
@@ -1318,6 +1327,7 @@ function removeAttach(i) { attachments.splice(i,1); renderAttachPreviews(); }
 
 /* ── Real AI API Call ── */
 async function callArayaAPI(msg, msgAttachments) {
+    console.log('[ARAYA DEBUG] callArayaAPI started');
     const payload = {
         message: msg,
         conversationHistory: conversationHistory.slice(-10),
@@ -1333,11 +1343,13 @@ async function callArayaAPI(msg, msgAttachments) {
             data: a.preview || a.textContent || null
         }));
     }
+    console.log('[ARAYA DEBUG] Making fetch request to /.netlify/functions/araya-chat');
     const res = await fetch('/.netlify/functions/araya-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
+    console.log('[ARAYA DEBUG] Fetch completed with status:', res.status);
 
     if (!res.ok) {
         // Handle configuration errors specifically
@@ -1351,6 +1363,7 @@ async function callArayaAPI(msg, msgAttachments) {
     }
 
     const data = await res.json();
+    console.log('[ARAYA DEBUG] Parsed response data, response length:', data.response ? data.response.length : 0);
 
     /* Update status indicator with live backend info */
     const el = document.getElementById('apiStatus');
@@ -1473,20 +1486,28 @@ async function sendMessage() {
     conversationHistory.push({ role: 'user', content: historyContent });
 
     try {
+        console.log('[ARAYA DEBUG] Calling API with:', text.substring(0, 50));
         let response = await callArayaAPI(text, currentAttachments);
+        console.log('[ARAYA DEBUG] Got response:', typeof response, response ? response.substring(0, 100) : 'null');
         typingIndicator.classList.remove('active');
         // Check for and handle any Araya action requests
         response = await handleArayaActions(response);
+        console.log('[ARAYA DEBUG] After action handling:', response ? 'yes' : 'no');
         if (response) {
             addMessage(response, 'araya');
+            console.log('[ARAYA DEBUG] Message added to DOM');
             // Dispatch event for robot assistant
             window.dispatchEvent(new CustomEvent('araya-message-received', { detail: { response } }));
+        } else {
+            console.log('[ARAYA DEBUG] Response was empty, not adding message');
+            addMessage('⚠️ Received empty response. Please try again.', 'araya');
         }
         conversationHistory.push({ role: 'assistant', content: response });
         if (conversationHistory.length > 20) conversationHistory = conversationHistory.slice(-20);
     } catch(err) {
-        console.error('ARAYA API error:', err);
+        console.error('[ARAYA DEBUG] API error:', err);
         typingIndicator.classList.remove('active');
+        addMessage('⚠️ Connection error: ' + err.message + '. Using offline mode.', 'araya');
         const fallback = localFallback(text);
         addMessage(fallback, 'araya');
     }
