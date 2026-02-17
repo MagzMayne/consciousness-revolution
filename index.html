@@ -191,8 +191,7 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
-      overflow: hidden;
-      padding: 0 60px;
+      padding: 0 70px; /* Space for arrows outside */
     }
 
     .carousel-container {
@@ -200,13 +199,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden; /* Moved overflow here */
     }
 
     .carousel-track {
       display: flex;
       gap: 2rem;
       transition: transform 0.5s ease-in-out;
-      justify-content: center;
+      justify-content: flex-start; /* Changed from center */
       flex-wrap: nowrap;
     }
 
@@ -233,33 +233,40 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(255, 215, 0, 0.2);
-      border: 1px solid rgba(255, 215, 0, 0.4);
+      background: rgba(255, 215, 0, 0.3);
+      border: 2px solid rgba(255, 215, 0, 0.6);
       color: #FFD700;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       transition: all 0.3s;
-      z-index: 2;
-      font-size: 1.2rem;
+      z-index: 11; /* Above everything */
+      font-size: 1.5rem;
       user-select: none;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
 
     .carousel-arrow:hover {
-      background: rgba(255, 215, 0, 0.4);
-      transform: translateY(-50%) scale(1.1);
+      background: rgba(255, 215, 0, 0.5);
+      transform: translateY(-50%) scale(1.15);
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    }
+
+    .carousel-arrow:active {
+      transform: translateY(-50%) scale(0.95);
     }
 
     .carousel-arrow.left {
-      left: 0;
+      left: -60px; /* Outside container */
     }
 
     .carousel-arrow.right {
-      right: 0;
+      right: -60px; /* Outside container */
     }
 
     /* Carousel Indicators */
@@ -351,8 +358,12 @@
       /* Mobile-friendly bottom navigation carousel */
       .bottom-nav {
         bottom: 1rem;
-        padding: 0 50px;
-        max-width: 90%;
+        padding: 0 60px; /* More space for arrows */
+        max-width: 100%;
+      }
+      
+      .carousel-container {
+        padding: 0 10px; /* Internal padding */
       }
       
       .carousel-track {
@@ -361,13 +372,23 @@
       
       .nav-link {
         font-size: 0.85rem;
-        padding: 0.5rem 0.875rem;
+        padding: 0.6rem 1rem;
+        min-width: 120px; /* Ensure minimum touch target */
+        text-align: center;
       }
 
       .carousel-arrow {
-        width: 35px;
-        height: 35px;
-        font-size: 1rem;
+        width: 44px; /* Touch-friendly size */
+        height: 44px;
+        font-size: 1.3rem;
+      }
+      
+      .carousel-arrow.left {
+        left: -50px; /* Positioned outside on mobile */
+      }
+
+      .carousel-arrow.right {
+        right: -50px; /* Positioned outside on mobile */
       }
     }
   </style>
@@ -521,13 +542,29 @@
     // Carousel functionality
     let currentIndex = 0;
     let autoRotateInterval;
-    const ITEMS_PER_VIEW = window.innerWidth <= 768 ? 2 : 3;
+    let itemsPerView = 3;
     const AUTO_ROTATE_INTERVAL = 4000; // 4 seconds
 
     const track = document.getElementById('carouselTrack');
     const links = track.querySelectorAll('.nav-link');
     const totalItems = links.length;
-    const maxIndex = Math.max(0, totalItems - ITEMS_PER_VIEW);
+
+    // Calculate items per view based on viewport width
+    function calculateItemsPerView() {
+      const containerWidth = document.querySelector('.carousel-container').offsetWidth;
+      const itemWidth = links[0].offsetWidth;
+      const gap = window.innerWidth <= 768 ? 16 : 32; // 1rem or 2rem in pixels
+      
+      // Calculate how many items can fit
+      itemsPerView = Math.floor(containerWidth / (itemWidth + gap));
+      itemsPerView = Math.max(1, Math.min(itemsPerView, totalItems));
+      
+      return itemsPerView;
+    }
+
+    // Initial calculation
+    calculateItemsPerView();
+    const maxIndex = Math.max(0, totalItems - itemsPerView);
 
     // Create indicators
     const indicatorsContainer = document.getElementById('carouselIndicators');
@@ -541,7 +578,7 @@
 
     function updateCarousel() {
       const itemWidth = links[0].offsetWidth;
-      const gap = 32; // 2rem in pixels
+      const gap = window.innerWidth <= 768 ? 16 : 32;
       const offset = -(currentIndex * (itemWidth + gap));
       track.style.transform = `translateX(${offset}px)`;
 
@@ -553,22 +590,25 @@
     }
 
     function moveCarousel(direction) {
+      const newMaxIndex = Math.max(0, totalItems - calculateItemsPerView());
       currentIndex += direction;
-      if (currentIndex < 0) currentIndex = maxIndex;
-      if (currentIndex > maxIndex) currentIndex = 0;
+      if (currentIndex < 0) currentIndex = newMaxIndex;
+      if (currentIndex > newMaxIndex) currentIndex = 0;
       updateCarousel();
       resetAutoRotate();
     }
 
     function goToSlide(index) {
-      currentIndex = index;
+      const newMaxIndex = Math.max(0, totalItems - calculateItemsPerView());
+      currentIndex = Math.min(index, newMaxIndex);
       updateCarousel();
       resetAutoRotate();
     }
 
     function autoRotate() {
+      const newMaxIndex = Math.max(0, totalItems - calculateItemsPerView());
       currentIndex++;
-      if (currentIndex > maxIndex) currentIndex = 0;
+      if (currentIndex > newMaxIndex) currentIndex = 0;
       updateCarousel();
     }
 
@@ -625,6 +665,7 @@
 
     // Handle window resize
     window.addEventListener('resize', () => {
+      calculateItemsPerView();
       updateCarousel();
     });
 
