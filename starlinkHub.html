@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>StarLinkHub – 3D Globe Optimizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Three.js and helpers from CDN -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #02030a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+    }
+    #app {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: row;
+    }
+    #scene-container {
+      flex: 1;
+      position: relative;
+    }
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 8px;
+      backdrop-filter: blur(6px);
+      font-size: 13px;
+      max-width: 320px;
+      pointer-events: none;
+    }
+    #hud h1 {
+      margin: 0 0 4px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    #hud .metric {
+      margin: 2px 0;
+      font-size: 12px;
+    }
+    #hud .label {
+      opacity: 0.7;
+      margin-right: 4px;
+    }
+    #hud .value {
+      font-weight: 500;
+    }
+    #hud .status-good {
+      color: #4ade80;
+    }
+    #hud .status-warn {
+      color: #facc15;
+    }
+    #hud .status-bad {
+      color: #f97373;
+    }
+    #sidebar {
+      width: 260px;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%);
+      border-left: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      box-sizing: border-box;
+    }
+    #sidebar h2 {
+      font-size: 15px;
+      margin: 4px 0 8px 0;
+      font-weight: 600;
+    }
+    #sidebar .section {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    #sidebar label {
+      font-size: 12px;
+      display: block;
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+    #sidebar select, #sidebar input[type="range"] {
+      width: 100%;
+      margin-bottom: 4px;
+    }
+    #sidebar .small {
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    #satellite-list {
+      max-height: 220px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    .sat-item {
+      padding: 4px 4px;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      cursor: default;
+    }
+    .sat-item.active {
+      background: rgba(34, 197, 94, 0.15);
+    }
+    .sat-item span {
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .pill {
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      opacity: 0.8;
+    }
+    #footer {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="scene-container">
+    <div id="hud">
+      <h1>StarLinkHub – Live Orientation</h1>
+      <div class="metric">
+        <span class="label">Active satellite:</span>
+        <span class="value" id="hud-sat-id">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Score:</span>
+        <span class="value" id="hud-sat-score">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Elevation:</span>
+        <span class="value" id="hud-sat-elev">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Pred. latency:</span>
+        <span class="value" id="hud-sat-latency">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Orientation error:</span>
+        <span class="value" id="hud-orient-error">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Guidance:</span>
+        <span class="value" id="hud-guidance">–</span>
+      </div>
+      <div class="metric">
+        <span class="label">Link health:</span>
+        <span class="value" id="hud-health" class="status-good">–</span>
+      </div>
+    </div>
+  </div>
+  <div id="sidebar">
+    <div class="section">
+      <h2>Mode & Policy</h2>
+      <label for="policy-select">Optimization policy</label>
+      <select id="policy-select">
+        <option value="balanced">Balanced</option>
+        <option value="latency">Lowest latency</option>
+        <option value="throughput">Max throughput</option>
+        <option value="stability">Max stability</option>
+      </select>
+      <label for="sensitivity-range">Orientation sensitivity</label>
+      <input id="sensitivity-range" type="range" min="3" max="20" value="8" />
+      <div class="small">Lower = more frequent guidance, higher = only big improvements.</div>
+    </div>
+    <div class="section">
+      <h2>Receiver</h2>
+      <div class="small" id="receiver-info">
+        Lat: 39.95° N<br/>
+        Lon: -86.26° W<br/>
+        Alt: 250 m<br/>
+        Heading: dynamic<br/>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Satellites (simulated)</h2>
+      <div id="satellite-list"></div>
+    </div>
+    <div id="footer">
+      StarLinkHub demo – all satellite positions and metrics are simulated locally for visualization and algorithm testing.
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * StarLinkHub – single-file demo
+ * - 3D globe with simulated Starlink constellation
+ * - Receiver on Earth surface with orientation vector
+ * - Real-time selection of best satellite based on geometry + synthetic metrics
+ * - Orientation guidance (delta az/el) and HUD
+ *
+ * This is fully client-side and self-contained (no external APIs).
+ */
+
+/* ---------- Basic math helpers ---------- */
+
+function degToRad(d) { return d * Math.PI / 180; }
+function radToDeg(r) { return r * 180 / Math.PI; }
+
+/**
+ * Convert lat, lon, radius to Cartesian (ECEF-like) coordinates.
+ */
+function latLonToCartesian(latDeg, lonDeg, radius) {
+  const lat = degToRad(latDeg);
+  const lon = degToRad(lonDeg);
+  const x = radius * Math.cos(lat) * Math.cos(lon);
+  const y = radius * Math.sin(lat);
+  const z = radius * Math.cos(lat) * Math.sin(lon);
+  return new THREE.Vector3(x, y, z);
+}
+
+/**
+ * Compute local ENU basis at given lat/lon on a sphere.
+ * Returns {east, north, up} as THREE.Vector3.
+ */
+function computeENUBasis(latDeg, lonDeg) {
+  const lat = degToRad(latDeg);
+  const lon = degToRad(lonDeg);
+  const up = new THREE.Vector3(
+    Math.cos(lat) * Math.cos(lon),
+    Math.sin(lat),
+    Math.cos(lat) * Math.sin(lon)
+  );
+  const east = new THREE.Vector3(-Math.sin(lon), 0, Math.cos(lon));
+  const north = new THREE.Vector3().crossVectors(up, east).normalize();
+  return { east: east.normalize(), north, up: up.normalize() };
+}
+
+/**
+ * Convert world-space vector to local ENU azimuth/elevation at given lat/lon.
+ */
+function worldVectorToAzEl(vecWorld, latDeg, lonDeg) {
+  const enu = computeENUBasis(latDeg, lonDeg);
+  const v = vecWorld.clone().normalize();
+  const e = enu.east, n = enu.north, u = enu.up;
+  const eastComp = v.dot(e);
+  const northComp = v.dot(n);
+  const upComp = v.dot(u);
+  const az = Math.atan2(eastComp, northComp); // radians
+  const el = Math.asin(upComp);               // radians
+  return { azDeg: (radToDeg(az) + 360) % 360, elDeg: radToDeg(el) };
+}
+
+/**
+ * Convert local ENU az/el to world-space vector.
+ */
+function azElToWorldVector(azDeg, elDeg, latDeg, lonDeg) {
+  const enu = computeENUBasis(latDeg, lonDeg);
+  const az = degToRad(azDeg);
+  const el = degToRad(elDeg);
+  const cosEl = Math.cos(el);
+  const vLocal = new THREE.Vector3(
+    Math.sin(az) * cosEl, // east
+    Math.cos(az) * cosEl, // north
+    Math.sin(el)          // up
+  );
+  const vWorld = new THREE.Vector3(0, 0, 0);
+  vWorld.addScaledVector(enu.east, vLocal.x);
+  vWorld.addScaledVector(enu.north, vLocal.y);
+  vWorld.addScaledVector(enu.up, vLocal.z);
+  return vWorld.normalize();
+}
+
+/* ---------- Scene setup ---------- */
+
+let scene, camera, renderer, controls;
+let globe, receiverMarker, receiverDish, receiverArrow, optimalArrow, optimalCone;
+let satellites = [];
+let activeLinkMesh = null;
+let candidateLinkMeshes = [];
+let particleGroup = null;
+
+const container = document.getElementById('scene-container');
+const hudSatId = document.getElementById('hud-sat-id');
+const hudSatScore = document.getElementById('hud-sat-score');
+const hudSatElev = document.getElementById('hud-sat-elev');
+const hudSatLatency = document.getElementById('hud-sat-latency');
+const hudOrientError = document.getElementById('hud-orient-error');
+const hudGuidance = document.getElementById('hud-guidance');
+const hudHealth = document.getElementById('hud-health');
+const satListEl = document.getElementById('satellite-list');
+const policySelect = document.getElementById('policy-select');
+const sensitivityRange = document.getElementById('sensitivity-range');
+
+const WORLD_RADIUS = 10;        // Earth radius in scene units
+const ORBIT_RADIUS = 14;        // Satellite orbit radius
+const NUM_SATS = 80;            // Simulated satellites
+
+// Receiver state (simulated position near Zionsville, IN)
+const receiver = {
+  lat: 39.95,
+  lon: -86.26,
+  alt: 0.25, // km, not used in geometry here
+  azDeg: 180, // current dish azimuth (local ENU)
+  elDeg: 45,  // current dish elevation
+  headingDeg: 90 // simulated vehicle heading
+};
+
+function initScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x02030a);
+
+  camera = new THREE.PerspectiveCamera(
+    45,
+    container.clientWidth / container.clientHeight,
+    0.1,
+    1000
+  );
+  camera.position.set(0, 20, 30);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  container.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 18;
+  controls.maxDistance = 80;
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(20, 30, 10);
+  scene.add(dirLight);
+
+  createGlobe();
+  createReceiver();
+  createSatellites();
+  createParticles();
+
+  window.addEventListener('resize', onWindowResize);
+}
+
+function createGlobe() {
+  const geometry = new THREE.SphereGeometry(WORLD_RADIUS, 64, 64);
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x0b1120,
+    emissive: 0x020617,
+    shininess: 8,
+    wireframe: false
+  });
+  globe = new THREE.Mesh(geometry, material);
+  scene.add(globe);
+
+  // Simple latitude/longitude grid
+  const gridMaterial = new THREE.LineBasicMaterial({ color: 0x1f2937, opacity: 0.6, transparent: true });
+  const gridGroup = new THREE.Group();
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const latGeom = new THREE.BufferGeometry();
+    const latPoints = [];
+    for (let lon = -180; lon <= 180; lon += 5) {
+      latPoints.push(latLonToCartesian(lat, lon, WORLD_RADIUS * 1.001));
+    }
+    latGeom.setFromPoints(latPoints);
+    const latLine = new THREE.Line(latGeom, gridMaterial);
+    gridGroup.add(latLine);
+  }
+  for (let lon = -180; lon < 180; lon += 30) {
+    const lonGeom = new THREE.BufferGeometry();
+    const lonPoints = [];
+    for (let lat = -80; lat <= 80; lat += 5) {
+      lonPoints.push(latLonToCartesian(lat, lon, WORLD_RADIUS * 1.001));
+    }
+    lonGeom.setFromPoints(lonPoints);
+    const lonLine = new THREE.Line(lonGeom, gridMaterial);
+    gridGroup.add(lonLine);
+  }
+  scene.add(gridGroup);
+}
+
+function createReceiver() {
+  const pos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
+
+  const markerGeom = new THREE.SphereGeometry(0.18, 16, 16);
+  const markerMat = new THREE.MeshPhongMaterial({ color: 0x22c55e, emissive: 0x16a34a });
+  receiverMarker = new THREE.Mesh(markerGeom, markerMat);
+  receiverMarker.position.copy(pos);
+  scene.add(receiverMarker);
+
+  const dishGeom = new THREE.CylinderGeometry(0, 0.6, 0.2, 24, 1, true);
+  const dishMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, side: THREE.DoubleSide });
+  receiverDish = new THREE.Mesh(dishGeom, dishMat);
+  receiverDish.position.copy(pos);
+  receiverDish.lookAt(pos.clone().multiplyScalar(1.1)); // roughly outward
+  scene.add(receiverDish);
+
+  const arrowDir = azElToWorldVector(receiver.azDeg, receiver.elDeg, receiver.lat, receiver.lon);
+  receiverArrow = new THREE.ArrowHelper(
+    arrowDir,
+    pos,
+    3,
+    0x38bdf8,
+    0.4,
+    0.25
+  );
+  scene.add(receiverArrow);
+
+  const optimalDir = arrowDir.clone();
+  optimalArrow = new THREE.ArrowHelper(
+    optimalDir,
+    pos,
+    3.2,
+    0x22c55e,
+    0.4,
+    0.25
+  );
+  scene.add(optimalArrow);
+
+  const coneGeom = new THREE.ConeGeometry(1.2, 3.5, 32, 1, true);
+  const coneMat = new THREE.MeshBasicMaterial({
+    color: 0x22c55e,
+    transparent: true,
+    opacity: 0.15,
+    side: THREE.DoubleSide
+  });
+  optimalCone = new THREE.Mesh(coneGeom, coneMat);
+  optimalCone.position.copy(pos);
+  optimalCone.lookAt(pos.clone().add(optimalDir));
+  scene.add(optimalCone);
+}
+
+function createSatellites() {
+  const satMaterial = new THREE.MeshPhongMaterial({ color: 0x93c5fd, emissive: 0x1d4ed8 });
+  const satGeom = new THREE.SphereGeometry(0.08, 12, 12);
+
+  satellites = [];
+  satListEl.innerHTML = '';
+
+  for (let i = 0; i < NUM_SATS; i++) {
+    const inclination = degToRad(53 + (Math.random() - 0.5) * 10);
+    const raan = Math.random() * Math.PI * 2;
+    const meanMotion = 0.5 + Math.random() * 0.5; // rad/sec (simulated)
+    const phase = Math.random() * Math.PI * 2;
+
+    const mesh = new THREE.Mesh(satGeom, satMaterial);
+    scene.add(mesh);
+
+    const sat = {
+      id: 'SAT-' + (1000 + i),
+      mesh,
+      inclination,
+      raan,
+      meanMotion,
+      phase,
+      score: 0,
+      elevDeg: 0,
+      latencyMs: 0
+    };
+    satellites.push(sat);
+
+    const item = document.createElement('div');
+    item.className = 'sat-item';
+    item.id = 'sat-item-' + sat.id;
+    item.innerHTML = `
+      <span class="pill">${sat.id}</span>
+      <span>score: <span data-role="score">–</span></span>
+      <span>el: <span data-role="elev">–</span>°</span>
+    `;
+    satListEl.appendChild(item);
+  }
+}
+
+function createParticles() {
+  const particleGeom = new THREE.BufferGeometry();
+  const positions = new Float32Array(300 * 3);
+  particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0x22c55e,
+    size: 0.08,
+    transparent: true,
+    opacity: 0.9
+  });
+  particleGroup = new THREE.Points(particleGeom, particleMat);
+  scene.add(particleGroup);
+}
+
+/* ---------- Simulation & optimization ---------- */
+
+let startTime = performance.now();
+let bestSat = null;
+
+function updateSatellites(timeSec) {
+  satellites.forEach((sat, idx) => {
+    const angle = sat.meanMotion * timeSec + sat.phase;
+    const xOrb = ORBIT_RADIUS * Math.cos(angle);
+    const yOrb = ORBIT_RADIUS * Math.sin(angle);
+    const zOrb = 0;
+
+    const cosI = Math.cos(sat.inclination);
+    const sinI = Math.sin(sat.inclination);
+    let yIncl = yOrb * cosI - zOrb * sinI;
+    let zIncl = yOrb * sinI + zOrb * cosI;
+    let xIncl = xOrb;
+
+    const cosO = Math.cos(sat.raan);
+    const sinO = Math.sin(sat.raan);
+    const x = xIncl * cosO - yIncl * sinO;
+    const y = xIncl * sinO + yIncl * cosO;
+    const z = zIncl;
+
+    sat.mesh.position.set(x, y, z);
+  });
+}
+
+function computeLinkMetrics() {
+  const recvPos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
+  const policy = policySelect.value;
+
+  let bestScore = -Infinity;
+  let best = null;
+
+  satellites.forEach((sat) => {
+    const satPos = sat.mesh.position.clone();
+    const v = satPos.clone().sub(recvPos);
+    const dist = v.length();
+    const { azDeg, elDeg } = worldVectorToAzEl(v, receiver.lat, receiver.lon);
+    sat.elevDeg = elDeg;
+
+    const elevNorm = Math.max(0, Math.min(1, (elDeg + 5) / 90));
+    const latencyBase = 25 + (dist - ORBIT_RADIUS) * 1.5;
+    const latencyNoise = (Math.random() - 0.5) * 5;
+    sat.latencyMs = Math.max(20, latencyBase + latencyNoise);
+
+    const snrPred = elevNorm;
+    const latencyScore = 1 - Math.min(1, (sat.latencyMs - 20) / 80);
+    const stabilityHist = 0.7 + Math.random() * 0.3;
+
+    let wElev = 0.35, wSnr = 0.25, wLat = 0.25, wStab = 0.15;
+    if (policy === 'latency') {
+      wLat = 0.4; wElev = 0.25; wSnr = 0.2; wStab = 0.15;
+    } else if (policy === 'throughput') {
+      wSnr = 0.4; wElev = 0.3; wLat = 0.2; wStab = 0.1;
+    } else if (policy === 'stability') {
+      wStab = 0.4; wElev = 0.3; wSnr = 0.2; wLat = 0.1;
+    }
+
+    const score = wElev * elevNorm + wSnr * snrPred + wLat * latencyScore + wStab * stabilityHist;
+    sat.score = score;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = sat;
+    }
+  });
+
+  bestSat = best;
+}
+
+function updateOrientationGuidance() {
+  if (!bestSat) return;
+
+  const recvPos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
+  const satPos = bestSat.mesh.position.clone();
+  const v = satPos.clone().sub(recvPos);
+  const { azDeg: idealAz, elDeg: idealEl } = worldVectorToAzEl(v, receiver.lat, receiver.lon);
+
+  const deltaAz = ((idealAz - receiver.azDeg + 540) % 360) - 180;
+  const deltaEl = idealEl - receiver.elDeg;
+  const errorMag = Math.sqrt(deltaAz * deltaAz + deltaEl * deltaEl);
+
+  const sensitivity = parseFloat(sensitivityRange.value);
+  let guidanceText = 'Orientation is within optimal cone.';
+  let healthText = 'Excellent';
+  let healthClass = 'status-good';
+
+  if (errorMag > sensitivity) {
+    const azDir = deltaAz > 0 ? 'right' : 'left';
+    const elDir = deltaEl > 0 ? 'up' : 'down';
+    const azMag = Math.abs(deltaAz).toFixed(1);
+    const elMag = Math.abs(deltaEl).toFixed(1);
+    guidanceText = `Rotate ~${azMag}° ${azDir}, tilt ~${elMag}° ${elDir}.`;
+    if (errorMag < sensitivity * 1.5) {
+      healthText = 'Good';
+      healthClass = 'status-good';
+    } else if (errorMag < sensitivity * 2.5) {
+      healthText = 'Fair';
+      healthClass = 'status-warn';
+    } else {
+      healthText = 'Poor';
+      healthClass = 'status-bad';
+    }
+  }
+
+  const currentDir = azElToWorldVector(receiver.azDeg, receiver.elDeg, receiver.lat, receiver.lon);
+  const idealDir = azElToWorldVector(idealAz, idealEl, receiver.lat, receiver.lon);
+
+  receiverArrow.setDirection(currentDir);
+  optimalArrow.setDirection(idealDir);
+
+  const coneAxis = idealDir.clone();
+  optimalCone.position.copy(recvPos);
+  optimalCone.lookAt(recvPos.clone().add(coneAxis));
+
+  const coneMat = optimalCone.material;
+  if (errorMag <= sensitivity) {
+    coneMat.color.setHex(0x22c55e);
+    coneMat.opacity = 0.18;
+  } else if (errorMag <= sensitivity * 2) {
+    coneMat.color.setHex(0xfacc15);
+    coneMat.opacity = 0.18;
+  } else {
+    coneMat.color.setHex(0xf97373);
+    coneMat.opacity = 0.22;
+  }
+
+  hudSatId.textContent = bestSat.id;
+  hudSatScore.textContent = bestSat.score.toFixed(3);
+  hudSatElev.textContent = bestSat.elevDeg.toFixed(1) + '°';
+  hudSatLatency.textContent = bestSat.latencyMs.toFixed(0) + ' ms';
+  hudOrientError.textContent = errorMag.toFixed(1) + '°';
+  hudGuidance.textContent = guidanceText;
+  hudHealth.textContent = healthText;
+  hudHealth.className = healthClass;
+
+  satellites.forEach((sat) => {
+    const item = document.getElementById('sat-item-' + sat.id);
+    if (!item) return;
+    item.classList.toggle('active', sat === bestSat);
+    const scoreSpan = item.querySelector('[data-role="score"]');
+    const elevSpan = item.querySelector('[data-role="elev"]');
+    if (scoreSpan) scoreSpan.textContent = sat.score.toFixed(3);
+    if (elevSpan) elevSpan.textContent = sat.elevDeg.toFixed(0);
+  });
+
+  updateLinksAndParticles(recvPos, bestSat);
+}
+
+function updateLinksAndParticles(recvPos, bestSat) {
+  if (activeLinkMesh) {
+    scene.remove(activeLinkMesh);
+    activeLinkMesh.geometry.dispose();
+    activeLinkMesh.material.dispose();
+    activeLinkMesh = null;
+  }
+  candidateLinkMeshes.forEach((m) => {
+    scene.remove(m);
+    m.geometry.dispose();
+    m.material.dispose();
+  });
+  candidateLinkMeshes = [];
+
+  const satPos = bestSat.mesh.position.clone();
+  const curve = new THREE.QuadraticBezierCurve3(
+    recvPos,
+    recvPos.clone().add(satPos).multiplyScalar(0.5).add(new THREE.Vector3(0, 2, 0)),
+    satPos
+  );
+  const points = curve.getPoints(50);
+  const geom = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 });
+  activeLinkMesh = new THREE.Line(geom, mat);
+  scene.add(activeLinkMesh);
+
+  const sorted = satellites.slice().sort((a, b) => b.score - a.score);
+  const topCandidates = sorted.slice(1, 6);
+  topCandidates.forEach((sat) => {
+    const p = sat.mesh.position.clone();
+    const c = new THREE.QuadraticBezierCurve3(
+      recvPos,
+      recvPos.clone().add(p).multiplyScalar(0.5).add(new THREE.Vector3(0, 1, 0)),
+      p
+    );
+    const pts = c.getPoints(20);
+    const g = new THREE.BufferGeometry().setFromPoints(pts);
+    const m = new THREE.LineBasicMaterial({
+      color: 0x60a5fa,
+      transparent: true,
+      opacity: 0.25
+    });
+    const line = new THREE.Line(g, m);
+    scene.add(line);
+    candidateLinkMeshes.push(line);
+  });
+
+  const positions = particleGroup.geometry.attributes.position.array;
+  const numParticles = positions.length / 3;
+  for (let i = 0; i < numParticles; i++) {
+    const t = (i / numParticles + (performance.now() / 2000) % 1) % 1;
+    const p = curve.getPoint(t);
+    positions[i * 3 + 0] = p.x + (Math.random() - 0.5) * 0.05;
+    positions[i * 3 + 1] = p.y + (Math.random() - 0.5) * 0.05;
+    positions[i * 3 + 2] = p.z + (Math.random() - 0.5) * 0.05;
+  }
+  particleGroup.geometry.attributes.position.needsUpdate = true;
+}
+
+/* ---------- Animation loop ---------- */
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const tSec = (now - startTime) / 1000;
+
+  receiver.headingDeg = (receiver.headingDeg + 0.01) % 360;
+
+  updateSatellites(tSec);
+  computeLinkMetrics();
+  updateOrientationGuidance();
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+/* ---------- Resize ---------- */
+
+function onWindowResize() {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+}
+
+/* ---------- Init ---------- */
+
+initScene();
+animate();
+</script>
+</body>
+</html>
