@@ -3,9 +3,72 @@
  * Central registry of all projects with status, contributors, and metadata
  *
  * GET: List all projects (with optional filters)
+ * GET ?leaderboard=true: Get contributor leaderboard from GitHub
+ * GET ?stats=true: Get project stats with real GitHub data
  * POST: Add project to user's dashboard
  * PUT: Update project status/claim task
  */
+
+// GitHub API helper
+async function fetchGitHubStats(owner, repo) {
+    const token = process.env.GITHUB_TOKEN;
+    const headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'ConsciousnessRevolution-ProjectRegistry'
+    };
+    if (token) headers['Authorization'] = `token ${token}`;
+
+    try {
+        // Fetch repo stats
+        const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+        const repoData = repoRes.ok ? await repoRes.json() : null;
+
+        // Fetch contributors
+        const contribRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contributors?per_page=10`, { headers });
+        const contributors = contribRes.ok ? await contribRes.json() : [];
+
+        // Fetch recent commits
+        const commitsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=5`, { headers });
+        const commits = commitsRes.ok ? await commitsRes.json() : [];
+
+        return {
+            stars: repoData?.stargazers_count || 0,
+            forks: repoData?.forks_count || 0,
+            openIssues: repoData?.open_issues_count || 0,
+            contributors: contributors.map(c => ({
+                login: c.login,
+                contributions: c.contributions,
+                avatar: c.avatar_url
+            })),
+            recentCommits: commits.map(c => ({
+                sha: c.sha?.substring(0, 7),
+                message: c.commit?.message?.split('\n')[0]?.substring(0, 60),
+                author: c.author?.login || c.commit?.author?.name,
+                date: c.commit?.author?.date
+            }))
+        };
+    } catch (error) {
+        console.error('GitHub fetch error:', error);
+        return null;
+    }
+}
+
+// GitHub username to team member mapping
+const GITHUB_TO_TEAM = {
+    'overkillkulture': { name: 'Commander', id: 'commander_1', avatar: '🎖️' },
+    'darrickpreble': { name: 'Commander', id: 'commander_1', avatar: '🎖️' },
+    'barbrickdesign': { name: 'Ryan', id: 'agent_r_1', avatar: '🦁' },
+    'ryanagent': { name: 'Ryan', id: 'agent_r_1', avatar: '🦁' },
+    'copilot': { name: 'Copilot', id: 'copilot', avatar: '🤖' },
+    'github-actions': { name: 'Automation', id: 'automation', avatar: '⚙️' }
+};
+
+// Reward calculation
+const REWARDS = {
+    commit: { xp: 10, okk: 5 },
+    pr_merged: { xp: 50, okk: 25 },
+    issue_closed: { xp: 30, okk: 15 }
+};
 
 // Project Registry - In production this would be in a database
 const PROJECTS = [
@@ -217,6 +280,89 @@ export async function handler(event) {
         // GET - List projects
         if (event.httpMethod === 'GET') {
             const params = event.queryStringParameters || {};
+
+            // Leaderboard endpoint - real GitHub data
+            if (params.leaderboard === 'true') {
+                const githubStats = await fetchGitHubStats('overkillkulture', 'consciousness-revolution');
+
+                if (!githubStats) {
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({ error: 'Failed to fetch GitHub data' })
+                    };
+                }
+
+                // Calculate rewards based on contributions
+                const leaderboard = githubStats.contributors
+                    .filter(c => !['github-actions[bot]', 'dependabot[bot]'].includes(c.login))
+                    .map(c => {
+                        const teamInfo = GITHUB_TO_TEAM[c.login.toLowerCase()] || {
+                            name: c.login,
+                            id: c.login.toLowerCase(),
+                            avatar: '👤'
+                        };
+                        const xp = c.contributions * REWARDS.commit.xp;
+                        const okk = c.contributions * REWARDS.commit.okk;
+                        return {
+                            rank: 0,
+                            github: c.login,
+                            name: teamInfo.name,
+                            id: teamInfo.id,
+                            avatar: teamInfo.avatar,
+                            githubAvatar: c.avatar,
+                            contributions: c.contributions,
+                            totalXP: xp,
+                            totalOKK: okk,
+                            level: Math.floor(xp / 500) + 1
+                        };
+                    })
+                    .sort((a, b) => b.totalXP - a.totalXP)
+                    .map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        leaderboard,
+                        repoStats: {
+                            stars: githubStats.stars,
+                            forks: githubStats.forks,
+                            openIssues: githubStats.openIssues
+                        },
+                        recentActivity: githubStats.recentCommits,
+                        lastUpdated: new Date().toISOString()
+                    })
+                };
+            }
+
+            // Stats endpoint - get project with real GitHub data
+            if (params.stats === 'true' && params.projectId) {
+                const project = PROJECTS.find(p => p.id === params.projectId);
+                if (!project) {
+                    return {
+                        statusCode: 404,
+                        headers,
+                        body: JSON.stringify({ error: 'Project not found' })
+                    };
+                }
+
+                const githubStats = await fetchGitHubStats('overkillkulture', 'consciousness-revolution');
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        project: {
+                            ...project,
+                            githubStats: githubStats || {}
+                        }
+                    })
+                };
+            }
+
             let filtered = [...PROJECTS];
 
             // Filter by category
