@@ -769,6 +769,9 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
     
+    // Filtered nodes for search/status filtering (used by render())
+    let filteredNodes = [];
+
     const state = {
         nodes: [],
         connections: [],
@@ -1945,8 +1948,15 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         ctx.translate(state.camera.x, state.camera.y);
         ctx.scale(state.camera.zoom, state.camera.zoom);
         
-        // Draw connections
+        // Draw connections (only between visible filtered nodes)
+        const visibleNodeIds = new Set((filteredNodes.length > 0 || ui.searchFilter.value || ui.statusFilter.value !== 'all'
+            ? filteredNodes
+            : state.nodes).map(n => n.id));
+
         state.connections.forEach(conn => {
+            // Skip connections to nodes not in current filter
+            if (!visibleNodeIds.has(conn.from) || !visibleNodeIds.has(conn.to)) return;
+
             const fromNode = state.nodes.find(n => n.id === conn.from);
             const toNode = state.nodes.find(n => n.id === conn.to);
             if (!fromNode || !toNode) return;
@@ -1966,9 +1976,13 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             
             ctx.stroke();
         });
-        
-        // Draw nodes
-        state.nodes.forEach(node => {
+
+        // Draw nodes (use filtered list if filters active, otherwise all nodes)
+        const nodesToDraw = filteredNodes.length > 0 || ui.searchFilter.value || ui.statusFilter.value !== 'all'
+            ? filteredNodes
+            : state.nodes;
+
+        nodesToDraw.forEach(node => {
             const isSelected = state.selectedNode && state.selectedNode.id === node.id;
             const nodeValue = node.value?.usdValue || 0;
             
@@ -3397,14 +3411,32 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     ui.autoLayoutBtn.addEventListener('click', autoLayout);
     
     ui.searchFilter.addEventListener('input', () => {
-        // TODO: Implement search filtering
+        applyFilters();
         render();
     });
-    
+
     ui.statusFilter.addEventListener('change', () => {
-        // TODO: Implement status filtering
+        applyFilters();
         render();
     });
+
+    // Apply search and status filters to node list
+    function applyFilters() {
+        const searchText = ui.searchFilter.value.toLowerCase().trim();
+        const statusValue = ui.statusFilter.value;
+
+        filteredNodes = state.nodes.filter(node => {
+            // Search filter
+            const matchesSearch = !searchText ||
+                node.name.toLowerCase().includes(searchText) ||
+                node.path.toLowerCase().includes(searchText);
+
+            // Status filter
+            const matchesStatus = statusValue === 'all' || node.status === statusValue;
+
+            return matchesSearch && matchesStatus;
+        });
+    }
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ENHANCED SCAN WITH FIREBASE LOGGING
