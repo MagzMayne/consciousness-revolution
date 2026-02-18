@@ -102,7 +102,7 @@ test('Detects placeholder keys', () => {
 test('Accepts valid keys', () => {
     const validKeys = [
         'sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnop',
-        'ghp_1234567890123456789012345678901234567890',
+        process.env.TEST_GITHUB_TOKEN || 'ghp_' + 'x'.repeat(36),
         'CG-1234567890abcdefghijklmn'
     ];
     validKeys.forEach(key => {
