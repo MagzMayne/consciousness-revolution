@@ -194,6 +194,116 @@ See the [GroqAI Integration Guide](GROQ_ORCHESTRATOR_GUIDE.md) for complete docu
 
 ---
 
+## 💻 Developer Setup
+
+### ⚡ Quick Start (3 Commands!)
+
+Get started in less than a minute:
+
+```bash
+npm install           # Install dependencies
+npm run onboard       # Auto-generate .env with core variables
+npm start             # Start the application!
+```
+
+**What `npm run onboard` does**:
+- ✅ Generates unique UNIVERSE_KEY (UUID v4)
+- ✅ Creates `.env` file with 3 core variables
+- ✅ Sets secure file permissions (600)
+- ✅ Protects secrets from version control
+
+**Before** (Manual setup with 40+ variables):
+```bash
+cp .env.example .env
+# Edit .env manually... which of these 40 variables do I need?
+# Hope it works... 🤞
+```
+
+**After** (Automated):
+```bash
+npm run onboard      # Done! ✨
+npm start
+```
+
+### 🛡️ Security Features
+
+**Pre-Commit Secret Scanning** - Automatically installed to protect your code:
+
+```bash
+npm run setup:git-hooks    # Install pre-commit hooks
+```
+
+**What gets scanned**:
+- OpenAI API keys (`sk-*`)
+- GitHub tokens (`ghp_*`, `gho_*`, `ghu_*`)
+- Anthropic keys (`sk-ant-*`)
+- Groq keys (`gsk_*`)
+- Database URLs with passwords
+- Private keys
+- AWS credentials
+- And more...
+
+If secrets are detected, the commit is blocked with helpful guidance. No more accidentally committing API keys!
+
+### 🔍 Setup Validation
+
+Verify your environment is configured correctly:
+
+```bash
+npm run verify:setup
+```
+
+**Checks**:
+- ✅ Node.js version (>= 16.0.0)
+- ✅ Dependencies installed
+- ✅ Environment variables set
+- ✅ Security configuration
+- ✅ Git hooks installed
+- ✅ File permissions
+
+### 📋 Configuration Files
+
+- **`.env.core.example`** - 3 required variables only (UNIVERSE_KEY, NODE_ENV, PORT)
+- **`.env.example`** - Full configuration with all 40+ options
+- **`.env.test.example`** - Mock keys for testing (safe to commit!)
+- **`DEVELOPER_ONBOARDING.md`** - Complete onboarding guide with role-based paths
+
+### 🎯 Role-Based Onboarding
+
+See **[DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)** for detailed guides:
+
+- 🎨 **Frontend Developer** - HTML, CSS, JavaScript
+- ⚙️ **Backend Developer** - Node.js, APIs, databases
+- 🤖 **AI/ML Developer** - AI integrations, agents, LLMs
+- 🔧 **DevOps** - Deployment, CI/CD, monitoring
+- 📚 **Documentation Writer** - Guides, tutorials, docs
+
+### 📦 Available Scripts
+
+```bash
+# Onboarding & Setup
+npm run onboard              # Auto-generate .env
+npm run verify:setup         # Validate configuration
+npm run setup:git-hooks      # Install pre-commit hooks
+
+# Development
+npm start                    # Start application
+npm run dev                  # Development mode
+npm run backend              # Start backend services
+
+# Testing
+npm test                     # Run tests
+npm run test:api             # Test API connections
+npm run health               # Health check
+
+# Deployment
+npm run deploy               # Deploy to production
+```
+
+See **[DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)** for complete documentation.
+
+---
+
 ## 🚀 Deployment
 
 ### Deploy to Netlify
