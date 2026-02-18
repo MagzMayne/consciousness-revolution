@@ -1,11 +1,13 @@
 /**
  * ARAYA FEEDBACK WIDGET
  * Add to any page: <script src="js/bug-widget.js"></script>
- * Reports feature requests and feedback to Discord AI Coordination channel
+ * Reports feature requests and feedback via Netlify function (araya-feedback)
+ * Stores in Supabase with sentiment analysis
  */
 
 (function() {
-    const WEBHOOK = 'https://discord.com/api/webhooks/1459406077543186541/-IkzO4kbVzRld1HEycQk8jRbCPF6u7zROh19EjX6jGDzJ3VxvR1PHoeImoOu9SBCm_en';
+    // Use Netlify function instead of direct Discord webhook (avoids CORS)
+    const FEEDBACK_ENDPOINT = '/.netlify/functions/araya-feedback';
 
     // Create button
     const btn = document.createElement('button');
@@ -114,23 +116,36 @@
             return;
         }
 
-        const timestamp = new Date().toISOString().slice(0,19).replace('T',' ');
         const page = window.location.pathname.split('/').pop() || 'index';
 
         try {
-            await fetch(WEBHOOK, {
+            status.style.color = '#ffcc00';
+            status.textContent = 'Sending...';
+
+            const response = await fetch(FEEDBACK_ENDPOINT, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    content: `**[FEATURE REQUEST]** ${timestamp} | Page: ${page}\n\n${text}\n\n*via Feedback Widget*`
+                    type: 'feature',
+                    message: text,
+                    page: page,
+                    anonymous: true
                 })
             });
-            status.style.color = '#32cd32';
-            status.textContent = 'Sent! ARAYA will learn from this.';
-            setTimeout(closeBugModal, 1500);
+
+            const data = await response.json();
+
+            if (data.success) {
+                status.style.color = '#32cd32';
+                status.textContent = data.araya_response || 'Sent! ARAYA will learn from this.';
+                setTimeout(closeBugModal, 2000);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
         } catch(e) {
+            console.error('Feedback error:', e);
             status.style.color = '#ff6b6b';
-            status.textContent = 'Failed. Email: darrickpreble@proton.me';
+            status.textContent = 'Failed to send. Please try again.';
         }
     }
 })();

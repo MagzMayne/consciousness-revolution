@@ -21,7 +21,7 @@
         idleTimeout: 30000, // Time before robot starts wandering (30s - was 3s)
         wanderEnabled: false, // Disable auto-wandering by default
         storageKey: 'araya_robot_state',
-        enabled: true
+        enabled: false // DISABLED - unfinished project (Feb 2026)
     };
 
     // Robot state

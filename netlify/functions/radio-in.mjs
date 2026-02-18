@@ -25,6 +25,9 @@ const VALID_CHANNELS = [
     'BUG'         // Bug reports
 ];
 
+// Channels that require authentication (sensitive/privileged)
+const PROTECTED_CHANNELS = ['COMMANDER', 'SYSTEM', 'TRINITY'];
+
 export async function handler(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -47,6 +50,23 @@ export async function handler(event, context) {
 
     try {
         const data = JSON.parse(event.body || '{}');
+
+        // SECURITY: Protected channels require X-Radio-Key authentication
+        const requestedChannel = (data.channel || '').toUpperCase();
+        if (PROTECTED_CHANNELS.includes(requestedChannel)) {
+            const authKey = event.headers['x-radio-key'] || event.headers['X-Radio-Key'];
+            if (authKey !== process.env.RADIO_API_KEY) {
+                console.log(`⚠️ UNAUTHORIZED RADIO ATTEMPT: ${requestedChannel} from ${data.sender || 'unknown'}`);
+                return {
+                    statusCode: 401,
+                    headers,
+                    body: JSON.stringify({
+                        error: 'Unauthorized - X-Radio-Key required for protected channels',
+                        protected_channels: PROTECTED_CHANNELS
+                    })
+                };
+            }
+        }
 
         // Required fields
         const { channel, sender, content } = data;

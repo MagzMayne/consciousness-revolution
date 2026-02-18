@@ -18,7 +18,7 @@
         stateUpdateInterval: 1000, // Save state every second
         idleTimeout: 5000, // Time before robot starts wandering
         storageKey: 'araya_robot_state',
-        enabled: true
+        enabled: false // DISABLED - unfinished project (Feb 2026)
     };
 
     // Robot state

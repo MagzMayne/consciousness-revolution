@@ -11,6 +11,18 @@
 (function() {
     'use strict';
 
+    // ============================================
+    // R3-D3 DISABLED - Unfinished project, put aside
+    // Set to false to re-enable when ready
+    // Disabled: February 18, 2026
+    // ============================================
+    const R3D3_DISABLED = true;
+
+    if (R3D3_DISABLED) {
+        console.log('🤖 R3-D3 Robot Assistant is disabled (unfinished project)');
+        return;
+    }
+
     console.log('🤖 Loading R3-D3 Robot Assistant...');
 
     // Check if already loaded

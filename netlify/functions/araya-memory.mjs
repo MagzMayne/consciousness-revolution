@@ -1,8 +1,12 @@
 // Araya Memory - Supabase-powered persistent memory
 // Stores conversations, profile data, and insights
+// SECURITY: Write operations require X-Memory-Key header
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+
+// Operations that require authentication
+const WRITE_OPERATIONS = ['store_message', 'store_profile', 'store_insight'];
 
 // Simple Supabase client (no SDK needed)
 async function supabase(table, method, data = null, query = '') {
@@ -38,7 +42,7 @@ export async function handler(event) {
     // CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Memory-Key',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json'
     };
@@ -53,6 +57,23 @@ export async function handler(event) {
 
     try {
         const { action, user_id, data } = JSON.parse(event.body);
+
+        // SECURITY: Write operations require X-Memory-Key authentication
+        if (WRITE_OPERATIONS.includes(action)) {
+            const authKey = event.headers['x-memory-key'] || event.headers['X-Memory-Key'];
+            // Allow internal calls (from araya-chat) OR with valid API key
+            const internalCall = event.headers['x-internal-call'] === 'araya-chat';
+            if (!internalCall && authKey !== process.env.MEMORY_API_KEY) {
+                console.log(`⚠️ UNAUTHORIZED MEMORY WRITE ATTEMPT: ${action} for user ${user_id || 'unknown'}`);
+                return {
+                    statusCode: 401,
+                    headers,
+                    body: JSON.stringify({
+                        error: 'Unauthorized - X-Memory-Key required for write operations'
+                    })
+                };
+            }
+        }
 
         if (!user_id) {
             return {

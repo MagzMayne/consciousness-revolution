@@ -6,6 +6,9 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+// Channels that require authentication to read
+const PROTECTED_CHANNELS = ['COMMANDER', 'SYSTEM', 'TRINITY'];
+
 export async function handler(event, context) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
@@ -24,6 +27,23 @@ export async function handler(event, context) {
     const receiver = params.receiver;
     const limit = Math.min(50, parseInt(params.limit) || 10);
     const markProcessed = params.mark_processed === 'true';
+
+    // SECURITY: Protected channels and mark_processed require X-Radio-Key
+    const requiresAuth = PROTECTED_CHANNELS.includes(channel) || markProcessed;
+    if (requiresAuth) {
+        const authKey = event.headers['x-radio-key'] || event.headers['X-Radio-Key'];
+        if (authKey !== process.env.RADIO_API_KEY) {
+            console.log(`⚠️ UNAUTHORIZED RADIO-OUT ATTEMPT: ${channel} mark=${markProcessed}`);
+            return {
+                statusCode: 401,
+                headers,
+                body: JSON.stringify({
+                    error: 'Unauthorized - X-Radio-Key required for protected channels or mark_processed',
+                    protected_channels: PROTECTED_CHANNELS
+                })
+            };
+        }
+    }
 
     if (!channel) {
         return {
