@@ -3,10 +3,10 @@
 Reasoning Compiler
 Validates reasoning steps, not just final answers
 
-Module: 4.3 from specification
+Module: 4.3 from specification (extended with probabilistic validation)
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import logging
 from .schemas import (
     TaskSpecification,
@@ -15,6 +15,8 @@ from .schemas import (
     VerificationResult
 )
 from .constraint_engine import DeterministicConstraintEngine
+from .probabilistic_validator import ProbabilisticValidator
+from .failure_mode_analyzer import FailureModeAnalyzer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +26,7 @@ class ReasoningCompiler:
     """
     Reasoning Compiler - validates reasoning steps
     
-    Module: 4.3 from specification
+    Module: 4.3 from specification (extended)
     
     Responsibilities:
     - Validate reasoning steps, not just final answers
@@ -33,12 +35,32 @@ class ReasoningCompiler:
     - Check all implied reverse relations are consistent
     - Check all constraints satisfied via DCE
     - Maintain a "compiled reasoning trace" per task
+    - EXTENDED: Perform probabilistic validation
+    - EXTENDED: Analyze failure modes
     """
     
-    def __init__(self, constraint_engine: DeterministicConstraintEngine):
+    def __init__(
+        self,
+        constraint_engine: DeterministicConstraintEngine,
+        enable_probabilistic_validation: bool = True,
+        enable_failure_mode_analysis: bool = True
+    ):
         self.constraint_engine = constraint_engine
         self.compiled_traces: Dict[str, List[ReasoningStep]] = {}  # task_id -> list of steps
         self.step_verifications: Dict[str, Dict[int, VerificationResult]] = {}  # task_id -> step_id -> result
+        
+        # Extended: Probabilistic validation and failure mode analysis
+        self.enable_probabilistic_validation = enable_probabilistic_validation
+        self.enable_failure_mode_analysis = enable_failure_mode_analysis
+        
+        if enable_probabilistic_validation:
+            self.probabilistic_validator = ProbabilisticValidator()
+            logger.info("Probabilistic validation enabled")
+        
+        if enable_failure_mode_analysis:
+            self.failure_mode_analyzer = FailureModeAnalyzer()
+            logger.info("Failure mode analysis enabled")
+        
         logger.info("Reasoning Compiler initialized")
     
     def compile_step(
@@ -77,7 +99,7 @@ class ReasoningCompiler:
         if not struct_valid:
             errors.extend(struct_errors)
         
-        # 4. Check constraints via DCE
+        # 4. Check constraints via DCE (deterministic)
         dce_result = self.constraint_engine.verify(task_spec, state, step)
         if dce_result.status == "rejected":
             errors.extend(dce_result.reasons)
@@ -98,7 +120,7 @@ class ReasoningCompiler:
             status = "needs_revision"
             reasons = errors
         
-        # Create verification result
+        # Create base verification result
         result = VerificationResult(
             task_id=step.task_id,
             step_id=step.step_id,
@@ -108,6 +130,42 @@ class ReasoningCompiler:
             violated_constraints=dce_result.violated_constraints if dce_result.status == "rejected" else [],
             suggested_fixes=self._generate_fixes(errors) if status != "accepted" else []
         )
+        
+        # EXTENDED: Add probabilistic validation
+        if self.enable_probabilistic_validation:
+            try:
+                prob_result = self.probabilistic_validator.validate(
+                    task_spec, state, step, result
+                )
+                result.probabilistic_analysis = prob_result.to_dict()
+                logger.info(
+                    f"Probabilistic validation: probability={prob_result.validation_probability:.2f}, "
+                    f"recommendation={prob_result.combined_recommendation}"
+                )
+            except Exception as e:
+                logger.warning(f"Probabilistic validation failed: {e}")
+                result.probabilistic_analysis = {
+                    "error": str(e),
+                    "message": "Probabilistic validation unavailable"
+                }
+        
+        # EXTENDED: Add failure mode analysis
+        if self.enable_failure_mode_analysis:
+            try:
+                failure_analysis = self.failure_mode_analyzer.analyze(
+                    task_spec, state, step
+                )
+                result.failure_mode_analysis = failure_analysis.to_dict()
+                logger.info(
+                    f"Failure mode analysis: {len(failure_analysis.identified_failure_modes)} mode(s), "
+                    f"risk_score={failure_analysis.risk_score:.2f}"
+                )
+            except Exception as e:
+                logger.warning(f"Failure mode analysis failed: {e}")
+                result.failure_mode_analysis = {
+                    "error": str(e),
+                    "message": "Failure mode analysis unavailable"
+                }
         
         # Store verification
         if step.task_id not in self.step_verifications:
