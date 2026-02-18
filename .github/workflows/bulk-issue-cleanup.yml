@@ -44,12 +44,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             let page = 1;
             let allIssues = [];
             
-            // Fetch all open issues (pagination)
+            // Fetch all open issues (pagination) with rate limit monitoring
+            console.log('Fetching open issues...');
             while (true) {
-              const { data: issues } = await github.rest.issues.listForRepo({
+              const { data: issues, headers } = await github.rest.issues.listForRepo({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'open',
@@ -57,9 +59,25 @@ jobs:
                 page: page
               });
               
+              // Monitor rate limits
+              const remaining = headers['x-ratelimit-remaining'];
+              const limit = headers['x-ratelimit-limit'];
+              const resetTime = new Date(headers['x-ratelimit-reset'] * 1000);
+              console.log(`API calls remaining: ${remaining}/${limit} (resets at ${resetTime.toISOString()})`);
+              
+              // Warning if running low on API calls
+              if (remaining < 100) {
+                console.log(`⚠️ WARNING: Only ${remaining} API calls remaining!`);
+              }
+              
               if (issues.length === 0) break;
               allIssues = allIssues.concat(issues);
               page++;
+              
+              // Add delay between pages to be respectful
+              if (issues.length === 100) {
+                await delay(1000);
+              }
             }
             
             console.log(`Total open issues: ${allIssues.length}`);
@@ -134,12 +152,16 @@ jobs:
             const isDryRun = ${{ inputs.dry_run }};
             const activeBranches = ${{ steps.get-branches.outputs.result }};
             
+            // Rate limiting helper with exponential backoff
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            
             let page = 1;
             let allStaleBranchIssues = [];
             
-            // Fetch all stale-branch issues
+            // Fetch all stale-branch issues with rate limit checking
+            console.log('Fetching stale-branch issues...');
             while (true) {
-              const { data: issues } = await github.rest.issues.listForRepo({
+              const { data: issues, headers } = await github.rest.issues.listForRepo({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'open',
@@ -148,9 +170,19 @@ jobs:
                 page: page
               });
               
+              // Log rate limit status
+              const remaining = headers['x-ratelimit-remaining'];
+              const limit = headers['x-ratelimit-limit'];
+              console.log(`API calls remaining: ${remaining}/${limit}`);
+              
               if (issues.length === 0) break;
               allStaleBranchIssues = allStaleBranchIssues.concat(issues);
               page++;
+              
+              // Add delay between pagination requests
+              if (issues.length === 100) {
+                await delay(1000); // 1 second between pages
+              }
             }
             
             console.log(`Found ${allStaleBranchIssues.length} stale-branch issues to process`);
@@ -182,6 +214,9 @@ jobs:
                     body: `🤖 **Bulk cleanup:** This branch has been deleted or merged.\n\n---\n*Automated by Bulk Issue Cleanup*`
                   });
                   
+                  // Add delay between comment and update to avoid rate limiting
+                  await delay(500);
+                  
                   await github.rest.issues.update({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
@@ -189,12 +224,22 @@ jobs:
                     state: 'closed',
                     state_reason: 'completed'
                   });
+                  
+                  // Progressive backoff: more delay as we process more issues
+                  const delayTime = Math.min(500 + (closedCount * 100), 3000);
+                  await delay(delayTime);
                 }
                 
                 closedCount++;
               } else {
                 console.log(`Branch ${branchName} still exists - keeping issue #${issue.number} open`);
                 keptCount++;
+              }
+              
+              // Safety check: pause if we've made too many API calls
+              if ((closedCount + keptCount) % 20 === 0 && !isDryRun) {
+                console.log(`Processed ${closedCount + keptCount} issues, pausing 5 seconds to respect rate limits...`);
+                await delay(5000);
               }
             }
             
@@ -218,13 +263,15 @@ jobs:
           script: |
             const isDryRun = ${{ inputs.dry_run }};
             const maxReportsToKeep = 3;
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             
             let page = 1;
             let allDailyReports = [];
             
-            // Fetch all daily report issues
+            // Fetch all daily report issues with rate limit monitoring
+            console.log('Fetching daily report issues...');
             while (true) {
-              const { data: issues } = await github.rest.issues.listForRepo({
+              const { data: issues, headers } = await github.rest.issues.listForRepo({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: 'open',
@@ -235,9 +282,19 @@ jobs:
                 page: page
               });
               
+              // Log rate limit status
+              const remaining = headers['x-ratelimit-remaining'];
+              const limit = headers['x-ratelimit-limit'];
+              console.log(`API calls remaining: ${remaining}/${limit}`);
+              
               if (issues.length === 0) break;
               allDailyReports = allDailyReports.concat(issues);
               page++;
+              
+              // Add delay between pagination requests
+              if (issues.length === 100) {
+                await delay(1000);
+              }
             }
             
             console.log(`Found ${allDailyReports.length} daily report issues`);
@@ -259,6 +316,9 @@ jobs:
                   body: `🤖 **Bulk cleanup:** Superseded by newer daily reports. Only keeping the latest ${maxReportsToKeep} reports.\n\n---\n*Automated by Bulk Issue Cleanup*`
                 });
                 
+                // Add delay between comment and update
+                await delay(500);
+                
                 await github.rest.issues.update({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -266,15 +326,18 @@ jobs:
                   state: 'closed',
                   state_reason: 'completed'
                 });
+                
+                // Progressive delay based on count
+                const delayTime = Math.min(500 + (closedCount * 100), 3000);
+                await delay(delayTime);
               }
               
               closedCount++;
               
-              // Add delay to avoid rate limiting with progressive backoff
-              if (closedCount % 10 === 0) {
-                const delay = Math.min(closedCount / 10 * 5000, 30000); // Max 30s
-                console.log(`Processed ${closedCount} issues, pausing for ${delay/1000} seconds...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+              // Safety pause every 20 issues
+              if (closedCount % 20 === 0 && !isDryRun) {
+                console.log(`Processed ${closedCount} issues, pausing 5 seconds to respect rate limits...`);
+                await delay(5000);
               }
             }
             

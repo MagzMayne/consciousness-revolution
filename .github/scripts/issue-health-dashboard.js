@@ -76,22 +76,41 @@ function getHealthStatus(value, thresholds) {
 }
 
 /**
- * Fetch all issues with pagination
+ * Fetch all issues with pagination and rate limit monitoring
  */
 async function fetchAllIssues(state = 'open') {
   let allIssues = [];
   let page = 1;
 
   while (true) {
-    const issues = await githubRequest(
-      `/repos/${OWNER}/${REPO}/issues?state=${state}&per_page=100&page=${page}`
-    );
+    try {
+      const response = await githubRequest(
+        `/repos/${OWNER}/${REPO}/issues?state=${state}&per_page=100&page=${page}`
+      );
 
-    if (issues.length === 0) break;
-    allIssues = allIssues.concat(issues);
-    page++;
+      // Note: In Node.js https module, we need to parse headers from response
+      // For now, just add a delay between requests
+      if (allIssues.length > 0) {
+        console.log(`Fetched page ${page}, total issues so far: ${allIssues.length}`);
+        // Add 1 second delay between pages to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-    if (issues.length < 100) break; // Last page
+      if (response.length === 0) break;
+      allIssues = allIssues.concat(response);
+      page++;
+
+      if (response.length < 100) break; // Last page
+    } catch (error) {
+      console.error(`Error fetching page ${page}:`, error.message);
+      // If we hit rate limit, wait longer
+      if (error.message.includes('rate limit') || error.message.includes('403')) {
+        console.log('⚠️ Rate limit detected, waiting 60 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 60000));
+        continue; // Retry same page
+      }
+      throw error;
+    }
   }
 
   return allIssues;
