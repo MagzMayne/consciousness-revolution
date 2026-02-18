@@ -70,8 +70,23 @@ For team access:
 
 For GitHub Actions workflows:
 1. Go to repository Settings → Secrets and variables → Actions
-2. Add secrets there (e.g., `PROTON_PASSWORD`)
+2. Add secrets there (e.g., `PROTON_PASSWORD`, `UNIVERSE_KEY`)
 3. Reference in workflows: `${{ secrets.PROTON_PASSWORD }}`
+
+#### Universe Key Configuration
+
+The `UNIVERSE_KEY` is a unique UUID identifier for secure system authentication:
+- **Value**: `d29fc25b-c78c-4624-8106-d2b112b06024`
+- **Purpose**: Unique identifier for system access and authentication
+- **Format**: UUID v4
+- **Usage**: Set as GitHub Secret for CI/CD workflows, or in `.env` for local development
+
+**To add to GitHub Secrets:**
+1. Navigate to: Repository Settings → Secrets and variables → Actions
+2. Click "New repository secret"
+3. Name: `UNIVERSE_KEY`
+4. Value: `d29fc25b-c78c-4624-8106-d2b112b06024`
+5. Click "Add secret"
 
 ---
 
