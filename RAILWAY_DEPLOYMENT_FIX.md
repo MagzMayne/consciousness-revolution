@@ -1,6 +1,19 @@
 # Railway Deployment Fix - Summary
 
-## Problem
+## Latest Update (February 2026)
+⚠️ **New Issue**: Nixpacks build was failing with "derivationStrict" error due to multi-language detection.
+
+**✅ Fixed**: See [NIXPACKS_BUILD_FAILURE_FIX.md](./NIXPACKS_BUILD_FAILURE_FIX.md) for complete details.
+
+**Quick Summary**:
+- Added Python files to `.railwayignore`
+- Optimized `nixpacks.toml` for Node.js-only builds
+- Created `.dockerignore` to reduce build context
+- Build now succeeds with clean Node.js environment
+
+---
+
+## Original Problem (Ruby Detection)
 Railway was detecting this project as a Ruby application due to the presence of `Gemfile` (which is required for GitHub Pages Jekyll rendering). This caused deployment failures with the error:
 ```
 No start command was found
