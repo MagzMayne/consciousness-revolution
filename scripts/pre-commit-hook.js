@@ -38,7 +38,7 @@ function log(message, color = 'reset') {
 const SECRET_PATTERNS = [
     {
         name: 'OpenAI API Key',
-        pattern: /sk-[a-zA-Z0-9]{32,}/g,
+        pattern: /sk-[a-zA-Z0-9_-]{20,}/g,
         severity: 'HIGH',
         exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
     },
@@ -62,13 +62,13 @@ const SECRET_PATTERNS = [
     },
     {
         name: 'Anthropic API Key',
-        pattern: /sk-ant-[a-zA-Z0-9\-_]{32,}/g,
+        pattern: /sk-ant-[a-zA-Z0-9\-_]{20,}/g,
         severity: 'HIGH',
         exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
     },
     {
         name: 'Groq API Key',
-        pattern: /gsk_[a-zA-Z0-9]{32,}/g,
+        pattern: /gsk_[a-zA-Z0-9_-]{20,}/g,
         severity: 'HIGH',
         exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
     },
@@ -86,7 +86,7 @@ const SECRET_PATTERNS = [
     },
     {
         name: 'Generic API Key',
-        pattern: /api[_-]?key\s*[:=]\s*['\"]?[a-zA-Z0-9]{32,}['\"]?/gi,
+        pattern: /api[_-]?key\s*[:=]\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?/gi,
         severity: 'MEDIUM',
         exclude: ['test', 'example', 'mock', '.env.test', '.env.example', 'placeholder']
     },
