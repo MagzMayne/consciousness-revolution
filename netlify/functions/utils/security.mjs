@@ -2,9 +2,11 @@
 // ZERO TRUST SECURITY UTILITIES
 // Centralized security functions for all Netlify functions
 // Created: 2026-02-16
+// Updated: 2026-02-18 (Security Phase 3 - Distributed Rate Limiting)
 // ═══════════════════════════════════════════════════════════════
 
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
 
 // ═══════════════════════════════════════════════════════════════
 // CORS CONFIGURATION
@@ -45,13 +47,119 @@ export function getSecureCORSHeaders(origin) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// RATE LIMITING
+// RATE LIMITING (Distributed via Supabase + In-Memory Fallback)
 // ═══════════════════════════════════════════════════════════════
 
 const rateLimitStore = new Map();
 
+// Supabase client for distributed rate limiting
+let supabaseClient = null;
+
+function getSupabaseForRateLimit() {
+    if (supabaseClient) return supabaseClient;
+
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY;
+
+    if (url && key) {
+        supabaseClient = createClient(url, key, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+    }
+    return supabaseClient;
+}
+
 /**
- * Simple in-memory rate limiter
+ * Distributed rate limiter using Supabase with in-memory fallback
+ * Persists across cold starts and works across all function instances
+ * @param {string} identifier - IP or user ID
+ * @param {number} maxRequests - Max requests allowed
+ * @param {number} windowMs - Time window in milliseconds
+ * @returns {Object} { allowed: boolean, resetAt: number }
+ */
+export async function checkRateLimitDistributed(identifier, maxRequests = 100, windowMs = 60000) {
+    const supabase = getSupabaseForRateLimit();
+
+    // If Supabase not configured, fall back to in-memory
+    if (!supabase) {
+        return checkRateLimit(identifier, maxRequests, windowMs);
+    }
+
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    const key = `rate_${identifier}`;
+
+    try {
+        // Use a single upsert operation for atomic rate limit check
+        const { data, error } = await supabase.rpc('check_rate_limit', {
+            p_identifier: key,
+            p_max_requests: maxRequests,
+            p_window_ms: windowMs
+        });
+
+        // If RPC function exists and works, use it
+        if (!error && data !== null) {
+            return {
+                allowed: data.allowed,
+                resetAt: data.reset_at,
+                count: data.count
+            };
+        }
+
+        // Fallback: Direct table operations if RPC not available
+        // Get current record
+        const { data: existing } = await supabase
+            .from('rate_limits')
+            .select('count, window_start')
+            .eq('identifier', key)
+            .single();
+
+        if (!existing || existing.window_start < windowStart) {
+            // Create or reset window
+            await supabase
+                .from('rate_limits')
+                .upsert({
+                    identifier: key,
+                    count: 1,
+                    window_start: now,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'identifier' });
+
+            return { allowed: true, resetAt: now + windowMs, count: 1 };
+        }
+
+        if (existing.count >= maxRequests) {
+            return {
+                allowed: false,
+                resetAt: existing.window_start + windowMs,
+                count: existing.count
+            };
+        }
+
+        // Increment count
+        await supabase
+            .from('rate_limits')
+            .update({
+                count: existing.count + 1,
+                updated_at: new Date().toISOString()
+            })
+            .eq('identifier', key);
+
+        return {
+            allowed: true,
+            resetAt: existing.window_start + windowMs,
+            count: existing.count + 1
+        };
+
+    } catch (err) {
+        // On any error, fall back to in-memory
+        console.warn('Distributed rate limit failed, using in-memory:', err.message);
+        return checkRateLimit(identifier, maxRequests, windowMs);
+    }
+}
+
+/**
+ * Simple in-memory rate limiter (fallback when Supabase unavailable)
  * @param {string} identifier - IP or user ID
  * @param {number} maxRequests - Max requests allowed
  * @param {number} windowMs - Time window in milliseconds
@@ -60,7 +168,7 @@ const rateLimitStore = new Map();
 export function checkRateLimit(identifier, maxRequests = 100, windowMs = 60000) {
     const now = Date.now();
     const key = `rate_${identifier}`;
-    
+
     if (!rateLimitStore.has(key)) {
         rateLimitStore.set(key, {
             count: 1,
@@ -68,9 +176,9 @@ export function checkRateLimit(identifier, maxRequests = 100, windowMs = 60000) 
         });
         return { allowed: true, resetAt: now + windowMs };
     }
-    
+
     const record = rateLimitStore.get(key);
-    
+
     if (now > record.resetAt) {
         // Reset window
         rateLimitStore.set(key, {
@@ -79,18 +187,18 @@ export function checkRateLimit(identifier, maxRequests = 100, windowMs = 60000) 
         });
         return { allowed: true, resetAt: now + windowMs };
     }
-    
+
     if (record.count >= maxRequests) {
         return { allowed: false, resetAt: record.resetAt };
     }
-    
+
     record.count++;
     rateLimitStore.set(key, record);
     return { allowed: true, resetAt: record.resetAt };
 }
 
 /**
- * Clean up old rate limit records
+ * Clean up old rate limit records (in-memory)
  */
 setInterval(() => {
     const now = Date.now();
@@ -511,6 +619,7 @@ export function validateAuthToken(headers) {
 export default {
     getSecureCORSHeaders,
     checkRateLimit,
+    checkRateLimitDistributed,
     isValidEmail,
     isValidUUID,
     sanitizeString,

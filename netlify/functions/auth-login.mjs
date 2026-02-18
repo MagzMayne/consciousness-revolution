@@ -161,31 +161,49 @@ export async function handler(event, context) {
             .eq('foundation_id', data.user.id)
             .single();
 
-        secureLog('Successful login', { 
+        secureLog('Successful login', {
             userId: data.user.id,
             email: validation.sanitized.email
         });
 
-        return successResponse({
-            message: 'Login successful!',
-            session: {
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-                expires_at: data.session.expires_at
-            },
-            user: {
-                id: data.user.id,
-                email: data.user.email,
-                full_name: foundation?.full_name || data.user.user_metadata?.full_name || '',
-                consciousness_level: foundation?.consciousness_level || 0.5,
-                manipulation_immunity: foundation?.manipulation_immunity || 0.3,
-                account_tier: foundation?.account_tier || 'free',
-                contribution_tier: networkStatus?.contribution_tier || 'GHOST',
-                contribution_score: networkStatus?.contribution_score || 0,
-                is_admin: foundation?.is_admin || false,
-                r3d3_access_enabled: foundation?.r3d3_access_enabled || false
-            }
-        }, origin, 200);
+        // Security: Set tokens as httpOnly cookies instead of response body
+        // This prevents XSS attacks from stealing tokens
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookieDomain = isProduction ? '.conciousnessrevolution.io' : '';
+        const accessTokenMaxAge = 3600; // 1 hour
+        const refreshTokenMaxAge = 604800; // 7 days
+
+        const cookies = [
+            `access_token=${data.session.access_token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${accessTokenMaxAge}${cookieDomain ? `; Domain=${cookieDomain}` : ''}`,
+            `refresh_token=${data.session.refresh_token}; HttpOnly; Secure; SameSite=Strict; Path=/api/auth; Max-Age=${refreshTokenMaxAge}${cookieDomain ? `; Domain=${cookieDomain}` : ''}`,
+            `session_expires=${data.session.expires_at}; Secure; SameSite=Strict; Path=/; Max-Age=${accessTokenMaxAge}${cookieDomain ? `; Domain=${cookieDomain}` : ''}`
+        ];
+
+        const headers = getSecureCORSHeaders(origin);
+        // Set multiple cookies
+        headers['Set-Cookie'] = cookies.join(', ');
+
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                success: true,
+                message: 'Login successful!',
+                // NO tokens in response body - they're in httpOnly cookies
+                user: {
+                    id: data.user.id,
+                    email: data.user.email,
+                    full_name: foundation?.full_name || data.user.user_metadata?.full_name || '',
+                    consciousness_level: foundation?.consciousness_level || 0.5,
+                    manipulation_immunity: foundation?.manipulation_immunity || 0.3,
+                    account_tier: foundation?.account_tier || 'free',
+                    contribution_tier: networkStatus?.contribution_tier || 'GHOST',
+                    contribution_score: networkStatus?.contribution_score || 0,
+                    is_admin: foundation?.is_admin || false,
+                    r3d3_access_enabled: foundation?.r3d3_access_enabled || false
+                }
+            })
+        };
 
     } catch (error) {
         secureLog('Login error', { error: error.message });

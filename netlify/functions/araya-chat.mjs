@@ -44,8 +44,9 @@ const GITHUB_BRANCH = 'master';
 // ═══════════════════════════════════════════════════════════════
 // RAILWAY PROXY - Route heavy tasks to Railway (no timeout limit)
 // Netlify free tier = 10s timeout, Railway = unlimited
+// SECURITY: URL loaded from environment variable, not hardcoded
 // ═══════════════════════════════════════════════════════════════
-const RAILWAY_API_URL = 'https://gleaming-tranquility-production-abcf.up.railway.app/chat';
+const RAILWAY_API_URL = process.env.RAILWAY_API_URL || null;
 
 // Detect tasks that need Railway (longer than 10s timeout)
 function shouldRouteToRailway(message, mode, attachments = []) {

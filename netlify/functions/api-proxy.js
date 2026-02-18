@@ -52,6 +52,65 @@
 const https = require('https');
 const http = require('http');
 
+// ═══════════════════════════════════════════════════════════════
+// SSRF PROTECTION: Whitelist of allowed API targets
+// SECURITY: Only these domains can be proxied to prevent SSRF attacks
+// ═══════════════════════════════════════════════════════════════
+const ALLOWED_TARGETS = [
+  'api.deepseek.com',
+  'api.anthropic.com',
+  'api.openai.com',
+  'api.groq.com',
+  'api.together.ai',
+  'api.replicate.com',
+  'api.huggingface.co',
+  'api.cohere.ai',
+  'api.stripe.com',
+  'api.paypal.com',
+  'api.github.com'
+];
+
+/**
+ * Validate URL is allowed for proxying
+ * @param {string} url - URL to validate
+ * @returns {Object} { allowed: boolean, hostname: string|null, error: string|null }
+ */
+function validateProxyTarget(url) {
+  try {
+    const urlObj = new URL(url);
+
+    // Must be HTTPS (no HTTP proxying)
+    if (urlObj.protocol !== 'https:') {
+      return { allowed: false, hostname: null, error: 'Only HTTPS URLs are allowed' };
+    }
+
+    // Check against whitelist
+    const hostname = urlObj.hostname.toLowerCase();
+    const isAllowed = ALLOWED_TARGETS.some(target =>
+      hostname === target || hostname.endsWith('.' + target)
+    );
+
+    if (!isAllowed) {
+      console.warn(`[SSRF BLOCKED] Attempted proxy to non-whitelisted host: ${hostname}`);
+      return { allowed: false, hostname, error: `Target host not allowed: ${hostname}` };
+    }
+
+    // Block internal/private IPs
+    if (hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.') ||
+        hostname.endsWith('.local')) {
+      return { allowed: false, hostname, error: 'Private/internal addresses not allowed' };
+    }
+
+    return { allowed: true, hostname, error: null };
+  } catch (e) {
+    return { allowed: false, hostname: null, error: 'Invalid URL format' };
+  }
+}
+
 exports.handler = async (event, context) => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -80,12 +139,30 @@ exports.handler = async (event, context) => {
         },
         body: JSON.stringify({
           error: 'Missing required parameter: url',
-          usage: '/api/proxy?url=https://example.com/api/data'
+          usage: '/api/proxy?url=https://api.example.com/endpoint',
+          allowedTargets: ALLOWED_TARGETS
         })
       };
     }
 
-    // Make the proxied request
+    // SSRF Protection: Validate URL before making request
+    const validation = validateProxyTarget(targetUrl);
+    if (!validation.allowed) {
+      return {
+        statusCode: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({
+          error: 'Forbidden',
+          message: validation.error,
+          allowedTargets: ALLOWED_TARGETS
+        })
+      };
+    }
+
+    // Make the proxied request (URL is now validated)
     const response = await makeRequest(targetUrl, event.httpMethod, event.body);
 
     return {
