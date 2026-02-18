@@ -6,6 +6,27 @@ description: A transformative platform for self-creation, personal empowerment, 
 
 # ✨ Your Consciousness Revolution - Create Your Best Life
 
+## 🚀 Quick Start for Developers
+
+**New here? Get set up in 15 minutes:**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/overkor-tek/consciousness-revolution.git
+cd consciousness-revolution
+
+# 2. Run automated onboarding
+npm install
+npm run onboard
+
+# 3. Start developing
+npm start
+```
+
+📚 **Complete Setup Guide:** [DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)
+
+---
+
 ## 🌟 Welcome to Your Personal Consciousness Revolution
 
 A transformative platform designed to help **you** discover and walk **your unique life path**. Every individual has a sacred journey specific to their soul's purpose - these tools help you create the life you're meant to live, become your best self, and find the path that is uniquely yours.

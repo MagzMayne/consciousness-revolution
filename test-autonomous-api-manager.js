@@ -100,10 +100,11 @@ test('Detects placeholder keys', () => {
 });
 
 test('Accepts valid keys', () => {
+    // Use test data from environment variables or generate mock keys
     const validKeys = [
-        'sk-abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnop',
-        'ghp_1234567890123456789012345678901234567890',
-        'CG-1234567890abcdefghijklmn'
+        process.env.TEST_OPENAI_KEY || 'sk-' + 'x'.repeat(48), // Mock OpenAI key format
+        process.env.TEST_GITHUB_TOKEN || 'ghp_' + 'x'.repeat(36), // Mock GitHub token format
+        process.env.TEST_COINGECKO_KEY || 'CG-' + 'x'.repeat(20) // Mock CoinGecko key format
     ];
     validKeys.forEach(key => {
         if (manager.isPlaceholder(key)) {
