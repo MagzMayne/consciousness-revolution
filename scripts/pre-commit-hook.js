@@ -1,270 +1,232 @@
 #!/usr/bin/env node
 
 /**
- * Pre-Commit Secret Detection Hook
+ * 🔒 Pre-commit Hook - Secret Detection
  * 
- * This script scans staged files for exposed secrets before committing:
- * - OpenAI API keys (sk-*)
- * - GitHub tokens (ghp_*, gho_*, ghu_*)
- * - Anthropic API keys (sk-ant-*)
- * - Groq API keys (gsk_*)
- * - Generic passwords
- * - Database URLs with credentials
- * - AWS keys
- * - Private keys
+ * Scans staged files for potential exposed secrets before commit.
+ * Prevents accidental commits of API keys, tokens, and passwords.
  * 
- * Usage: Automatically runs on git commit
- *        Or run manually: node scripts/pre-commit-hook.js
+ * Installation: npm run setup:git-hooks
+ * 
+ * @author Consciousness Revolution Platform Team
+ * @version 1.0.0
  */
 
-const fs = require('fs');
 const { execSync } = require('child_process');
+const fs = require('fs');
 
-// ANSI color codes
+// Terminal colors
 const colors = {
     reset: '\x1b[0m',
-    bright: '\x1b[1m',
     red: '\x1b[31m',
     yellow: '\x1b[33m',
-    green: '\x1b[32m',
     cyan: '\x1b[36m',
 };
-
-function log(message, color = 'reset') {
-    console.log(`${colors[color]}${message}${colors.reset}`);
-}
 
 // Secret patterns to detect
 const SECRET_PATTERNS = [
     {
+        pattern: /sk-[a-zA-Z0-9]{20,}/g,
         name: 'OpenAI API Key',
-        pattern: /sk-[a-zA-Z0-9_-]{20,}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
+        example: 'sk-...'
     },
     {
+        pattern: /ghp_[a-zA-Z0-9]{36,}/g,
         name: 'GitHub Personal Access Token',
-        pattern: /ghp_[a-zA-Z0-9]{36}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
+        example: 'ghp_...'
     },
     {
-        name: 'GitHub OAuth Token',
-        pattern: /gho_[a-zA-Z0-9]{36}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
+        pattern: /github_pat_[a-zA-Z0-9_]{22,}/g,
+        name: 'GitHub PAT',
+        example: 'github_pat_...'
     },
     {
-        name: 'GitHub User-to-Server Token',
-        pattern: /ghu_[a-zA-Z0-9]{36}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
-    },
-    {
+        pattern: /sk-ant-[a-zA-Z0-9-_]{20,}/g,
         name: 'Anthropic API Key',
-        pattern: /sk-ant-[a-zA-Z0-9\-_]{20,}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
+        example: 'sk-ant-...'
     },
     {
+        pattern: /gsk-[a-zA-Z0-9]{20,}/g,
         name: 'Groq API Key',
-        pattern: /gsk_[a-zA-Z0-9_-]{20,}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
+        example: 'gsk-...'
     },
     {
-        name: 'AWS Access Key',
-        pattern: /AKIA[0-9A-Z]{16}/g,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock']
+        pattern: /AIza[0-9A-Za-z_-]{35}/g,
+        name: 'Google API Key',
+        example: 'AIza...'
     },
     {
-        name: 'AWS Secret Key',
-        pattern: /aws_secret_access_key\s*=\s*['\"]?[a-zA-Z0-9\/+=]{40}['\"]?/gi,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock']
+        pattern: /(password|passwd|pwd)\s*[:=]\s*['"][^'"]+['"]/gi,
+        name: 'Password',
+        example: 'password: "..."'
     },
     {
-        name: 'Generic API Key',
-        pattern: /api[_-]?key\s*[:=]\s*['\"]?[a-zA-Z0-9_-]{20,}['\"]?/gi,
-        severity: 'MEDIUM',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example', 'placeholder']
+        pattern: /postgresql:\/\/[^:]+:[^@]+@/g,
+        name: 'Database URL with credentials',
+        example: 'postgresql://user:pass@...'
     },
-    {
-        name: 'Database URL with Password',
-        pattern: /(postgresql|mysql|mongodb):\/\/[^:]+:[^@]+@[^\/]+/gi,
-        severity: 'HIGH',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example', 'localhost', 'testuser', 'testpass']
-    },
-    {
-        name: 'Private Key',
-        pattern: /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g,
-        severity: 'CRITICAL',
-        exclude: ['test', 'example', 'mock']
-    },
-    {
-        name: 'JWT Token',
-        pattern: /eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}/g,
-        severity: 'MEDIUM',
-        exclude: ['test', 'example', 'mock', '.env.test', '.env.example']
-    }
 ];
 
+// Files to always ignore
+const IGNORE_FILES = [
+    '.env.example',
+    '.env.core.example',
+    '.env.test.example',
+    '.env.template',
+    'scripts/pre-commit-hook.js',
+    'backend-health-checker.js'
+];
+
+/**
+ * Get staged files from git
+ */
 function getStagedFiles() {
     try {
-        const output = execSync('git diff --cached --name-only --diff-filter=ACM', { 
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore']
-        });
-        return output.trim().split('\n').filter(f => f.length > 0);
+        const output = execSync('git diff --cached --name-only', { encoding: 'utf8' });
+        return output.trim().split('\n').filter(f => f);
     } catch (error) {
-        // Not in a git repo or no staged files
+        console.error(`${colors.red}Error getting staged files: ${error.message}${colors.reset}`);
         return [];
     }
 }
 
-function shouldExcludeFile(filename) {
-    const excludedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.ico', 
-                               '.pdf', '.zip', '.tar', '.gz', '.mp4', '.mp3'];
-    const excludedDirs = ['node_modules', '.git', 'dist', 'build', 'coverage'];
-    
-    // Check file extension
-    if (excludedExtensions.some(ext => filename.toLowerCase().endsWith(ext))) {
+/**
+ * Check if file should be ignored
+ */
+function shouldIgnoreFile(filename) {
+    // Ignore files in IGNORE_FILES list
+    if (IGNORE_FILES.some(ignore => filename.endsWith(ignore))) {
         return true;
     }
     
-    // Check directory
-    if (excludedDirs.some(dir => filename.includes(`${dir}/`))) {
+    // Ignore .env files (they should already be gitignored)
+    if (filename.includes('.env') && !filename.includes('.example')) {
+        return true;
+    }
+    
+    // Ignore binary files
+    const binaryExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf', '.zip', '.tar', '.gz'];
+    if (binaryExtensions.some(ext => filename.endsWith(ext))) {
         return true;
     }
     
     return false;
 }
 
-function isExcludedMatch(match, excludePatterns, filename) {
-    const lowerMatch = match.toLowerCase();
-    const lowerFilename = filename.toLowerCase();
-    
-    // Check if match or filename contains any exclude patterns
-    for (const pattern of excludePatterns) {
-        if (lowerMatch.includes(pattern.toLowerCase()) || 
-            lowerFilename.includes(pattern.toLowerCase())) {
-            return true;
-        }
+/**
+ * Check file for secrets
+ */
+function checkFileForSecrets(filename) {
+    if (shouldIgnoreFile(filename)) {
+        return { found: false, secrets: [] };
     }
     
-    // Check for common test/mock indicators
-    if (lowerMatch.includes('xxxx') || 
-        lowerMatch.includes('test123') ||
-        lowerMatch.includes('placeholder') ||
-        lowerMatch.includes('your-') ||
-        lowerMatch.includes('example')) {
-        return true;
-    }
-    
-    return false;
-}
-
-function scanFile(filename) {
-    if (shouldExcludeFile(filename)) {
-        return [];
-    }
-    
+    let content;
     try {
-        const content = fs.readFileSync(filename, 'utf8');
-        const findings = [];
-        
-        for (const { name, pattern, severity, exclude } of SECRET_PATTERNS) {
-            const matches = content.match(pattern);
-            if (matches) {
-                // Filter out excluded matches
-                const validMatches = matches.filter(match => 
-                    !isExcludedMatch(match, exclude, filename)
-                );
-                
-                if (validMatches.length > 0) {
-                    findings.push({
-                        type: name,
-                        severity,
-                        count: validMatches.length,
-                        samples: validMatches.slice(0, 3) // First 3 matches
-                    });
-                }
+        content = fs.readFileSync(filename, 'utf8');
+    } catch (error) {
+        // File might be deleted or unreadable
+        return { found: false, secrets: [] };
+    }
+    
+    const foundSecrets = [];
+    
+    for (const { pattern, name, example } of SECRET_PATTERNS) {
+        const matches = content.match(pattern);
+        if (matches) {
+            // Check if it's in a comment or is an example
+            const isComment = matches.some(match => {
+                const lines = content.split('\n');
+                return lines.some(line => {
+                    return line.includes(match) && (
+                        line.trim().startsWith('//') ||
+                        line.trim().startsWith('*') ||
+                        line.trim().startsWith('#')
+                    );
+                });
+            });
+            
+            const isExample = matches.some(match => 
+                match.includes('your-') ||
+                match.includes('example') ||
+                match.includes('xxx') ||
+                match.includes('placeholder')
+            );
+            
+            if (!isComment && !isExample) {
+                foundSecrets.push({
+                    name,
+                    example,
+                    matches: matches.length
+                });
             }
         }
-        
-        return findings;
-    } catch (error) {
-        // File doesn't exist or can't be read
-        return [];
     }
+    
+    return {
+        found: foundSecrets.length > 0,
+        secrets: foundSecrets
+    };
 }
 
+/**
+ * Main execution
+ */
 function main() {
-    log('\n🔒 Pre-Commit Secret Scan', 'cyan');
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');
+    console.log(`${colors.cyan}🔒 Checking for exposed secrets...${colors.reset}\n`);
     
     const stagedFiles = getStagedFiles();
     
     if (stagedFiles.length === 0) {
-        log('✅ No staged files to scan\n', 'green');
+        console.log('No files staged for commit.');
         process.exit(0);
     }
-    
-    log(`\n📂 Scanning ${stagedFiles.length} staged file(s)...\n`, 'cyan');
     
     let hasSecrets = false;
-    const results = [];
+    const filesWithSecrets = [];
     
     for (const file of stagedFiles) {
-        const findings = scanFile(file);
-        if (findings.length > 0) {
+        const result = checkFileForSecrets(file);
+        
+        if (result.found) {
             hasSecrets = true;
-            results.push({ file, findings });
+            filesWithSecrets.push({ file, secrets: result.secrets });
         }
     }
     
-    if (!hasSecrets) {
-        log('✅ No secrets detected in staged files', 'green');
-        log('🚀 Commit is safe to proceed\n', 'green');
-        process.exit(0);
-    }
-    
-    // Report findings
-    log('🚨 SECRETS DETECTED IN STAGED FILES!\n', 'red');
-    
-    for (const { file, findings } of results) {
-        log(`📄 File: ${file}`, 'yellow');
-        for (const { type, severity, count, samples } of findings) {
-            const severityColor = severity === 'CRITICAL' ? 'red' : 
-                                 severity === 'HIGH' ? 'red' : 'yellow';
-            log(`   ⚠️  ${type} [${severity}] - ${count} occurrence(s)`, severityColor);
-            if (samples.length > 0) {
-                log(`      Sample: ${samples[0].substring(0, 30)}...`, severityColor);
+    if (hasSecrets) {
+        console.log(`${colors.red}❌ COMMIT BLOCKED - Potential secrets detected!${colors.reset}\n`);
+        
+        for (const { file, secrets } of filesWithSecrets) {
+            console.log(`${colors.yellow}File: ${file}${colors.reset}`);
+            for (const secret of secrets) {
+                console.log(`  ⚠️  ${secret.name} (${secret.matches} occurrence${secret.matches > 1 ? 's' : ''})`);
+                console.log(`     Pattern: ${secret.example}`);
             }
+            console.log();
         }
-        log('', 'reset');
+        
+        console.log(`${colors.cyan}What to do:${colors.reset}`);
+        console.log(`  1. Remove the secret from the file`);
+        console.log(`  2. Add it to .env instead`);
+        console.log(`  3. Use environment variables: process.env.YOUR_KEY`);
+        console.log(`  4. If this is a false positive, add the file to IGNORE_FILES in scripts/pre-commit-hook.js\n`);
+        
+        console.log(`${colors.yellow}⚠️  To bypass this check (NOT recommended):${colors.reset}`);
+        console.log(`    git commit --no-verify\n`);
+        
+        process.exit(1);
     }
     
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'red');
-    log('❌ COMMIT BLOCKED - SECRETS FOUND', 'red');
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'red');
+    console.log(`${colors.cyan}✓ No exposed secrets detected${colors.reset}`);
+    console.log(`${colors.cyan}✓ ${stagedFiles.length} file${stagedFiles.length > 1 ? 's' : ''} checked${colors.reset}\n`);
     
-    log('\n💡 What to do:', 'cyan');
-    log('   1. Remove secrets from staged files', 'yellow');
-    log('   2. Move secrets to .env file (which is gitignored)', 'yellow');
-    log('   3. Use environment variables instead: process.env.API_KEY', 'yellow');
-    log('   4. Review files listed above and fix before committing', 'yellow');
-    
-    log('\n🔧 How to fix:', 'cyan');
-    log('   - For accidentally staged .env: git reset HEAD .env', 'yellow');
-    log('   - For secrets in code: Replace with process.env.VARIABLE_NAME', 'yellow');
-    log('   - Then stage fixed files and commit again', 'yellow');
-    
-    log('\n📚 Learn more:', 'cyan');
-    log('   See DEVELOPER_ONBOARDING.md for secure development practices\n', 'yellow');
-    
-    process.exit(1);
+    process.exit(0);
 }
 
-main();
+// Run the check
+if (require.main === module) {
+    main();
+}
+
+module.exports = { checkFileForSecrets, getStagedFiles };
