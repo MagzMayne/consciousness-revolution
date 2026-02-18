@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Registry - Builder Central Hub</title>
+<!-- ============================================================
+     DASHBOARD DNA - Identity Block
+     Sphere: BUILD (Orange) - Developer Tools
+============================================================ -->
+<script type="application/json" id="dashboard-dna">
+{
+  "name": "Project Registry",
+  "version": "1.0.0",
+  "purpose": "Central hub for all projects - browse, claim tasks, add to dashboard, track contributions",
+  "owner": "System",
+  "domain": "2_BUILD",
+  "sphere": "BUILD",
+  "created": "2026-02-18",
+  "status": "LIVE",
+  "url": "https://consciousnessrevolution.io/PROJECT_REGISTRY.html"
+}
+</script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --accent: #00ffaa;
+            --accent-dim: rgba(0, 255, 170, 0.2);
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            --warning: #ff8800;
+            --success: #00ff88;
+            --error: #ff4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--accent-dim), transparent);
+            padding: 30px;
+            border-bottom: 1px solid var(--accent);
+            text-align: center;
+        }
+        .header h1 { color: var(--accent); font-size: 2.5em; margin-bottom: 10px; }
+        .header p { color: var(--text-dim); font-size: 1.1em; }
+        .stats-bar {
+            display: flex; justify-content: center; gap: 40px;
+            padding: 15px; background: rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: var(--accent); }
+        .stat-label { font-size: 0.85em; color: var(--text-dim); }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        /* Filters */
+        .filters {
+            display: flex; gap: 15px; flex-wrap: wrap;
+            padding: 20px; background: var(--card);
+            border-radius: 12px; margin-bottom: 20px;
+            align-items: center;
+        }
+        .search-box {
+            flex: 1; min-width: 200px;
+            padding: 12px 18px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 25px;
+            color: var(--text);
+            font-size: 1em;
+        }
+        .search-box:focus { outline: none; border-color: var(--accent); }
+        .filter-btn {
+            padding: 10px 20px;
+            background: rgba(0,255,170,0.1);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* Category Grid */
+        .categories {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .cat-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .cat-btn:hover, .cat-btn.active {
+            background: rgba(0,255,170,0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .project-card {
+            background: var(--card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .project-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0,255,170,0.1);
+        }
+
+        .project-header {
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(0,255,170,0.1), transparent);
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .project-name { font-size: 1.3em; font-weight: bold; color: var(--text); }
+        .project-category {
+            padding: 4px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            font-size: 0.75em;
+            color: var(--accent);
+        }
+
+        .project-body { padding: 20px; }
+        .project-desc { color: var(--text-dim); margin-bottom: 15px; line-height: 1.5; }
+
+        .progress-section { margin-bottom: 15px; }
+        .progress-label {
+            display: flex; justify-content: space-between;
+            font-size: 0.85em; margin-bottom: 6px;
+        }
+        .progress-bar {
+            height: 8px; background: var(--border);
+            border-radius: 4px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: var(--accent);
+            transition: width 0.5s;
+        }
+
+        .needs-section { margin-bottom: 15px; }
+        .needs-title { font-size: 0.85em; color: var(--warning); margin-bottom: 8px; }
+        .needs-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .need-tag {
+            padding: 4px 10px;
+            background: rgba(255,136,0,0.15);
+            border: 1px solid rgba(255,136,0,0.3);
+            border-radius: 12px;
+            font-size: 0.75em;
+            color: var(--warning);
+        }
+
+        .contributors {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 15px;
+        }
+        .contributor-avatar {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--accent), #0088ff);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7em; font-weight: bold;
+        }
+        .contributor-count { font-size: 0.85em; color: var(--text-dim); }
+
+        .rewards {
+            display: flex; gap: 15px;
+            padding: 10px;
+            background: rgba(255,215,0,0.1);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .reward { display: flex; align-items: center; gap: 5px; font-size: 0.9em; }
+        .reward-okk { color: #ffd700; }
+        .reward-xp { color: #00ff88; }
+
+        .project-actions {
+            display: flex; gap: 10px;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--border);
+        }
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+        .btn-primary:hover { background: #00ddaa; }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-active { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .status-needs-work { background: rgba(255,136,0,0.2); color: #ff8800; }
+        .status-complete { background: rgba(0,170,255,0.2); color: #00aaff; }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 10px;
+            font-weight: 600;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* Similar Projects Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 { color: var(--accent); }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+        .modal-body { padding: 20px; }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .projects-grid { grid-template-columns: 1fr; }
+            .stats-bar { gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Project Registry</h1>
+        <p>Central Hub - Browse Projects, Claim Tasks, Earn Rewards</p>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value" id="totalProjects">0</div>
+            <div class="stat-label">Total Projects</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="needsWork">0</div>
+            <div class="stat-label">Need Contributors</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="totalOKK">0</div>
+            <div class="stat-label">OKK Available</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="totalXP">0</div>
+            <div class="stat-label">XP Available</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="filters">
+            <input type="text" class="search-box" id="searchInput" placeholder="Search projects, tags, features...">
+            <button class="filter-btn active" data-status="all">All</button>
+            <button class="filter-btn" data-status="needs-work">Needs Work</button>
+            <button class="filter-btn" data-status="active">Active</button>
+        </div>
+
+        <div class="categories" id="categories">
+            <!-- Categories rendered by JS -->
+        </div>
+
+        <div class="projects-grid" id="projectsGrid">
+            <!-- Projects rendered by JS -->
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Similar Projects Modal -->
+    <div class="modal-overlay" id="similarModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Similar Projects</h2>
+                <button class="modal-close" onclick="closeSimilarModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="similarList">
+                <!-- Similar projects rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allProjects = [];
+        let categories = {};
+        let currentFilter = { status: 'all', category: null, search: '' };
+
+        // Fetch projects from API
+        async function loadProjects() {
+            try {
+                const resp = await fetch('/api/project-registry');
+                const data = await resp.json();
+                if (data.success) {
+                    allProjects = data.projects;
+                    categories = data.categories;
+                    renderCategories();
+                    renderProjects();
+                    updateStats();
+                }
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+                // Fallback to sample data
+                loadSampleData();
+            }
+        }
+
+        // Sample data fallback
+        function loadSampleData() {
+            allProjects = [
+                { id: 'araya-chat', name: 'ARAYA Chat System', category: 'core', status: 'active', progress: 85, description: 'AI assistant with memory and personality', needs: ['Voice integration', 'Mobile optimization'], contributors: ['Commander', 'Ryan'], rewards: { okk: 500, xp: 1000 }, url: '/araya-chat.html', tags: ['ai', 'chat'] },
+                { id: 'widget-system', name: 'Widget Foundation', category: 'core', status: 'active', progress: 40, description: 'Drag-drop widget system for dashboards', needs: ['More widget types', 'Cross-dashboard sync'], contributors: ['Commander'], rewards: { okk: 300, xp: 600 }, url: '/js/widget-system.js', tags: ['widgets', 'ui'] },
+                { id: 'budget-boss', name: 'Budget Boss', category: 'financial', status: 'needs-work', progress: 60, description: 'Gamified envelope budgeting', needs: ['Bank API', 'Charts', 'Export'], contributors: ['Ryan'], rewards: { okk: 200, xp: 400 }, url: '/BudgetBoss.html', tags: ['finance'] },
+                { id: 'bug-tracker', name: 'Bug Tracker', category: 'builder', status: 'active', progress: 80, description: 'GitHub-integrated bug tracking', needs: ['Better filtering'], contributors: ['Commander'], rewards: { okk: 200, xp: 400 }, url: '/bugs-live.html', tags: ['bugs', 'github'] }
+            ];
+            categories = {
+                core: { name: 'Core', icon: '🏗️', color: '#00ffaa' },
+                financial: { name: 'Financial', icon: '💰', color: '#ffd700' },
+                builder: { name: 'Builder', icon: '🔧', color: '#ff8800' }
+            };
+            renderCategories();
+            renderProjects();
+            updateStats();
+        }
+
+        // Render category buttons
+        function renderCategories() {
+            const container = document.getElementById('categories');
+            container.innerHTML = `<button class="cat-btn active" data-cat="all">All</button>` +
+                Object.entries(categories).map(([key, cat]) =>
+                    `<button class="cat-btn" data-cat="${key}">${cat.icon} ${cat.name}</button>`
+                ).join('');
+
+            container.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter.category = btn.dataset.cat === 'all' ? null : btn.dataset.cat;
+                    renderProjects();
+                });
+            });
+        }
+
+        // Render projects
+        function renderProjects() {
+            const grid = document.getElementById('projectsGrid');
+            let filtered = [...allProjects];
+
+            if (currentFilter.status !== 'all') {
+                filtered = filtered.filter(p => p.status === currentFilter.status);
+            }
+            if (currentFilter.category) {
+                filtered = filtered.filter(p => p.category === currentFilter.category);
+            }
+            if (currentFilter.search) {
+                const s = currentFilter.search.toLowerCase();
+                filtered = filtered.filter(p =>
+                    p.name.toLowerCase().includes(s) ||
+                    p.description.toLowerCase().includes(s) ||
+                    (p.tags && p.tags.some(t => t.includes(s)))
+                );
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="project-card" data-id="${p.id}">
+                    <div class="project-header">
+                        <div>
+                            <div class="project-name">${p.name}</div>
+                            <span class="status-badge status-${p.status}">${p.status.replace('-', ' ')}</span>
+                        </div>
+                        <div class="project-category">${categories[p.category]?.icon || ''} ${categories[p.category]?.name || p.category}</div>
+                    </div>
+                    <div class="project-body">
+                        <p class="project-desc">${p.description}</p>
+
+                        <div class="progress-section">
+                            <div class="progress-label">
+                                <span>Progress</span>
+                                <span>${p.progress}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${p.progress}%"></div>
+                            </div>
+                        </div>
+
+                        ${p.needs && p.needs.length ? `
+                        <div class="needs-section">
+                            <div class="needs-title">Needs Work:</div>
+                            <div class="needs-list">
+                                ${p.needs.map(n => `<span class="need-tag">${n}</span>`).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <div class="contributors">
+                            ${(p.contributors || []).slice(0, 3).map(c =>
+                                `<div class="contributor-avatar">${c[0]}</div>`
+                            ).join('')}
+                            <span class="contributor-count">${p.contributors?.length || 0} contributor${p.contributors?.length !== 1 ? 's' : ''}</span>
+                        </div>
+
+                        <div class="rewards">
+                            <div class="reward reward-okk">🪙 ${p.rewards?.okk || 0} OKK</div>
+                            <div class="reward reward-xp">⚡ ${p.rewards?.xp || 0} XP</div>
+                        </div>
+                    </div>
+                    <div class="project-actions">
+                        <button class="action-btn btn-primary" onclick="addToDashboard('${p.id}')">+ Add to Dashboard</button>
+                        <button class="action-btn btn-secondary" onclick="viewProject('${p.id}')">View</button>
+                        <button class="action-btn btn-secondary" onclick="findSimilar('${p.id}')">Similar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('totalProjects').textContent = allProjects.length;
+            document.getElementById('needsWork').textContent = allProjects.filter(p => p.status === 'needs-work').length;
+            document.getElementById('totalOKK').textContent = allProjects.reduce((sum, p) => sum + (p.rewards?.okk || 0), 0);
+            document.getElementById('totalXP').textContent = allProjects.reduce((sum, p) => sum + (p.rewards?.xp || 0), 0);
+        }
+
+        // Add to dashboard
+        async function addToDashboard(projectId) {
+            const project = allProjects.find(p => p.id === projectId);
+            if (!project) return;
+
+            // Get current user's dashboard (from localStorage or default)
+            const dashboardId = localStorage.getItem('current_operator') || 'commander_1';
+
+            // Save to localStorage for the dashboard to pick up
+            const key = `dashboard_${dashboardId}_projects`;
+            const existing = JSON.parse(localStorage.getItem(key) || '[]');
+            if (!existing.includes(projectId)) {
+                existing.push(projectId);
+                localStorage.setItem(key, JSON.stringify(existing));
+            }
+
+            // Save project data for widget rendering
+            const projectsData = JSON.parse(localStorage.getItem('project_registry_cache') || '{}');
+            projectsData[projectId] = project;
+            localStorage.setItem('project_registry_cache', JSON.stringify(projectsData));
+
+            showToast(`"${project.name}" added to your dashboard!`);
+
+            // Notify API (for tracking)
+            try {
+                await fetch('/api/project-registry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'add-to-dashboard',
+                        projectId,
+                        dashboardId
+                    })
+                });
+            } catch (e) {
+                console.log('API notification skipped');
+            }
+        }
+
+        // View project
+        function viewProject(projectId) {
+            const project = allProjects.find(p => p.id === projectId);
+            if (project && project.url) {
+                window.open(project.url, '_blank');
+            }
+        }
+
+        // Find similar projects
+        async function findSimilar(projectId) {
+            const project = allProjects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const similar = allProjects.filter(p =>
+                p.id !== projectId &&
+                p.tags?.some(t => project.tags?.includes(t))
+            );
+
+            const modal = document.getElementById('similarModal');
+            const list = document.getElementById('similarList');
+
+            if (similar.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-dim);">No similar projects found. This is unique!</p>';
+            } else {
+                list.innerHTML = `
+                    <p style="color: var(--text-dim); margin-bottom: 15px;">Projects with similar tags to "${project.name}":</p>
+                    ${similar.map(s => `
+                        <div style="padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 10px; border-left: 3px solid var(--accent);">
+                            <strong style="color: var(--text);">${s.name}</strong>
+                            <p style="color: var(--text-dim); font-size: 0.9em; margin: 5px 0;">${s.description}</p>
+                            <div style="display: flex; gap: 5px; margin-top: 8px;">
+                                ${s.tags?.map(t => `<span style="padding: 2px 8px; background: rgba(0,255,170,0.1); border-radius: 10px; font-size: 0.75em; color: var(--accent);">${t}</span>`).join('') || ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeSimilarModal() {
+            document.getElementById('similarModal').classList.remove('active');
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            currentFilter.search = e.target.value;
+            renderProjects();
+        });
+
+        document.querySelectorAll('.filter-btn[data-status]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn[data-status]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter.status = btn.dataset.status;
+                renderProjects();
+            });
+        });
+
+        // Close modal on outside click
+        document.getElementById('similarModal').addEventListener('click', (e) => {
+            if (e.target.id === 'similarModal') closeSimilarModal();
+        });
+
+        // Init
+        loadProjects();
+    </script>
+
+    <script src="/js/dashboard-flipper.js"></script>
+</body>
+</html>

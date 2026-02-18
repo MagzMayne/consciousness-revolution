@@ -31,6 +31,7 @@
             { id: 'bugs', name: 'Bug Tracker', icon: '🐛', url: '/bugs-live.html' }
         ],
         tools: [
+            { id: 'project-registry', name: 'Project Registry', icon: '📋', url: '/PROJECT_REGISTRY.html' },
             { id: 'ai-protocol', name: 'AI Protocol', icon: '🤖', url: '/OPERATOR_AI_PROTOCOL.html' },
             { id: 'system-dna', name: 'System DNA', icon: '🧬', url: '/SYSTEM_DNA_BRIEFING.html' },
             { id: 'custom-dash', name: 'Custom Dashboard', icon: '🎛️', url: '/customizable-dashboard.html' },
