@@ -591,13 +591,32 @@
 
         async function init() {
             try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                updateConnection('connected');
-                checkAllServices();
-                loadStats();
+                if (window.supabase) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    updateConnection('connected');
+                } else {
+                    console.warn('Supabase library not loaded');
+                    updateConnection('offline');
+                }
             } catch (e) {
-                console.error('Init error:', e);
+                console.error('Supabase init error:', e);
                 updateConnection('offline');
+            }
+            
+            // Always run service checks, even if Supabase fails
+            try {
+                await checkAllServices();
+            } catch (e) {
+                console.error('Service check error:', e);
+            }
+            
+            // Try to load stats if Supabase is available
+            if (supabase) {
+                try {
+                    await loadStats();
+                } catch (e) {
+                    console.error('Stats load error:', e);
+                }
             }
         }
 
