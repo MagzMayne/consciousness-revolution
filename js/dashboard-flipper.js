@@ -31,7 +31,8 @@
             { id: 'bugs', name: 'Bug Tracker', icon: '🐛', url: '/bugs-live.html' }
         ],
         tools: [
-            { id: 'widget-test', name: 'Widget Test', icon: '🧩', url: '/widget-test.html' },
+            { id: 'ai-protocol', name: 'AI Protocol', icon: '🤖', url: '/OPERATOR_AI_PROTOCOL.html' },
+            { id: 'system-dna', name: 'System DNA', icon: '🧬', url: '/SYSTEM_DNA_BRIEFING.html' },
             { id: 'custom-dash', name: 'Custom Dashboard', icon: '🎛️', url: '/customizable-dashboard.html' },
             { id: 'keychain', name: 'Keychain', icon: '🔑', url: '/DASHBOARD_KEYCHAIN.html' },
             { id: 'admin', name: 'Admin', icon: '⚙️', url: '/admin-dashboard.html' }
