@@ -74,32 +74,51 @@ class BankSkyLauncher {
     // Check Node.js version
     const nodeVersion = process.version;
     console.log(`📦 Node.js version: ${nodeVersion}`);
+    
+    // Determine if we're in production (Railway sets NODE_ENV or we can detect PORT)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 
     // Check if backend directory exists
-    if (!fs.existsSync(this.backendDir)) {
+    const hasBackend = fs.existsSync(this.backendDir);
+    
+    if (!hasBackend && !isProduction && !this.isDev) {
       console.log('❌ Backend directory not found!');
       console.log('💡 Run: npm run setup');
       process.exit(1);
     }
 
-    // Start backend services
-    console.log('🔧 Starting backend services...');
-    await this.startBackendServices();
+    // Start backend services if available
+    if (hasBackend) {
+      console.log('🔧 Starting backend services...');
+      try {
+        await this.startBackendServices();
+      } catch (error) {
+        console.log('⚠️ Backend services failed to start:', error.message);
+        if (!isProduction && !this.isDev) {
+          process.exit(1);
+        }
+      }
+    } else {
+      console.log('ℹ️ Backend directory not found, running in static mode');
+    }
 
-    // Start web server if in dev mode
-    if (this.isDev) {
+    // Start web server in dev mode OR production mode OR if explicitly requested
+    if (this.isDev || isProduction || process.env.PORT) {
       console.log('🌐 Starting web server...');
       await this.startWebServer();
     }
 
     console.log('\n✅ BankSky Platform Started!');
     console.log('\n📊 Services:');
-    console.log('   🌐 Web Interface: http://localhost:8080/BankSky.html');
-    console.log('   🔧 Backend API: http://localhost:3000 (micro-tx)');
-    console.log('   📡 Anchor Service: http://localhost:3001');
-    console.log('   💰 Affiliate Service: http://localhost:3002');
-    console.log('   ⚡ Relayer Service: http://localhost:3003');
-    console.log('   🛠️ Command Executor: http://localhost:3005');
+    const webPort = process.env.PORT || 8080;
+    console.log(`   🌐 Web Interface: http://localhost:${webPort}/BankSky.html`);
+    if (hasBackend) {
+      console.log('   🔧 Backend API: http://localhost:3000 (micro-tx)');
+      console.log('   📡 Anchor Service: http://localhost:3001');
+      console.log('   💰 Affiliate Service: http://localhost:3002');
+      console.log('   ⚡ Relayer Service: http://localhost:3003');
+      console.log('   🛠️ Command Executor: http://localhost:3005');
+    }
 
     console.log('\n🛑 Press Ctrl+C to stop all services');
 
@@ -152,6 +171,9 @@ class BankSkyLauncher {
     const express = require('express');
     const serveHandler = require('serve-handler');
     const app = express();
+    
+    // Use PORT from environment variable (for Railway/production) or default to 8080
+    const port = process.env.PORT || 8080;
 
     app.use('/', async (req, res) => {
       await serveHandler(req, res, {
@@ -161,8 +183,8 @@ class BankSkyLauncher {
     });
 
     return new Promise((resolve) => {
-      const server = app.listen(8080, () => {
-        console.log('✅ Web server started on http://localhost:8080');
+      const server = app.listen(port, () => {
+        console.log(`✅ Web server started on http://localhost:${port}`);
         this.services.push({
           name: 'web-server',
           process: server,
