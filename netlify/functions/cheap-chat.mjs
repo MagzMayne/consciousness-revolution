@@ -1,5 +1,6 @@
 // Cheap Chat API - Routes to cheapest viable AI model
 // Part of DNA Alternate Orchestrator Blueprint
+// Features: Auto-fallback cascade, response time tracking
 
 const COST_TABLE = {
     "ollama/llama3.1": 0.00,
@@ -14,6 +15,17 @@ const COST_TABLE = {
     "anthropic/claude-haiku": 0.00075,
     "anthropic/claude-sonnet": 0.009,
 };
+
+// Fallback cascade - ordered by cost (cheapest first)
+const FALLBACK_CASCADE = [
+    "groq/llama-3.3-70b",      // FREE - fast
+    "groq/llama-3.1-8b",       // FREE - faster
+    "groq/mixtral-8x7b",       // FREE - fast
+    "google/gemini-flash",     // $0.0001875
+    "deepseek/v3",             // $0.00021
+    "openai/gpt-4o-mini",      // $0.000375
+    "anthropic/claude-haiku",  // $0.00075
+];
 
 // Simple brain context - search for relevant patterns
 function extractBrainContext(prompt) {
@@ -161,6 +173,70 @@ async function callGroq(apiKey, model, messages) {
     return data.choices[0].message.content;
 }
 
+// Try calling a model with fallback cascade
+async function callWithFallback(initialModel, messages, enhancedPrompt, envKeys, userApiKey) {
+    const startIndex = FALLBACK_CASCADE.indexOf(initialModel);
+    const modelsToTry = startIndex >= 0
+        ? FALLBACK_CASCADE.slice(startIndex)
+        : [initialModel, ...FALLBACK_CASCADE];
+
+    const errors = [];
+
+    for (const model of modelsToTry) {
+        const provider = model.split("/")[0];
+        const effectiveKey = userApiKey || envKeys[provider];
+
+        // Skip if no API key available
+        if (!effectiveKey && provider !== "ollama") {
+            errors.push({ model, error: "No API key" });
+            continue;
+        }
+
+        const startTime = Date.now();
+
+        try {
+            let response;
+
+            switch (provider) {
+                case "groq":
+                    response = await callGroq(effectiveKey, model, messages);
+                    break;
+                case "google":
+                    response = await callGoogle(effectiveKey, enhancedPrompt);
+                    break;
+                case "deepseek":
+                    response = await callDeepSeek(effectiveKey, messages);
+                    break;
+                case "openai":
+                    response = await callOpenAI(effectiveKey, model, messages);
+                    break;
+                case "anthropic":
+                    response = await callAnthropic(effectiveKey, model, messages);
+                    break;
+                default:
+                    continue;
+            }
+
+            const latencyMs = Date.now() - startTime;
+
+            return {
+                response,
+                modelUsed: model,
+                latencyMs,
+                fallbacksAttempted: errors.length
+            };
+
+        } catch (error) {
+            errors.push({ model, error: error.message });
+            console.log(`[Fallback] ${model} failed: ${error.message}`);
+            // Continue to next model in cascade
+        }
+    }
+
+    // All models failed
+    throw new Error(`All models failed: ${errors.map(e => `${e.model}: ${e.error}`).join(", ")}`);
+}
+
 export default async function handler(request) {
     // Handle CORS
     if (request.method === "OPTIONS") {
@@ -215,7 +291,7 @@ export default async function handler(request) {
         let response;
         let modelUsed = model;
 
-        // Check for env API keys as fallback
+        // Get env API keys for fallback cascade
         const envKeys = {
             openai: process.env.OPENAI_API_KEY,
             anthropic: process.env.ANTHROPIC_API_KEY,
@@ -224,67 +300,47 @@ export default async function handler(request) {
             groq: process.env.GROQ_API_KEY
         };
 
-        const effectiveKey = apiKey || envKeys[provider];
-
-        if (!effectiveKey && provider !== "ollama") {
+        // Handle Ollama specially (requires local server)
+        if (provider === "ollama") {
             return new Response(JSON.stringify({
-                error: `No API key for ${provider}. Please add your key in settings or use a FREE local model.`,
-                brainContext: useBrain,
-                brainAtoms: brainContext.length
-            }), {
-                status: 400,
-                headers: { "Content-Type": "application/json" }
-            });
-        }
-
-        // Route to appropriate provider
-        switch (provider) {
-            case "ollama":
-                // Ollama requires local server - return helpful message
-                response = `[Ollama models require local server]
+                response: `[Ollama models require local server]
 
 To use FREE local models:
 1. Install Ollama: https://ollama.ai
 2. Run: ollama pull llama3.1
 3. Start: ollama serve
 
-Or use a cloud model with your API key.`;
-                break;
-
-            case "openai":
-                response = await callOpenAI(effectiveKey, model, messages);
-                break;
-
-            case "anthropic":
-                response = await callAnthropic(effectiveKey, model, messages);
-                break;
-
-            case "google":
-                response = await callGoogle(effectiveKey, enhancedPrompt);
-                break;
-
-            case "deepseek":
-                response = await callDeepSeek(effectiveKey, messages);
-                break;
-
-            case "groq":
-                response = await callGroq(effectiveKey, model, messages);
-                break;
-
-            default:
-                response = `Unknown provider: ${provider}`;
+Or use a cloud model with your API key.`,
+                modelUsed: model.split("/")[1],
+                cost: 0,
+                latencyMs: 0,
+                fallbacksAttempted: 0,
+                brainContext: useBrain && brainContext.length > 0,
+                brainAtoms: brainContext.length
+            }), {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
+                }
+            });
         }
+
+        // Use fallback cascade for cloud providers
+        const result = await callWithFallback(model, messages, enhancedPrompt, envKeys, apiKey);
 
         // Calculate cost estimate
         const inputTokens = enhancedPrompt.length / 4; // Rough estimate
-        const outputTokens = response.length / 4;
-        const costPerMillion = COST_TABLE[model] || 0;
-        const cost = ((inputTokens + outputTokens) / 1000000) * costPerMillion * 1000; // Convert to actual cost
+        const outputTokens = result.response.length / 4;
+        const costPerMillion = COST_TABLE[result.modelUsed] || 0;
+        const cost = ((inputTokens + outputTokens) / 1000000) * costPerMillion * 1000;
 
         return new Response(JSON.stringify({
-            response: response,
-            modelUsed: modelUsed.split("/")[1],
+            response: result.response,
+            modelUsed: result.modelUsed.split("/")[1],
             cost: cost,
+            latencyMs: result.latencyMs,
+            fallbacksAttempted: result.fallbacksAttempted,
             brainContext: useBrain && brainContext.length > 0,
             brainAtoms: brainContext.length
         }), {
