@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-0d5c4bf2 - TIMESTAMP: 2025-12-19T05:53:06.513Z - HASH: 64732de3 */
 /** SIGNED BY AGentR - ID: AGENTR-4742d381 - TIMESTAMP: 2025-12-19T05:53:06.513Z - HASH: 64732de3 */
-
-#!/usr/bin/env node
 
 /**
  * BankSky Local Development Server

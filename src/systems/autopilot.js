@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-43419b75 - TIMESTAMP: 2025-12-19T05:53:06.538Z - HASH: 2d44dec0 */
 /** SIGNED BY AGentR - ID: AGENTR-4cfb8dc2 - TIMESTAMP: 2025-12-19T05:53:06.538Z - HASH: 2d44dec0 */
-
-#!/usr/bin/env node
 
 /**
  * AUTOPILOT MASTER CONTROLLER

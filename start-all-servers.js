@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-0fed77ab - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 10cc9592 */
 /** SIGNED BY AGentR - ID: AGENTR-4f1d1688 - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 10cc9592 */
-
-#!/usr/bin/env node
 
 /**
  * UNIVERSAL SERVER STARTUP SCRIPT

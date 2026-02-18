@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -39,7 +41,6 @@
  * ════════════════════════════════════════════════════════════════════════════════
  */
 
-#!/usr/bin/env node
 /**
  * Script to add "What is This?" intro banners to major HTML project files
  * Adds simple, beginner-friendly explanations to complex pages

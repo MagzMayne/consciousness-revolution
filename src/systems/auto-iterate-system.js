@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-6c904c08 - TIMESTAMP: 2025-12-19T05:53:06.538Z - HASH: 10c16815 */
 /** SIGNED BY AGentR - ID: AGENTR-6cba4415 - TIMESTAMP: 2025-12-19T05:53:06.538Z - HASH: 10c16815 */
-
-#!/usr/bin/env node
 
 /**
  * AUTOMATED ITERATION & SELF-HEALING SYSTEM

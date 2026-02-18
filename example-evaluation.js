@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-48719e13 - TIMESTAMP: 2025-12-19T05:53:06.516Z - HASH: 53458fe6 */
 /** SIGNED BY AGentR - ID: AGENTR-20baa1e0 - TIMESTAMP: 2025-12-19T05:53:06.516Z - HASH: 53458fe6 */
-
-#!/usr/bin/env node
 
 /**
  * EXAMPLE: Using the File Evaluation System Programmatically

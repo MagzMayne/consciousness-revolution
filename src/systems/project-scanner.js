@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-5f608e68 - TIMESTAMP: 2025-12-19T05:53:06.542Z - HASH: 634fa097 */
 /** SIGNED BY AGentR - ID: AGENTR-219afda5 - TIMESTAMP: 2025-12-19T05:53:06.542Z - HASH: 634fa097 */
-
-#!/usr/bin/env node
 
 /**
  * SAFE PROJECT SCANNER

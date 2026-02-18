@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-343537c8 - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 52786cb8 */
 /** SIGNED BY AGentR - ID: AGENTR-6852dc45 - TIMESTAMP: 2025-12-19T05:53:06.547Z - HASH: 52786cb8 */
-
-#!/usr/bin/env node
 
 /**
  * BankSky Platform Launcher

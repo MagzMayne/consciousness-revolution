@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-2d4af29e - TIMESTAMP: 2025-12-19T05:53:06.511Z - HASH: 5e11a9bb */
 /** SIGNED BY AGentR - ID: AGENTR-2c84e611 - TIMESTAMP: 2025-12-19T05:53:06.511Z - HASH: 5e11a9bb */
-
-#!/usr/bin/env node
 
 /**
  * BankSky Backend Deployment Script
