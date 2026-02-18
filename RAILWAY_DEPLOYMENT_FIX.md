@@ -1,96 +1,113 @@
-# Railway Deployment Fix - Summary
+# Railway Deployment Fix - February 18, 2026
 
-## Problem
-Railway was detecting this project as a Ruby application due to the presence of `Gemfile` (which is required for GitHub Pages Jekyll rendering). This caused deployment failures with the error:
+## Problem Summary
+
+Railway deployment was failing with the error:
 ```
-No start command was found
+error: undefined variable 'npm' in nixpacks…  
+nix-env did not complete successfully
 ```
 
-## Root Cause
-- Railway's Railpack detected Ruby files (Gemfile)
-- Railpack expected Ruby server files (Rails, Rack, etc.)
-- Project is actually a static frontend site
-- No Ruby server exists to run
+This was caused by:
+1. Invalid package names in `nixpacks.toml` (`nodejs-18_x` instead of `nodejs`)
+2. Unsupported configuration sections in both config files
+3. Railway/Nixpacks generating broken Nix expressions due to incorrect syntax
 
-## Solution
-Created `railway.toml` configuration file that explicitly tells Railway:
-1. Use NIXPACKS builder (not Railpack)
-2. Serve static files using `npx serve`
-3. Listen on Railway's PORT environment variable
+## Solution Implemented
 
-## Configuration Details
+### 1. Fixed `nixpacks.toml`
 
-### railway.toml
+**Before (BROKEN):**
+```toml
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]  # ❌ INVALID package names
+
+[phases.build]
+cmds = ["npm run build || echo 'No build step required'"]
+
+[variables]
+NODE_ENV = "production"  # ❌ NOT SUPPORTED by Nixpacks
+```
+
+**After (FIXED):**
+```toml
+[phases.setup]
+nixPkgs = ["nodejs", "npm"]  # ✅ Correct nixpkgs names
+
+[phases.install]
+cmds = ["npm ci --legacy-peer-deps || npm install --legacy-peer-deps"]
+
+[start]
+cmd = "npm start"
+```
+
+### 2. Fixed `railway.toml`
+
+**Before (BROKEN):**
+```toml
+[build.nixpacksPlan]  # ❌ NOT SUPPORTED by Railway
+providers = ["node"]
+```
+
+**After (FIXED):**
 ```toml
 [build]
 builder = "NIXPACKS"
+buildCommand = "npm ci --legacy-peer-deps || npm install --legacy-peer-deps"
 
 [start]
-cmd = "npx serve . -p ${PORT:-8080}"
-
-[deploy]
-numReplicas = 1
-sleepApplication = false
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+cmd = "npm start"
 ```
 
-### Why Gemfile Is Preserved
-- Required for GitHub Pages to render Markdown files with Jekyll
-- GitHub Pages automatically builds Jekyll sites
-- Railway deployment doesn't need Jekyll (serves pre-rendered HTML)
-- railway.toml configuration overrides auto-detection
+## Key Changes
 
-## How It Works
-1. Railway reads `railway.toml` first (highest priority)
-2. NIXPACKS builder is explicitly selected
-3. Node.js environment is configured
-4. `npx serve` serves all static files from project root
-5. Railway PORT variable is used (defaults to 8080 locally)
+1. **nixpacks.toml**:
+   - Changed `nodejs-18_x` → `nodejs` (correct nixpkgs name)
+   - Removed unsupported `[variables]` section
+   - Removed unnecessary `[phases.build]` section
+   - Kept essential `[phases.install]` for dependencies
 
-## Testing the Fix
+2. **railway.toml**:
+   - Removed unsupported `[build.nixpacksPlan]` section
+   - Added explicit `buildCommand` for clarity
+   - Simplified configuration to essential settings only
 
-### Local Testing
-```bash
-# Install serve globally (optional)
-npm install -g serve
+## Why This Fixes The Issue
 
-# Test the command locally
-npx serve . -p 8080
+1. **Correct Package Names**: Nixpacks uses standard `nodejs` and `npm` packages from nixpkgs
+2. **Minimal Configuration**: Only includes essential phases (setup, install, start)
+3. **Explicit Build Command**: Railway knows exactly how to install dependencies
+4. **Valid Nixpacks Syntax**: All configuration follows Nixpacks documentation
 
-# Visit http://localhost:8080
-```
+## What Railway Will Do Now
 
-### Railway Deployment
-1. Push changes to repository
-2. Railway will detect railway.toml
-3. Build process will use NIXPACKS
-4. Start command will run `npx serve`
-5. Site will be accessible on Railway's provided URL
+1. **Detection**: Detects Node.js project (via `package.json`)
+2. **Builder**: Uses Nixpacks as specified in `railway.toml`
+3. **Setup Phase**: Installs `nodejs` and `npm` from nixpkgs
+4. **Install Phase**: Runs `npm ci --legacy-peer-deps || npm install --legacy-peer-deps`
+5. **Start Phase**: Runs `npm start` which executes `node start-banksky.js`
+6. **Server**: Serves the site on the PORT environment variable (set by Railway)
 
-## Expected Results
-✅ Railway uses NIXPACKS (not Railpack)
-✅ No Ruby detection errors
-✅ Static files served correctly
-✅ All HTML pages accessible
-✅ No build failures
+## Verification Steps
 
-## Alternative Solutions (Not Implemented)
-1. **Remove Gemfile** - Would break GitHub Pages deployment
-2. **Add Ruby server** - Unnecessary for static site
-3. **Modify package.json** - Would affect local development setup
+### Check Railway Build Logs
 
-## Files Changed
-- ✅ Created: `railway.toml`
-- ⚠️ Not changed: `Gemfile` (required for GitHub Pages)
-- ⚠️ Not changed: `package.json` (start script for local dev)
+Should now see:
+- ✅ Detected Node.js project
+- ✅ Using Nixpacks builder
+- ✅ Installing nodejs and npm
+- ✅ Running npm install
+- ✅ Starting application with npm start
 
-## Contact
-For issues or questions:
-- Email: BarbrickDesign@gmail.com
-- Repository: https://github.com/overkor-tek/consciousness-revolution
+Should NOT see:
+- ❌ error: undefined variable 'npm'
+- ❌ nix-env did not complete successfully
+- ❌ Railpack detected Ruby
 
-## References
-- Railway Documentation: https://docs.railway.app/deploy/config-as-code
-- NIXPACKS: https://nixpacks.com/
-- npx serve: https://www.npmjs.com/package/serve
+## Summary
+
+The fix was simple but critical:
+1. Use correct nixpkgs names: `nodejs` and `npm` (not `nodejs-18_x`)
+2. Remove unsupported configuration sections
+3. Use minimal, explicit configuration
+4. Ensure Railway knows this is a Node.js project, not Ruby
