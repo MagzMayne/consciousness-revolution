@@ -38,10 +38,14 @@
             { id: 'admin', name: 'Admin', icon: '⚙️', url: '/admin-dashboard.html' }
         ],
         operators: [
-            { id: 'op-tiger', name: 'Tiger', icon: '🐯', url: '/OPERATOR_COCKPIT_TIGER.html' },
-            { id: 'op-ryan', name: 'Ryan', icon: '🦁', url: '/OPERATOR_COCKPIT_RYAN.html' },
-            { id: 'op-nero', name: 'Nero', icon: '🐺', url: '/OPERATOR_COCKPIT_NERO.html' },
-            { id: 'op-commander', name: 'Commander', icon: '🎖️', url: '/OPERATOR_COCKPIT_COMMANDER.html' }
+            { id: 'op-commander-1', name: 'Commander 1', icon: '🎖️', url: '/COMMANDER_COCKPIT.html' },
+            { id: 'op-commander-2', name: 'Commander 2', icon: '🎖️', url: '/COMMANDER_2.html' },
+            { id: 'op-agent-r-1', name: 'Agent R 1', icon: '🦁', url: '/OPERATOR_COCKPIT_RYAN.html' },
+            { id: 'op-agent-r-2', name: 'Agent R 2', icon: '🦁', url: '/AGENT_R_2.html' },
+            { id: 'op-nero-1', name: 'Nero 1', icon: '🐺', url: '/OPERATOR_COCKPIT_NERO.html' },
+            { id: 'op-nero-2', name: 'Nero 2', icon: '🐺', url: '/NERO_2.html' },
+            { id: 'op-tiger-1', name: 'Tiger 1', icon: '🐯', url: '/OPERATOR_COCKPIT_TIGER.html' },
+            { id: 'op-tiger-2', name: 'Tiger 2', icon: '🐯', url: '/TIGER_2.html' }
         ]
     };
 
