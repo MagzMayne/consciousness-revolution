@@ -1,10 +1,10 @@
+#!/usr/bin/env node
+
 /**
  * @aul-enabled
  * This file is compatible with AI Universal Language (AUL)
  * Learn more: https://barbrickdesign.github.io/ai-universal-language.html
  */
-
-#!/usr/bin/env node
 
 /**
  * Backup and Rollback Utility

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -45,7 +47,6 @@
  * Learn more: https://barbrickdesign.github.io/ai-universal-language.html
  */
 
-#!/usr/bin/env node
 /**
  * Test script to verify all extracted HTML files from .txt sources
  * Tests that the HTML is valid and contains expected functionality

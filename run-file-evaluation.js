@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-5d1fefc9 - TIMESTAMP: 2025-12-19T05:53:06.531Z - HASH: 3211e79c */
 /** SIGNED BY AGentR - ID: AGENTR-676be904 - TIMESTAMP: 2025-12-19T05:53:06.531Z - HASH: 3211e79c */
-
-#!/usr/bin/env node
 
 /**
  * FILE EVALUATION CLI RUNNER

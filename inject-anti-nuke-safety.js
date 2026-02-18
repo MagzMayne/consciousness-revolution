@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -44,8 +46,6 @@
  * This file is compatible with AI Universal Language (AUL)
  * Learn more: https://barbrickdesign.github.io/ai-universal-language.html
  */
-
-#!/usr/bin/env node
 
 /**
  * Anti-Nuke Safety Injection Script

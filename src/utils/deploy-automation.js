@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  * © 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
@@ -47,8 +49,6 @@
 
 /** SIGNED BY MeRLynn - ID: MERLYNN-00ad7a69 - TIMESTAMP: 2025-12-19T05:53:06.545Z - HASH: 35e7ca20 */
 /** SIGNED BY AGentR - ID: AGENTR-20f965b6 - TIMESTAMP: 2025-12-19T05:53:06.545Z - HASH: 35e7ca20 */
-
-#!/usr/bin/env node
 
 /**
  * COMPREHENSIVE DEPLOYMENT AUTOMATION
