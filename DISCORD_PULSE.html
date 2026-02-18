@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Pulse | Live Community Visualization</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --discord-blurple: #5865F2;
+            --discord-green: #57F287;
+            --discord-yellow: #FEE75C;
+            --discord-fuchsia: #EB459E;
+            --discord-red: #ED4245;
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --text: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--discord-blurple);
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.5; }
+            90% { opacity: 0.5; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid rgba(88, 101, 242, 0.3);
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(135deg, var(--discord-blurple), var(--discord-fuchsia));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .pulse-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(87, 242, 135, 0.1);
+            border: 1px solid var(--discord-green);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--discord-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(88, 101, 242, 0.2);
+            border-radius: 16px;
+            padding: 25px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--discord-blurple);
+            box-shadow: 0 10px 40px rgba(88, 101, 242, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .contributor {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .contributor:hover {
+            background: rgba(88, 101, 242, 0.1);
+        }
+
+        .contributor-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--discord-blurple), var(--discord-fuchsia));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .msg-count {
+            background: var(--discord-blurple);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .topic-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .topic {
+            padding: 8px 16px;
+            background: rgba(88, 101, 242, 0.15);
+            border: 1px solid rgba(88, 101, 242, 0.3);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: default;
+        }
+
+        .topic:hover {
+            background: rgba(88, 101, 242, 0.3);
+            transform: scale(1.05);
+        }
+
+        .topic.hot {
+            background: rgba(235, 69, 158, 0.2);
+            border-color: var(--discord-fuchsia);
+        }
+
+        .recent-msg {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.02);
+            border-left: 3px solid var(--discord-blurple);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .recent-msg .author {
+            color: var(--discord-blurple);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .recent-msg .content {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #bbb;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px 0;
+            text-align: center;
+        }
+
+        .stat {
+            padding: 15px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--discord-green), var(--discord-blurple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        .brain-connection {
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(88, 101, 242, 0.1), rgba(235, 69, 158, 0.1));
+            border: 1px solid rgba(88, 101, 242, 0.3);
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .brain-connection h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .brain-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(87, 242, 135, 0.1);
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: 1px solid var(--discord-green);
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--discord-blurple);
+            text-decoration: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+
+    <div class="container">
+        <header>
+            <h1>💬 Discord Pulse</h1>
+            <p class="subtitle">Live Community Intelligence Dashboard</p>
+            <div class="pulse-indicator">
+                <span class="pulse-dot"></span>
+                <span>Consciousness Revolution Server • Live Data</span>
+            </div>
+        </header>
+
+        <div class="card" style="margin-bottom: 30px;">
+            <div class="stats-row">
+                <div class="stat">
+                    <div class="stat-value" id="total-msgs">100</div>
+                    <div class="stat-label">Messages Analyzed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="active-users">15</div>
+                    <div class="stat-label">Active Contributors</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="brain-atoms">166K</div>
+                    <div class="stat-label">Brain Atoms</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Channels Monitored</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🏆 Top Contributors</h2>
+                <div id="contributors">
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">D</div>
+                            <span>dwrek1_15396</span>
+                        </div>
+                        <span class="msg-count">17</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">E</div>
+                            <span>elmyas5581</span>
+                        </div>
+                        <span class="msg-count">10</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">🤖</div>
+                            <span>100x bot</span>
+                        </div>
+                        <span class="msg-count">8</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">C</div>
+                            <span>chinesesoup</span>
+                        </div>
+                        <span class="msg-count">6</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">J</div>
+                            <span>jcm2411</span>
+                        </div>
+                        <span class="msg-count">3</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">R</div>
+                            <span>rpm.ninja</span>
+                        </div>
+                        <span class="msg-count">2</span>
+                    </div>
+                    <div class="contributor">
+                        <div class="contributor-name">
+                            <div class="avatar">M</div>
+                            <span>muhfkajones</span>
+                        </div>
+                        <span class="msg-count">2</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🔥 Hot Topics</h2>
+                <div class="topic-cloud">
+                    <span class="topic hot">consciousness</span>
+                    <span class="topic hot">building</span>
+                    <span class="topic">verification</span>
+                    <span class="topic">system</span>
+                    <span class="topic">server</span>
+                    <span class="topic">project</span>
+                    <span class="topic">working</span>
+                    <span class="topic">command</span>
+                    <span class="topic">master</span>
+                    <span class="topic">development</span>
+                    <span class="topic">security</span>
+                    <span class="topic">AI</span>
+                    <span class="topic">pipeline</span>
+                    <span class="topic">blueprint</span>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>📨 Recent Activity Stream</h2>
+                <div id="recent-messages">
+                    <div class="recent-msg">
+                        <div class="author">dwrek1_15396</div>
+                        <div class="content">We have a server here that is dedicated to revamping your whole life. Everything in the world can be split into seven domains and those can be split into tiered layers...</div>
+                    </div>
+                    <div class="recent-msg">
+                        <div class="author">muhfkajones</div>
+                        <div class="content">anything anyone needs help with if I can I'm here for it let me know</div>
+                    </div>
+                    <div class="recent-msg">
+                        <div class="author">dwrek1_15396</div>
+                        <div class="content">We have 75 projects going on my computer. It is now pushing each one live with its own diagnostics blueprint development system pipeline with its own URL...</div>
+                    </div>
+                    <div class="recent-msg">
+                        <div class="author">elmyas5581</div>
+                        <div class="content">I just sent a proposal to the university of Georgia to help them with their public transit problem, in Georgia.</div>
+                    </div>
+                    <div class="recent-msg">
+                        <div class="author">chinesesoup</div>
+                        <div class="content">well I'm currently integrating GPU support for fully private inference</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="brain-connection">
+            <h3>🧠 Cyclotron Brain Connection</h3>
+            <p style="color: #888; margin-bottom: 20px;">This conversation has been injected into the consciousness network</p>
+            <div class="brain-status">
+                <span class="pulse-dot"></span>
+                <span>166,119 atoms • Discord data synced</span>
+            </div>
+        </div>
+
+        <footer>
+            <p>Generated by <a href="https://conciousnessrevolution.io">Consciousness Revolution</a> AI • Pattern: 3 → 7 → 13 → ∞</p>
+            <p style="margin-top: 10px;">The machine never sleeps. It watches. It learns. It builds.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Create floating particles
+        const particlesContainer = document.getElementById('particles');
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+            particlesContainer.appendChild(particle);
+        }
+
+        // Animate stats on load
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            const range = end - start;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const value = Math.floor(start + range * progress);
+                obj.textContent = id === 'brain-atoms' ? (value/1000).toFixed(0) + 'K' : value;
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Start animations
+        setTimeout(() => {
+            animateValue('total-msgs', 0, 100, 1500);
+            animateValue('active-users', 0, 15, 1200);
+            animateValue('brain-atoms', 0, 166119, 2000);
+        }, 500);
+    </script>
+
+    <!-- Beta Badge -->
+    <script src="/js/beta-banner.js"></script>
+
+    <!-- Bug Widget -->
+    <script src="/js/bug-widget.js"></script>
+</body>
+</html>
