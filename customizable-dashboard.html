@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customizable Dashboard | Consciousness Revolution</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a12 0%, #1a1a2e 50%, #0a0a12 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.4);
+            border-bottom: 1px solid rgba(0,255,170,0.2);
+        }
+
+        .dashboard-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dashboard-title h1 {
+            font-size: 1.3em;
+            color: #00ffaa;
+            font-weight: 500;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: rgba(0,255,170,0.2);
+            border-color: #00ffaa;
+            color: #00ffaa;
+        }
+
+        .btn-primary:hover {
+            background: rgba(0,255,170,0.3);
+            box-shadow: 0 0 15px rgba(0,255,170,0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.2);
+            color: #888;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: rgba(255,68,68,0.1);
+            border-color: rgba(255,68,68,0.3);
+            color: #f66;
+        }
+
+        .btn-danger:hover {
+            background: rgba(255,68,68,0.2);
+        }
+
+        /* Widget Grid Container */
+        .widget-grid-container {
+            padding: 20px;
+            min-height: calc(100vh - 70px);
+        }
+
+        #widget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            min-height: 400px;
+        }
+
+        /* Widget Card */
+        .widget-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: move;
+        }
+
+        .widget-card:hover {
+            border-color: rgba(0,255,170,0.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .widget-card.dragging {
+            opacity: 0.5;
+            transform: scale(1.02);
+        }
+
+        .widget-card.drag-over {
+            border-color: #00ffaa;
+            background: rgba(0,255,170,0.05);
+        }
+
+        /* Widget sizes */
+        .widget-card[data-size="TINY"] { grid-column: span 1; grid-row: span 1; }
+        .widget-card[data-size="SMALL"] { grid-column: span 2; grid-row: span 1; }
+        .widget-card[data-size="MEDIUM"] { grid-column: span 2; grid-row: span 2; }
+        .widget-card[data-size="LARGE"] { grid-column: span 4; grid-row: span 2; }
+        .widget-card[data-size="FULL"] { grid-column: span 4; grid-row: span 4; }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .widget-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #fff;
+        }
+
+        .widget-title .icon {
+            font-size: 1.2em;
+        }
+
+        .widget-remove {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .widget-card:hover .widget-remove {
+            opacity: 1;
+        }
+
+        .widget-remove:hover {
+            color: #f66;
+        }
+
+        .widget-content {
+            min-height: 50px;
+        }
+
+        /* Widget Picker Modal */
+        .widget-picker-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .widget-picker-overlay.active {
+            display: flex;
+        }
+
+        .widget-picker {
+            background: #1a1a2e;
+            border: 1px solid rgba(0,255,170,0.3);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .picker-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .picker-header h2 {
+            color: #00ffaa;
+            font-size: 1.2em;
+        }
+
+        .picker-close {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+
+        .picker-close:hover {
+            color: #fff;
+        }
+
+        .picker-categories {
+            display: flex;
+            gap: 8px;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .category-btn:hover, .category-btn.active {
+            background: rgba(0,255,170,0.2);
+            border-color: #00ffaa;
+            color: #00ffaa;
+        }
+
+        .picker-widgets {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .picker-widget-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .picker-widget-item:hover {
+            border-color: #00ffaa;
+            background: rgba(0,255,170,0.05);
+            transform: translateY(-2px);
+        }
+
+        .picker-widget-item .icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .picker-widget-item .name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .picker-widget-item .desc {
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .picker-widget-item .meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.75em;
+            color: #555;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state .icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: rgba(0,255,170,0.9);
+            color: #000;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            #widget-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .widget-card[data-size="LARGE"],
+            .widget-card[data-size="FULL"] {
+                grid-column: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="dashboard-title">
+            <span style="font-size: 1.5em;">🎛️</span>
+            <h1>My Dashboard</h1>
+        </div>
+        <div class="dashboard-actions">
+            <button class="btn btn-primary" onclick="openWidgetPicker()">
+                <span>➕</span> Add Widget
+            </button>
+            <button class="btn btn-secondary" onclick="resetLayout()">
+                <span>🔄</span> Reset
+            </button>
+            <a href="/START_HERE.html" class="btn btn-secondary">
+                <span>🏠</span> Home
+            </a>
+        </div>
+    </header>
+
+    <!-- Widget Grid -->
+    <div class="widget-grid-container">
+        <div id="widget-grid">
+            <!-- Widgets will be rendered here -->
+        </div>
+    </div>
+
+    <!-- Widget Picker Modal -->
+    <div class="widget-picker-overlay" id="widget-picker-overlay">
+        <div class="widget-picker">
+            <div class="picker-header">
+                <h2>Add Widget</h2>
+                <button class="picker-close" onclick="closeWidgetPicker()">×</button>
+            </div>
+            <div class="picker-categories" id="picker-categories">
+                <!-- Categories will be rendered here -->
+            </div>
+            <div class="picker-widgets" id="picker-widgets">
+                <!-- Widgets will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load widget system -->
+    <script src="/js/widget-library.js"></script>
+    <script src="/js/widgets/onboarding-widget.js"></script>
+
+    <script>
+        // Dashboard state
+        const STORAGE_KEY = 'consciousness_dashboard_layout';
+        let dashboardWidgets = [];
+        let draggedWidget = null;
+
+        /**
+         * Initialize the dashboard
+         */
+        function init() {
+            // Load saved layout
+            loadLayout();
+
+            // Render the grid
+            renderWidgetGrid();
+
+            // Setup picker categories
+            setupPickerCategories();
+
+            // If no widgets, show empty state
+            if (dashboardWidgets.length === 0) {
+                showEmptyState();
+            }
+
+            console.log('🎛️ Dashboard initialized');
+        }
+
+        /**
+         * Load layout from localStorage
+         */
+        function loadLayout() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    dashboardWidgets = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('Failed to load layout:', e);
+                dashboardWidgets = [];
+            }
+        }
+
+        /**
+         * Save layout to localStorage
+         */
+        function saveLayout() {
+            try {
+                // Save just the widget IDs and positions, not rendered content
+                const toSave = dashboardWidgets.map(w => ({
+                    widgetId: w.widgetId,
+                    instanceId: w.instanceId,
+                    position: w.position
+                }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+            } catch (e) {
+                console.warn('Failed to save layout:', e);
+            }
+        }
+
+        /**
+         * Render the widget grid
+         */
+        function renderWidgetGrid() {
+            const grid = document.getElementById('widget-grid');
+
+            if (dashboardWidgets.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            grid.innerHTML = dashboardWidgets.map((instance, index) => {
+                const widget = window.WidgetLibrary?.get(instance.widgetId);
+                if (!widget) return '';
+
+                return `
+                    <div class="widget-card"
+                         data-instance-id="${instance.instanceId}"
+                         data-widget-id="${instance.widgetId}"
+                         data-size="${widget.size || 'SMALL'}"
+                         draggable="true"
+                         ondragstart="handleDragStart(event)"
+                         ondragend="handleDragEnd(event)"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event)">
+                        <div class="widget-header">
+                            <div class="widget-title">
+                                <span class="icon">${widget.icon}</span>
+                                <span>${widget.name}</span>
+                            </div>
+                            <button class="widget-remove" onclick="removeWidget('${instance.instanceId}')" title="Remove widget">×</button>
+                        </div>
+                        <div class="widget-content" id="widget-content-${instance.instanceId}">
+                            <!-- Content loaded dynamically -->
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Load widget content
+            dashboardWidgets.forEach(instance => {
+                loadWidgetContent(instance);
+            });
+
+            // Setup drag and drop
+            setupDragDrop();
+        }
+
+        /**
+         * Load widget content
+         */
+        async function loadWidgetContent(instance) {
+            const widget = window.WidgetLibrary?.get(instance.widgetId);
+            if (!widget) return;
+
+            const container = document.getElementById(`widget-content-${instance.instanceId}`);
+            if (!container) return;
+
+            // Load script if needed
+            if (widget.script) {
+                await window.WidgetLibrary.loadScript(instance.widgetId);
+            }
+
+            // Render content
+            if (typeof widget.render === 'function') {
+                // Widget has custom render function
+                if (widget.dataSource) {
+                    // Fetch data first
+                    try {
+                        const response = await fetch(widget.dataSource);
+                        const data = await response.json();
+                        container.innerHTML = widget.render(data);
+                    } catch (e) {
+                        container.innerHTML = widget.render({});
+                    }
+                } else {
+                    // Call render directly
+                    widget.render(container);
+                }
+            } else if (widget.content) {
+                // Static content
+                container.innerHTML = widget.content;
+            } else {
+                container.innerHTML = '<div style="color:#666; text-align:center;">Widget loading...</div>';
+            }
+        }
+
+        /**
+         * Show empty state
+         */
+        function showEmptyState() {
+            const grid = document.getElementById('widget-grid');
+            grid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1;">
+                    <div class="icon">🎛️</div>
+                    <h3>Your dashboard is empty</h3>
+                    <p>Click "Add Widget" to customize your dashboard</p>
+                    <button class="btn btn-primary" onclick="openWidgetPicker()" style="margin-top: 20px;">
+                        ➕ Add Your First Widget
+                    </button>
+                </div>
+            `;
+        }
+
+        /**
+         * Setup widget picker categories
+         */
+        function setupPickerCategories() {
+            const container = document.getElementById('picker-categories');
+            const categories = window.WidgetLibrary?.getCategories() || [];
+
+            container.innerHTML = `
+                <button class="category-btn active" onclick="filterWidgets(null)">All</button>
+                ${categories.map(cat => `
+                    <button class="category-btn" onclick="filterWidgets('${cat}')">${cat}</button>
+                `).join('')}
+            `;
+        }
+
+        /**
+         * Open widget picker
+         */
+        function openWidgetPicker() {
+            document.getElementById('widget-picker-overlay').classList.add('active');
+            filterWidgets(null); // Show all widgets
+        }
+
+        /**
+         * Close widget picker
+         */
+        function closeWidgetPicker() {
+            document.getElementById('widget-picker-overlay').classList.remove('active');
+        }
+
+        /**
+         * Filter widgets by category
+         */
+        function filterWidgets(category) {
+            // Update active button
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if ((category === null && btn.textContent === 'All') || btn.textContent === category) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Get widgets
+            let widgets = [];
+            if (category) {
+                widgets = window.WidgetLibrary?.getByCategory(category) || [];
+            } else {
+                widgets = window.WidgetLibrary?.getAll() || [];
+            }
+
+            // Render widget list
+            const container = document.getElementById('picker-widgets');
+            container.innerHTML = widgets.map(w => `
+                <div class="picker-widget-item" onclick="addWidget('${w.id}')">
+                    <div class="icon">${w.icon}</div>
+                    <div class="name">${w.name}</div>
+                    <div class="desc">${w.description || ''}</div>
+                    <div class="meta">
+                        <span>${w.category}</span>
+                        <span>${w.size}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        /**
+         * Add a widget to the dashboard
+         */
+        function addWidget(widgetId) {
+            const widget = window.WidgetLibrary?.get(widgetId);
+            if (!widget) return;
+
+            // Create instance
+            const instance = {
+                widgetId: widgetId,
+                instanceId: `${widgetId}-${Date.now()}`,
+                position: dashboardWidgets.length
+            };
+
+            dashboardWidgets.push(instance);
+            saveLayout();
+            renderWidgetGrid();
+            closeWidgetPicker();
+            showToast(`Added ${widget.name} widget`);
+        }
+
+        /**
+         * Remove a widget from the dashboard
+         */
+        function removeWidget(instanceId) {
+            dashboardWidgets = dashboardWidgets.filter(w => w.instanceId !== instanceId);
+            saveLayout();
+            renderWidgetGrid();
+            showToast('Widget removed');
+        }
+
+        /**
+         * Reset layout to default
+         */
+        function resetLayout() {
+            if (confirm('Reset dashboard to default layout?')) {
+                dashboardWidgets = [];
+                localStorage.removeItem(STORAGE_KEY);
+                renderWidgetGrid();
+                showToast('Dashboard reset');
+            }
+        }
+
+        // Drag and Drop handlers
+        function handleDragStart(e) {
+            draggedWidget = e.target.closest('.widget-card');
+            draggedWidget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            if (draggedWidget) {
+                draggedWidget.classList.remove('dragging');
+            }
+            document.querySelectorAll('.widget-card').forEach(card => {
+                card.classList.remove('drag-over');
+            });
+            draggedWidget = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const card = e.target.closest('.widget-card');
+            if (card && card !== draggedWidget) {
+                card.classList.add('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetCard = e.target.closest('.widget-card');
+            if (!targetCard || targetCard === draggedWidget) return;
+
+            targetCard.classList.remove('drag-over');
+
+            // Get indices
+            const draggedId = draggedWidget.dataset.instanceId;
+            const targetId = targetCard.dataset.instanceId;
+
+            const draggedIndex = dashboardWidgets.findIndex(w => w.instanceId === draggedId);
+            const targetIndex = dashboardWidgets.findIndex(w => w.instanceId === targetId);
+
+            // Swap positions
+            if (draggedIndex !== -1 && targetIndex !== -1) {
+                const temp = dashboardWidgets[draggedIndex];
+                dashboardWidgets[draggedIndex] = dashboardWidgets[targetIndex];
+                dashboardWidgets[targetIndex] = temp;
+
+                saveLayout();
+                renderWidgetGrid();
+            }
+        }
+
+        function setupDragDrop() {
+            // Already set up via inline handlers
+        }
+
+        /**
+         * Show toast notification
+         */
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Close picker on overlay click
+        document.getElementById('widget-picker-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'widget-picker-overlay') {
+                closeWidgetPicker();
+            }
+        });
+
+        // Close picker on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeWidgetPicker();
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
