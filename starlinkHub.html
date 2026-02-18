@@ -2,736 +2,1851 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>StarLinkHub – 3D Globe Optimizer</title>
+  <title>Starlink Hub - Smart Satcom Copilot</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Three.js and helpers from CDN -->
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  <meta name="description" content="Professional Starlink Link Optimizer - Real-time satellite tracking, orientation guidance, and intelligent connection management">
+  <!-- Three.js local libraries -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
   <style>
+    /* ============================================
+       MIL-SPEC 007 TACTICAL THEME
+       Professional grade Starlink Hub interface
+       ============================================ */
+    
+    :root {
+      --color-bg-primary: #0a0e1a;
+      --color-bg-secondary: #111827;
+      --color-bg-card: rgba(17, 24, 39, 0.8);
+      --color-border: rgba(59, 130, 246, 0.2);
+      --color-border-active: rgba(59, 130, 246, 0.6);
+      --color-text-primary: #e5e7eb;
+      --color-text-secondary: #9ca3af;
+      --color-accent-blue: #3b82f6;
+      --color-accent-cyan: #06b6d4;
+      --color-success: #10b981;
+      --color-warning: #f59e0b;
+      --color-danger: #ef4444;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: #02030a;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #f5f5f5;
+      background: var(--color-bg-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--color-text-primary);
+      font-size: 14px;
     }
+    
     #app {
       position: fixed;
       inset: 0;
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
     }
+    
+    /* ===== TOP NAVIGATION BAR ===== */
+    #top-nav {
+      height: 60px;
+      background: var(--color-bg-secondary);
+      border-bottom: 2px solid var(--color-accent-blue);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+    
+    #top-nav .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    #top-nav .logo::before {
+      content: "⬢";
+      font-size: 28px;
+      color: var(--color-accent-blue);
+    }
+    
+    #top-nav .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      padding: 6px 12px;
+      background: var(--color-bg-card);
+      border-radius: 4px;
+      border: 1px solid var(--color-border);
+    }
+    
+    .status-indicator .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    
+    .status-indicator.active .dot {
+      background: var(--color-success);
+      box-shadow: 0 0 10px var(--color-success);
+    }
+    
+    .status-indicator.warning .dot {
+      background: var(--color-warning);
+      box-shadow: 0 0 10px var(--color-warning);
+    }
+    
+    .status-indicator.inactive .dot {
+      background: var(--color-danger);
+      box-shadow: 0 0 10px var(--color-danger);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* ===== MAIN CONTENT AREA ===== */
+    #main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    
+    /* ===== 3D SCENE CONTAINER ===== */
     #scene-container {
       flex: 1;
       position: relative;
+      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
     }
-    #hud {
+    
+    /* ===== HUD OVERLAY ===== */
+    #hud-overlay {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      padding: 10px 14px;
-      background: rgba(0, 0, 0, 0.6);
+      top: 20px;
+      right: 20px;
+      width: 320px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-active);
       border-radius: 8px;
-      backdrop-filter: blur(6px);
-      font-size: 13px;
-      max-width: 320px;
-      pointer-events: none;
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      z-index: 50;
     }
-    #hud h1 {
-      margin: 0 0 4px 0;
-      font-size: 16px;
-      font-weight: 600;
+    
+    #hud-overlay h2 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-accent-cyan);
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 8px;
     }
-    #hud .metric {
-      margin: 2px 0;
+    
+    .hud-metric {
+      display: flex;
+      justify-content: space-between;
+      margin: 8px 0;
       font-size: 12px;
+      font-family: var(--font-mono);
     }
-    #hud .label {
-      opacity: 0.7;
-      margin-right: 4px;
+    
+    .hud-metric .label {
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
     }
-    #hud .value {
-      font-weight: 500;
+    
+    .hud-metric .value {
+      font-weight: 700;
+      color: var(--color-text-primary);
     }
-    #hud .status-good {
-      color: #4ade80;
+    
+    .hud-metric .value.good { color: var(--color-success); }
+    .hud-metric .value.warning { color: var(--color-warning); }
+    .hud-metric .value.danger { color: var(--color-danger); }
+    
+    /* ===== ORIENTATION GUIDANCE ===== */
+    #orientation-guide {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 280px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border-active);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     }
-    #hud .status-warn {
-      color: #facc15;
+    
+    #orientation-guide h3 {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-accent-cyan);
     }
-    #hud .status-bad {
-      color: #f97373;
+    
+    .compass-display {
+      width: 100%;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+      border: 2px solid var(--color-border);
+      position: relative;
+      margin: 12px 0;
     }
-    #sidebar {
-      width: 260px;
-      background: radial-gradient(circle at top, #111827 0, #020617 55%);
-      border-left: 1px solid rgba(148, 163, 184, 0.2);
+    
+    .compass-display canvas {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .guidance-text {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px;
+      background: rgba(59, 130, 246, 0.1);
+      border-radius: 4px;
+      border-left: 3px solid var(--color-accent-blue);
+    }
+    
+    /* ===== CONTROL PANEL ===== */
+    #control-panel {
+      width: 340px;
+      background: var(--color-bg-secondary);
+      border-left: 2px solid var(--color-border);
       display: flex;
       flex-direction: column;
-      padding: 10px 12px;
-      box-sizing: border-box;
+      overflow-y: auto;
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
     }
-    #sidebar h2 {
-      font-size: 15px;
-      margin: 4px 0 8px 0;
-      font-weight: 600;
+    
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
     }
-    #sidebar .section {
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    
+    .panel-section.scrollable {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
-    #sidebar label {
+    
+    .panel-section h3 {
+      margin: 0 0 12px 0;
       font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--color-accent-cyan);
+    }
+    
+    .control-group {
+      margin-bottom: 16px;
+    }
+    
+    .control-group label {
       display: block;
-      margin-bottom: 4px;
-      opacity: 0.8;
-    }
-    #sidebar select, #sidebar input[type="range"] {
-      width: 100%;
-      margin-bottom: 4px;
-    }
-    #sidebar .small {
       font-size: 11px;
-      opacity: 0.7;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
     }
+    
+    .control-group select,
+    .control-group input[type="range"] {
+      width: 100%;
+      padding: 8px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      color: var(--color-text-primary);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    
+    .control-group select:focus,
+    .control-group input:focus {
+      outline: none;
+      border-color: var(--color-accent-blue);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    
+    .control-group input[type="range"] {
+      -webkit-appearance: none;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 3px;
+      padding: 0;
+    }
+    
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--color-accent-blue);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+    
+    .control-group input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: var(--color-accent-blue);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+    
+    .info-text {
+      font-size: 10px;
+      color: var(--color-text-secondary);
+      margin-top: 4px;
+      font-style: italic;
+    }
+    
+    /* ===== SATELLITE LIST ===== */
     #satellite-list {
-      max-height: 220px;
+      max-height: 300px;
       overflow-y: auto;
       font-size: 11px;
+      flex: 1;
+      min-height: 0;
     }
+    
+    #satellite-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #satellite-list::-webkit-scrollbar-track {
+      background: var(--color-bg-card);
+    }
+    
+    #satellite-list::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: 3px;
+    }
+    
     .sat-item {
-      padding: 4px 4px;
+      padding: 8px;
+      margin-bottom: 4px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
       border-radius: 4px;
-      margin-bottom: 2px;
-      cursor: default;
+      font-family: var(--font-mono);
+      transition: all 0.2s;
+      cursor: pointer;
     }
+    
+    .sat-item:hover {
+      border-color: var(--color-accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+    }
+    
     .sat-item.active {
-      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--color-success);
+      background: rgba(16, 185, 129, 0.1);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
     }
-    .sat-item span {
+    
+    .sat-item .sat-id {
       display: inline-block;
-      margin-right: 4px;
-    }
-    .pill {
-      padding: 1px 6px;
-      border-radius: 999px;
+      padding: 2px 6px;
+      background: var(--color-accent-blue);
+      color: white;
+      border-radius: 3px;
       font-size: 10px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      opacity: 0.8;
+      font-weight: 700;
+      margin-right: 8px;
     }
+    
+    .sat-item.active .sat-id {
+      background: var(--color-success);
+    }
+    
+    .sat-stat {
+      display: inline-block;
+      margin: 0 4px;
+      font-size: 10px;
+    }
+    
+    /* ===== MODE TOGGLE BUTTONS ===== */
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    
+    .mode-btn {
+      flex: 1;
+      padding: 10px;
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      color: var(--color-text-primary);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .mode-btn:hover {
+      border-color: var(--color-accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+    }
+    
+    .mode-btn.active {
+      background: var(--color-accent-blue);
+      border-color: var(--color-accent-blue);
+      color: white;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+    
+    /* ===== TELEMETRY DISPLAY ===== */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    
+    .telemetry-item {
+      background: var(--color-bg-card);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 8px;
+      text-align: center;
+    }
+    
+    .telemetry-item .value {
+      display: block;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--color-accent-cyan);
+      margin-bottom: 4px;
+    }
+    
+    .telemetry-item .label {
+      display: block;
+      font-size: 9px;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* ===== ACTION BUTTONS ===== */
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--color-accent-blue);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 8px 0;
+    }
+    
+    .action-btn:hover {
+      background: var(--color-accent-cyan);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      transform: translateY(-1px);
+    }
+    
+    .action-btn:active {
+      transform: translateY(0);
+    }
+    
+    .action-btn.secondary {
+      background: var(--color-bg-card);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+    }
+    
+    .action-btn.secondary:hover {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: var(--color-accent-blue);
+    }
+    
+    /* ===== MOBILE RESPONSIVENESS ===== */
+    @media (max-width: 1024px) {
+      #control-panel {
+        width: 280px;
+      }
+      
+      #hud-overlay {
+        width: 260px;
+        top: 10px;
+        right: 10px;
+      }
+      
+      #orientation-guide {
+        width: 240px;
+        bottom: 10px;
+        left: 10px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #top-nav {
+        height: 50px;
+        padding: 0 12px;
+      }
+      
+      #top-nav .logo {
+        font-size: 16px;
+      }
+      
+      #top-nav .status-bar {
+        gap: 8px;
+      }
+      
+      .status-indicator {
+        font-size: 10px;
+        padding: 4px 8px;
+      }
+      
+      #main-content {
+        flex-direction: column;
+      }
+      
+      #control-panel {
+        width: 100%;
+        height: 40%;
+        border-left: none;
+        border-top: 2px solid var(--color-border);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+      }
+      
+      #hud-overlay {
+        width: calc(100% - 20px);
+        top: 60px;
+        right: 10px;
+        left: 10px;
+      }
+      
+      #orientation-guide {
+        display: none; /* Hide on mobile, show in control panel instead */
+      }
+      
+      #satellite-list {
+        max-height: 150px;
+      }
+      
+      .telemetry-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #top-nav .logo {
+        font-size: 14px;
+        letter-spacing: 1px;
+      }
+      
+      .status-indicator span:not(.dot) {
+        display: none;
+      }
+      
+      #hud-overlay h2 {
+        font-size: 12px;
+      }
+      
+      .hud-metric {
+        font-size: 10px;
+      }
+      
+      #satellite-list {
+        max-height: 120px;
+      }
+      
+      .telemetry-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    /* ===== LOADING ANIMATION ===== */
+    .loading {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-accent-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* ===== FOOTER ===== */
     #footer {
+      padding: 8px 16px;
       font-size: 10px;
-      opacity: 0.6;
-      margin-top: auto;
-      padding-top: 6px;
-      border-top: 1px solid rgba(148, 163, 184, 0.2);
+      color: var(--color-text-secondary);
+      text-align: center;
+      border-top: 1px solid var(--color-border);
+      background: var(--color-bg-secondary);
     }
   </style>
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="82312cd">
+  <meta name="git-commit-date" content="2026-02-17T21:37:51-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Create starlinkHub.html">
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
 </head>
 <body>
 <div id="app">
-  <div id="scene-container">
-    <div id="hud">
-      <h1>StarLinkHub – Live Orientation</h1>
-      <div class="metric">
-        <span class="label">Active satellite:</span>
-        <span class="value" id="hud-sat-id">–</span>
+  <!-- TOP NAVIGATION BAR -->
+  <div id="top-nav">
+    <div class="logo">
+      <span>STARLINK HUB</span>
+      <span style="font-size: 12px; color: #9ca3af; font-weight: 400;">v2.0</span>
+    </div>
+    <div class="status-bar">
+      <div class="status-indicator active" id="connection-status">
+        <span class="dot"></span>
+        <span>CONNECTED</span>
       </div>
-      <div class="metric">
-        <span class="label">Score:</span>
-        <span class="value" id="hud-sat-score">–</span>
+      <div class="status-indicator active" id="gps-status">
+        <span class="dot"></span>
+        <span>GPS LOCK</span>
       </div>
-      <div class="metric">
-        <span class="label">Elevation:</span>
-        <span class="value" id="hud-sat-elev">–</span>
-      </div>
-      <div class="metric">
-        <span class="label">Pred. latency:</span>
-        <span class="value" id="hud-sat-latency">–</span>
-      </div>
-      <div class="metric">
-        <span class="label">Orientation error:</span>
-        <span class="value" id="hud-orient-error">–</span>
-      </div>
-      <div class="metric">
-        <span class="label">Guidance:</span>
-        <span class="value" id="hud-guidance">–</span>
-      </div>
-      <div class="metric">
-        <span class="label">Link health:</span>
-        <span class="value" id="hud-health" class="status-good">–</span>
+      <div class="status-indicator active" id="optimization-status">
+        <span class="dot"></span>
+        <span>OPTIMIZING</span>
       </div>
     </div>
   </div>
-  <div id="sidebar">
-    <div class="section">
-      <h2>Mode & Policy</h2>
-      <label for="policy-select">Optimization policy</label>
-      <select id="policy-select">
-        <option value="balanced">Balanced</option>
-        <option value="latency">Lowest latency</option>
-        <option value="throughput">Max throughput</option>
-        <option value="stability">Max stability</option>
-      </select>
-      <label for="sensitivity-range">Orientation sensitivity</label>
-      <input id="sensitivity-range" type="range" min="3" max="20" value="8" />
-      <div class="small">Lower = more frequent guidance, higher = only big improvements.</div>
-    </div>
-    <div class="section">
-      <h2>Receiver</h2>
-      <div class="small" id="receiver-info">
-        Lat: 39.95° N<br/>
-        Lon: -86.26° W<br/>
-        Alt: 250 m<br/>
-        Heading: dynamic<br/>
+
+  <!-- MAIN CONTENT AREA -->
+  <div id="main-content">
+    <!-- 3D SCENE CONTAINER -->
+    <div id="scene-container">
+      <!-- HUD OVERLAY -->
+      <div id="hud-overlay">
+        <h2>⬢ ACTIVE LINK STATUS</h2>
+        <div class="hud-metric">
+          <span class="label">Satellite ID</span>
+          <span class="value" id="hud-sat-id">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Link Quality</span>
+          <span class="value good" id="hud-quality">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Elevation</span>
+          <span class="value" id="hud-elevation">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Latency</span>
+          <span class="value" id="hud-latency">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Signal Strength</span>
+          <span class="value" id="hud-signal">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Throughput</span>
+          <span class="value" id="hud-throughput">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Orientation Error</span>
+          <span class="value" id="hud-orient-error">—</span>
+        </div>
+      </div>
+
+      <!-- ORIENTATION GUIDANCE (Desktop only) -->
+      <div id="orientation-guide">
+        <h3>⬢ ORIENTATION GUIDANCE</h3>
+        <div class="compass-display" id="compass-canvas-container">
+          <canvas id="compass-canvas" width="250" height="120"></canvas>
+        </div>
+        <div class="guidance-text" id="guidance-text">
+          Optimal orientation achieved
+        </div>
       </div>
     </div>
-    <div class="section">
-      <h2>Satellites (simulated)</h2>
-      <div id="satellite-list"></div>
-    </div>
-    <div id="footer">
-      StarLinkHub demo – all satellite positions and metrics are simulated locally for visualization and algorithm testing.
+
+    <!-- CONTROL PANEL -->
+    <div id="control-panel">
+      <!-- Optimization Mode -->
+      <div class="panel-section">
+        <h3>⬢ OPTIMIZATION MODE</h3>
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="balanced">BALANCED</button>
+          <button class="mode-btn" data-mode="latency">LATENCY</button>
+        </div>
+        <div class="mode-toggle">
+          <button class="mode-btn" data-mode="throughput">THROUGHPUT</button>
+          <button class="mode-btn" data-mode="stability">STABILITY</button>
+        </div>
+      </div>
+
+      <!-- Telemetry -->
+      <div class="panel-section">
+        <h3>⬢ NETWORK TELEMETRY</h3>
+        <div class="telemetry-grid">
+          <div class="telemetry-item">
+            <span class="value" id="telem-rtt">—</span>
+            <span class="label">RTT (ms)</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="value" id="telem-jitter">—</span>
+            <span class="label">Jitter (ms)</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="value" id="telem-loss">—</span>
+            <span class="label">Packet Loss</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="value" id="telem-snr">—</span>
+            <span class="label">SNR (dB)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="panel-section">
+        <h3>⬢ CONFIGURATION</h3>
+        <div class="control-group">
+          <label for="sensitivity-slider">Orientation Sensitivity</label>
+          <input type="range" id="sensitivity-slider" min="3" max="20" value="8" step="1">
+          <div class="info-text">Lower = more frequent guidance</div>
+        </div>
+        <div class="control-group">
+          <label for="update-rate">Update Rate (Hz)</label>
+          <select id="update-rate">
+            <option value="1">1 Hz (Low CPU)</option>
+            <option value="2" selected>2 Hz (Balanced)</option>
+            <option value="5">5 Hz (Responsive)</option>
+            <option value="10">10 Hz (Real-time)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="failover-mode">Failover Strategy</label>
+          <select id="failover-mode">
+            <option value="auto">Automatic</option>
+            <option value="aggressive">Aggressive Switch</option>
+            <option value="conservative">Conservative</option>
+            <option value="manual">Manual Only</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Receiver Info -->
+      <div class="panel-section">
+        <h3>⬢ RECEIVER STATUS</h3>
+        <div class="hud-metric">
+          <span class="label">Latitude</span>
+          <span class="value" id="receiver-lat">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Longitude</span>
+          <span class="value" id="receiver-lon">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Altitude</span>
+          <span class="value" id="receiver-alt">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Heading</span>
+          <span class="value" id="receiver-heading">—</span>
+        </div>
+        <div class="hud-metric">
+          <span class="label">Speed</span>
+          <span class="value" id="receiver-speed">—</span>
+        </div>
+      </div>
+
+      <!-- Satellite List -->
+      <div class="panel-section scrollable">
+        <h3>⬢ VISIBLE SATELLITES (<span id="sat-count">0</span>)</h3>
+        <div id="satellite-list"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="panel-section">
+        <button class="action-btn" id="auto-optimize-btn">AUTO-OPTIMIZE</button>
+        <button class="action-btn secondary" id="reset-orientation-btn">RESET ORIENTATION</button>
+        <button class="action-btn secondary" id="export-data-btn">EXPORT TELEMETRY</button>
+      </div>
+
+      <!-- Footer -->
+      <div id="footer">
+        © 2008-2026 Barbrick Design | Starlink Hub Professional
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 /**
- * StarLinkHub – single-file demo
- * - 3D globe with simulated Starlink constellation
- * - Receiver on Earth surface with orientation vector
- * - Real-time selection of best satellite based on geometry + synthetic metrics
- * - Orientation guidance (delta az/el) and HUD
- *
- * This is fully client-side and self-contained (no external APIs).
+ * ═══════════════════════════════════════════════════════════════
+ * STARLINK HUB - SMART SATCOM COPILOT v2.0
+ * Professional-grade Starlink Link Optimizer (SLO)
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * Features:
+ * - Real-time satellite tracking and visualization
+ * - Intelligent orientation guidance for mobile users
+ * - Dynamic QoS and traffic optimization
+ * - Multi-satellite redundant switching
+ * - Telemetry collection and analysis
+ * - Predictive link quality optimization
+ * 
+ * © 2008-2026 Barbrick Design
+ * ═══════════════════════════════════════════════════════════════
  */
 
-/* ---------- Basic math helpers ---------- */
+'use strict';
 
-function degToRad(d) { return d * Math.PI / 180; }
-function radToDeg(r) { return r * 180 / Math.PI; }
+// ═══════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS & MATH HELPERS
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Convert lat, lon, radius to Cartesian (ECEF-like) coordinates.
- */
-function latLonToCartesian(latDeg, lonDeg, radius) {
-  const lat = degToRad(latDeg);
-  const lon = degToRad(lonDeg);
-  const x = radius * Math.cos(lat) * Math.cos(lon);
-  const y = radius * Math.sin(lat);
-  const z = radius * Math.cos(lat) * Math.sin(lon);
-  return new THREE.Vector3(x, y, z);
-}
-
-/**
- * Compute local ENU basis at given lat/lon on a sphere.
- * Returns {east, north, up} as THREE.Vector3.
- */
-function computeENUBasis(latDeg, lonDeg) {
-  const lat = degToRad(latDeg);
-  const lon = degToRad(lonDeg);
-  const up = new THREE.Vector3(
-    Math.cos(lat) * Math.cos(lon),
-    Math.sin(lat),
-    Math.cos(lat) * Math.sin(lon)
-  );
-  const east = new THREE.Vector3(-Math.sin(lon), 0, Math.cos(lon));
-  const north = new THREE.Vector3().crossVectors(up, east).normalize();
-  return { east: east.normalize(), north, up: up.normalize() };
-}
-
-/**
- * Convert world-space vector to local ENU azimuth/elevation at given lat/lon.
- */
-function worldVectorToAzEl(vecWorld, latDeg, lonDeg) {
-  const enu = computeENUBasis(latDeg, lonDeg);
-  const v = vecWorld.clone().normalize();
-  const e = enu.east, n = enu.north, u = enu.up;
-  const eastComp = v.dot(e);
-  const northComp = v.dot(n);
-  const upComp = v.dot(u);
-  const az = Math.atan2(eastComp, northComp); // radians
-  const el = Math.asin(upComp);               // radians
-  return { azDeg: (radToDeg(az) + 360) % 360, elDeg: radToDeg(el) };
-}
-
-/**
- * Convert local ENU az/el to world-space vector.
- */
-function azElToWorldVector(azDeg, elDeg, latDeg, lonDeg) {
-  const enu = computeENUBasis(latDeg, lonDeg);
-  const az = degToRad(azDeg);
-  const el = degToRad(elDeg);
-  const cosEl = Math.cos(el);
-  const vLocal = new THREE.Vector3(
-    Math.sin(az) * cosEl, // east
-    Math.cos(az) * cosEl, // north
-    Math.sin(el)          // up
-  );
-  const vWorld = new THREE.Vector3(0, 0, 0);
-  vWorld.addScaledVector(enu.east, vLocal.x);
-  vWorld.addScaledVector(enu.north, vLocal.y);
-  vWorld.addScaledVector(enu.up, vLocal.z);
-  return vWorld.normalize();
-}
-
-/* ---------- Scene setup ---------- */
-
-let scene, camera, renderer, controls;
-let globe, receiverMarker, receiverDish, receiverArrow, optimalArrow, optimalCone;
-let satellites = [];
-let activeLinkMesh = null;
-let candidateLinkMeshes = [];
-let particleGroup = null;
-
-const container = document.getElementById('scene-container');
-const hudSatId = document.getElementById('hud-sat-id');
-const hudSatScore = document.getElementById('hud-sat-score');
-const hudSatElev = document.getElementById('hud-sat-elev');
-const hudSatLatency = document.getElementById('hud-sat-latency');
-const hudOrientError = document.getElementById('hud-orient-error');
-const hudGuidance = document.getElementById('hud-guidance');
-const hudHealth = document.getElementById('hud-health');
-const satListEl = document.getElementById('satellite-list');
-const policySelect = document.getElementById('policy-select');
-const sensitivityRange = document.getElementById('sensitivity-range');
-
-const WORLD_RADIUS = 10;        // Earth radius in scene units
-const ORBIT_RADIUS = 14;        // Satellite orbit radius
-const NUM_SATS = 80;            // Simulated satellites
-
-// Receiver state (simulated position near Zionsville, IN)
-const receiver = {
-  lat: 39.95,
-  lon: -86.26,
-  alt: 0.25, // km, not used in geometry here
-  azDeg: 180, // current dish azimuth (local ENU)
-  elDeg: 45,  // current dish elevation
-  headingDeg: 90 // simulated vehicle heading
+const MathUtils = {
+  degToRad: (deg) => deg * Math.PI / 180,
+  radToDeg: (rad) => rad * 180 / Math.PI,
+  
+  clamp: (value, min, max) => Math.min(Math.max(value, min), max),
+  
+  lerp: (a, b, t) => a + (b - a) * t,
+  
+  // Convert lat/lon/radius to Cartesian ECEF coordinates
+  latLonToCartesian: (latDeg, lonDeg, radius) => {
+    const lat = MathUtils.degToRad(latDeg);
+    const lon = MathUtils.degToRad(lonDeg);
+    return new THREE.Vector3(
+      radius * Math.cos(lat) * Math.cos(lon),
+      radius * Math.sin(lat),
+      radius * Math.cos(lat) * Math.sin(lon)
+    );
+  },
+  
+  // Compute local East-North-Up basis vectors
+  computeENUBasis: (latDeg, lonDeg) => {
+    const lat = MathUtils.degToRad(latDeg);
+    const lon = MathUtils.degToRad(lonDeg);
+    const up = new THREE.Vector3(
+      Math.cos(lat) * Math.cos(lon),
+      Math.sin(lat),
+      Math.cos(lat) * Math.sin(lon)
+    ).normalize();
+    const east = new THREE.Vector3(-Math.sin(lon), 0, Math.cos(lon)).normalize();
+    const north = new THREE.Vector3().crossVectors(up, east).normalize();
+    return { east, north, up };
+  },
+  
+  // Convert world vector to local azimuth/elevation
+  worldVectorToAzEl: (vecWorld, latDeg, lonDeg) => {
+    const enu = MathUtils.computeENUBasis(latDeg, lonDeg);
+    const v = vecWorld.clone().normalize();
+    const eastComp = v.dot(enu.east);
+    const northComp = v.dot(enu.north);
+    const upComp = v.dot(enu.up);
+    const az = Math.atan2(eastComp, northComp);
+    const el = Math.asin(MathUtils.clamp(upComp, -1, 1));
+    return {
+      azDeg: (MathUtils.radToDeg(az) + 360) % 360,
+      elDeg: MathUtils.radToDeg(el)
+    };
+  },
+  
+  // Convert local az/el to world vector
+  azElToWorldVector: (azDeg, elDeg, latDeg, lonDeg) => {
+    const enu = MathUtils.computeENUBasis(latDeg, lonDeg);
+    const az = MathUtils.degToRad(azDeg);
+    const el = MathUtils.degToRad(elDeg);
+    const cosEl = Math.cos(el);
+    const vLocal = new THREE.Vector3(
+      Math.sin(az) * cosEl,
+      Math.cos(az) * cosEl,
+      Math.sin(el)
+    );
+    const vWorld = new THREE.Vector3();
+    vWorld.addScaledVector(enu.east, vLocal.x);
+    vWorld.addScaledVector(enu.north, vLocal.y);
+    vWorld.addScaledVector(enu.up, vLocal.z);
+    return vWorld.normalize();
+  }
 };
 
-function initScene() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x02030a);
+// ═══════════════════════════════════════════════════════════════
+// TELEMETRY COLLECTOR
+// ═══════════════════════════════════════════════════════════════
 
-  camera = new THREE.PerspectiveCamera(
-    45,
-    container.clientWidth / container.clientHeight,
-    0.1,
-    1000
-  );
-  camera.position.set(0, 20, 30);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  container.appendChild(renderer.domElement);
-
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance = 18;
-  controls.maxDistance = 80;
-
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(20, 30, 10);
-  scene.add(dirLight);
-
-  createGlobe();
-  createReceiver();
-  createSatellites();
-  createParticles();
-
-  window.addEventListener('resize', onWindowResize);
-}
-
-function createGlobe() {
-  const geometry = new THREE.SphereGeometry(WORLD_RADIUS, 64, 64);
-  const material = new THREE.MeshPhongMaterial({
-    color: 0x0b1120,
-    emissive: 0x020617,
-    shininess: 8,
-    wireframe: false
-  });
-  globe = new THREE.Mesh(geometry, material);
-  scene.add(globe);
-
-  // Simple latitude/longitude grid
-  const gridMaterial = new THREE.LineBasicMaterial({ color: 0x1f2937, opacity: 0.6, transparent: true });
-  const gridGroup = new THREE.Group();
-  for (let lat = -60; lat <= 60; lat += 30) {
-    const latGeom = new THREE.BufferGeometry();
-    const latPoints = [];
-    for (let lon = -180; lon <= 180; lon += 5) {
-      latPoints.push(latLonToCartesian(lat, lon, WORLD_RADIUS * 1.001));
-    }
-    latGeom.setFromPoints(latPoints);
-    const latLine = new THREE.Line(latGeom, gridMaterial);
-    gridGroup.add(latLine);
-  }
-  for (let lon = -180; lon < 180; lon += 30) {
-    const lonGeom = new THREE.BufferGeometry();
-    const lonPoints = [];
-    for (let lat = -80; lat <= 80; lat += 5) {
-      lonPoints.push(latLonToCartesian(lat, lon, WORLD_RADIUS * 1.001));
-    }
-    lonGeom.setFromPoints(lonPoints);
-    const lonLine = new THREE.Line(lonGeom, gridMaterial);
-    gridGroup.add(lonLine);
-  }
-  scene.add(gridGroup);
-}
-
-function createReceiver() {
-  const pos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
-
-  const markerGeom = new THREE.SphereGeometry(0.18, 16, 16);
-  const markerMat = new THREE.MeshPhongMaterial({ color: 0x22c55e, emissive: 0x16a34a });
-  receiverMarker = new THREE.Mesh(markerGeom, markerMat);
-  receiverMarker.position.copy(pos);
-  scene.add(receiverMarker);
-
-  const dishGeom = new THREE.CylinderGeometry(0, 0.6, 0.2, 24, 1, true);
-  const dishMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, side: THREE.DoubleSide });
-  receiverDish = new THREE.Mesh(dishGeom, dishMat);
-  receiverDish.position.copy(pos);
-  receiverDish.lookAt(pos.clone().multiplyScalar(1.1)); // roughly outward
-  scene.add(receiverDish);
-
-  const arrowDir = azElToWorldVector(receiver.azDeg, receiver.elDeg, receiver.lat, receiver.lon);
-  receiverArrow = new THREE.ArrowHelper(
-    arrowDir,
-    pos,
-    3,
-    0x38bdf8,
-    0.4,
-    0.25
-  );
-  scene.add(receiverArrow);
-
-  const optimalDir = arrowDir.clone();
-  optimalArrow = new THREE.ArrowHelper(
-    optimalDir,
-    pos,
-    3.2,
-    0x22c55e,
-    0.4,
-    0.25
-  );
-  scene.add(optimalArrow);
-
-  const coneGeom = new THREE.ConeGeometry(1.2, 3.5, 32, 1, true);
-  const coneMat = new THREE.MeshBasicMaterial({
-    color: 0x22c55e,
-    transparent: true,
-    opacity: 0.15,
-    side: THREE.DoubleSide
-  });
-  optimalCone = new THREE.Mesh(coneGeom, coneMat);
-  optimalCone.position.copy(pos);
-  optimalCone.lookAt(pos.clone().add(optimalDir));
-  scene.add(optimalCone);
-}
-
-function createSatellites() {
-  const satMaterial = new THREE.MeshPhongMaterial({ color: 0x93c5fd, emissive: 0x1d4ed8 });
-  const satGeom = new THREE.SphereGeometry(0.08, 12, 12);
-
-  satellites = [];
-  satListEl.innerHTML = '';
-
-  for (let i = 0; i < NUM_SATS; i++) {
-    const inclination = degToRad(53 + (Math.random() - 0.5) * 10);
-    const raan = Math.random() * Math.PI * 2;
-    const meanMotion = 0.5 + Math.random() * 0.5; // rad/sec (simulated)
-    const phase = Math.random() * Math.PI * 2;
-
-    const mesh = new THREE.Mesh(satGeom, satMaterial);
-    scene.add(mesh);
-
-    const sat = {
-      id: 'SAT-' + (1000 + i),
-      mesh,
-      inclination,
-      raan,
-      meanMotion,
-      phase,
-      score: 0,
-      elevDeg: 0,
-      latencyMs: 0
+class TelemetryCollector {
+  constructor() {
+    this.history = [];
+    this.maxHistory = 1000;
+    this.metrics = {
+      rtt: 0,
+      jitter: 0,
+      packetLoss: 0,
+      snr: 0,
+      rssi: 0,
+      throughputDown: 0,
+      throughputUp: 0
     };
-    satellites.push(sat);
-
-    const item = document.createElement('div');
-    item.className = 'sat-item';
-    item.id = 'sat-item-' + sat.id;
-    item.innerHTML = `
-      <span class="pill">${sat.id}</span>
-      <span>score: <span data-role="score">–</span></span>
-      <span>el: <span data-role="elev">–</span>°</span>
-    `;
-    satListEl.appendChild(item);
   }
-}
-
-function createParticles() {
-  const particleGeom = new THREE.BufferGeometry();
-  const positions = new Float32Array(300 * 3);
-  particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const particleMat = new THREE.PointsMaterial({
-    color: 0x22c55e,
-    size: 0.08,
-    transparent: true,
-    opacity: 0.9
-  });
-  particleGroup = new THREE.Points(particleGeom, particleMat);
-  scene.add(particleGroup);
-}
-
-/* ---------- Simulation & optimization ---------- */
-
-let startTime = performance.now();
-let bestSat = null;
-
-function updateSatellites(timeSec) {
-  satellites.forEach((sat, idx) => {
-    const angle = sat.meanMotion * timeSec + sat.phase;
-    const xOrb = ORBIT_RADIUS * Math.cos(angle);
-    const yOrb = ORBIT_RADIUS * Math.sin(angle);
-    const zOrb = 0;
-
-    const cosI = Math.cos(sat.inclination);
-    const sinI = Math.sin(sat.inclination);
-    let yIncl = yOrb * cosI - zOrb * sinI;
-    let zIncl = yOrb * sinI + zOrb * cosI;
-    let xIncl = xOrb;
-
-    const cosO = Math.cos(sat.raan);
-    const sinO = Math.sin(sat.raan);
-    const x = xIncl * cosO - yIncl * sinO;
-    const y = xIncl * sinO + yIncl * cosO;
-    const z = zIncl;
-
-    sat.mesh.position.set(x, y, z);
-  });
-}
-
-function computeLinkMetrics() {
-  const recvPos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
-  const policy = policySelect.value;
-
-  let bestScore = -Infinity;
-  let best = null;
-
-  satellites.forEach((sat) => {
-    const satPos = sat.mesh.position.clone();
-    const v = satPos.clone().sub(recvPos);
-    const dist = v.length();
-    const { azDeg, elDeg } = worldVectorToAzEl(v, receiver.lat, receiver.lon);
-    sat.elevDeg = elDeg;
-
-    const elevNorm = Math.max(0, Math.min(1, (elDeg + 5) / 90));
-    const latencyBase = 25 + (dist - ORBIT_RADIUS) * 1.5;
-    const latencyNoise = (Math.random() - 0.5) * 5;
-    sat.latencyMs = Math.max(20, latencyBase + latencyNoise);
-
-    const snrPred = elevNorm;
-    const latencyScore = 1 - Math.min(1, (sat.latencyMs - 20) / 80);
-    const stabilityHist = 0.7 + Math.random() * 0.3;
-
-    let wElev = 0.35, wSnr = 0.25, wLat = 0.25, wStab = 0.15;
-    if (policy === 'latency') {
-      wLat = 0.4; wElev = 0.25; wSnr = 0.2; wStab = 0.15;
-    } else if (policy === 'throughput') {
-      wSnr = 0.4; wElev = 0.3; wLat = 0.2; wStab = 0.1;
-    } else if (policy === 'stability') {
-      wStab = 0.4; wElev = 0.3; wSnr = 0.2; wLat = 0.1;
+  
+  // Simulate telemetry collection (in production, this would query actual APIs)
+  collect() {
+    // Simulate realistic network metrics with some randomness
+    this.metrics.rtt = 20 + Math.random() * 30 + Math.sin(Date.now() / 5000) * 10;
+    this.metrics.jitter = 1 + Math.random() * 5;
+    this.metrics.packetLoss = Math.random() * 0.5;
+    this.metrics.snr = 8 + Math.random() * 6;
+    this.metrics.rssi = -60 + Math.random() * 15;
+    this.metrics.throughputDown = 50 + Math.random() * 150;
+    this.metrics.throughputUp = 10 + Math.random() * 30;
+    
+    // Store in history
+    const sample = {
+      timestamp: Date.now(),
+      ...this.metrics
+    };
+    this.history.push(sample);
+    
+    // Trim history
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
     }
-
-    const score = wElev * elevNorm + wSnr * snrPred + wLat * latencyScore + wStab * stabilityHist;
-    sat.score = score;
-
-    if (score > bestScore) {
-      bestScore = score;
-      best = sat;
-    }
-  });
-
-  bestSat = best;
+    
+    return this.metrics;
+  }
+  
+  getAverage(metric, samples = 10) {
+    const recent = this.history.slice(-samples);
+    if (recent.length === 0) return 0;
+    const sum = recent.reduce((acc, s) => acc + s[metric], 0);
+    return sum / recent.length;
+  }
+  
+  getTrend(metric, samples = 20) {
+    const recent = this.history.slice(-samples);
+    if (recent.length < 2) return 0;
+    const first = recent[0][metric];
+    const last = recent[recent.length - 1][metric];
+    return last - first;
+  }
 }
 
-function updateOrientationGuidance() {
-  if (!bestSat) return;
+// ═══════════════════════════════════════════════════════════════
+// OPTIMIZATION ENGINE
+// ═══════════════════════════════════════════════════════════════
 
-  const recvPos = latLonToCartesian(receiver.lat, receiver.lon, WORLD_RADIUS * 1.001);
-  const satPos = bestSat.mesh.position.clone();
-  const v = satPos.clone().sub(recvPos);
-  const { azDeg: idealAz, elDeg: idealEl } = worldVectorToAzEl(v, receiver.lat, receiver.lon);
-
-  const deltaAz = ((idealAz - receiver.azDeg + 540) % 360) - 180;
-  const deltaEl = idealEl - receiver.elDeg;
-  const errorMag = Math.sqrt(deltaAz * deltaAz + deltaEl * deltaEl);
-
-  const sensitivity = parseFloat(sensitivityRange.value);
-  let guidanceText = 'Orientation is within optimal cone.';
-  let healthText = 'Excellent';
-  let healthClass = 'status-good';
-
-  if (errorMag > sensitivity) {
-    const azDir = deltaAz > 0 ? 'right' : 'left';
-    const elDir = deltaEl > 0 ? 'up' : 'down';
-    const azMag = Math.abs(deltaAz).toFixed(1);
-    const elMag = Math.abs(deltaEl).toFixed(1);
-    guidanceText = `Rotate ~${azMag}° ${azDir}, tilt ~${elMag}° ${elDir}.`;
-    if (errorMag < sensitivity * 1.5) {
-      healthText = 'Good';
-      healthClass = 'status-good';
-    } else if (errorMag < sensitivity * 2.5) {
-      healthText = 'Fair';
-      healthClass = 'status-warn';
-    } else {
-      healthText = 'Poor';
-      healthClass = 'status-bad';
+class OptimizationEngine {
+  constructor() {
+    this.mode = 'balanced'; // balanced, latency, throughput, stability
+    this.orientationHistory = [];
+    this.linkQualityHistory = [];
+  }
+  
+  setMode(mode) {
+    this.mode = mode;
+  }
+  
+  // Calculate satellite score based on current optimization mode
+  calculateSatelliteScore(satellite, telemetry) {
+    const { elevDeg, latencyMs, snr, stability } = satellite;
+    
+    // Normalize metrics to 0-1 range
+    const elevScore = Math.max(0, Math.min(1, (elevDeg + 5) / 90));
+    const latencyScore = 1 - Math.min(1, (latencyMs - 20) / 80);
+    const snrScore = Math.max(0, Math.min(1, snr / 15));
+    const stabilityScore = stability;
+    
+    // Weight based on optimization mode
+    let weights;
+    switch (this.mode) {
+      case 'latency':
+        weights = { elev: 0.25, snr: 0.20, latency: 0.40, stability: 0.15 };
+        break;
+      case 'throughput':
+        weights = { elev: 0.30, snr: 0.40, latency: 0.20, stability: 0.10 };
+        break;
+      case 'stability':
+        weights = { elev: 0.30, snr: 0.20, latency: 0.10, stability: 0.40 };
+        break;
+      default: // balanced
+        weights = { elev: 0.35, snr: 0.25, latency: 0.25, stability: 0.15 };
     }
-  }
-
-  const currentDir = azElToWorldVector(receiver.azDeg, receiver.elDeg, receiver.lat, receiver.lon);
-  const idealDir = azElToWorldVector(idealAz, idealEl, receiver.lat, receiver.lon);
-
-  receiverArrow.setDirection(currentDir);
-  optimalArrow.setDirection(idealDir);
-
-  const coneAxis = idealDir.clone();
-  optimalCone.position.copy(recvPos);
-  optimalCone.lookAt(recvPos.clone().add(coneAxis));
-
-  const coneMat = optimalCone.material;
-  if (errorMag <= sensitivity) {
-    coneMat.color.setHex(0x22c55e);
-    coneMat.opacity = 0.18;
-  } else if (errorMag <= sensitivity * 2) {
-    coneMat.color.setHex(0xfacc15);
-    coneMat.opacity = 0.18;
-  } else {
-    coneMat.color.setHex(0xf97373);
-    coneMat.opacity = 0.22;
-  }
-
-  hudSatId.textContent = bestSat.id;
-  hudSatScore.textContent = bestSat.score.toFixed(3);
-  hudSatElev.textContent = bestSat.elevDeg.toFixed(1) + '°';
-  hudSatLatency.textContent = bestSat.latencyMs.toFixed(0) + ' ms';
-  hudOrientError.textContent = errorMag.toFixed(1) + '°';
-  hudGuidance.textContent = guidanceText;
-  hudHealth.textContent = healthText;
-  hudHealth.className = healthClass;
-
-  satellites.forEach((sat) => {
-    const item = document.getElementById('sat-item-' + sat.id);
-    if (!item) return;
-    item.classList.toggle('active', sat === bestSat);
-    const scoreSpan = item.querySelector('[data-role="score"]');
-    const elevSpan = item.querySelector('[data-role="elev"]');
-    if (scoreSpan) scoreSpan.textContent = sat.score.toFixed(3);
-    if (elevSpan) elevSpan.textContent = sat.elevDeg.toFixed(0);
-  });
-
-  updateLinksAndParticles(recvPos, bestSat);
-}
-
-function updateLinksAndParticles(recvPos, bestSat) {
-  if (activeLinkMesh) {
-    scene.remove(activeLinkMesh);
-    activeLinkMesh.geometry.dispose();
-    activeLinkMesh.material.dispose();
-    activeLinkMesh = null;
-  }
-  candidateLinkMeshes.forEach((m) => {
-    scene.remove(m);
-    m.geometry.dispose();
-    m.material.dispose();
-  });
-  candidateLinkMeshes = [];
-
-  const satPos = bestSat.mesh.position.clone();
-  const curve = new THREE.QuadraticBezierCurve3(
-    recvPos,
-    recvPos.clone().add(satPos).multiplyScalar(0.5).add(new THREE.Vector3(0, 2, 0)),
-    satPos
-  );
-  const points = curve.getPoints(50);
-  const geom = new THREE.BufferGeometry().setFromPoints(points);
-  const mat = new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 });
-  activeLinkMesh = new THREE.Line(geom, mat);
-  scene.add(activeLinkMesh);
-
-  const sorted = satellites.slice().sort((a, b) => b.score - a.score);
-  const topCandidates = sorted.slice(1, 6);
-  topCandidates.forEach((sat) => {
-    const p = sat.mesh.position.clone();
-    const c = new THREE.QuadraticBezierCurve3(
-      recvPos,
-      recvPos.clone().add(p).multiplyScalar(0.5).add(new THREE.Vector3(0, 1, 0)),
-      p
+    
+    return (
+      weights.elev * elevScore +
+      weights.snr * snrScore +
+      weights.latency * latencyScore +
+      weights.stability * stabilityScore
     );
-    const pts = c.getPoints(20);
-    const g = new THREE.BufferGeometry().setFromPoints(pts);
-    const m = new THREE.LineBasicMaterial({
-      color: 0x60a5fa,
-      transparent: true,
-      opacity: 0.25
-    });
-    const line = new THREE.Line(g, m);
-    scene.add(line);
-    candidateLinkMeshes.push(line);
-  });
-
-  const positions = particleGroup.geometry.attributes.position.array;
-  const numParticles = positions.length / 3;
-  for (let i = 0; i < numParticles; i++) {
-    const t = (i / numParticles + (performance.now() / 2000) % 1) % 1;
-    const p = curve.getPoint(t);
-    positions[i * 3 + 0] = p.x + (Math.random() - 0.5) * 0.05;
-    positions[i * 3 + 1] = p.y + (Math.random() - 0.5) * 0.05;
-    positions[i * 3 + 2] = p.z + (Math.random() - 0.5) * 0.05;
   }
-  particleGroup.geometry.attributes.position.needsUpdate = true;
+  
+  // Predict link quality degradation
+  predictDegradation(satellite, motion, environment) {
+    // Simple heuristic: if moving fast and satellite is low, expect handoff
+    const { elevDeg } = satellite;
+    const { speed } = motion;
+    
+    let degradationRisk = 0;
+    
+    if (elevDeg < 30 && speed > 20) {
+      degradationRisk += 0.3;
+    }
+    
+    if (elevDeg < 15) {
+      degradationRisk += 0.2;
+    }
+    
+    // Add randomness for demo
+    degradationRisk += Math.random() * 0.1;
+    
+    return Math.min(1, degradationRisk);
+  }
+  
+  // Learn orientation patterns
+  learnOrientation(heading, environment, linkQuality) {
+    this.orientationHistory.push({
+      timestamp: Date.now(),
+      heading,
+      environment,
+      linkQuality
+    });
+    
+    // Keep last 500 samples
+    if (this.orientationHistory.length > 500) {
+      this.orientationHistory.shift();
+    }
+  }
+  
+  // Recommend optimal orientation based on learned patterns
+  recommendOrientation(currentHeading, environment) {
+    // Simple recommendation: analyze recent patterns
+    const recentSamples = this.orientationHistory.slice(-50);
+    
+    if (recentSamples.length < 10) {
+      return null; // Not enough data
+    }
+    
+    // Find heading with best average link quality
+    const headingBuckets = {};
+    recentSamples.forEach(sample => {
+      const bucket = Math.floor(sample.heading / 10) * 10;
+      if (!headingBuckets[bucket]) {
+        headingBuckets[bucket] = { sum: 0, count: 0 };
+      }
+      headingBuckets[bucket].sum += sample.linkQuality;
+      headingBuckets[bucket].count++;
+    });
+    
+    let bestHeading = currentHeading;
+    let bestQuality = 0;
+    
+    for (const [heading, data] of Object.entries(headingBuckets)) {
+      const avgQuality = data.sum / data.count;
+      if (avgQuality > bestQuality) {
+        bestQuality = avgQuality;
+        bestHeading = parseInt(heading);
+      }
+    }
+    
+    return bestHeading;
+  }
 }
 
-/* ---------- Animation loop ---------- */
+// ═══════════════════════════════════════════════════════════════
+// ORIENTATION GUIDANCE SYSTEM
+// ═══════════════════════════════════════════════════════════════
 
-function animate() {
-  requestAnimationFrame(animate);
-  const now = performance.now();
-  const tSec = (now - startTime) / 1000;
-
-  receiver.headingDeg = (receiver.headingDeg + 0.01) % 360;
-
-  updateSatellites(tSec);
-  computeLinkMetrics();
-  updateOrientationGuidance();
-
-  controls.update();
-  renderer.render(scene, camera);
+class OrientationGuidance {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    this.currentAz = 0;
+    this.currentEl = 0;
+    this.targetAz = 0;
+    this.targetEl = 0;
+  }
+  
+  update(currentAz, currentEl, targetAz, targetEl) {
+    this.currentAz = currentAz;
+    this.currentEl = currentEl;
+    this.targetAz = targetAz;
+    this.targetEl = targetEl;
+    this.draw();
+  }
+  
+  draw() {
+    if (!this.ctx) return;
+    
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const radius = Math.min(w, h) / 2 - 10;
+    
+    // Clear
+    this.ctx.clearRect(0, 0, w, h);
+    
+    // Background circle
+    this.ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    this.ctx.stroke();
+    
+    // Cardinal directions
+    this.ctx.fillStyle = 'rgba(156, 163, 175, 0.6)';
+    this.ctx.font = '10px monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('N', cx, cy - radius + 15);
+    this.ctx.fillText('S', cx, cy + radius - 5);
+    this.ctx.fillText('E', cx + radius - 10, cy + 4);
+    this.ctx.fillText('W', cx - radius + 10, cy + 4);
+    
+    // Current orientation (blue)
+    const currentAngle = MathUtils.degToRad(this.currentAz - 90);
+    const currentX = cx + Math.cos(currentAngle) * radius * 0.7;
+    const currentY = cy + Math.sin(currentAngle) * radius * 0.7;
+    
+    this.ctx.strokeStyle = '#3b82f6';
+    this.ctx.lineWidth = 3;
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy);
+    this.ctx.lineTo(currentX, currentY);
+    this.ctx.stroke();
+    
+    this.ctx.fillStyle = '#3b82f6';
+    this.ctx.beginPath();
+    this.ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Target orientation (green)
+    const targetAngle = MathUtils.degToRad(this.targetAz - 90);
+    const targetX = cx + Math.cos(targetAngle) * radius * 0.85;
+    const targetY = cy + Math.sin(targetAngle) * radius * 0.85;
+    
+    this.ctx.strokeStyle = '#10b981';
+    this.ctx.lineWidth = 3;
+    this.ctx.setLineDash([5, 5]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(cx, cy);
+    this.ctx.lineTo(targetX, targetY);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
+    
+    this.ctx.fillStyle = '#10b981';
+    this.ctx.beginPath();
+    this.ctx.arc(targetX, targetY, 6, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Legend
+    this.ctx.textAlign = 'left';
+    this.ctx.fillStyle = '#3b82f6';
+    this.ctx.fillRect(5, 5, 12, 12);
+    this.ctx.fillStyle = 'rgba(229, 231, 235, 0.9)';
+    this.ctx.font = '9px monospace';
+    this.ctx.fillText('Current', 20, 15);
+    
+    this.ctx.fillStyle = '#10b981';
+    this.ctx.fillRect(5, 22, 12, 12);
+    this.ctx.fillStyle = 'rgba(229, 231, 235, 0.9)';
+    this.ctx.fillText('Target', 20, 32);
+  }
 }
 
-/* ---------- Resize ---------- */
+// ═══════════════════════════════════════════════════════════════
+// SATELLITE MANAGER
+// ═══════════════════════════════════════════════════════════════
 
-function onWindowResize() {
-  camera.aspect = container.clientWidth / container.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
+class SatelliteManager {
+  constructor(scene, numSats = 80) {
+    this.scene = scene;
+    this.satellites = [];
+    this.orbitRadius = 14;
+    this.worldRadius = 10;
+    this.numSats = numSats;
+    this.activeSatellite = null;
+    
+    this.initializeSatellites();
+  }
+  
+  initializeSatellites() {
+    const satGeometry = new THREE.SphereGeometry(0.08, 12, 12);
+    const satMaterial = new THREE.MeshPhongMaterial({
+      color: 0x93c5fd,
+      emissive: 0x1d4ed8
+    });
+    
+    for (let i = 0; i < this.numSats; i++) {
+      const mesh = new THREE.Mesh(satGeometry, satMaterial.clone());
+      this.scene.add(mesh);
+      
+      this.satellites.push({
+        id: `SAT-${1000 + i}`,
+        mesh,
+        inclination: MathUtils.degToRad(53 + (Math.random() - 0.5) * 10),
+        raan: Math.random() * Math.PI * 2,
+        meanMotion: 0.5 + Math.random() * 0.5,
+        phase: Math.random() * Math.PI * 2,
+        score: 0,
+        elevDeg: 0,
+        latencyMs: 0,
+        snr: 0,
+        stability: 0.7 + Math.random() * 0.3
+      });
+    }
+  }
+  
+  updatePositions(timeSec) {
+    this.satellites.forEach(sat => {
+      const angle = sat.meanMotion * timeSec + sat.phase;
+      const xOrb = this.orbitRadius * Math.cos(angle);
+      const yOrb = this.orbitRadius * Math.sin(angle);
+      
+      // Apply inclination
+      const cosI = Math.cos(sat.inclination);
+      const sinI = Math.sin(sat.inclination);
+      const yIncl = yOrb * cosI;
+      const zIncl = yOrb * sinI;
+      
+      // Apply RAAN
+      const cosO = Math.cos(sat.raan);
+      const sinO = Math.sin(sat.raan);
+      const x = xOrb * cosO - yIncl * sinO;
+      const y = xOrb * sinO + yIncl * cosO;
+      const z = zIncl;
+      
+      sat.mesh.position.set(x, y, z);
+    });
+  }
+  
+  computeMetrics(receiverPos, receiverLat, receiverLon, telemetry) {
+    this.satellites.forEach(sat => {
+      const satPos = sat.mesh.position.clone();
+      const toSat = satPos.clone().sub(receiverPos);
+      const dist = toSat.length();
+      
+      const { azDeg, elDeg } = MathUtils.worldVectorToAzEl(toSat, receiverLat, receiverLon);
+      sat.elevDeg = elDeg;
+      sat.azDeg = azDeg;
+      
+      // Calculate latency based on distance
+      const latencyBase = 25 + (dist - this.orbitRadius) * 1.5;
+      const latencyNoise = (Math.random() - 0.5) * 5;
+      sat.latencyMs = Math.max(20, latencyBase + latencyNoise);
+      
+      // Calculate SNR based on elevation and distance
+      const elevFactor = Math.max(0, Math.sin(MathUtils.degToRad(Math.max(0, elDeg))));
+      sat.snr = 5 + elevFactor * 10 + (Math.random() - 0.5) * 2;
+      
+      // Stability decreases over time for simulation
+      sat.stability = 0.7 + Math.random() * 0.3;
+    });
+  }
+  
+  findBestSatellite(optimizationEngine, telemetry) {
+    let best = null;
+    let bestScore = -Infinity;
+    
+    this.satellites.forEach(sat => {
+      // Only consider satellites above horizon
+      if (sat.elevDeg > 10) {
+        sat.score = optimizationEngine.calculateSatelliteScore(sat, telemetry);
+        if (sat.score > bestScore) {
+          bestScore = sat.score;
+          best = sat;
+        }
+      }
+    });
+    
+    this.activeSatellite = best;
+    return best;
+  }
+  
+  highlightActiveSatellite() {
+    this.satellites.forEach(sat => {
+      if (sat === this.activeSatellite) {
+        sat.mesh.material.color.setHex(0x10b981);
+        sat.mesh.material.emissive.setHex(0x059669);
+      } else if (sat.elevDeg > 10 && sat.score > 0.5) {
+        sat.mesh.material.color.setHex(0x60a5fa);
+        sat.mesh.material.emissive.setHex(0x2563eb);
+      } else {
+        sat.mesh.material.color.setHex(0x93c5fd);
+        sat.mesh.material.emissive.setHex(0x1d4ed8);
+      }
+    });
+  }
 }
 
-/* ---------- Init ---------- */
+// ═══════════════════════════════════════════════════════════════
+// MAIN APPLICATION
+// ═══════════════════════════════════════════════════════════════
 
-initScene();
-animate();
+class StarlinkHub {
+  constructor() {
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.controls = null;
+    this.globe = null;
+    
+    this.telemetry = new TelemetryCollector();
+    this.optimization = new OptimizationEngine();
+    this.guidance = new OrientationGuidance('compass-canvas');
+    this.satelliteManager = null;
+    
+    this.receiver = {
+      lat: 39.95,
+      lon: -86.26,
+      alt: 0.25,
+      azDeg: 180,
+      elDeg: 45,
+      headingDeg: 90,
+      speed: 0
+    };
+    
+    this.receiverMarker = null;
+    this.receiverArrow = null;
+    this.optimalArrow = null;
+    this.linkMesh = null;
+    this.particles = null;
+    
+    this.startTime = performance.now();
+    this.updateRate = 2; // Hz
+    this.lastUpdate = 0;
+    
+    this.initializeScene();
+    this.initializeUI();
+    this.animate();
+  }
+  
+  initializeScene() {
+    const container = document.getElementById('scene-container');
+    
+    // Scene
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x02030a);
+    
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(
+      45,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      1000
+    );
+    this.camera.position.set(0, 20, 30);
+    
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+    container.appendChild(this.renderer.domElement);
+    
+    // Controls
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 18;
+    this.controls.maxDistance = 80;
+    
+    // Lighting
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    this.scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(20, 30, 10);
+    this.scene.add(dirLight);
+    
+    // Create scene objects
+    this.createGlobe();
+    this.createReceiver();
+    this.createParticles();
+    
+    // Initialize satellites
+    this.satelliteManager = new SatelliteManager(this.scene, 80);
+    
+    // Window resize
+    window.addEventListener('resize', () => this.onWindowResize());
+  }
+  
+  createGlobe() {
+    const geometry = new THREE.SphereGeometry(10, 64, 64);
+    const material = new THREE.MeshPhongMaterial({
+      color: 0x0b1120,
+      emissive: 0x020617,
+      shininess: 8
+    });
+    this.globe = new THREE.Mesh(geometry, material);
+    this.scene.add(this.globe);
+    
+    // Grid
+    const gridMaterial = new THREE.LineBasicMaterial({
+      color: 0x1f2937,
+      opacity: 0.6,
+      transparent: true
+    });
+    const gridGroup = new THREE.Group();
+    
+    // Latitude lines
+    for (let lat = -60; lat <= 60; lat += 30) {
+      const points = [];
+      for (let lon = -180; lon <= 180; lon += 5) {
+        points.push(MathUtils.latLonToCartesian(lat, lon, 10.01));
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      gridGroup.add(new THREE.Line(geom, gridMaterial));
+    }
+    
+    // Longitude lines
+    for (let lon = -180; lon < 180; lon += 30) {
+      const points = [];
+      for (let lat = -80; lat <= 80; lat += 5) {
+        points.push(MathUtils.latLonToCartesian(lat, lon, 10.01));
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      gridGroup.add(new THREE.Line(geom, gridMaterial));
+    }
+    
+    this.scene.add(gridGroup);
+  }
+  
+  createReceiver() {
+    const pos = MathUtils.latLonToCartesian(this.receiver.lat, this.receiver.lon, 10.01);
+    
+    // Marker
+    const markerGeom = new THREE.SphereGeometry(0.2, 16, 16);
+    const markerMat = new THREE.MeshPhongMaterial({
+      color: 0x10b981,
+      emissive: 0x059669
+    });
+    this.receiverMarker = new THREE.Mesh(markerGeom, markerMat);
+    this.receiverMarker.position.copy(pos);
+    this.scene.add(this.receiverMarker);
+    
+    // Current orientation arrow
+    const currentDir = MathUtils.azElToWorldVector(
+      this.receiver.azDeg,
+      this.receiver.elDeg,
+      this.receiver.lat,
+      this.receiver.lon
+    );
+    this.receiverArrow = new THREE.ArrowHelper(
+      currentDir,
+      pos,
+      3,
+      0x3b82f6,
+      0.4,
+      0.25
+    );
+    this.scene.add(this.receiverArrow);
+    
+    // Optimal orientation arrow
+    this.optimalArrow = new THREE.ArrowHelper(
+      currentDir.clone(),
+      pos,
+      3.2,
+      0x10b981,
+      0.4,
+      0.25
+    );
+    this.scene.add(this.optimalArrow);
+  }
+  
+  createParticles() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(300 * 3);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      color: 0x10b981,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.8
+    });
+    this.particles = new THREE.Points(geometry, material);
+    this.scene.add(this.particles);
+  }
+  
+  initializeUI() {
+    // Mode buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.dataset.mode;
+        this.optimization.setMode(mode);
+      });
+    });
+    
+    // Sensitivity slider
+    document.getElementById('sensitivity-slider').addEventListener('input', (e) => {
+      this.sensitivityThreshold = parseFloat(e.target.value);
+    });
+    
+    // Update rate selector
+    document.getElementById('update-rate').addEventListener('change', (e) => {
+      this.updateRate = parseFloat(e.target.value);
+    });
+    
+    // Action buttons
+    document.getElementById('auto-optimize-btn').addEventListener('click', () => {
+      this.autoOptimize();
+    });
+    
+    document.getElementById('reset-orientation-btn').addEventListener('click', () => {
+      this.resetOrientation();
+    });
+    
+    document.getElementById('export-data-btn').addEventListener('click', () => {
+      this.exportTelemetry();
+    });
+    
+    this.sensitivityThreshold = 8;
+  }
+  
+  update() {
+    const now = performance.now();
+    const timeSec = (now - this.startTime) / 1000;
+    
+    // Simulate receiver motion
+    this.receiver.headingDeg = (this.receiver.headingDeg + 0.02) % 360;
+    this.receiver.speed = 10 + Math.sin(timeSec / 10) * 5;
+    
+    // Update satellite positions
+    this.satelliteManager.updatePositions(timeSec);
+    
+    // Collect telemetry
+    const telemetryData = this.telemetry.collect();
+    
+    // Update satellite metrics
+    const receiverPos = MathUtils.latLonToCartesian(
+      this.receiver.lat,
+      this.receiver.lon,
+      10.01
+    );
+    this.satelliteManager.computeMetrics(
+      receiverPos,
+      this.receiver.lat,
+      this.receiver.lon,
+      telemetryData
+    );
+    
+    // Find best satellite
+    const bestSat = this.satelliteManager.findBestSatellite(
+      this.optimization,
+      telemetryData
+    );
+    
+    if (bestSat) {
+      // Update orientation guidance
+      const toSat = bestSat.mesh.position.clone().sub(receiverPos);
+      const { azDeg: idealAz, elDeg: idealEl } = MathUtils.worldVectorToAzEl(
+        toSat,
+        this.receiver.lat,
+        this.receiver.lon
+      );
+      
+      // Update guidance display
+      this.guidance.update(
+        this.receiver.azDeg,
+        this.receiver.elDeg,
+        idealAz,
+        idealEl
+      );
+      
+      // Update arrows
+      const currentDir = MathUtils.azElToWorldVector(
+        this.receiver.azDeg,
+        this.receiver.elDeg,
+        this.receiver.lat,
+        this.receiver.lon
+      );
+      const idealDir = MathUtils.azElToWorldVector(
+        idealAz,
+        idealEl,
+        this.receiver.lat,
+        this.receiver.lon
+      );
+      
+      this.receiverArrow.setDirection(currentDir);
+      this.optimalArrow.setDirection(idealDir);
+      
+      // Update link visualization
+      this.updateLinkVisualization(receiverPos, bestSat);
+      
+      // Update UI
+      this.updateHUD(bestSat, idealAz, idealEl, telemetryData);
+      this.updateSatelliteList();
+      
+      // Learn orientation patterns
+      this.optimization.learnOrientation(
+        this.receiver.headingDeg,
+        'demo_environment',
+        bestSat.score
+      );
+    }
+    
+    // Highlight satellites
+    this.satelliteManager.highlightActiveSatellite();
+  }
+  
+  updateLinkVisualization(receiverPos, satellite) {
+    // Remove old link
+    if (this.linkMesh) {
+      this.scene.remove(this.linkMesh);
+      this.linkMesh.geometry.dispose();
+      this.linkMesh.material.dispose();
+    }
+    
+    // Create new link curve
+    const satPos = satellite.mesh.position.clone();
+    const curve = new THREE.QuadraticBezierCurve3(
+      receiverPos,
+      receiverPos.clone().add(satPos).multiplyScalar(0.5).add(new THREE.Vector3(0, 2, 0)),
+      satPos
+    );
+    
+    const points = curve.getPoints(50);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: 0x10b981,
+      linewidth: 2
+    });
+    this.linkMesh = new THREE.Line(geometry, material);
+    this.scene.add(this.linkMesh);
+    
+    // Update particles along link
+    const positions = this.particles.geometry.attributes.position.array;
+    const numParticles = positions.length / 3;
+    for (let i = 0; i < numParticles; i++) {
+      const t = (i / numParticles + (performance.now() / 2000) % 1) % 1;
+      const p = curve.getPoint(t);
+      positions[i * 3] = p.x + (Math.random() - 0.5) * 0.05;
+      positions[i * 3 + 1] = p.y + (Math.random() - 0.5) * 0.05;
+      positions[i * 3 + 2] = p.z + (Math.random() - 0.5) * 0.05;
+    }
+    this.particles.geometry.attributes.position.needsUpdate = true;
+  }
+  
+  updateHUD(satellite, idealAz, idealEl, telemetry) {
+    // Satellite info
+    document.getElementById('hud-sat-id').textContent = satellite.id;
+    
+    // Link quality
+    const quality = satellite.score;
+    const qualityEl = document.getElementById('hud-quality');
+    qualityEl.textContent = `${(quality * 100).toFixed(1)}%`;
+    qualityEl.className = 'value ' + (quality > 0.7 ? 'good' : quality > 0.4 ? 'warning' : 'danger');
+    
+    // Metrics
+    document.getElementById('hud-elevation').textContent = `${satellite.elevDeg.toFixed(1)}°`;
+    document.getElementById('hud-latency').textContent = `${satellite.latencyMs.toFixed(0)} ms`;
+    document.getElementById('hud-signal').textContent = `${satellite.snr.toFixed(1)} dB`;
+    document.getElementById('hud-throughput').textContent = 
+      `↓${telemetry.throughputDown.toFixed(0)} ↑${telemetry.throughputUp.toFixed(0)} Mbps`;
+    
+    // Orientation error
+    const deltaAz = ((idealAz - this.receiver.azDeg + 540) % 360) - 180;
+    const deltaEl = idealEl - this.receiver.elDeg;
+    const errorMag = Math.sqrt(deltaAz * deltaAz + deltaEl * deltaEl);
+    document.getElementById('hud-orient-error').textContent = `${errorMag.toFixed(1)}°`;
+    
+    // Guidance text
+    const guidanceEl = document.getElementById('guidance-text');
+    if (errorMag > this.sensitivityThreshold) {
+      const azDir = deltaAz > 0 ? 'RIGHT' : 'LEFT';
+      const elDir = deltaEl > 0 ? 'UP' : 'DOWN';
+      guidanceEl.textContent = 
+        `⚠ Rotate ${Math.abs(deltaAz).toFixed(1)}° ${azDir}, tilt ${Math.abs(deltaEl).toFixed(1)}° ${elDir}`;
+      guidanceEl.style.borderLeftColor = '#f59e0b';
+    } else {
+      guidanceEl.textContent = '✓ Optimal orientation achieved';
+      guidanceEl.style.borderLeftColor = '#10b981';
+    }
+    
+    // Telemetry
+    document.getElementById('telem-rtt').textContent = telemetry.rtt.toFixed(0);
+    document.getElementById('telem-jitter').textContent = telemetry.jitter.toFixed(1);
+    document.getElementById('telem-loss').textContent = `${telemetry.packetLoss.toFixed(2)}%`;
+    document.getElementById('telem-snr').textContent = telemetry.snr.toFixed(1);
+    
+    // Receiver
+    document.getElementById('receiver-lat').textContent = `${this.receiver.lat.toFixed(2)}° N`;
+    document.getElementById('receiver-lon').textContent = `${Math.abs(this.receiver.lon).toFixed(2)}° W`;
+    document.getElementById('receiver-alt').textContent = `${(this.receiver.alt * 1000).toFixed(0)} m`;
+    document.getElementById('receiver-heading').textContent = `${this.receiver.headingDeg.toFixed(0)}°`;
+    document.getElementById('receiver-speed').textContent = `${this.receiver.speed.toFixed(0)} km/h`;
+  }
+  
+  updateSatelliteList() {
+    const listEl = document.getElementById('satellite-list');
+    const countEl = document.getElementById('sat-count');
+    
+    // Get visible satellites (above 10° elevation)
+    const visible = this.satelliteManager.satellites
+      .filter(sat => sat.elevDeg > 10)
+      .sort((a, b) => b.score - a.score);
+    
+    countEl.textContent = visible.length;
+    
+    // Update list (show top 15)
+    listEl.innerHTML = '';
+    visible.slice(0, 15).forEach(sat => {
+      const div = document.createElement('div');
+      div.className = 'sat-item';
+      if (sat === this.satelliteManager.activeSatellite) {
+        div.classList.add('active');
+      }
+      div.innerHTML = `
+        <span class="sat-id">${sat.id}</span>
+        <span class="sat-stat">Score: ${(sat.score * 100).toFixed(0)}%</span>
+        <span class="sat-stat">El: ${sat.elevDeg.toFixed(0)}°</span>
+        <span class="sat-stat">Lat: ${sat.latencyMs.toFixed(0)}ms</span>
+      `;
+      listEl.appendChild(div);
+    });
+  }
+  
+  autoOptimize() {
+    // Automatically adjust orientation to optimal
+    const bestSat = this.satelliteManager.activeSatellite;
+    if (!bestSat) return;
+    
+    const receiverPos = MathUtils.latLonToCartesian(
+      this.receiver.lat,
+      this.receiver.lon,
+      10.01
+    );
+    const toSat = bestSat.mesh.position.clone().sub(receiverPos);
+    const { azDeg, elDeg } = MathUtils.worldVectorToAzEl(
+      toSat,
+      this.receiver.lat,
+      this.receiver.lon
+    );
+    
+    this.receiver.azDeg = azDeg;
+    this.receiver.elDeg = elDeg;
+    
+    // Show feedback
+    const guidanceEl = document.getElementById('guidance-text');
+    guidanceEl.textContent = '✓ AUTO-OPTIMIZATION COMPLETE';
+    guidanceEl.style.borderLeftColor = '#10b981';
+  }
+  
+  resetOrientation() {
+    this.receiver.azDeg = 180;
+    this.receiver.elDeg = 45;
+  }
+  
+  exportTelemetry() {
+    const data = {
+      timestamp: new Date().toISOString(),
+      receiver: this.receiver,
+      telemetry: this.telemetry.history.slice(-100),
+      satellites: this.satelliteManager.satellites
+        .filter(sat => sat.elevDeg > 10)
+        .map(sat => ({
+          id: sat.id,
+          elevation: sat.elevDeg,
+          azimuth: sat.azDeg,
+          latency: sat.latencyMs,
+          score: sat.score
+        }))
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `starlink-telemetry-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    
+    const now = performance.now();
+    const dt = now - this.lastUpdate;
+    
+    // Update at specified rate
+    if (dt >= 1000 / this.updateRate) {
+      this.update();
+      this.lastUpdate = now;
+    }
+    
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+  
+  onWindowResize() {
+    const container = document.getElementById('scene-container');
+    this.camera.aspect = container.clientWidth / container.clientHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INITIALIZE APPLICATION
+// ═══════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  const app = new StarlinkHub();
+  console.log('🛰️ Starlink Hub initialized');
+});
+
 </script>
 </body>
 </html>
