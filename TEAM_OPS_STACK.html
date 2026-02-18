@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Ops Stack - Full Business Dashboard</title>
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --card: #12121f;
+            --accent: #00ffaa;
+            --purple: #9b59b6;
+            --blue: #3498db;
+            --gold: #f39c12;
+            --red: #e74c3c;
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .stack-header {
+            background: linear-gradient(135deg, rgba(0,255,170,0.1), rgba(155,89,182,0.1));
+            padding: 20px 30px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .stack-header h1 { color: var(--accent); font-size: 1.8em; }
+        .stack-header .subtitle { color: var(--text-dim); font-size: 0.9em; }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 5px;
+            background: var(--card);
+            padding: 5px;
+            border-radius: 10px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.05); }
+        .tab-btn.active {
+            background: var(--accent);
+            color: var(--bg);
+            font-weight: 600;
+        }
+
+        /* Online Status */
+        .online-status {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .online-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Grid */
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        /* Widget Card */
+        .widget {
+            background: var(--card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 18px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--border);
+        }
+        .widget-header h3 {
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .widget-body { padding: 15px; }
+        .widget-footer {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--border);
+            font-size: 0.8em;
+            color: var(--text-dim);
+        }
+
+        /* Color Accents */
+        .widget.green .widget-header { border-left: 4px solid var(--accent); }
+        .widget.purple .widget-header { border-left: 4px solid var(--purple); }
+        .widget.blue .widget-header { border-left: 4px solid var(--blue); }
+        .widget.gold .widget-header { border-left: 4px solid var(--gold); }
+        .widget.red .widget-header { border-left: 4px solid var(--red); }
+
+        /* Kanban Board */
+        .kanban-columns {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            min-height: 300px;
+        }
+        .kanban-column {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .kanban-column h4 {
+            font-size: 0.8em;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        .kanban-card {
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent);
+            font-size: 0.85em;
+            cursor: grab;
+        }
+        .kanban-card:hover { border-left-color: var(--gold); }
+        .kanban-card .assignee {
+            font-size: 0.75em;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        /* Pages Index */
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        .page-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .page-item:hover { background: rgba(0,255,170,0.1); }
+        .stage-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+        .stage-live { background: var(--accent); color: var(--bg); }
+        .stage-beta { background: var(--gold); color: var(--bg); }
+        .stage-dev { background: var(--purple); color: white; }
+        .stage-planned { background: var(--border); color: var(--text-dim); }
+
+        /* Leaderboard */
+        .leaderboard-list { max-height: 300px; overflow-y: auto; }
+        .leader-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        .leader-rank {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .rank-1 { background: var(--gold); color: var(--bg); }
+        .rank-2 { background: #c0c0c0; color: var(--bg); }
+        .rank-3 { background: #cd7f32; color: var(--bg); }
+        .leader-info { flex: 1; }
+        .leader-name { font-weight: 600; }
+        .leader-stats { font-size: 0.8em; color: var(--text-dim); }
+        .leader-xp { color: var(--accent); font-weight: 600; }
+
+        /* Analytics */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        .stat-label {
+            font-size: 0.8em;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+        .stat-change {
+            font-size: 0.75em;
+            margin-top: 3px;
+        }
+        .stat-change.up { color: var(--accent); }
+        .stat-change.down { color: var(--red); }
+
+        /* Team Directory */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .team-member {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .team-member:hover {
+            background: rgba(0,255,170,0.1);
+            transform: translateY(-2px);
+        }
+        .member-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+        }
+        .member-name { font-weight: 600; margin-bottom: 5px; }
+        .member-role { font-size: 0.8em; color: var(--text-dim); }
+        .member-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75em;
+            margin-top: 8px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(0,255,170,0.2);
+            color: var(--accent);
+        }
+        .member-status.offline {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-dim);
+        }
+
+        /* Announcements */
+        .announcement-list { max-height: 250px; overflow-y: auto; }
+        .announcement-item {
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--gold);
+        }
+        .announcement-item.urgent { border-left-color: var(--red); }
+        .announcement-meta {
+            font-size: 0.75em;
+            color: var(--text-dim);
+            margin-bottom: 5px;
+        }
+
+        /* Projects */
+        .project-list { max-height: 300px; overflow-y: auto; }
+        .project-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .project-progress {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .project-info { flex: 1; }
+        .project-name { font-weight: 600; margin-bottom: 3px; }
+        .project-desc { font-size: 0.85em; color: var(--text-dim); }
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        /* Assets */
+        .assets-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .asset-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .asset-item:hover { background: rgba(0,255,170,0.1); }
+        .asset-icon { font-size: 1.8em; margin-bottom: 8px; }
+        .asset-name { font-size: 0.85em; }
+
+        /* Search */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 10px 15px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.9em;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.75em;
+        }
+
+        /* Links */
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Tab Panels */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        @media (max-width: 800px) {
+            .stack-grid { grid-template-columns: 1fr; }
+            .kanban-columns { grid-template-columns: repeat(2, 1fr); }
+            .tab-nav { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stack-header">
+        <div>
+            <h1>Team Ops Stack</h1>
+            <p class="subtitle">Full Business Dashboard for Consciousness Revolution</p>
+        </div>
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="showTab('kanban')">Kanban</button>
+            <button class="tab-btn" onclick="showTab('team')">Team</button>
+            <button class="tab-btn" onclick="showTab('analytics')">Analytics</button>
+        </div>
+        <div class="online-status">
+            <span class="online-dot"></span>
+            <span id="onlineCount">3 Online</span>
+        </div>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-panel active">
+        <div class="stack-grid">
+
+            <!-- This Week / Announcements -->
+            <div class="widget gold">
+                <div class="widget-header">
+                    <h3>This Week</h3>
+                    <button class="btn btn-small btn-outline" onclick="addAnnouncement()">+ Add</button>
+                </div>
+                <div class="widget-body">
+                    <div class="announcement-list" id="announcementList">
+                        <div class="announcement-item urgent">
+                            <div class="announcement-meta">Commander - Today</div>
+                            <div>Coordinating 3 subcontractors - Link Hub deployed for navigation</div>
+                        </div>
+                        <div class="announcement-item">
+                            <div class="announcement-meta">System - Yesterday</div>
+                            <div>GitHub webhook now tracks all contributions automatically</div>
+                        </div>
+                        <div class="announcement-item">
+                            <div class="announcement-meta">Team - 2 days ago</div>
+                            <div>Leaderboard XP system live - every commit earns points!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Kanban Preview -->
+            <div class="widget green">
+                <div class="widget-header">
+                    <h3>Weekly Tasks</h3>
+                    <a href="#" onclick="showTab('kanban'); return false;">View Full Board</a>
+                </div>
+                <div class="widget-body">
+                    <div class="kanban-columns" style="grid-template-columns: repeat(2, 1fr);">
+                        <div class="kanban-column">
+                            <h4>In Progress</h4>
+                            <div class="kanban-card" style="border-left-color: var(--gold);">
+                                Link Hub Integration
+                                <div class="assignee">Commander</div>
+                            </div>
+                            <div class="kanban-card">
+                                Webhook Testing
+                                <div class="assignee">Tiger</div>
+                            </div>
+                        </div>
+                        <div class="kanban-column">
+                            <h4>This Week</h4>
+                            <div class="kanban-card">
+                                Analytics Dashboard
+                                <div class="assignee">Unassigned</div>
+                            </div>
+                            <div class="kanban-card">
+                                Team Onboarding
+                                <div class="assignee">Ryan</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="widget purple">
+                <div class="widget-header">
+                    <h3>XP Leaderboard</h3>
+                    <a href="/contractor-leaderboard.html">Full Board</a>
+                </div>
+                <div class="widget-body">
+                    <div class="leaderboard-list" id="leaderboardList">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Projects -->
+            <div class="widget blue">
+                <div class="widget-header">
+                    <h3>Active Projects</h3>
+                    <a href="/PROJECT_REGISTRY.html">All Projects</a>
+                </div>
+                <div class="widget-body">
+                    <div class="project-list">
+                        <div class="project-item">
+                            <div class="project-progress" style="background: conic-gradient(var(--accent) 75%, var(--border) 0);">75%</div>
+                            <div class="project-info">
+                                <div class="project-name">Team Ops Stack</div>
+                                <div class="project-desc">Building the full dashboard system</div>
+                                <div class="progress-bar"><div class="progress-fill" style="width: 75%;"></div></div>
+                            </div>
+                        </div>
+                        <div class="project-item">
+                            <div class="project-progress" style="background: conic-gradient(var(--gold) 60%, var(--border) 0);">60%</div>
+                            <div class="project-info">
+                                <div class="project-name">ARAYA Enhancement</div>
+                                <div class="project-desc">AI chat improvements</div>
+                                <div class="progress-bar"><div class="progress-fill" style="width: 60%; background: var(--gold);"></div></div>
+                            </div>
+                        </div>
+                        <div class="project-item">
+                            <div class="project-progress" style="background: conic-gradient(var(--purple) 40%, var(--border) 0);">40%</div>
+                            <div class="project-info">
+                                <div class="project-name">Trinity Protocol</div>
+                                <div class="project-desc">Multi-AI coordination</div>
+                                <div class="progress-bar"><div class="progress-fill" style="width: 40%; background: var(--purple);"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="widget green">
+                <div class="widget-header">
+                    <h3>Quick Links</h3>
+                    <a href="/LINK_HUB.html">Full Hub</a>
+                </div>
+                <div class="widget-body" id="quick-links-container"></div>
+            </div>
+
+            <!-- Shared Assets -->
+            <div class="widget purple">
+                <div class="widget-header">
+                    <h3>Shared Assets</h3>
+                </div>
+                <div class="widget-body">
+                    <div class="assets-grid">
+                        <a class="asset-item" href="https://github.com/overkor-tek/consciousness-revolution" target="_blank">
+                            <div class="asset-icon">GitHub</div>
+                            <div class="asset-name">Main Repo</div>
+                        </a>
+                        <a class="asset-item" href="https://app.netlify.com/sites/verdant-tulumba-fa2a5a" target="_blank">
+                            <div class="asset-icon">Netlify</div>
+                            <div class="asset-name">Hosting</div>
+                        </a>
+                        <a class="asset-item" href="/TRINITY_NEXUS_DASHBOARD.html">
+                            <div class="asset-icon">Trinity</div>
+                            <div class="asset-name">Comms</div>
+                        </a>
+                        <a class="asset-item" href="/DASHBOARD_KEYCHAIN.html">
+                            <div class="asset-icon">Keys</div>
+                            <div class="asset-name">Credentials</div>
+                        </a>
+                        <a class="asset-item" href="/bugs-live.html">
+                            <div class="asset-icon">Bugs</div>
+                            <div class="asset-name">Bug Tracker</div>
+                        </a>
+                        <a class="asset-item" href="/araya-chat.html">
+                            <div class="asset-icon">ARAYA</div>
+                            <div class="asset-name">AI Chat</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- KANBAN TAB -->
+    <div id="tab-kanban" class="tab-panel">
+        <div style="padding: 20px;">
+            <div class="widget" style="max-width: 1400px; margin: 0 auto;">
+                <div class="widget-header">
+                    <h3>Team Kanban Board</h3>
+                    <button class="btn" onclick="addTask()">+ Add Task</button>
+                </div>
+                <div class="widget-body">
+                    <div class="kanban-columns" id="kanbanBoard">
+                        <div class="kanban-column" data-status="backlog">
+                            <h4>Backlog</h4>
+                            <div class="kanban-card" draggable="true">
+                                Communications Widget (Who's Online)
+                                <div class="assignee">Planned</div>
+                            </div>
+                            <div class="kanban-card" draggable="true">
+                                Calendar Integration
+                                <div class="assignee">Planned</div>
+                            </div>
+                        </div>
+                        <div class="kanban-column" data-status="todo">
+                            <h4>This Week</h4>
+                            <div class="kanban-card" draggable="true">
+                                Finish Team Ops Stack
+                                <div class="assignee">Commander</div>
+                            </div>
+                            <div class="kanban-card" draggable="true">
+                                Test all dashboards
+                                <div class="assignee">Tiger</div>
+                            </div>
+                            <div class="kanban-card" draggable="true">
+                                Document the system
+                                <div class="assignee">Ryan</div>
+                            </div>
+                        </div>
+                        <div class="kanban-column" data-status="progress">
+                            <h4>In Progress</h4>
+                            <div class="kanban-card" draggable="true" style="border-left-color: var(--gold);">
+                                Link Hub deployment
+                                <div class="assignee">Commander</div>
+                            </div>
+                            <div class="kanban-card" draggable="true">
+                                Webhook integration
+                                <div class="assignee">System</div>
+                            </div>
+                        </div>
+                        <div class="kanban-column" data-status="done">
+                            <h4>Done</h4>
+                            <div class="kanban-card" draggable="true" style="opacity: 0.7;">
+                                GitHub Contribution Tracking
+                                <div class="assignee">Completed</div>
+                            </div>
+                            <div class="kanban-card" draggable="true" style="opacity: 0.7;">
+                                Quick Links Widget
+                                <div class="assignee">Completed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEAM TAB -->
+    <div id="tab-team" class="tab-panel">
+        <div class="stack-grid">
+            <!-- Team Directory -->
+            <div class="widget blue" style="grid-column: span 2;">
+                <div class="widget-header">
+                    <h3>Team Directory</h3>
+                    <span id="teamOnlineStatus">3 of 6 Online</span>
+                </div>
+                <div class="widget-body">
+                    <div class="team-grid" id="teamGrid">
+                        <div class="team-member" onclick="viewMember('commander')">
+                            <div class="member-avatar" style="background: var(--gold);">D</div>
+                            <div class="member-name">Commander</div>
+                            <div class="member-role">Founder / Lead</div>
+                            <div class="member-status"><span class="online-dot" style="width:6px;height:6px;"></span> Online</div>
+                        </div>
+                        <div class="team-member" onclick="viewMember('ryan')">
+                            <div class="member-avatar" style="background: var(--accent);">R</div>
+                            <div class="member-name">Ryan</div>
+                            <div class="member-role">Subcontractor</div>
+                            <div class="member-status"><span class="online-dot" style="width:6px;height:6px;"></span> Online</div>
+                        </div>
+                        <div class="team-member" onclick="viewMember('tiger')">
+                            <div class="member-avatar" style="background: var(--purple);">T</div>
+                            <div class="member-name">Tiger</div>
+                            <div class="member-role">Subcontractor</div>
+                            <div class="member-status"><span class="online-dot" style="width:6px;height:6px;"></span> Online</div>
+                        </div>
+                        <div class="team-member" onclick="viewMember('nero')">
+                            <div class="member-avatar" style="background: var(--blue);">N</div>
+                            <div class="member-name">Nero</div>
+                            <div class="member-role">Subcontractor</div>
+                            <div class="member-status offline">Offline</div>
+                        </div>
+                        <div class="team-member" onclick="viewMember('teddy')">
+                            <div class="member-avatar" style="background: #e91e63;">Td</div>
+                            <div class="member-name">Teddy</div>
+                            <div class="member-role">Architect</div>
+                            <div class="member-status offline">Offline</div>
+                        </div>
+                        <div class="team-member" onclick="viewMember('araya')">
+                            <div class="member-avatar" style="background: linear-gradient(135deg, var(--accent), var(--blue));">AI</div>
+                            <div class="member-name">ARAYA</div>
+                            <div class="member-role">AI Assistant</div>
+                            <div class="member-status"><span class="online-dot" style="width:6px;height:6px;"></span> Always On</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cockpit Links -->
+            <div class="widget gold">
+                <div class="widget-header">
+                    <h3>Team Cockpits</h3>
+                </div>
+                <div class="widget-body">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <a href="/COMMANDER_COCKPIT.html" class="page-item">Commander Cockpit</a>
+                        <a href="/OPERATOR_COCKPIT_RYAN.html" class="page-item">Ryan's Cockpit</a>
+                        <a href="/OPERATOR_COCKPIT_TIGER.html" class="page-item">Tiger's Cockpit</a>
+                        <a href="/OPERATOR_COCKPIT_NERO.html" class="page-item">Nero's Cockpit</a>
+                        <a href="/TEAM_DASHBOARD_HUB.html" class="page-item">Team Hub</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Activity -->
+            <div class="widget green">
+                <div class="widget-header">
+                    <h3>Recent Activity</h3>
+                </div>
+                <div class="widget-body">
+                    <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANALYTICS TAB -->
+    <div id="tab-analytics" class="tab-panel">
+        <div class="stack-grid">
+            <!-- Key Metrics -->
+            <div class="widget green" style="grid-column: span 2;">
+                <div class="widget-header">
+                    <h3>Key Metrics</h3>
+                    <span>Last 7 days</span>
+                </div>
+                <div class="widget-body">
+                    <div class="analytics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statCommits">47</div>
+                            <div class="stat-label">Commits</div>
+                            <div class="stat-change up">+12% from last week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statXP">12.4K</div>
+                            <div class="stat-label">Total XP Earned</div>
+                            <div class="stat-change up">+850 this week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statBugs">8</div>
+                            <div class="stat-label">Bugs Fixed</div>
+                            <div class="stat-change up">+3 from last week</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statPages">156</div>
+                            <div class="stat-label">Total Pages</div>
+                            <div class="stat-change up">+4 new</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contribution Chart -->
+            <div class="widget blue">
+                <div class="widget-header">
+                    <h3>Contribution Breakdown</h3>
+                </div>
+                <div class="widget-body">
+                    <div id="contributionChart">
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="width: 80px;">Commander</span>
+                                <div style="flex: 1; height: 20px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 65%; height: 100%; background: var(--gold);"></div>
+                                </div>
+                                <span>65%</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="width: 80px;">Tiger</span>
+                                <div style="flex: 1; height: 20px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 20%; height: 100%; background: var(--purple);"></div>
+                                </div>
+                                <span>20%</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="width: 80px;">Ryan</span>
+                                <div style="flex: 1; height: 20px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 10%; height: 100%; background: var(--accent);"></div>
+                                </div>
+                                <span>10%</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="width: 80px;">Other</span>
+                                <div style="flex: 1; height: 20px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 5%; height: 100%; background: var(--blue);"></div>
+                                </div>
+                                <span>5%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- XP Trends -->
+            <div class="widget purple">
+                <div class="widget-header">
+                    <h3>XP Trend (7 Days)</h3>
+                </div>
+                <div class="widget-body">
+                    <div id="xpTrend" style="display: flex; align-items: flex-end; gap: 8px; height: 150px;">
+                        <div style="flex: 1; background: var(--accent); height: 40%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--accent); height: 60%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--accent); height: 45%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--accent); height: 80%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--accent); height: 55%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--accent); height: 90%; border-radius: 4px 4px 0 0;"></div>
+                        <div style="flex: 1; background: var(--gold); height: 100%; border-radius: 4px 4px 0 0;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.75em; color: var(--text-dim);">
+                        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Leaderboard -->
+            <div class="widget gold" style="grid-column: span 2;">
+                <div class="widget-header">
+                    <h3>Full XP Leaderboard</h3>
+                    <a href="/contractor-leaderboard.html">Detailed View</a>
+                </div>
+                <div class="widget-body">
+                    <div class="leaderboard-list" id="fullLeaderboard"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/quick-links-widget.js"></script>
+    <script>
+        // Initialize Quick Links Widget
+        QuickLinksWidget.init('quick-links-container', {
+            showCategories: ['dashboards', 'tools', 'external'],
+            compact: true,
+            editable: false
+        });
+
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Load leaderboard data
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch('/.netlify/functions/project-registry?leaderboard=true');
+                if (response.ok) {
+                    const data = await response.json();
+                    renderLeaderboard(data.leaderboard || []);
+                }
+            } catch (e) {
+                console.log('Leaderboard API not available, using demo data');
+                renderLeaderboard(getDemoLeaderboard());
+            }
+        }
+
+        function getDemoLeaderboard() {
+            return [
+                { rank: 1, name: 'Commander', contributions: 245, totalXP: 12400, totalOKK: 1240, level: 12 },
+                { rank: 2, name: 'Tiger', contributions: 89, totalXP: 4450, totalOKK: 445, level: 8 },
+                { rank: 3, name: 'Ryan', contributions: 34, totalXP: 1700, totalOKK: 170, level: 5 },
+                { rank: 4, name: 'Nero', contributions: 12, totalXP: 600, totalOKK: 60, level: 3 },
+                { rank: 5, name: 'Teddy', contributions: 8, totalXP: 400, totalOKK: 40, level: 2 }
+            ];
+        }
+
+        function renderLeaderboard(entries) {
+            const html = entries.slice(0, 5).map(e => `
+                <div class="leader-item">
+                    <div class="leader-rank ${e.rank <= 3 ? 'rank-' + e.rank : ''}">${e.rank <= 3 ? ['', '🥇', '🥈', '🥉'][e.rank] : '#' + e.rank}</div>
+                    <div class="leader-info">
+                        <div class="leader-name">${e.name}</div>
+                        <div class="leader-stats">${e.contributions} commits • Level ${e.level}</div>
+                    </div>
+                    <div class="leader-xp">${formatNumber(e.totalXP)} XP</div>
+                </div>
+            `).join('');
+
+            document.getElementById('leaderboardList').innerHTML = html;
+            document.getElementById('fullLeaderboard').innerHTML = entries.map(e => `
+                <div class="leader-item">
+                    <div class="leader-rank ${e.rank <= 3 ? 'rank-' + e.rank : ''}">${e.rank <= 3 ? ['', '🥇', '🥈', '🥉'][e.rank] : '#' + e.rank}</div>
+                    <div class="leader-info">
+                        <div class="leader-name">${e.name}</div>
+                        <div class="leader-stats">${e.contributions} commits • Level ${e.level} • ${formatNumber(e.totalOKK)} OKK</div>
+                    </div>
+                    <div class="leader-xp">${formatNumber(e.totalXP)} XP</div>
+                </div>
+            `).join('');
+        }
+
+        function formatNumber(n) {
+            if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+            return n.toString();
+        }
+
+        // Activity feed
+        function loadActivityFeed() {
+            const activities = [
+                { user: 'Commander', action: 'deployed', item: 'Link Hub', time: '5 min ago' },
+                { user: 'Tiger', action: 'merged PR', item: '#42 Bug fixes', time: '1 hour ago' },
+                { user: 'Ryan', action: 'commented on', item: 'Team Ops design', time: '2 hours ago' },
+                { user: 'System', action: 'webhook received', item: 'GitHub push', time: '3 hours ago' },
+                { user: 'Commander', action: 'created', item: 'quick-links-widget.js', time: '4 hours ago' }
+            ];
+
+            document.getElementById('activityFeed').innerHTML = activities.map(a => `
+                <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 8px; font-size: 0.9em;">
+                    <strong>${a.user}</strong> ${a.action} <span style="color: var(--accent);">${a.item}</span>
+                    <div style="font-size: 0.8em; color: var(--text-dim); margin-top: 3px;">${a.time}</div>
+                </div>
+            `).join('');
+        }
+
+        // Add task to Kanban
+        function addTask() {
+            const task = prompt('Task description:');
+            if (task) {
+                const assignee = prompt('Assignee (or leave blank):') || 'Unassigned';
+                const card = document.createElement('div');
+                card.className = 'kanban-card';
+                card.draggable = true;
+                card.innerHTML = `${task}<div class="assignee">${assignee}</div>`;
+                document.querySelector('[data-status="todo"]').appendChild(card);
+                saveTasks();
+            }
+        }
+
+        // Add announcement
+        function addAnnouncement() {
+            const text = prompt('Announcement:');
+            if (text) {
+                const item = document.createElement('div');
+                item.className = 'announcement-item';
+                item.innerHTML = `<div class="announcement-meta">You - Just now</div><div>${text}</div>`;
+                document.getElementById('announcementList').prepend(item);
+            }
+        }
+
+        // Save/load tasks from localStorage
+        function saveTasks() {
+            const tasks = [];
+            document.querySelectorAll('.kanban-column').forEach(col => {
+                const status = col.dataset.status;
+                col.querySelectorAll('.kanban-card').forEach(card => {
+                    tasks.push({
+                        status,
+                        text: card.childNodes[0].textContent.trim(),
+                        assignee: card.querySelector('.assignee')?.textContent || 'Unassigned'
+                    });
+                });
+            });
+            localStorage.setItem('teamKanban', JSON.stringify(tasks));
+        }
+
+        // View team member
+        function viewMember(id) {
+            const cockpits = {
+                commander: '/COMMANDER_COCKPIT.html',
+                ryan: '/OPERATOR_COCKPIT_RYAN.html',
+                tiger: '/OPERATOR_COCKPIT_TIGER.html',
+                nero: '/OPERATOR_COCKPIT_NERO.html',
+                teddy: '/TEAM_DASHBOARD_HUB.html',
+                araya: '/araya-chat.html'
+            };
+            if (cockpits[id]) window.location = cockpits[id];
+        }
+
+        // Initialize
+        loadLeaderboard();
+        loadActivityFeed();
+    </script>
+    <script src="/js/robot-assistant-loader.js"></script>
+</body>
+</html>
