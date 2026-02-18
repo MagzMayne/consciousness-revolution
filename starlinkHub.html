@@ -922,6 +922,201 @@ const MathUtils = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// NETWORK DETECTOR
+// ═══════════════════════════════════════════════════════════════
+
+class NetworkDetector {
+  constructor() {
+    this.connectionType = 'unknown';
+    this.isStarlink = false;
+    this.effectiveType = 'unknown';
+    this.downlink = 0;
+    this.rtt = 0;
+    this.listeners = [];
+    
+    this.detectConnection();
+    this.setupListeners();
+  }
+  
+  /**
+   * Detect if the connection is Starlink
+   * Uses multiple methods to determine connection type
+   */
+  detectConnection() {
+    // Method 1: Check Network Information API
+    if ('connection' in navigator || 'mozConnection' in navigator || 'webkitConnection' in navigator) {
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      
+      if (connection) {
+        this.effectiveType = connection.effectiveType || 'unknown';
+        this.downlink = connection.downlink || 0;
+        this.rtt = connection.rtt || 0;
+        
+        // Starlink typically shows as:
+        // - effectiveType: '4g' or 'slow-2g' to '4g' (varies with conditions)
+        // - High downlink speed (50-200+ Mbps)
+        // - RTT typically 20-80ms
+        
+        // Check for Starlink characteristics
+        this.isStarlink = this.checkStarlinkCharacteristics(connection);
+      }
+    }
+    
+    // Method 2: Check hostname/IP patterns (Starlink uses specific patterns)
+    this.checkStarlinkHostname();
+    
+    // Method 3: Check user agent and system information
+    this.checkUserAgentInfo();
+    
+    // Method 4: Perform speed test characteristics
+    this.performCharacteristicTest();
+    
+    // Set connection type based on detection
+    this.updateConnectionType();
+  }
+  
+  checkStarlinkCharacteristics(connection) {
+    // Starlink has unique characteristics:
+    // - High latency variation (20-80ms typical, can spike)
+    // - High throughput (50-200+ Mbps down, 10-40 Mbps up)
+    // - Satellite-specific jitter patterns
+    
+    if (connection.rtt && connection.downlink) {
+      // If RTT is between 20-150ms and downlink > 20 Mbps
+      // This suggests satellite internet
+      if (connection.rtt >= 20 && connection.rtt <= 150 && connection.downlink > 20) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  checkStarlinkHostname() {
+    // Starlink devices often use specific hostname patterns
+    // Note: This requires backend support or browser extensions
+    // For now, we check if we can detect it via DNS queries
+    
+    // Check for Starlink router IP patterns (192.168.1.1, etc.)
+    // Starlink routers typically use standard private IPs
+    // but have specific DNS patterns
+    
+    // This is a placeholder - actual implementation would require
+    // a backend service or browser extension
+    
+    try {
+      // Check if accessing through Starlink's network
+      // Starlink uses specific DNS servers and routing
+      // We can infer from network characteristics
+    } catch (e) {
+      console.debug('Hostname check not available');
+    }
+  }
+  
+  checkUserAgentInfo() {
+    // Some Starlink devices or mobile apps may include identifiers
+    const ua = navigator.userAgent.toLowerCase();
+    
+    // Check for Starlink-specific indicators
+    if (ua.includes('starlink') || ua.includes('spacex')) {
+      this.isStarlink = true;
+    }
+  }
+  
+  async performCharacteristicTest() {
+    // Perform a quick latency test to check for satellite characteristics
+    // Starlink has distinctive latency patterns
+    
+    try {
+      const startTime = performance.now();
+      const response = await fetch('https://cloudflare.com/cdn-cgi/trace', {
+        method: 'GET',
+        cache: 'no-cache'
+      });
+      const endTime = performance.now();
+      const latency = endTime - startTime;
+      
+      // Parse the response to get network info
+      const text = await response.text();
+      
+      // Starlink connections often show specific patterns:
+      // - Latency: 20-80ms (typical), can go higher
+      // - Specific ASN numbers (AS14593 for SpaceX)
+      
+      if (text.includes('AS14593') || text.includes('spacex') || text.includes('starlink')) {
+        this.isStarlink = true;
+      }
+      
+      // Check latency pattern (satellite typical)
+      if (latency >= 20 && latency <= 150) {
+        // Might be satellite, but not conclusive
+        console.debug('Latency suggests satellite connection:', latency);
+      }
+      
+    } catch (e) {
+      // This is expected in test environments or when external access is blocked
+      // The system continues to work with other detection methods
+      console.debug('External characteristic test unavailable (expected in some environments)');
+    }
+  }
+  
+  updateConnectionType() {
+    if (this.isStarlink) {
+      this.connectionType = 'starlink';
+    } else if (this.effectiveType !== 'unknown') {
+      // Determine type based on Network API
+      switch (this.effectiveType) {
+        case 'slow-2g':
+        case '2g':
+          this.connectionType = '2g';
+          break;
+        case '3g':
+          this.connectionType = '3g';
+          break;
+        case '4g':
+          this.connectionType = '4g';
+          break;
+        default:
+          this.connectionType = 'broadband';
+      }
+    } else {
+      this.connectionType = 'unknown';
+    }
+  }
+  
+  setupListeners() {
+    // Listen for connection changes
+    if ('connection' in navigator) {
+      const connection = navigator.connection;
+      if (connection) {
+        connection.addEventListener('change', () => {
+          this.detectConnection();
+          this.notifyListeners();
+        });
+      }
+    }
+  }
+  
+  addListener(callback) {
+    this.listeners.push(callback);
+  }
+  
+  notifyListeners() {
+    this.listeners.forEach(cb => cb(this.getStatus()));
+  }
+  
+  getStatus() {
+    return {
+      connectionType: this.connectionType,
+      isStarlink: this.isStarlink,
+      effectiveType: this.effectiveType,
+      downlink: this.downlink,
+      rtt: this.rtt
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TELEMETRY COLLECTOR
 // ═══════════════════════════════════════════════════════════════
 
@@ -1341,6 +1536,7 @@ class StarlinkHub {
     this.controls = null;
     this.globe = null;
     
+    this.networkDetector = new NetworkDetector();
     this.telemetry = new TelemetryCollector();
     this.optimization = new OptimizationEngine();
     this.guidance = new OrientationGuidance('compass-canvas');
@@ -1517,6 +1713,14 @@ class StarlinkHub {
   }
   
   initializeUI() {
+    // Update connection status display
+    this.updateConnectionStatus();
+    
+    // Listen for connection changes
+    this.networkDetector.addListener((status) => {
+      this.updateConnectionStatus();
+    });
+    
     // Mode buttons
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1551,6 +1755,125 @@ class StarlinkHub {
     });
     
     this.sensitivityThreshold = 8;
+  }
+  
+  updateConnectionStatus() {
+    const status = this.networkDetector.getStatus();
+    const statusEl = document.getElementById('connection-status');
+    const statusDot = statusEl.querySelector('.dot');
+    const statusText = statusEl.querySelector('span:last-child');
+    
+    if (status.isStarlink) {
+      statusEl.classList.add('active');
+      statusEl.classList.remove('warning', 'danger');
+      statusText.textContent = 'STARLINK CONNECTED';
+      statusEl.title = `Starlink Connection\nDownlink: ${status.downlink.toFixed(1)} Mbps\nRTT: ${status.rtt} ms`;
+    } else {
+      statusEl.classList.remove('active');
+      statusEl.classList.add('warning');
+      
+      let connectionName = 'UNKNOWN';
+      switch (status.connectionType) {
+        case '4g':
+          connectionName = '4G/LTE';
+          break;
+        case '3g':
+          connectionName = '3G';
+          break;
+        case '2g':
+          connectionName = '2G';
+          break;
+        case 'broadband':
+          connectionName = 'BROADBAND';
+          break;
+        case 'unknown':
+          connectionName = 'UNKNOWN';
+          break;
+      }
+      
+      statusText.textContent = `${connectionName} - NOT STARLINK`;
+      statusEl.title = `Non-Starlink Connection Detected\nType: ${connectionName}\nThis system is optimized for Starlink satellite connections.\nSome features may not work correctly.`;
+      
+      // Show warning message in the UI
+      this.showConnectionWarning(connectionName);
+    }
+  }
+  
+  showConnectionWarning(connectionType) {
+    // Check if warning already exists
+    if (document.getElementById('connection-warning')) {
+      return;
+    }
+    
+    // Create warning banner
+    const warning = document.createElement('div');
+    warning.id = 'connection-warning';
+    warning.style.cssText = `
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(245, 158, 11, 0.95);
+      color: #0a0e1a;
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: 2px solid #f59e0b;
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+      z-index: 1000;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      max-width: 600px;
+      text-align: center;
+      animation: slideDown 0.3s ease-out;
+    `;
+    
+    warning.innerHTML = `
+      ⚠️ NON-STARLINK CONNECTION DETECTED (${connectionType})
+      <br>
+      <span style="font-size: 11px; font-weight: 400;">
+        This system is designed for Starlink satellite connections. 
+        Satellite tracking and optimization may not function correctly on other networks.
+      </span>
+      <button id="dismiss-warning" style="
+        margin-left: 12px;
+        padding: 4px 12px;
+        background: #0a0e1a;
+        color: #f59e0b;
+        border: 1px solid #0a0e1a;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+      ">DISMISS</button>
+    `;
+    
+    // Add CSS animation
+    if (!document.getElementById('warning-animation-style')) {
+      const style = document.createElement('style');
+      style.id = 'warning-animation-style';
+      style.textContent = `
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(warning);
+    
+    // Add dismiss handler
+    document.getElementById('dismiss-warning').addEventListener('click', () => {
+      warning.style.animation = 'slideDown 0.3s ease-in reverse';
+      setTimeout(() => warning.remove(), 300);
+    });
   }
   
   update() {
