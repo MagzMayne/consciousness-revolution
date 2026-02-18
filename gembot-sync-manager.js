@@ -361,6 +361,9 @@ class GemBotSyncManager {
             case 'sync-request':
                 this.respondToSyncRequest(sourceDeviceId, payload);
                 break;
+            case 'cockpit-sync':
+                this.handleCockpitSync(message);
+                break;
             default:
                 console.warn(`Unknown message type: ${type}`);
         }
@@ -897,6 +900,91 @@ class GemBotSyncManager {
      */
     on(eventName, callback) {
         document.addEventListener(`gembot-${eventName}`, (e) => callback(e.detail));
+    }
+    
+    /**
+     * Cockpit Identity Synchronization
+     * Ensures data stays in sync between Ryan and Agent R cockpits
+     */
+    syncCockpitIdentity(userIdentifier) {
+        // Import agent name normalizer if available
+        const normalizer = window.agentNameNormalizer;
+        if (!normalizer) {
+            console.warn('⚠️ Agent name normalizer not loaded, cockpit identity sync disabled');
+            return;
+        }
+        
+        // Get canonical name (Ryan is the canonical name for Agent R, Commander, etc.)
+        const canonicalName = normalizer.getCanonicalName(userIdentifier);
+        
+        if (canonicalName === 'ryan') {
+            console.log('✅ Cockpit Identity Sync: Detected Ryan/Agent R/Commander identity');
+            
+            // List all cockpits for this user
+            const cockpits = [
+                'OPERATOR_COCKPIT_AGENT_R',
+                'COMMANDER_COCKPIT'
+            ];
+            
+            // Sync data across all cockpits
+            cockpits.forEach(cockpit => {
+                const key = `cockpit_data_${cockpit}`;
+                const data = localStorage.getItem(key);
+                if (data) {
+                    // Broadcast to other cockpits
+                    this.send({
+                        type: 'cockpit-sync',
+                        payload: {
+                            cockpit,
+                            canonicalName,
+                            data: JSON.parse(data),
+                            timestamp: Date.now()
+                        }
+                    });
+                }
+            });
+            
+            return canonicalName;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Handle cockpit sync messages
+     */
+    handleCockpitSync(message) {
+        const { cockpit, canonicalName, data, timestamp } = message.payload;
+        
+        // Check if this is for the current user
+        const normalizer = window.agentNameNormalizer;
+        if (!normalizer) return;
+        
+        const currentUser = normalizer.getCanonicalName(
+            localStorage.getItem('currentUser') || 'unknown'
+        );
+        
+        if (currentUser === canonicalName) {
+            console.log(`🔄 Syncing data to ${cockpit} cockpit`);
+            
+            // Update local storage for this cockpit
+            const key = `cockpit_data_${cockpit}`;
+            const existing = localStorage.getItem(key);
+            
+            if (existing) {
+                const existingData = JSON.parse(existing);
+                const existingTimestamp = existingData.timestamp || 0;
+                
+                // Use latest-write-wins strategy
+                if (timestamp > existingTimestamp) {
+                    localStorage.setItem(key, JSON.stringify(data));
+                    this.dispatchEvent('cockpit-synced', { cockpit, data });
+                }
+            } else {
+                localStorage.setItem(key, JSON.stringify(data));
+                this.dispatchEvent('cockpit-synced', { cockpit, data });
+            }
+        }
     }
 }
 

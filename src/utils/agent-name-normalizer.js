@@ -62,7 +62,15 @@
  * Maps alternative spellings to canonical names
  */
 const AGENT_ALIASES = {
-    'araya': 'arya'  // Alternative spelling for Arya Enhancement Specialist
+    'araya': 'arya',      // Alternative spelling for Arya Enhancement Specialist
+    'agent r': 'ryan',    // Agent R is Ryan Barbrick (BarbrickDesign)
+    'agent-r': 'ryan',    // Agent R variant
+    'agentr': 'ryan',     // Agent R variant
+    'agent_r': 'ryan',    // Agent R variant
+    'barbrick': 'ryan',   // Ryan's business name
+    'barbrickdesign': 'ryan',  // Ryan's GitHub handle
+    'commander': 'ryan',  // Commander is Ryan in TEAM_COMMAND_CENTER
+    'darrick': 'ryan'     // Alternative name reference in team roster
 };
 
 /**
