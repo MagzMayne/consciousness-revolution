@@ -13,12 +13,13 @@
     // Configuration
     const CONFIG = {
         robotSize: 80, // Base size in pixels
-        moveSpeed: 0.5, // Pixels per frame (normal walking)
+        moveSpeed: 0.3, // Pixels per frame (slower walking - less annoying)
         flySpeed: 5.0, // Pixels per frame (10x faster - fast flying during tours)
         animationSpeed: 0.05,
         boundaryPadding: 50,
         stateUpdateInterval: 1000, // Save state every second
-        idleTimeout: 3000, // Time before robot starts wandering
+        idleTimeout: 30000, // Time before robot starts wandering (30s - was 3s)
+        wanderEnabled: false, // Disable auto-wandering by default
         storageKey: 'araya_robot_state',
         enabled: true
     };
@@ -425,6 +426,12 @@
      * Start autonomous wandering behavior
      */
     function startAutonomousBehavior() {
+        // Only start wandering if enabled in config
+        if (!CONFIG.wanderEnabled) {
+            console.log('🤖 R3-D3: Wandering disabled - robot stays in place');
+            return;
+        }
+
         setInterval(() => {
             const timeSinceActivity = Date.now() - state.lastActivity;
 
@@ -432,7 +439,7 @@
             if (timeSinceActivity > CONFIG.idleTimeout && !state.target) {
                 wander();
             }
-        }, 2000);
+        }, 10000); // Check every 10s instead of 2s
     }
 
     /**
