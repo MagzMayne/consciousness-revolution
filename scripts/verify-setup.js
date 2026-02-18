@@ -1,236 +1,418 @@
 #!/usr/bin/env node
 
 /**
- * Setup Verification Script
+ * 🔍 Setup Verification Script
  * 
- * This script validates the development environment:
- * 1. Checks Node.js version
- * 2. Validates required dependencies
- * 3. Checks for required environment variables
- * 4. Validates security configuration
- * 5. Tests file permissions
+ * Validates that the development environment is properly configured.
+ * Checks:
+ * - Required dependencies
+ * - Environment variables
+ * - API connectivity (if keys configured)
+ * - Security issues
  * 
  * Usage: npm run verify:setup
+ * 
+ * @author Consciousness Revolution Platform Team
+ * @version 1.0.0
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// ANSI color codes
+// Terminal colors
 const colors = {
     reset: '\x1b[0m',
     bright: '\x1b[1m',
     green: '\x1b[32m',
-    yellow: '\x1b[33m',
-    blue: '\x1b[34m',
     red: '\x1b[31m',
+    yellow: '\x1b[33m',
     cyan: '\x1b[36m',
 };
 
-function log(message, color = 'reset') {
-    console.log(`${colors[color]}${message}${colors.reset}`);
-}
-
-let passedChecks = 0;
-let failedChecks = 0;
-let warnings = 0;
-
-function check(name, fn, critical = false) {
-    try {
-        const result = fn();
-        if (result === true) {
-            log(`   ✅ ${name}`, 'green');
-            passedChecks++;
-        } else if (result === 'warning') {
-            log(`   ⚠️  ${name}`, 'yellow');
-            warnings++;
-        } else {
-            log(`   ❌ ${name}`, 'red');
-            if (critical) {
-                failedChecks++;
-            } else {
-                warnings++;
-            }
-        }
-        return result;
-    } catch (error) {
-        log(`   ❌ ${name}: ${error.message}`, 'red');
-        if (critical) {
-            failedChecks++;
-        } else {
-            warnings++;
-        }
-        return false;
+class SetupVerifier {
+    constructor() {
+        this.projectRoot = path.resolve(__dirname, '..');
+        this.envPath = path.join(this.projectRoot, '.env');
+        this.passed = 0;
+        this.failed = 0;
+        this.warnings = 0;
+        this.skipped = 0;
     }
-}
-
-function main() {
-    log('\n╔════════════════════════════════════════════════════════════╗', 'cyan');
-    log('║         🔍 Setup Verification - Environment Check          ║', 'cyan');
-    log('╚════════════════════════════════════════════════════════════╝\n', 'cyan');
     
-    // 1. Node.js Version Check
-    log('📦 Checking Node.js version...', 'blue');
-    check('Node.js version >= 16.0.0', () => {
-        const version = process.version;
-        const major = parseInt(version.split('.')[0].substring(1));
-        if (major >= 16) {
-            log(`      Current version: ${version}`, 'green');
-            return true;
+    /**
+     * Run all verification checks
+     */
+    async run() {
+        this.printHeader();
+        
+        await this.checkDependencies();
+        await this.checkEnvironment();
+        await this.checkSecurity();
+        await this.checkOptionalAPIs();
+        
+        this.printSummary();
+        
+        // Exit with appropriate code
+        if (this.failed > 0) {
+            process.exit(1);
+        } else if (this.warnings > 0) {
+            process.exit(0); // Warnings are OK
         } else {
-            log(`      Current version: ${version} (required: >= 16.0.0)`, 'red');
-            return false;
+            process.exit(0);
         }
-    }, true);
+    }
     
-    // 2. Dependencies Check
-    log('\n📚 Checking dependencies...', 'blue');
-    check('package.json exists', () => {
-        return fs.existsSync(path.join(process.cwd(), 'package.json'));
-    }, true);
+    /**
+     * Print header
+     */
+    printHeader() {
+        console.log('\n' + '═'.repeat(70));
+        console.log(`${colors.cyan}${colors.bright}🔍 Setup Verification${colors.reset}`);
+        console.log('═'.repeat(70) + '\n');
+    }
     
-    check('node_modules directory exists', () => {
-        const exists = fs.existsSync(path.join(process.cwd(), 'node_modules'));
-        if (!exists) {
-            log('      Run: npm install', 'yellow');
-        }
-        return exists ? true : 'warning';
-    });
-    
-    // 3. Environment Variables Check
-    log('\n🔑 Checking environment configuration...', 'blue');
-    const envPath = path.join(process.cwd(), '.env');
-    const envExists = check('.env file exists', () => {
-        const exists = fs.existsSync(envPath);
-        if (!exists) {
-            log('      Run: npm run onboard', 'yellow');
-        }
-        return exists ? true : 'warning';
-    });
-    
-    if (envExists === true) {
-        check('UNIVERSE_KEY is set', () => {
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            const hasKey = envContent.includes('UNIVERSE_KEY=') && 
-                          !envContent.includes('UNIVERSE_KEY=your-unique-uuid-here');
-            if (!hasKey) {
-                log('      UNIVERSE_KEY not configured', 'yellow');
+    /**
+     * Check dependencies
+     */
+    async checkDependencies() {
+        this.section('Dependencies');
+        
+        // Node.js
+        try {
+            const nodeVersion = execSync('node --version', { encoding: 'utf8' }).trim();
+            const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
+            
+            if (majorVersion >= 16) {
+                this.pass(`Node.js: ${nodeVersion}`);
+            } else {
+                this.fail(`Node.js: ${nodeVersion} (v16+ required)`);
             }
-            return hasKey ? true : 'warning';
+        } catch (error) {
+            this.fail('Node.js: Not installed');
+        }
+        
+        // npm
+        try {
+            const npmVersion = execSync('npm --version', { encoding: 'utf8' }).trim();
+            this.pass(`npm: ${npmVersion}`);
+        } catch (error) {
+            this.fail('npm: Not installed');
+        }
+        
+        // Git (optional)
+        try {
+            const gitVersion = execSync('git --version', { encoding: 'utf8' }).trim();
+            this.pass(`Git: ${gitVersion}`);
+        } catch (error) {
+            this.skip('Git: Not installed (optional)');
+        }
+        
+        // Python (optional)
+        try {
+            const pythonVersion = execSync('python --version 2>&1', { encoding: 'utf8' }).trim();
+            this.pass(`Python: ${pythonVersion}`);
+        } catch (error) {
+            this.skip('Python: Not installed (optional for agents)');
+        }
+        
+        console.log();
+    }
+    
+    /**
+     * Check environment configuration
+     */
+    async checkEnvironment() {
+        this.section('Environment Configuration');
+        
+        // Check .env exists
+        if (!fs.existsSync(this.envPath)) {
+            this.fail('.env file: Not found');
+            this.warn('Run: npm run onboard');
+            console.log();
+            return;
+        }
+        
+        this.pass('.env file: Found');
+        
+        // Load .env
+        let envContent;
+        try {
+            envContent = fs.readFileSync(this.envPath, 'utf8');
+        } catch (error) {
+            this.fail(`.env file: Cannot read (${error.message})`);
+            console.log();
+            return;
+        }
+        
+        // Parse environment variables
+        const envVars = {};
+        envContent.split('\n').forEach(line => {
+            const match = line.match(/^([A-Z_]+)=(.*)$/);
+            if (match) {
+                envVars[match[1]] = match[2];
+            }
         });
         
-        check('NODE_ENV is set', () => {
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            return envContent.includes('NODE_ENV=');
-        });
+        // Check required variables
+        this.checkEnvVar(envVars, 'UNIVERSE_KEY', (value) => {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            return uuidRegex.test(value);
+        }, 'Valid UUID');
         
-        check('PORT is set', () => {
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            return envContent.includes('PORT=');
-        });
+        this.checkEnvVar(envVars, 'NODE_ENV', (value) => {
+            return ['development', 'production', 'test'].includes(value);
+        }, 'Valid environment');
         
-        check('.env has secure permissions (600)', () => {
+        this.checkEnvVar(envVars, 'PORT', (value) => {
+            const port = parseInt(value);
+            return !isNaN(port) && port > 0 && port < 65536;
+        }, 'Valid port number');
+        
+        // Check file permissions (Unix only)
+        if (process.platform !== 'win32') {
             try {
-                const stats = fs.statSync(envPath);
-                const mode = stats.mode & 0o777;
-                if (mode === 0o600) {
-                    return true;
+                const stats = fs.statSync(this.envPath);
+                const mode = (stats.mode & parseInt('777', 8)).toString(8);
+                if (mode === '600') {
+                    this.pass('.env permissions: 600 (secure)');
                 } else {
-                    log(`      Current permissions: ${mode.toString(8)} (recommended: 600)`, 'yellow');
-                    log('      Run: chmod 600 .env', 'yellow');
-                    return 'warning';
+                    this.warn(`.env permissions: ${mode} (should be 600)`);
                 }
             } catch (error) {
-                return 'warning';
+                this.skip('.env permissions: Cannot check');
             }
-        });
+        }
+        
+        console.log();
     }
     
-    // 4. Security Configuration
-    log('\n🛡️  Checking security configuration...', 'blue');
-    check('.gitignore exists', () => {
-        return fs.existsSync(path.join(process.cwd(), '.gitignore'));
-    }, true);
-    
-    check('.env is in .gitignore', () => {
-        const gitignorePath = path.join(process.cwd(), '.gitignore');
+    /**
+     * Check security
+     */
+    async checkSecurity() {
+        this.section('Security Checks');
+        
+        // Check .gitignore
+        const gitignorePath = path.join(this.projectRoot, '.gitignore');
         if (fs.existsSync(gitignorePath)) {
-            const content = fs.readFileSync(gitignorePath, 'utf8');
-            if (content.includes('.env')) {
-                return true;
+            const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+            if (gitignoreContent.includes('.env')) {
+                this.pass('.env is in .gitignore');
             } else {
-                log('      Add .env to .gitignore immediately!', 'yellow');
-                return 'warning';
+                this.fail('.env is NOT in .gitignore (SECURITY RISK!)');
+            }
+        } else {
+            this.warn('.gitignore not found');
+        }
+        
+        // Scan for exposed secrets in committed files
+        const secretPatterns = [
+            { pattern: /sk-[a-zA-Z0-9]{20,}/g, name: 'OpenAI API key' },
+            { pattern: /ghp_[a-zA-Z0-9]{36,}/g, name: 'GitHub token' },
+            { pattern: /github_pat_[a-zA-Z0-9_]{22,}/g, name: 'GitHub PAT' },
+            { pattern: /sk-ant-[a-zA-Z0-9-_]{20,}/g, name: 'Anthropic key' },
+            { pattern: /gsk-[a-zA-Z0-9]{20,}/g, name: 'Groq API key' },
+        ];
+        
+        let secretsFound = false;
+        const filesToCheck = this.getJavaScriptFiles();
+        
+        for (const file of filesToCheck) {
+            // Skip .env files
+            if (file.includes('.env')) continue;
+            
+            try {
+                const content = fs.readFileSync(file, 'utf8');
+                
+                for (const { pattern, name } of secretPatterns) {
+                    const matches = content.match(pattern);
+                    if (matches) {
+                        // Check if it's in a comment or example
+                        const isComment = matches.some(m => {
+                            const lines = content.split('\n');
+                            return lines.some(l => l.includes(m) && (l.trim().startsWith('//') || l.trim().startsWith('*')));
+                        });
+                        
+                        const isExample = matches.some(m => m.includes('your-') || m.includes('example'));
+                        
+                        if (!isComment && !isExample) {
+                            this.warn(`Potential ${name} found in: ${path.relative(this.projectRoot, file)}`);
+                            secretsFound = true;
+                        }
+                    }
+                }
+            } catch (error) {
+                // Skip files we can't read
             }
         }
-        return false;
-    }, true);
-    
-    check('Pre-commit hook installed', () => {
-        const hookPath = path.join(process.cwd(), '.git', 'hooks', 'pre-commit');
-        const exists = fs.existsSync(hookPath);
-        if (!exists) {
-            log('      Run: npm run setup:git-hooks', 'yellow');
+        
+        if (!secretsFound) {
+            this.pass('No exposed secrets detected');
         }
-        return exists ? true : 'warning';
-    });
+        
+        console.log();
+    }
     
-    // 5. Git Configuration
-    log('\n🔧 Checking git configuration...', 'blue');
-    check('Git repository initialized', () => {
-        return fs.existsSync(path.join(process.cwd(), '.git'));
-    }, true);
-    
-    check('Git user configured', () => {
-        try {
-            execSync('git config user.name', { stdio: 'pipe' });
-            execSync('git config user.email', { stdio: 'pipe' });
-            return true;
-        } catch (error) {
-            log('      Run: git config --global user.name "Your Name"', 'yellow');
-            log('      Run: git config --global user.email "your@email.com"', 'yellow');
-            return 'warning';
+    /**
+     * Check optional API configurations
+     */
+    async checkOptionalAPIs() {
+        this.section('Optional Integrations');
+        
+        if (!fs.existsSync(this.envPath)) {
+            this.skip('Cannot check APIs (.env not found)');
+            console.log();
+            return;
         }
-    });
-    
-    // 6. Project Files
-    log('\n📄 Checking project files...', 'blue');
-    check('README.md exists', () => {
-        return fs.existsSync(path.join(process.cwd(), 'README.md'));
-    });
-    
-    check('DEVELOPER_ONBOARDING.md exists', () => {
-        const exists = fs.existsSync(path.join(process.cwd(), 'DEVELOPER_ONBOARDING.md'));
-        if (!exists) {
-            log('      Developer onboarding guide not found', 'yellow');
+        
+        const envContent = fs.readFileSync(this.envPath, 'utf8');
+        
+        // Define optional APIs
+        const optionalAPIs = [
+            { key: 'OPENAI_API_KEY', name: 'OpenAI', pattern: /^sk-[a-zA-Z0-9]{20,}$/ },
+            { key: 'GROQ_API_KEY', name: 'Groq', pattern: /^gsk-[a-zA-Z0-9]{20,}$/ },
+            { key: 'ANTHROPIC_API_KEY', name: 'Anthropic', pattern: /^sk-ant-[a-zA-Z0-9-_]{20,}$/ },
+            { key: 'GITHUB_TOKEN', name: 'GitHub', pattern: /^(ghp_|github_pat_)[a-zA-Z0-9_]{20,}$/ },
+            { key: 'SUPABASE_URL', name: 'Supabase', pattern: /^https:\/\/.+\.supabase\.co$/ },
+            { key: 'PAYPAL_CLIENT_ID', name: 'PayPal', pattern: /.{20,}/ },
+        ];
+        
+        let configuredCount = 0;
+        
+        for (const { key, name, pattern } of optionalAPIs) {
+            const match = envContent.match(new RegExp(`^${key}=(.+)$`, 'm'));
+            if (match && match[1] && !match[1].includes('your-') && pattern.test(match[1])) {
+                this.pass(`${name}: Configured`);
+                configuredCount++;
+            } else {
+                this.skip(`${name}: Not configured (optional)`);
+            }
         }
-        return exists ? true : 'warning';
-    });
+        
+        if (configuredCount === 0) {
+            this.info('Tip: Add API keys to enable advanced features');
+            this.info('Run: node setup-api-keys.js');
+        }
+        
+        console.log();
+    }
     
-    // Summary
-    log('\n╔════════════════════════════════════════════════════════════╗', 'bright');
-    log('║                    📊 Verification Results                  ║', 'bright');
-    log('╚════════════════════════════════════════════════════════════╝', 'bright');
+    /**
+     * Print summary
+     */
+    printSummary() {
+        this.section('Summary');
+        
+        const total = this.passed + this.failed + this.warnings + this.skipped;
+        
+        console.log(`${colors.green}✓ Passed:  ${this.passed}${colors.reset}`);
+        console.log(`${colors.red}✗ Failed:  ${this.failed}${colors.reset}`);
+        console.log(`${colors.yellow}⚠ Warnings: ${this.warnings}${colors.reset}`);
+        console.log(`${colors.cyan}○ Skipped: ${this.skipped}${colors.reset}`);
+        console.log('─'.repeat(70));
+        console.log(`Total checks: ${total}\n`);
+        
+        if (this.failed === 0 && this.warnings === 0) {
+            console.log(`${colors.green}${colors.bright}🎉 Setup verified! You're ready to develop.${colors.reset}\n`);
+        } else if (this.failed === 0) {
+            console.log(`${colors.yellow}${colors.bright}⚠️  Setup OK with warnings. You can proceed.${colors.reset}\n`);
+        } else {
+            console.log(`${colors.red}${colors.bright}❌ Setup has issues. Please fix the errors above.${colors.reset}\n`);
+        }
+        
+        console.log('═'.repeat(70) + '\n');
+    }
     
-    log(`\n   ✅ Passed: ${passedChecks}`, 'green');
-    log(`   ⚠️  Warnings: ${warnings}`, 'yellow');
-    log(`   ❌ Failed: ${failedChecks}`, failedChecks > 0 ? 'red' : 'green');
+    /**
+     * Helper methods
+     */
+    section(title) {
+        console.log(`${colors.cyan}${colors.bright}${title}${colors.reset}`);
+        console.log('─'.repeat(70));
+    }
     
-    if (failedChecks === 0 && warnings === 0) {
-        log('\n🎉 Perfect! Your environment is fully configured!', 'green');
-        log('\n🚀 You\'re ready to start developing!', 'green');
-        log('   Run: npm start\n', 'cyan');
-        process.exit(0);
-    } else if (failedChecks === 0) {
-        log('\n✅ Your environment is functional with some optional improvements.', 'yellow');
-        log('   Address warnings above for best practices.\n', 'yellow');
-        process.exit(0);
-    } else {
-        log('\n❌ Setup incomplete. Please address failed checks above.', 'red');
-        log('   Critical issues must be resolved before development.\n', 'red');
-        process.exit(1);
+    pass(message) {
+        console.log(`${colors.green}✓${colors.reset} ${message}`);
+        this.passed++;
+    }
+    
+    fail(message) {
+        console.log(`${colors.red}✗${colors.reset} ${message}`);
+        this.failed++;
+    }
+    
+    warn(message) {
+        console.log(`${colors.yellow}⚠${colors.reset} ${message}`);
+        this.warnings++;
+    }
+    
+    skip(message) {
+        console.log(`${colors.cyan}○${colors.reset} ${message}`);
+        this.skipped++;
+    }
+    
+    info(message) {
+        console.log(`  ${colors.cyan}ℹ${colors.reset} ${message}`);
+    }
+    
+    checkEnvVar(envVars, key, validator, validMessage) {
+        if (!envVars[key]) {
+            this.fail(`${key}: Not set`);
+        } else if (validator(envVars[key])) {
+            this.pass(`${key}: ${validMessage}`);
+        } else {
+            this.fail(`${key}: Invalid value`);
+        }
+    }
+    
+    getJavaScriptFiles() {
+        const files = [];
+        const dirsToCheck = [
+            path.join(this.projectRoot, 'js'),
+            path.join(this.projectRoot, 'src'),
+            path.join(this.projectRoot, 'backend'),
+            path.join(this.projectRoot, 'scripts'),
+        ];
+        
+        for (const dir of dirsToCheck) {
+            if (fs.existsSync(dir)) {
+                this.walkDir(dir, files, ['.js', '.ts', '.jsx', '.tsx']);
+            }
+        }
+        
+        return files;
+    }
+    
+    walkDir(dir, fileList, extensions) {
+        const files = fs.readdirSync(dir);
+        
+        for (const file of files) {
+            const filePath = path.join(dir, file);
+            const stat = fs.statSync(filePath);
+            
+            if (stat.isDirectory()) {
+                // Skip node_modules and hidden dirs
+                if (file !== 'node_modules' && !file.startsWith('.')) {
+                    this.walkDir(filePath, fileList, extensions);
+                }
+            } else {
+                const ext = path.extname(file);
+                if (extensions.includes(ext)) {
+                    fileList.push(filePath);
+                }
+            }
+        }
     }
 }
 
-main();
+// Run verification
+if (require.main === module) {
+    const verifier = new SetupVerifier();
+    verifier.run().catch((error) => {
+        console.error(`${colors.red}Fatal error: ${error.message}${colors.reset}`);
+        process.exit(1);
+    });
+}
+
+module.exports = SetupVerifier;
