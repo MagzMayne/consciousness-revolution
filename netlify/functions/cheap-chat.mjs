@@ -5,6 +5,9 @@ const COST_TABLE = {
     "ollama/llama3.1": 0.00,
     "ollama/mistral": 0.00,
     "ollama/deepseek-r1": 0.00,
+    "groq/llama-3.3-70b": 0.00,  // FREE tier!
+    "groq/llama-3.1-8b": 0.00,   // FREE tier!
+    "groq/mixtral-8x7b": 0.00,   // FREE tier!
     "openai/gpt-4o-mini": 0.000375,
     "google/gemini-flash": 0.0001875,
     "deepseek/v3": 0.00021,
@@ -129,6 +132,35 @@ async function callDeepSeek(apiKey, messages) {
     return data.choices[0].message.content;
 }
 
+// Call Groq API (FREE tier - very fast inference)
+async function callGroq(apiKey, model, messages) {
+    // Map model names to Groq model IDs
+    const modelMap = {
+        "llama-3.3-70b": "llama-3.3-70b-versatile",
+        "llama-3.1-8b": "llama-3.1-8b-instant",
+        "mixtral-8x7b": "mixtral-8x7b-32768"
+    };
+    const modelId = modelMap[model.split("/")[1]] || "llama-3.3-70b-versatile";
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            model: modelId,
+            messages: messages,
+            max_tokens: 2000,
+            temperature: 0.7
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.choices[0].message.content;
+}
+
 export default async function handler(request) {
     // Handle CORS
     if (request.method === "OPTIONS") {
@@ -188,7 +220,8 @@ export default async function handler(request) {
             openai: process.env.OPENAI_API_KEY,
             anthropic: process.env.ANTHROPIC_API_KEY,
             google: process.env.GOOGLE_API_KEY,
-            deepseek: process.env.DEEPSEEK_API_KEY
+            deepseek: process.env.DEEPSEEK_API_KEY,
+            groq: process.env.GROQ_API_KEY
         };
 
         const effectiveKey = apiKey || envKeys[provider];
@@ -232,6 +265,10 @@ Or use a cloud model with your API key.`;
 
             case "deepseek":
                 response = await callDeepSeek(effectiveKey, messages);
+                break;
+
+            case "groq":
+                response = await callGroq(effectiveKey, model, messages);
                 break;
 
             default:

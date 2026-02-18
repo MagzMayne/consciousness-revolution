@@ -1,5 +1,6 @@
 // Trinity Status API - Serverless endpoint for TRINITY_COMMAND_DASHBOARD
 // Replaces localhost:3577/status dependency for autonomous online operation
+// Updated to Netlify Functions v2 format
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -99,7 +100,7 @@ async function getBrainStats() {
     const supabase = getSupabase();
 
     const defaultBrain = {
-        total_atoms: 166110,
+        total_atoms: 166336,
         recent_24h: 0,
         sessions_today: 0,
         last_sync: new Date().toISOString()
@@ -136,8 +137,8 @@ async function getBrainStats() {
     return defaultBrain;
 }
 
-export async function handler(event, context) {
-    // Handle CORS
+// Netlify Functions v2 format
+export default async function handler(request) {
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -145,18 +146,17 @@ export async function handler(event, context) {
         'Content-Type': 'application/json'
     };
 
-    // Handle preflight
-    if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 204, headers, body: '' };
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers });
     }
 
     // Only allow GET
-    if (event.httpMethod !== 'GET') {
-        return {
-            statusCode: 405,
-            headers,
-            body: JSON.stringify({ error: 'Method not allowed' })
-        };
+    if (request.method !== 'GET') {
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+            status: 405,
+            headers
+        });
     }
 
     try {
@@ -170,23 +170,25 @@ export async function handler(event, context) {
             trinity,
             brain,
             timestamp: new Date().toISOString(),
-            source: 'netlify-serverless'
+            source: 'netlify-serverless-v2'
         };
 
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify(response)
-        };
+        return new Response(JSON.stringify(response), {
+            status: 200,
+            headers
+        });
     } catch (error) {
         console.error('Trinity status error:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({
-                error: 'Internal server error',
-                message: error.message
-            })
-        };
+        return new Response(JSON.stringify({
+            error: 'Internal server error',
+            message: error.message
+        }), {
+            status: 500,
+            headers
+        });
     }
 }
+
+export const config = {
+    path: "/api/trinity-status"
+};
