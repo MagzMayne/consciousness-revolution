@@ -37,17 +37,16 @@ function getSupabase() {
 
 const TEAM_MEMBERS = [
     'commander',
-    'josh_serrano',
-    'maggie',
-    'josh_bogart',
-    'patrick',
-    'chris_dobbins',
-    'toby',
-    'dean',
-    'alex',
-    'nero',
     'tiger',
-    'all'  // Broadcast to everyone
+    'agent_r',
+    'frances',
+    'nero',
+    'alex',
+    'ryan',
+    'josh_serrano',
+    'toby',      // New operator
+    'patrick',   // New operator
+    'all'        // Broadcast to everyone
 ];
 
 // Commander password for sending (simple auth)
