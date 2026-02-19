@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alex's Cockpit - Support Coordinator</title>
+
+<!-- ============================================================
+     DASHBOARD DNA - Identity Block
+     Sphere: DOMAINS (Green) - Operator Access
+============================================================ -->
+<script type="application/json" id="dashboard-dna">
+{
+  "name": "Alex's Cockpit",
+  "version": "2.0.0",
+  "purpose": "Support Coordinator workspace - beginner-friendly, ARAYA chat, service status, onboarding flow",
+  "owner": "Alex",
+  "domain": "1_COMMAND",
+  "sphere": "DOMAINS",
+  "created": "2026-01-25",
+  "updated": "2026-02-18",
+  "status": "LIVE",
+  "url": "https://consciousnessrevolution.io/OPERATOR_COCKPIT_ALEX.html",
+  "access": "Alex + Admins",
+  "changelog": [
+    {"version": "2.0.0", "date": "2026-02-18", "changes": "Full rebuild with service status, ARAYA chat, beginner-friendly design"},
+    {"version": "1.0.0", "date": "2026-01-25", "changes": "Initial archived version"}
+  ],
+  "trinity": {
+    "c1_built": "2026-02-18",
+    "c2_reviewed": "pending",
+    "c3_validated": "pending"
+  },
+  "lfsme": {
+    "lighter": 10,
+    "faster": 9,
+    "stronger": 7,
+    "elegant": 9,
+    "less_expensive": 10,
+    "average": 9.0
+  },
+  "connects_to": [
+    "TEAM_COMMAND_CENTER.html",
+    "araya-chat.html"
+  ]
+}
+</script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --accent: #8800ff;
+            --accent-dim: rgba(136, 0, 255, 0.2);
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            --warning: #ff8800;
+            --success: #00ff88;
+            --error: #ff4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--accent-dim), transparent);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--accent);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            color: var(--accent);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .tagline {
+            color: var(--text-dim);
+            font-size: 1.2em;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected { background: var(--success); }
+        .status-dot.connecting { background: var(--warning); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Service Status Lights */
+        .service-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+        }
+
+        .service-light {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .service-light .light {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            position: relative;
+            background: #333;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .service-light .light.online {
+            background: var(--success);
+            box-shadow: 0 0 15px var(--success);
+        }
+
+        .service-light .light.offline {
+            background: var(--error);
+            box-shadow: 0 0 15px var(--error);
+        }
+
+        .service-light .light.checking {
+            background: var(--warning);
+            box-shadow: 0 0 15px var(--warning);
+            animation: pulse 1s infinite;
+        }
+
+        .service-light .name {
+            font-size: 0.85em;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .service-light .status-label {
+            font-size: 0.7em;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Welcome Box */
+        .welcome-box {
+            background: var(--accent-dim);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .welcome-box h3 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .welcome-box p {
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ARAYA Chat Box */
+        .araya-chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 350px;
+        }
+
+        .araya-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .araya-message {
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            max-width: 85%;
+        }
+
+        .araya-message.user {
+            background: var(--accent-dim);
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .araya-message.araya {
+            background: rgba(0,255,136,0.1);
+            border-left: 3px solid var(--success);
+        }
+
+        .araya-chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .araya-chat-input input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.9em;
+        }
+
+        .araya-chat-input button {
+            padding: 12px 20px;
+            background: var(--success);
+            color: var(--bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .araya-chat-input button:hover {
+            opacity: 0.9;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .checklist li:hover {
+            background: rgba(136, 0, 255, 0.1);
+        }
+
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+
+        .check-done { color: var(--success); }
+        .check-pending { color: var(--text-dim); }
+
+        .quick-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-links a {
+            color: var(--accent);
+            text-decoration: none;
+            padding: 10px 18px;
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .quick-links a:hover {
+            background: var(--accent-dim);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin-top: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .info-box {
+            background: rgba(0,255,136,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid var(--success);
+            margin: 15px 0;
+        }
+
+        .info-box h4 {
+            color: var(--success);
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: var(--text-dim);
+            font-size: 0.95em;
+        }
+
+        /* Builder Protocols */
+        .protocols-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .protocol-item {
+            background: var(--accent-dim);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .protocol-item .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Alex's Cockpit</h1>
+        <div class="tagline">Support Coordinator | Spokane Team | Getting Started</div>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="welcome-box">
+        <h3>Welcome to the Team, Alex!</h3>
+        <p>
+            This is your personal dashboard. You can talk to ARAYA (our AI assistant), see what's happening with the team,
+            and track your progress. Start by completing the onboarding checklist below - Commander will help you get set up!
+        </p>
+    </div>
+
+    <!-- Service Status Lights - Full Width -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>Service Status</h2>
+        <div class="service-status-grid">
+            <div class="service-light">
+                <div class="light checking" id="netlifyLight"></div>
+                <div class="name">Website</div>
+                <div class="status-label" id="netlifyStatus">Checking...</div>
+            </div>
+            <div class="service-light">
+                <div class="light checking" id="githubLight"></div>
+                <div class="name">GitHub</div>
+                <div class="status-label" id="githubStatus">Need Invite</div>
+            </div>
+            <div class="service-light">
+                <div class="light checking" id="railwayLight"></div>
+                <div class="name">Railway</div>
+                <div class="status-label" id="railwayStatus">Need Invite</div>
+            </div>
+            <div class="service-light">
+                <div class="light checking" id="discordLight"></div>
+                <div class="name">Discord</div>
+                <div class="status-label" id="discordStatus">Checking...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- ARAYA Chat Box -->
+        <div class="card">
+            <h2>Talk to ARAYA</h2>
+            <div class="araya-chat-container">
+                <div class="araya-chat-messages" id="arayaChatMessages">
+                    <div class="araya-message araya">Hi Alex! I'm ARAYA - your AI assistant. I'm here to help you navigate the system and answer any questions. What would you like to know?</div>
+                </div>
+                <div class="araya-chat-input">
+                    <input type="text" id="arayaInput" placeholder="Ask ARAYA anything..." onkeypress="if(event.key==='Enter')sendToAraya()">
+                    <button onclick="sendToAraya()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onboarding Checklist -->
+        <div class="card">
+            <h2>Getting Started Checklist</h2>
+            <ul class="checklist" id="checklistEl">
+                <li onclick="toggleCheck(0)"><span id="check0" class="check-pending">○</span> Get invited to GitHub (ask Commander)</li>
+                <li onclick="toggleCheck(1)"><span id="check1" class="check-pending">○</span> Get invited to Railway (ask Commander)</li>
+                <li onclick="toggleCheck(2)"><span id="check2" class="check-pending">○</span> Join our Discord server</li>
+                <li onclick="toggleCheck(3)"><span id="check3" class="check-pending">○</span> Read the Getting Started guide</li>
+                <li onclick="toggleCheck(4)"><span id="check4" class="check-pending">○</span> Say hi in #general channel</li>
+                <li onclick="toggleCheck(5)"><span id="check5" class="check-pending">○</span> Complete first task</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>Need Help?</h4>
+                <p>Just ask ARAYA above, or message Commander in Discord. We're here to help you succeed!</p>
+            </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="card">
+            <h2>Quick Links</h2>
+            <div class="quick-links">
+                <a href="https://conciousnessrevolution.io" target="_blank">Main Website</a>
+                <a href="https://conciousnessrevolution.io/araya-chat.html" target="_blank">Full ARAYA Chat</a>
+                <a href="https://discord.gg/xHRXyKkzyg" target="_blank">Join Discord</a>
+                <a href="https://conciousnessrevolution.io/bugs.html" target="_blank">Report a Bug</a>
+                <a href="mailto:darrickpreble@proton.me">Email Commander</a>
+            </div>
+
+            <div class="info-box" style="margin-top: 20px;">
+                <h4>Your Role: Support Coordinator</h4>
+                <p>You help coordinate tasks with Josh and the Spokane team. As you learn the system, you'll get access to more tools!</p>
+            </div>
+        </div>
+
+        <!-- Team Info -->
+        <div class="card">
+            <h2>Team Info</h2>
+            <div style="line-height: 2;">
+                <div><strong>Location:</strong> Spokane</div>
+                <div><strong>Working With:</strong> Josh Bogart (builder)</div>
+                <div><strong>Role:</strong> Support Coordinator</div>
+                <div><strong>Trust Level:</strong> SEED (Building Up!)</div>
+            </div>
+
+            <h3 style="margin-top: 25px; margin-bottom: 15px; color: var(--accent);">What's Coming</h3>
+            <div style="background: var(--accent-dim); padding: 15px; border-radius: 8px;">
+                <p style="margin-bottom: 10px; color: var(--text-dim);">As you progress:</p>
+                <p style="margin-bottom: 8px;">Task assignment system</p>
+                <p style="margin-bottom: 8px;">Payment tracking</p>
+                <p style="margin-bottom: 8px;">More coordination tools</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Builder Protocols -->
+    <div class="card">
+        <h2>Daily Goals (Easy Wins!)</h2>
+        <p style="color: var(--text-dim); margin-bottom: 15px;">
+            Simple healthy habits we encourage:
+        </p>
+        <div class="protocols-grid">
+            <div class="protocol-item">
+                <div class="icon">20</div>
+                <div>Take 20 steps today</div>
+            </div>
+            <div class="protocol-item">
+                <div class="icon"></div>
+                <div>Eat one healthy thing</div>
+            </div>
+            <div class="protocol-item">
+                <div class="icon"></div>
+                <div>Do some stretches</div>
+            </div>
+            <div class="protocol-item">
+                <div class="icon"></div>
+                <div>Drink some water</div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Consciousness Revolution | Alex's Cockpit v2.0</p>
+        <p style="font-family: monospace; margin-top: 10px;">Pattern: 3 - 7 - 13 - ?</p>
+    </footer>
+
+    <script>
+        // Check service status on load
+        async function checkServices() {
+            // Website check
+            try {
+                const response = await fetch('https://conciousnessrevolution.io', { mode: 'no-cors' });
+                setServiceStatus('netlify', true);
+            } catch (e) {
+                setServiceStatus('netlify', false);
+            }
+
+            // For GitHub and Railway - these need invites
+            document.getElementById('githubLight').className = 'light';
+            document.getElementById('githubLight').style.background = '#ff8800';
+            document.getElementById('githubStatus').textContent = 'Need Invite';
+
+            document.getElementById('railwayLight').className = 'light';
+            document.getElementById('railwayLight').style.background = '#ff8800';
+            document.getElementById('railwayStatus').textContent = 'Need Invite';
+
+            // Discord - just show link
+            document.getElementById('discordLight').className = 'light online';
+            document.getElementById('discordStatus').textContent = 'Join Link Ready';
+
+            // Update connection status
+            document.getElementById('statusDot').className = 'status-dot connected';
+            document.getElementById('statusText').textContent = 'Dashboard Ready';
+        }
+
+        function setServiceStatus(service, online) {
+            const light = document.getElementById(service + 'Light');
+            const label = document.getElementById(service + 'Status');
+            if (online) {
+                light.className = 'light online';
+                label.textContent = 'Online';
+            } else {
+                light.className = 'light offline';
+                label.textContent = 'Offline';
+            }
+        }
+
+        // Checklist persistence
+        function loadChecklist() {
+            for (let i = 0; i < 6; i++) {
+                const saved = localStorage.getItem('alex_check_' + i);
+                if (saved === 'done') {
+                    document.getElementById('check' + i).className = 'check-done';
+                    document.getElementById('check' + i).textContent = '?';
+                }
+            }
+        }
+
+        function toggleCheck(index) {
+            const el = document.getElementById('check' + index);
+            const isDone = el.className === 'check-done';
+            if (isDone) {
+                el.className = 'check-pending';
+                el.textContent = '○';
+                localStorage.setItem('alex_check_' + index, 'pending');
+            } else {
+                el.className = 'check-done';
+                el.textContent = '?';
+                localStorage.setItem('alex_check_' + index, 'done');
+            }
+        }
+
+        // ARAYA Chat
+        async function sendToAraya() {
+            const input = document.getElementById('arayaInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const chatBox = document.getElementById('arayaChatMessages');
+
+            // Add user message
+            chatBox.innerHTML += `<div class="araya-message user">${escapeHtml(message)}</div>`;
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Show thinking indicator
+            const thinkingId = 'thinking-' + Date.now();
+            chatBox.innerHTML += `<div class="araya-message araya" id="${thinkingId}">Thinking...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        context: 'alex-cockpit',
+                        user: 'Alex'
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(thinkingId).textContent = data.response || data.message || "I'm here to help! What would you like to know?";
+            } catch (error) {
+                document.getElementById(thinkingId).textContent = "I'm having trouble connecting right now. Try the full ARAYA chat page, or ask Commander in Discord!";
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        window.onload = function() {
+            checkServices();
+            loadChecklist();
+        };
+    </script>
+    <script src="/js/bug-widget.js"></script>
+    <script src="/js/robot-assistant-loader.js"></script>
+    <!-- Team Messages Widget - Receive Commander messages -->
+    <script src="/js/team-message-widget.js" data-user="alex"></script>
+</body>
+</html>
