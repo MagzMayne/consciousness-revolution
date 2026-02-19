@@ -28,7 +28,7 @@
             { id: 'builder', name: 'Builder Cockpit', icon: '🔨', url: '/BUILDER_COCKPIT.html' },
             { id: 'beta', name: 'Beta Tester', icon: '🧪', url: '/BETA_TESTER_COCKPIT.html' },
             { id: 'domains', name: '7 Domains', icon: '🌐', url: '/DOMAIN_STATUS_DASHBOARD.html' },
-            { id: 'bugs', name: 'Bug Tracker', icon: '🐛', url: '/bugs-live.html' }
+            { id: 'bugs', name: 'Bug Tracker', icon: '🐛', url: '/bugs.html' }
         ],
         tools: [
             { id: 'project-registry', name: 'Project Registry', icon: '📋', url: '/PROJECT_REGISTRY.html' },
