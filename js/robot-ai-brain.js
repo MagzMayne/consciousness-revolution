@@ -3610,7 +3610,37 @@
             }
         },
         clearStoredApiKey: clearStoredApiKey,
-        brain
+        brain,
+        // Enhanced Gemini API integration
+        initEnhancedGemini: () => {
+            const apiKey = getStoredApiKey();
+            if (apiKey && window.GeminiEnhanced) {
+                try {
+                    const client = window.GeminiEnhanced.createClient(apiKey);
+                    const editor = window.GeminiEnhanced.createEditor(client);
+                    const analyzer = window.GeminiEnhanced.createVisionAnalyzer(client);
+                    
+                    return { client, editor, analyzer };
+                } catch (error) {
+                    console.error('Failed to initialize enhanced Gemini:', error);
+                    return null;
+                }
+            }
+            return null;
+        },
+        // Get enhanced Gemini features status
+        getEnhancedFeaturesStatus: () => {
+            return {
+                available: typeof window.GeminiEnhanced !== 'undefined',
+                hasApiKey: !!getStoredApiKey(),
+                features: window.GeminiEnhanced ? {
+                    realtimeEditing: true,
+                    streaming: true,
+                    enhancedVision: true,
+                    multiModal: true
+                } : {}
+            };
+        }
     };
 
     // Auto-initialize when DOM is ready
@@ -3619,5 +3649,15 @@
     } else {
         init();
     }
+
+    // Log enhanced features status on load
+    setTimeout(() => {
+        if (window.GeminiEnhanced) {
+            console.log('✨ Enhanced Gemini API features available!');
+            console.log('   Version:', window.GeminiEnhanced.version);
+            console.log('   Features: Real-time editing, Streaming, Enhanced vision');
+            console.log('   API: window.RobotAI.initEnhancedGemini()');
+        }
+    }, 1000);
 
 })();
