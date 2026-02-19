@@ -141,7 +141,6 @@ This platform exists to support YOU in:
 **Life Journey & Path Discovery (NEW!):**
 - 🌟 **[Life Journey Explorer](life-journey-explorer.html)** - Discover YOUR unique phase, callings, and personalized path
 - 📊 **[Journey Dashboard](journey-dashboard.html)** - Track YOUR evolution and see YOUR progress over time
-- 🧭 **[Journey Tracker](js/journey-tracker.js)** - Automatic progress tracking and milestone celebration
 
 **Self-Creation & Discovery:**
 - 🧘 **[Daily Consciousness Check](DAILY_CONSCIOUSNESS_CHECK.html)** - Connect with YOUR authentic self daily
