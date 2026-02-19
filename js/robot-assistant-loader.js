@@ -100,6 +100,15 @@
                 console.log('⚠️ html2canvas unavailable, AI Vision will use fallback');
             }
 
+            // Load Enhanced Gemini API (optional, for advanced features)
+            console.log('✨ Loading Enhanced Gemini API...');
+            try {
+                await loadScript('/js/robot-gemini-enhanced.js');
+                console.log('✅ Enhanced Gemini API loaded (Real-time editing, Streaming, Enhanced vision)');
+            } catch (error) {
+                console.log('⚠️ Enhanced Gemini API unavailable, using basic vision only');
+            }
+
             // Load AUL Agent Connector
             console.log('🔌 Loading AUL Agent Connector...');
             await loadScript('/js/robot-aul-connector.js');
