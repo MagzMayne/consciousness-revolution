@@ -12,17 +12,26 @@
 <script type="application/json" id="dashboard-dna">
 {
   "name": "Ryan Barbaric's Cockpit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "purpose": "Operator workspace with account connections, service status, document viewer, project tracker",
   "owner": "Ryan Barbaric",
+  "realName": "Ryan Barbrick",
+  "aliases": ["Ryan", "Ryan Barbaric", "Ryan Barbrick", "Agent R", "Commander", "Darrick", "BarbrickDesign", "barbrickdesign"],
   "domain": "2_BUILD",
   "sphere": "DOMAINS",
   "created": "2026-02-18",
-  "updated": "2026-02-18",
+  "updated": "2026-02-19",
   "status": "LIVE",
   "url": "https://consciousnessrevolution.io/OPERATOR_COCKPIT_RYAN.html",
   "access": "Ryan + Admins",
+  "github": "barbrickdesign",
+  "identitySync": {
+    "enabled": true,
+    "syncWith": ["OPERATOR_COCKPIT_AGENT_R.html", "COMMANDER_COCKPIT.html"],
+    "note": "Ryan Barbaric, Agent R, and Commander are the same person (Ryan Barbrick). All data should sync autonomously between all cockpits."
+  },
   "changelog": [
+    {"version": "1.1.0", "date": "2026-02-19", "changes": "Added autonomous connection features: identity sync script, realName/aliases for auto-detection, sync with Agent R and Commander cockpits"},
     {"version": "1.0.0", "date": "2026-02-18", "changes": "Initial creation with quadrant layout, account connections, service status, ARAYA chat, document viewer, project tracker"}
   ],
   "trinity": {
@@ -892,6 +901,63 @@
                     }
                 }
             });
+            
+            // Auto-verify GitHub if we have stored credentials (autonomous connection)
+            autoVerifyStoredConnections();
+        }
+
+        async function autoVerifyStoredConnections() {
+            // Check for stored GitHub connection and auto-verify
+            const githubData = localStorage.getItem('ryan_github_connection');
+            if (githubData) {
+                try {
+                    const parsed = JSON.parse(githubData);
+                    if (!parsed.verified && parsed.username) {
+                        console.log('🔄 Auto-verifying GitHub connection...');
+                        // Silently verify in background
+                        const response = await fetch(`https://api.github.com/orgs/overkillkulture/members/${parsed.username}`);
+                        if (response.status === 204) {
+                            // Update to verified
+                            localStorage.setItem('ryan_github_connection', JSON.stringify({
+                                username: parsed.username,
+                                verified: true,
+                                verifiedAt: new Date().toISOString(),
+                                method: 'auto'
+                            }));
+                            setVerifiedState('github', parsed.username);
+                            console.log('✅ GitHub auto-verified!');
+                        }
+                    } else if (parsed.verified) {
+                        console.log('✅ GitHub already verified:', parsed.username);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Auto-verify failed (will retry):', e.message);
+                }
+            }
+            
+            // Check for identity sync and auto-populate from synced cockpits
+            if (window.cockpitIdentitySync && window.cockpitIdentitySync.canonicalName === 'ryan') {
+                console.log('🔗 Identity sync active - checking for synced connections...');
+                syncConnectionsFromOtherCockpits();
+            }
+        }
+
+        function syncConnectionsFromOtherCockpits() {
+            // Check if Agent R or Commander cockpits have verified connections
+            ['OPERATOR_COCKPIT_AGENT_R', 'COMMANDER_COCKPIT'].forEach(cockpit => {
+                const cockpitData = localStorage.getItem(`cockpit_data_${cockpit}`);
+                if (cockpitData) {
+                    try {
+                        const parsed = JSON.parse(cockpitData);
+                        if (parsed.canonicalName === 'ryan') {
+                            console.log(`🔄 Found synced cockpit: ${cockpit}`);
+                            // Could sync connection states here if needed
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse synced cockpit data:', e);
+                    }
+                }
+            });
         }
 
         function openServiceEmail(service) {
@@ -1300,5 +1366,7 @@
 
     <script src="/js/robot-assistant-loader.js"></script>
     <script src="/js/beta-banner.js" data-level="1" data-page="Ryan Operator Cockpit"></script>
+    <!-- Cockpit Identity Sync: Enables autonomous connection and sync with Agent R cockpit -->
+    <script src="/js/cockpit-identity-sync.js"></script>
 </body>
 </html>

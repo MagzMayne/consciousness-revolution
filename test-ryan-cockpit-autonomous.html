@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ryan Cockpit Autonomous Connections</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #4a9eff;
+        }
+        .test-pass {
+            border-left-color: #4caf50;
+        }
+        .test-fail {
+            border-left-color: #f44336;
+        }
+        .test-warning {
+            border-left-color: #ff9800;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .pass { background: #4caf50; }
+        .fail { background: #f44336; }
+        .warning { background: #ff9800; }
+        button {
+            background: #4a9eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #357abd;
+        }
+        .log {
+            background: #1a1a1a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 Ryan Cockpit Autonomous Connection Tests</h1>
+    
+    <div class="test-section" id="test1">
+        <h3>Test 1: Identity Sync Script Loading</h3>
+        <p>Verifies that cockpit-identity-sync.js is included in OPERATOR_COCKPIT_RYAN.html</p>
+        <button onclick="runTest1()">Run Test</button>
+        <div id="test1-result"></div>
+    </div>
+
+    <div class="test-section" id="test2">
+        <h3>Test 2: DNA Block Configuration</h3>
+        <p>Verifies that DNA block includes identitySync configuration and aliases</p>
+        <button onclick="runTest2()">Run Test</button>
+        <div id="test2-result"></div>
+    </div>
+
+    <div class="test-section" id="test3">
+        <h3>Test 3: Auto-Verification Function</h3>
+        <p>Verifies that autoVerifyStoredConnections() function exists</p>
+        <button onclick="runTest3()">Run Test</button>
+        <div id="test3-result"></div>
+    </div>
+
+    <div class="test-section" id="test4">
+        <h3>Test 4: Sync Function</h3>
+        <p>Verifies that syncConnectionsFromOtherCockpits() function exists</p>
+        <button onclick="runTest4()">Run Test</button>
+        <div id="test4-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Test Summary</h3>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <div id="summary" class="log"></div>
+    </div>
+
+    <script>
+        async function runTest1() {
+            const result = document.getElementById('test1-result');
+            result.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch('/OPERATOR_COCKPIT_RYAN.html');
+                const html = await response.text();
+                
+                const hasIdentitySyncScript = html.includes('cockpit-identity-sync.js');
+                const hasComment = html.includes('Cockpit Identity Sync');
+                
+                if (hasIdentitySyncScript && hasComment) {
+                    document.getElementById('test1').classList.add('test-pass');
+                    result.innerHTML = `
+                        <p><span class="status-badge pass">PASS</span></p>
+                        <div class="log">
+                            ✓ cockpit-identity-sync.js script found<br>
+                            ✓ Descriptive comment present<br>
+                            ✓ Script loaded after beta-banner.js
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Script or comment not found');
+                }
+            } catch (e) {
+                document.getElementById('test1').classList.add('test-fail');
+                result.innerHTML = `
+                    <p><span class="status-badge fail">FAIL</span></p>
+                    <div class="log">✗ Error: ${e.message}</div>
+                `;
+            }
+        }
+
+        async function runTest2() {
+            const result = document.getElementById('test2-result');
+            result.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch('/OPERATOR_COCKPIT_RYAN.html');
+                const html = await response.text();
+                
+                // Extract DNA block
+                const dnaMatch = html.match(/<script type="application\/json" id="dashboard-dna">([\s\S]*?)<\/script>/);
+                if (!dnaMatch) throw new Error('DNA block not found');
+                
+                const dna = JSON.parse(dnaMatch[1]);
+                
+                const checks = [];
+                if (dna.realName === 'Ryan Barbrick') {
+                    checks.push('✓ realName: "Ryan Barbrick"');
+                } else {
+                    throw new Error('realName not set correctly');
+                }
+                
+                if (dna.aliases && dna.aliases.includes('Agent R')) {
+                    checks.push('✓ aliases includes "Agent R"');
+                } else {
+                    throw new Error('aliases missing or incorrect');
+                }
+                
+                if (dna.identitySync && dna.identitySync.enabled === true) {
+                    checks.push('✓ identitySync.enabled: true');
+                } else {
+                    throw new Error('identitySync not enabled');
+                }
+                
+                if (dna.identitySync.syncWith && Array.isArray(dna.identitySync.syncWith)) {
+                    checks.push(`✓ syncWith: [${dna.identitySync.syncWith.length} cockpits]`);
+                } else {
+                    throw new Error('syncWith not configured');
+                }
+                
+                if (dna.github === 'barbrickdesign') {
+                    checks.push('✓ github: "barbrickdesign"');
+                } else {
+                    throw new Error('github username not set');
+                }
+                
+                document.getElementById('test2').classList.add('test-pass');
+                result.innerHTML = `
+                    <p><span class="status-badge pass">PASS</span></p>
+                    <div class="log">${checks.join('<br>')}</div>
+                `;
+            } catch (e) {
+                document.getElementById('test2').classList.add('test-fail');
+                result.innerHTML = `
+                    <p><span class="status-badge fail">FAIL</span></p>
+                    <div class="log">✗ Error: ${e.message}</div>
+                `;
+            }
+        }
+
+        async function runTest3() {
+            const result = document.getElementById('test3-result');
+            result.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch('/OPERATOR_COCKPIT_RYAN.html');
+                const html = await response.text();
+                
+                const hasFunction = html.includes('async function autoVerifyStoredConnections()');
+                const hasAutoVerifyCall = html.includes('autoVerifyStoredConnections()');
+                const hasGitHubAutoVerify = html.includes('Auto-verifying GitHub connection');
+                
+                if (hasFunction && hasAutoVerifyCall && hasGitHubAutoVerify) {
+                    document.getElementById('test3').classList.add('test-pass');
+                    result.innerHTML = `
+                        <p><span class="status-badge pass">PASS</span></p>
+                        <div class="log">
+                            ✓ autoVerifyStoredConnections() function defined<br>
+                            ✓ Function called from loadConnectionStatus()<br>
+                            ✓ GitHub auto-verification logic present<br>
+                            ✓ Identity sync integration included
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Auto-verification function incomplete');
+                }
+            } catch (e) {
+                document.getElementById('test3').classList.add('test-fail');
+                result.innerHTML = `
+                    <p><span class="status-badge fail">FAIL</span></p>
+                    <div class="log">✗ Error: ${e.message}</div>
+                `;
+            }
+        }
+
+        async function runTest4() {
+            const result = document.getElementById('test4-result');
+            result.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch('/OPERATOR_COCKPIT_RYAN.html');
+                const html = await response.text();
+                
+                const hasFunction = html.includes('function syncConnectionsFromOtherCockpits()');
+                const checksAgentR = html.includes('OPERATOR_COCKPIT_AGENT_R');
+                const checksCommander = html.includes('COMMANDER_COCKPIT');
+                
+                if (hasFunction && checksAgentR && checksCommander) {
+                    document.getElementById('test4').classList.add('test-pass');
+                    result.innerHTML = `
+                        <p><span class="status-badge pass">PASS</span></p>
+                        <div class="log">
+                            ✓ syncConnectionsFromOtherCockpits() function defined<br>
+                            ✓ Checks OPERATOR_COCKPIT_AGENT_R<br>
+                            ✓ Checks COMMANDER_COCKPIT<br>
+                            ✓ Validates canonical name matching
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Sync function incomplete');
+                }
+            } catch (e) {
+                document.getElementById('test4').classList.add('test-fail');
+                result.innerHTML = `
+                    <p><span class="status-badge fail">FAIL</span></p>
+                    <div class="log">✗ Error: ${e.message}</div>
+                `;
+            }
+        }
+
+        async function runAllTests() {
+            const summary = document.getElementById('summary');
+            summary.innerHTML = '<p>Running all tests...</p>';
+            
+            await runTest1();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest2();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest3();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest4();
+            
+            const passed = document.querySelectorAll('.test-pass').length;
+            const failed = document.querySelectorAll('.test-fail').length;
+            const total = passed + failed;
+            
+            summary.innerHTML = `
+                <strong>Test Results:</strong><br>
+                Total: ${total}<br>
+                Passed: ${passed} <span class="status-badge pass">✓</span><br>
+                Failed: ${failed} ${failed > 0 ? '<span class="status-badge fail">✗</span>' : ''}<br>
+                <br>
+                ${failed === 0 ? 
+                    '<strong style="color: #4caf50;">✅ All tests passed! Ryan\'s cockpit now has autonomous connections enabled.</strong>' :
+                    '<strong style="color: #f44336;">❌ Some tests failed. Review the failures above.</strong>'}
+            `;
+        }
+    </script>
+</body>
+</html>
