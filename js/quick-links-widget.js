@@ -16,7 +16,7 @@
                 { name: 'Commander Cockpit', url: '/COMMANDER_COCKPIT.html', icon: '🎖️' },
                 { name: 'Team Dashboard', url: '/TEAM_DASHBOARD_HUB.html', icon: '👥' },
                 { name: 'Project Registry', url: '/PROJECT_REGISTRY.html', icon: '📋' },
-                { name: 'Bug Tracker', url: '/bugs-live.html', icon: '🐛' }
+                { name: 'Bug Tracker', url: '/bugs.html', icon: '🐛' }
             ]
         },
         tools: {
