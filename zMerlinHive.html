@@ -1502,6 +1502,204 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 
+<!-- ════════════════════════════════════════════════════════════════════════════════
+     BACKEND INTEGRATION - Supabase + Netlify Functions
+     ════════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Merlin Hive Backend Integration Module -->
+<script type="module">
+import { MerlinHiveBackend } from '/src/utils/merlin-hive-backend.js';
+
+// Initialize backend when document is ready
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🔌 Initializing Merlin Hive Backend Integration...');
+  
+  // Configuration from environment or defaults
+  const backendConfig = {
+    supabaseUrl: window.ENV?.SUPABASE_URL || null,
+    supabaseKey: window.ENV?.SUPABASE_KEY || null,
+    netlifyApiUrl: '/.netlify/functions',
+    offlineMode: true,
+    retryAttempts: 3
+  };
+  
+  // Create backend instance
+  window.MerlinBackend = new MerlinHiveBackend(backendConfig);
+  
+  // Initialize connection
+  const initialized = await window.MerlinBackend.init();
+  
+  if (initialized) {
+    console.log('✅ Backend integration initialized');
+    
+    // Hook into existing agent spawn
+    const originalSpawn = AgentSDK.spawn;
+    AgentSDK.spawn = async function(params) {
+      const agentId = await originalSpawn.call(this, params);
+      
+      // Save to backend
+      await window.MerlinBackend.saveAgentState(agentId, {
+        class: params.klass,
+        nick: params.nick,
+        skills: params.skills,
+        spawnedAt: new Date().toISOString()
+      });
+      
+      return agentId;
+    };
+    
+    // Hook into audit logging
+    const originalAuditRecord = Audit.record;
+    Audit.record = async function(actor, action, data) {
+      const entry = await originalAuditRecord.call(this, actor, action, data);
+      
+      // Save to backend audit logs
+      await window.MerlinBackend.saveAuditLog(entry);
+      
+      return entry;
+    };
+    
+    // Hook into agent task assignment
+    const originalAssign = AgentSDK.assign;
+    AgentSDK.assign = async function(id, task) {
+      const result = await originalAssign.call(this, id, task);
+      
+      // Save job to backend
+      await window.MerlinBackend.saveAgentJob({
+        agentId: id,
+        type: task.type,
+        status: 'completed',
+        result: result,
+        completedAt: new Date().toISOString()
+      });
+      
+      return result;
+    };
+    
+    console.log('✅ Agent operations now persist to backend');
+  } else {
+    console.warn('⚠️ Backend not available - running in local-only mode');
+  }
+  
+  // Add backend status indicator to UI
+  const statusIndicator = document.createElement('div');
+  statusIndicator.id = 'backend-status';
+  statusIndicator.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background: ${initialized ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 152, 0, 0.9)'};
+    color: white;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 1000;
+    cursor: pointer;
+    transition: all 0.3s;
+  `;
+  statusIndicator.innerHTML = `
+    ${initialized ? '🟢' : '🟡'} Backend: ${initialized ? 'Connected' : 'Local Only'}
+  `;
+  statusIndicator.onclick = () => {
+    const status = window.MerlinBackend.getStatus();
+    alert(JSON.stringify(status, null, 2));
+  };
+  document.body.appendChild(statusIndicator);
+});
+</script>
+
+<!-- Backend API Helper Functions -->
+<script>
+/**
+ * Backend API Helpers - Available globally for agent use
+ */
+window.BackendAPI = {
+  /**
+   * Call Netlify Function directly
+   */
+  async callFunction(functionName, payload = {}) {
+    try {
+      const response = await fetch(`/.netlify/functions/${functionName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`❌ Function ${functionName} failed:`, error);
+      return { success: false, error: error.message };
+    }
+  },
+  
+  /**
+   * Get all agents from backend
+   */
+  async getAllAgents() {
+    return this.callFunction('merlin-agent-api/agents/list');
+  },
+  
+  /**
+   * Get agent job history from backend
+   */
+  async getAgentJobs(agentId) {
+    return this.callFunction(`merlin-agent-api/agent/${agentId}/jobs`);
+  },
+  
+  /**
+   * Health check
+   */
+  async healthCheck() {
+    return this.callFunction('merlin-agent-api/agents/health');
+  },
+  
+  /**
+   * Spawn agent via backend
+   */
+  async spawnAgent(agentType, config = {}) {
+    return this.callFunction('merlin-agent-api/spawn', {
+      agentType,
+      config
+    });
+  },
+  
+  /**
+   * Assign task via backend
+   */
+  async assignTask(agentId, taskType, data = {}, priority = 5) {
+    return this.callFunction(`merlin-agent-api/agent/${agentId}/task`, {
+      taskType,
+      data,
+      priority
+    });
+  }
+};
+
+// Add backend health check to UI
+async function refreshBackendHealth() {
+  const health = await window.BackendAPI.healthCheck();
+  console.log('🏥 Backend Health:', health);
+  
+  if (health.success) {
+    const statusDiv = document.getElementById('backend-status');
+    if (statusDiv) {
+      statusDiv.title = `Active Agents: ${health.stats?.activeAgents || 0} | Pending Jobs: ${health.stats?.pendingJobs || 0}`;
+    }
+  }
+}
+
+// Check backend health every 60 seconds
+setInterval(refreshBackendHealth, 60000);
+setTimeout(refreshBackendHealth, 5000); // Initial check after 5 seconds
+</script>
+
 <!-- PayPal Integration -->
 <script src="/src/utils/paypal-integration.js"></script>
 <script>
