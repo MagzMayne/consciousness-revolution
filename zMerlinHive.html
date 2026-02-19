@@ -1213,30 +1213,38 @@ async function regenKey() {
 
 /* ========= UI helpers ========= */
 const UI = {
-  setSched(status) { document.getElementById('sched-status').textContent = status; },
+  setSched(status) { 
+    const el = document.getElementById('sched-status');
+    if (el) el.textContent = status;
+  },
   appendEvent(entry) {
+    const container = document.getElementById('events');
+    if (!container) return; // Exit if element doesn't exist
     const el = document.createElement('div');
     el.className = 'mono';
     el.textContent = `[${entry.ts}] ${entry.actor}: ${entry.action}`;
-    document.getElementById('events').prepend(el);
+    container.prepend(el);
     // cap
-    const container = document.getElementById('events');
     while (container.children.length > 40) container.removeChild(container.lastChild);
   },
   appendLog(entry) {
+    const container = document.getElementById('log-stream');
+    if (!container) return; // Exit if element doesn't exist
     const el = document.createElement('div');
     el.className = 'mono';
     el.textContent = `${entry.ts} ${entry.actor}.${entry.action} ${JSON.stringify(entry.data)}`;
-    document.getElementById('log-stream').prepend(el);
-    const container = document.getElementById('log-stream');
+    container.prepend(el);
     while (container.children.length > 100) container.removeChild(container.lastChild);
   },
   async refreshAgents() {
     const tbody = document.querySelector('#agents-table tbody');
+    if (!tbody) return; // Exit if element doesn't exist
     tbody.innerHTML = '';
     Object.entries(AgentSDK.status).forEach(([id, s]) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="mono">${id}</td><td>${s.class}</td><td>${(s.skills||[]).join(', ')}</td><td>${s.busy?'busy':'idle'}</td>
+      // Ensure skills is always an array before calling join
+      const skillsArray = Array.isArray(s.skills) ? s.skills : (s.skills ? [s.skills] : []);
+      tr.innerHTML = `<td class="mono">${id}</td><td>${s.class}</td><td>${skillsArray.join(', ')}</td><td>${s.busy?'busy':'idle'}</td>
         <td><button class="btn secondary" data-kill="${id}">Kill</button></td>`;
       tbody.appendChild(tr);
     });
@@ -1251,11 +1259,14 @@ const UI = {
     });
     const idle = Object.values(AgentSDK.status).filter(s=>!s.busy).length;
     const busy = Object.values(AgentSDK.status).filter(s=>s.busy).length;
-    document.getElementById('agents-idle').textContent = idle;
-    document.getElementById('agents-busy').textContent = busy;
+    const agentsIdleEl = document.getElementById('agents-idle');
+    const agentsBusyEl = document.getElementById('agents-busy');
+    if (agentsIdleEl) agentsIdleEl.textContent = idle;
+    if (agentsBusyEl) agentsBusyEl.textContent = busy;
   },
   async refreshQueue() {
     const tbody = document.querySelector('#queue-table tbody');
+    if (!tbody) return; // Exit if element doesn't exist
     tbody.innerHTML = '';
     Orchestrator.queue.forEach(t => {
       const tr = document.createElement('tr');
@@ -1263,11 +1274,14 @@ const UI = {
         <td>${t.priority}</td><td class="mono">${t.assigned || '-'}</td><td>${t.status}</td>`;
       tbody.appendChild(tr);
     });
-    document.getElementById('queue-size').textContent = Orchestrator.queue.filter(t=>t.status==='queued' || t.status==='assigned').length;
-    document.getElementById('active-jobs').textContent = Orchestrator.queue.filter(t=>t.status==='assigned').length;
+    const queueSizeEl = document.getElementById('queue-size');
+    const activeJobsEl = document.getElementById('active-jobs');
+    if (queueSizeEl) queueSizeEl.textContent = Orchestrator.queue.filter(t=>t.status==='queued' || t.status==='assigned').length;
+    if (activeJobsEl) activeJobsEl.textContent = Orchestrator.queue.filter(t=>t.status==='assigned').length;
   },
   async refreshSessions() {
     const tbody = document.querySelector('#sessions-table tbody');
+    if (!tbody) return; // Exit if element doesn't exist
     tbody.innerHTML = '';
     const sessions = await DB.all('sessions');
     sessions.sort((a,b)=>b.ts.localeCompare(a.ts));
@@ -1280,27 +1294,41 @@ const UI = {
   },
   async refreshDonations() {
     const tbody = document.querySelector('#donations-table tbody');
+    if (!tbody) return; // Exit if element doesn't exist
     tbody.innerHTML = '';
     const donations = await DB.all('donations');
     donations.sort((a,b)=>b.ts.localeCompare(a.ts));
     donations.forEach(d => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="mono">${d.id}</td><td class="mono">${d.jobId}</td><td class="mono">${d.agents.join(' + ')}</td>
+      // Ensure agents is always an array before calling join
+      const agentsArray = Array.isArray(d.agents) ? d.agents : (d.agents ? [d.agents] : []);
+      tr.innerHTML = `<td class="mono">${d.id}</td><td class="mono">${d.jobId}</td><td class="mono">${agentsArray.join(' + ')}</td>
         <td class="nowrap">$${d.amount.toFixed(2)}</td><td>${d.status}</td><td class="mono">${d.receipt || '-'}</td>`;
       tbody.appendChild(tr);
     });
   },
   async refreshKnowledge() {
     const el = document.getElementById('skill-graph');
+    if (!el) return; // Exit if element doesn't exist
     el.innerHTML = '';
     const kg = await DB.get('knowledge', 'skill-graph');
     (kg?.items || []).forEach(item => {
       const d = document.createElement('div');
       d.className = 'card';
+      // Ensure steps is always an array before calling join
+      const stepsArray = Array.isArray(item.steps) ? item.steps : (item.steps ? [item.steps] : []);
       d.innerHTML = `<div><b>${item.title}</b> <span class="muted mono">${item.ts}</span></div>
-        <div class="mono">steps: ${item.steps.join(' -> ')}</div>`;
+        <div class="mono">steps: ${stepsArray.join(' -> ')}</div>`;
       el.appendChild(d);
     });
+  },
+  async refreshState() {
+    // Refresh all UI components to update the current state
+    await this.refreshAgents();
+    await this.refreshQueue();
+    await this.refreshSessions();
+    await this.refreshDonations();
+    await this.refreshKnowledge();
   }
 };
 
