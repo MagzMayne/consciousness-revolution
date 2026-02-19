@@ -27,6 +27,30 @@ npm start
 
 ---
 
+## 💰 Earn Money with Bounties
+
+**Remote developers can earn $50-$500+ per bounty!**
+
+We offer paid bounties for technical work on the platform. Browse active opportunities:
+
+🎯 **[View Bounty Hunter Hub](bounty-hunter-hub.html)** - See all available bounties
+
+### Quick Facts
+- 💵 Rewards: $50 - $500+ per bounty
+- 🌍 100% Remote work
+- ⏱️ Flexible schedule
+- 💳 Payment via PayPal within 5-7 days
+
+### How It Works
+1. **Browse** active bounties by skill level and category
+2. **Claim** a bounty that matches your skills
+3. **Complete** the work and submit a Pull Request
+4. **Get Paid** via PayPal after approval
+
+📖 **[Read Full Bounty System Guide](BOUNTY_HUNTER_README.md)**
+
+---
+
 ## 🌟 Welcome to Your Personal Consciousness Revolution
 
 A transformative platform designed to help **you** discover and walk **your unique life path**. Every individual has a sacred journey specific to their soul's purpose - these tools help you create the life you're meant to live, become your best self, and find the path that is uniquely yours.
