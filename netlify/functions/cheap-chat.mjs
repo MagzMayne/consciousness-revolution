@@ -1,6 +1,24 @@
 // Cheap Chat API - Routes to cheapest viable AI model
 // Part of DNA Alternate Orchestrator Blueprint
 // Features: Auto-fallback cascade, response time tracking
+// Updated: 2026-02-18 - Security hardening (CORS)
+
+// Security: Allowed origins for CORS (no wildcard)
+const ALLOWED_ORIGINS = [
+    'https://conciousnessrevolution.io',
+    'https://www.conciousnessrevolution.io',
+    'https://verdant-tulumba-fa2a5a.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:8888'
+];
+
+function getCorsOrigin(request) {
+    const origin = request.headers.get('origin') || request.headers.get('Origin');
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        return origin;
+    }
+    return ALLOWED_ORIGINS[0];
+}
 
 const COST_TABLE = {
     "ollama/llama3.1": 0.00,
@@ -238,12 +256,14 @@ async function callWithFallback(initialModel, messages, enhancedPrompt, envKeys,
 }
 
 export default async function handler(request) {
+    const corsOrigin = getCorsOrigin(request);
+
     // Handle CORS
     if (request.method === "OPTIONS") {
         return new Response(null, {
-            status: 200,
+            status: 204,
             headers: {
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": corsOrigin,
                 "Access-Control-Allow-Methods": "POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             }
@@ -321,7 +341,7 @@ Or use a cloud model with your API key.`,
                 status: 200,
                 headers: {
                     "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
+                    "Access-Control-Allow-Origin": corsOrigin
                 }
             });
         }
@@ -347,7 +367,7 @@ Or use a cloud model with your API key.`,
             status: 200,
             headers: {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
+                "Access-Control-Allow-Origin": corsOrigin
             }
         });
 
@@ -357,7 +377,10 @@ Or use a cloud model with your API key.`,
             error: error.message || "Internal server error"
         }), {
             status: 500,
-            headers: { "Content-Type": "application/json" }
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": corsOrigin
+            }
         });
     }
 }

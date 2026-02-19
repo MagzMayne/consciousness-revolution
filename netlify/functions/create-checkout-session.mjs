@@ -1,38 +1,33 @@
 // Stripe Checkout Session Creator
 // Netlify Serverless Function
+// Updated: 2026-02-18 - Security hardening (CORS)
 import Stripe from 'stripe';
+import {
+    getSecureCORSHeaders,
+    handlePreflight,
+    errorResponse,
+    successResponse
+} from './utils/security.mjs';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function handler(event, context) {
+    const origin = event.headers.origin || event.headers.Origin || '';
+
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
-            },
-            body: ''
-        };
+        return handlePreflight(origin);
     }
 
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            body: JSON.stringify({ error: 'Method not allowed' })
-        };
+        return errorResponse('Method not allowed', origin, 405);
     }
 
     try {
         const { price_id, success_url, cancel_url } = JSON.parse(event.body);
 
         if (!price_id) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Missing price_id' })
-            };
+            return errorResponse('Missing price_id', origin, 400);
         }
 
         // Create Stripe checkout session
@@ -49,27 +44,10 @@ export async function handler(event, context) {
             cancel_url: cancel_url || 'https://conciousnessrevolution.io/pricing-live.html'
         });
 
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ sessionId: session.id, url: session.url })
-        };
+        return successResponse({ sessionId: session.id, url: session.url }, origin);
 
     } catch (error) {
         console.error('Stripe error:', error);
-
-        return {
-            statusCode: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                error: error.message || 'Failed to create checkout session'
-            })
-        };
+        return errorResponse(error.message || 'Failed to create checkout session', origin, 500);
     }
 }

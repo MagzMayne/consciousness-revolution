@@ -122,19 +122,52 @@
     </div>
 
     <script>
-        function checkPassword() {
+        async function checkPassword() {
             const password = document.getElementById('password').value;
             const error = document.getElementById('error');
+            const button = document.querySelector('button');
 
-            // Access code: consciousness2025
-            if (password === 'consciousness2025') {
-                // Correct password - redirect to work area
-                window.location.href = '/100x-work-area.html';
-            } else {
-                // Wrong password - show error
+            if (!password) {
+                error.textContent = 'Please enter an access code.';
                 error.style.display = 'block';
-                document.getElementById('password').value = '';
-                document.getElementById('password').focus();
+                return;
+            }
+
+            // Disable button during request
+            button.disabled = true;
+            button.textContent = 'VERIFYING...';
+            error.style.display = 'none';
+
+            try {
+                // Server-side password validation
+                const response = await fetch('/.netlify/functions/verify-beta-access', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (data.valid && data.redirectUrl) {
+                    // Store access token for session
+                    if (data.accessToken) {
+                        sessionStorage.setItem('betaAccessToken', data.accessToken);
+                        sessionStorage.setItem('betaAccessExpires', data.expiresAt);
+                    }
+                    window.location.href = data.redirectUrl;
+                } else {
+                    // Wrong password
+                    error.textContent = data.error || 'Invalid access code. Try again.';
+                    error.style.display = 'block';
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (err) {
+                error.textContent = 'Connection error. Please try again.';
+                error.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'ENTER THE REVOLUTION';
             }
         }
 

@@ -1,6 +1,7 @@
 /**
  * MARKETPLACE CHECKOUT
  * Creates checkout session with automatic revenue split
+ * Updated: 2026-02-18 - Security hardening (CORS)
  *
  * POST /api/marketplace-checkout
  * Body: { creation_id, buyer_foundation_id }
@@ -8,21 +9,20 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import {
+    getSecureCORSHeaders,
+    handlePreflight
+} from './utils/security.mjs';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export const handler = async (event, context) => {
-    // CORS headers
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Content-Type': 'application/json'
-    };
+    const origin = event.headers.origin || event.headers.Origin || '';
+    const headers = getSecureCORSHeaders(origin);
 
     // Handle preflight
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
+        return handlePreflight(origin);
     }
 
     if (event.httpMethod !== 'POST') {
