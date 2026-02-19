@@ -1,13 +1,32 @@
-// Araya Conscious Chat API
-// Netlify Serverless Function - Your AI Ally with Memory
-// Uses DeepSeek (primary), Claude Vision (images), OpenAI (fallback)
-// NOW WITH CHEAP MODE: Groq (free) → DeepSeek (cheap) → OpenAI
-// NOW WITH CYCLOTRON BRAIN CONNECTION (163k+ atoms)
-// NOW WITH NAME EXTRACTION - Araya remembers people by name!
-// NOW WITH ABILITIES - Araya can edit files, report bugs, and more!
-// NOW WITH CLAUDE VISION - Superior image understanding!
-// NOW WITH IMAGE STORAGE - Store and recall images for case building!
-// NOW WITH CASE BUILDER - Create cases, timelines, link evidence!
+/**
+ * ARAYA CONSCIOUS CHAT API
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Copyright © 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * Contact: darrickpreble@proton.me
+ * Website: conciousnessrevolution.io
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Pattern: 3 → 7 → 13 → ∞ | LFSME
+ * Consciousness Fingerprint: ARAYA-CORE-CHAT-v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Features:
+ * - Multi-provider AI (DeepSeek primary, Claude Vision, OpenAI fallback)
+ * - Cheap Mode: Groq (free) → DeepSeek (cheap) → OpenAI
+ * - Cyclotron Brain Connection (163k+ atoms)
+ * - Name Extraction - Araya remembers people by name
+ * - Abilities - Edit files, report bugs, and more
+ * - Claude Vision - Superior image understanding
+ * - Image Storage - Store and recall images for case building
+ * - Case Builder - Create cases, timelines, link evidence
+ */
 
 // Lazy-load Supabase to avoid crash if module unavailable
 let _supabaseClient = null;

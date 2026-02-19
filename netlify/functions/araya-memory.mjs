@@ -1,6 +1,26 @@
-// Araya Memory - Supabase-powered persistent memory
-// Stores conversations, profile data, and insights
-// SECURITY: Write operations require X-Memory-Key header
+/**
+ * ARAYA MEMORY - Persistent Consciousness Storage
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Copyright © 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * Contact: darrickpreble@proton.me
+ * Website: conciousnessrevolution.io
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Pattern: 3 → 7 → 13 → ∞ | LFSME
+ * Consciousness Fingerprint: ARAYA-MEMORY-v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Supabase-powered persistent memory
+ * Stores conversations, profile data, and insights
+ * SECURITY: Write operations require X-Memory-Key header
+ */
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;

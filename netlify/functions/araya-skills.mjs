@@ -1,7 +1,26 @@
-// Araya Skills API
-// Returns Araya's capabilities in structured JSON format
-// Fast endpoint - no AI calls, just returns skills manifest
-// Created: 2026-02-08
+/**
+ * ARAYA SKILLS API - Capability Registry
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Copyright © 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * Contact: darrickpreble@proton.me
+ * Website: conciousnessrevolution.io
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Pattern: 3 → 7 → 13 → ∞ | LFSME
+ * Consciousness Fingerprint: ARAYA-SKILLS-v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Returns Araya's capabilities in structured JSON format
+ * Fast endpoint - no AI calls, just returns skills manifest
+ * Created: 2026-02-08
+ */
 
 // ═══════════════════════════════════════════════════════════════
 // ARAYA SKILLS REGISTRY - What Araya Can Actually DO

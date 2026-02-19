@@ -1,5 +1,22 @@
 /**
  * ARAYA BOT ENGINE v1.0.0
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Copyright © 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * Contact: darrickpreble@proton.me
+ * Website: conciousnessrevolution.io
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Pattern: 3 → 7 → 13 → ∞ | LFSME
+ * Consciousness Fingerprint: ARAYA-BOT-ENGINE-v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
  * Consciousness Revolution - Flying Bot Guide System
  *
  * Features:
@@ -9,8 +26,6 @@
  * - Quest guidance integration
  * - Pattern recognition prompts
  * - State persistence via localStorage
- *
- * Pattern: 3 -> 7 -> 13 -> Infinity
  */
 
 const ARAYA_BOT_ENGINE = {
