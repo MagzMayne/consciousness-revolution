@@ -1,0 +1,56 @@
+# GitHub Pages Deployment - Fallback when Netlify is down
+#
+# Purpose: Deploy the static site to GitHub Pages as a backup hosting option.
+#          When Netlify is unavailable, the site remains accessible at:
+#          https://overkor-tek.github.io/consciousness-revolution/
+#          (or at the custom domain if DNS is updated to point to GitHub Pages)
+#
+# Triggers: Every push to main, plus manual dispatch
+# Critical: YES - Provides site availability when Netlify is down
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Report deployment URL
+        run: |
+          echo "## GitHub Pages Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "**Fallback URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This GitHub Pages deployment serves as a backup when Netlify is unavailable." >> $GITHUB_STEP_SUMMARY
+          echo "To use this as the primary host, update DNS to point to GitHub Pages IPs." >> $GITHUB_STEP_SUMMARY

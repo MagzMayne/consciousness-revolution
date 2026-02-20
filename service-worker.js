@@ -53,13 +53,19 @@
  * Enables all projects to work offline and sync when back online
  */
 
-const CACHE_NAME = 'barbrickdesign-v9-performance';
+const CACHE_NAME = 'barbrickdesign-v10-resilient';
 const OFFLINE_URL = 'offline.html';
 
-// Files to cache for offline access - only essential working files
+// Critical pages to pre-cache for resilience when hosting is unavailable
 const CACHE_URLS = [
     '/',
     '/index.html',
+    '/offline.html',
+    '/start.html',
+    '/seven-domains.html',
+    '/consciousness-tools.html',
+    '/login.html',
+    '/manifest.json',
     '/css/mobile-enhanced.css',
     '/src/core/universal-wallet-auth.js',
     '/src/core/auth-integration.js',
@@ -73,21 +79,32 @@ const CACHE_URLS = [
 const CACHE_STRATEGIES = {
     // Cache first, fallback to network (for static assets)
     cacheFirst: ['css', 'js', 'woff2', 'woff', 'ttf'],
-    // Network first, fallback to cache (for HTML)
-    networkFirst: ['html'],
+    // Stale-while-revalidate for HTML - serve cached instantly, update in background
+    staleWhileRevalidate: ['html'],
     // Network only (for API calls)
-    networkOnly: ['api']
+    networkOnly: ['api', 'netlify']
 };
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
-    console.log('[Service Worker] Installing v8...');
+    console.log('[Service Worker] Installing v10-resilient...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('[Service Worker] Caching essential files only');
-                return cache.addAll(CACHE_URLS.map(url => new Request(url, {cache: 'reload'})));
+                console.log('[Service Worker] Pre-caching critical pages for resilience');
+                // Cache each URL individually so one failure doesn't block the rest
+                return Promise.allSettled(
+                    CACHE_URLS.map(url =>
+                        cache.add(new Request(url, {cache: 'reload'}))
+                    )
+                ).then(results => {
+                    results.forEach((result, i) => {
+                        if (result.status === 'rejected') {
+                            console.warn('[Service Worker] Could not pre-cache:', CACHE_URLS[i], result.reason);
+                        }
+                    });
+                });
             })
             .catch((error) => {
                 console.error('[Service Worker] Cache install failed:', error);
@@ -127,6 +144,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Skip Netlify functions / API calls - network only, no caching
+    const requestUrl = new URL(event.request.url);
+    if (requestUrl.pathname.startsWith('/.netlify/') ||
+        requestUrl.pathname.startsWith('/api/')) {
+        return;
+    }
+
     // Bypass caching for complex pages that load external resources
     const bypassCacheUrls = [
         '/mandem.os/workspace/index.html',
@@ -146,11 +170,11 @@ self.addEventListener('fetch', (event) => {
 
     // Get file extension
     const url = new URL(event.request.url);
-    const extension = url.pathname.split('.').pop();
+    const extension = url.pathname.split('.').pop().toLowerCase();
 
     // Apply cache strategy based on file type
     if (CACHE_STRATEGIES.cacheFirst.includes(extension)) {
-        // Cache first for static assets
+        // Cache first for static assets (CSS, JS, fonts)
         event.respondWith(
             caches.match(event.request).then((response) => {
                 if (response) {
@@ -167,24 +191,30 @@ self.addEventListener('fetch', (event) => {
                 });
             })
         );
-    } else if (CACHE_STRATEGIES.networkFirst.includes(extension)) {
-        // Network first for HTML
+    } else if (CACHE_STRATEGIES.staleWhileRevalidate.includes(extension)) {
+        // Stale-while-revalidate for HTML pages:
+        // Serve cached version immediately (fast load even when hosting is down),
+        // then update the cache in the background when network is available.
         event.respondWith(
-            fetch(event.request)
-                .then((response) => {
-                    if (response && response.status === 200) {
-                        const responseToCache = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseToCache);
+            caches.open(CACHE_NAME).then((cache) => {
+                return cache.match(event.request).then((cachedResponse) => {
+                    const fetchPromise = fetch(event.request)
+                        .then((networkResponse) => {
+                            if (networkResponse && networkResponse.status === 200) {
+                                cache.put(event.request, networkResponse.clone());
+                            }
+                            return networkResponse;
+                        })
+                        .catch(() => {
+                            // Network failed - return offline page if no cached version
+                            if (!cachedResponse) {
+                                return caches.match(OFFLINE_URL);
+                            }
                         });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    return caches.match(event.request).then((response) => {
-                        return response || caches.match(OFFLINE_URL);
-                    });
-                })
+                    // Return cached response immediately, or wait for network
+                    return cachedResponse || fetchPromise;
+                });
+            })
         );
     } else {
         // Default strategy - network with cache fallback
