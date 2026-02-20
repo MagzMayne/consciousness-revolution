@@ -181,6 +181,43 @@ const ARAYA_SKILLS = {
         lastUsed: null,
         useCount: 0
     }
+,
+
+    // DNA Knowledge Library - System Blueprints Online (38 files)
+    'dna_library': {
+        name: 'DNA Library',
+        category: 'knowledge',
+        description: 'Access 38 system blueprints and DNA files online',
+        status: 'active',
+        triggers: ['show dna', 'search dna', 'what dna', 'system blueprint', 'architecture', 'how does the system work'],
+        endpoint: '/.netlify/functions/araya-dna',
+        indexUrl: 'https://conciousnessrevolution.io/ARAYA/DNA/INDEX.json',
+        browseUrl: 'https://conciousnessrevolution.io/ARAYA/DNA/',
+        totalFiles: 38,
+        categories: ['core_system', 'brain', 'infrastructure', 'platform', 'communications', 'security', 'domains'],
+        lastUsed: null,
+        useCount: 0
+    },
+    'dna_search': {
+        name: 'DNA Search',
+        category: 'knowledge',
+        description: 'Search DNA library for specific topics',
+        status: 'active',
+        triggers: ['search dna for', 'find dna about', 'dna search', 'what blueprint handles', 'how does X work'],
+        endpoint: '/.netlify/functions/araya-dna?action=search&q=',
+        lastUsed: null,
+        useCount: 0
+    },
+    'dna_fetch': {
+        name: 'DNA Fetch',
+        category: 'knowledge',
+        description: 'Retrieve specific DNA file content',
+        status: 'active',
+        triggers: ['get dna', 'read dna', 'fetch dna', 'show the blueprint', 'open dna file'],
+        endpoint: '/.netlify/functions/araya-dna?action=fetch&file=',
+        lastUsed: null,
+        useCount: 0
+    }
 };
 
 // Skill categories for grouping
@@ -219,6 +256,11 @@ const SKILL_CATEGORIES = {
         name: 'System',
         description: 'Diagnostics, health checks, meta operations',
         icon: '🔧'
+    },
+    knowledge: {
+        name: 'Knowledge/DNA',
+        description: 'System blueprints, architecture docs, DNA library (38 files online)',
+        icon: '📚'
     }
 };
 

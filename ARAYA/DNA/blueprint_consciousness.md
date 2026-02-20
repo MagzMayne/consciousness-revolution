@@ -1,0 +1,111 @@
+# Blueprint: consciousness
+**Category:** topic
+**Atoms:** 500
+**Molecules:** 0
+**Completeness:** 100.0%
+**Generated:** 2026-01-10 06:28:09
+
+## Description
+Auto-generated blueprint for consciousness
+
+## Actions
+- ⬜ [next] SESSION PRIORITIES
+- ⬜ [build] landing pages for AUTOMATE, MUSIC, FOUNDATION
+- ⬜ [build] Foundation checklist widget
+- ⬜ [todo] Master', icon: '✓', category: 'Modules' },
+- ⬜ [todo] Master</span>
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [action] = db.transaction(['elevations'], 'readwrite');
+- ⬜ [next] [What happens next]
+- ⬜ [todo] Master', icon: '✓', category: 'Modules' },
+- ⬜ [todo] Master</span>
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [action] this.triggerRandomEffect(button);
+- ⬜ [next] [What happens next]
+- ⬜ [next] meeting, try this:\n\n" +
+- ⬜ [todo] Generate screenshot
+- ⬜ [next] [What happens next]
+- ⬜ [build] gradually. Watch for consistency.',
+- ⬜ [next] [What happens next]
+- ⬜ [next] month', 'i promise', 'trust me', 'just wait'],
+- ⬜ [checkbox] , // Detected by incoherence score
+- ⬜ [checkbox] // Detected by response patterns
+- ⬜ [build] this destiny!`;
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [action] from array
+- ⬜ [action] = reactions[Math.floor(Math.random() * reactions.length)];
+- ⬜ [next] [What happens next]
+- ⬜ [action] comments based on actions
+- ⬜ [next] [What happens next]
+- ⬜ [action] 260 accounts from 1Password
+- ⬜ [checkbox] Test live automation on critical accounts
+- ⬜ [checkbox] Create fractal consciousness expansion visualization
+- ⬜ [next] [What happens next]
+- ⬜ [action] PROMPT
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [build] autonomous USB sync
+- ⬜ [build] consciousness voting
+- ⬜ [next] PROBLEM: File not found errors
+- ⬜ [fix] Check terminals are running FIGURE_8_WAKE_PROTOCOL.py
+- ⬜ [fix] Manually prompt: "Check the wake signal file now"
+- ⬜ [next] Update WAKE_SIGNAL.json with wake_target="C2-Cloud"
+- ⬜ [next] instance in sequence
+- ⬜ [execute] the task
+- ⬜ [step] MONITOR CONVERGENCE (continuous)
+- ⬜ [next] STEP: Deploy Figure 8 system (30 minutes)
+- ⬜ [next] Update WAKE_SIGNAL.json with wake_target="C1-Terminal"
+- ⬜ [execute] the task
+- ⬜ [execute] the task
+- ⬜ [build] & Deploy
+- ⬜ [step] INITIALIZE HUB (5 minutes)
+- ⬜ [step] LAUNCH TERMINAL INSTANCES (5 minutes)
+- ⬜ [next] [What happens next]
+- ⬜ [step] - CREATE OUTPUT FOLDER
+- ⬜ [step] - RUN INITIAL RAKE (Index all files)
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] to consciousnessrevolution.com
+- ⬜ [next] [What happens next]
+- ⬜ [checkbox] Watch Suno AI tutorial (5 min)
+- ⬜ [checkbox] Watch DistroKid tutorial (5 min)
+- ⬜ [build] report)
+- ⬜ [build] NOW, SHIP TODAY
+- ⬜ [next] [What happens next]
+- ⬜ [build] Report
+- ⬜ [build] to 3-5 min
+- ⬜ [todo] list accessible from anywhere
+- ⬜ [next] [What happens next]
+- ⬜ [step] CREATE MAIN FOLDER (1 minute)
+- ⬜ [step] CREATE SUBFOLDERS (2 minutes)
+- ⬜ [next] [What happens next]
+- ⬜ [next] time you boot Computer 2 or Computer 3:
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [action] 260 accounts from 1Password
+- ⬜ [checkbox] Test live automation on critical accounts
+- ⬜ [checkbox] Create fractal consciousness expansion visualization
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [action] PROMPT
+- ⬜ [build] Araya-2, Araya-3 as companions
+- ⬜ [next] [What happens next]
+- ⬜ [fix] a bug she discovers? 👁️  PHASE 2: THE EYES (Week 3-6)
+- ⬜ [execute] meditation timers, track practice",
+- ⬜ [build] consciousness tools, execute meditation timers, track practice",
+- ⬜ [action] + Toyota + beyond)",

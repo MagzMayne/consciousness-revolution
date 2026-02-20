@@ -1,0 +1,111 @@
+# Blueprint: 5_GROW
+**Category:** domain
+**Atoms:** 174
+**Molecules:** 1
+**Completeness:** 100.0%
+**Generated:** 2026-01-10 06:28:03
+
+## Description
+Auto-generated blueprint for 5_GROW
+
+## Actions
+- ⬜ [build] N8N workflows
+- ⬜ [build] message queues and coordination systems
+- ⬜ [fix] (Not What It Seems)
+- ⬜ [todo] completion feedback"""
+- ⬜ [todo] type weight adjustments"""
+- ⬜ [checkbox] # Domain adjustments
+- ⬜ [todo] stack. #Location: 6_LEARN/6_BUILD/
+- ⬜ [next] [What happens next]
+- ⬜ [next] ?\s*(.+?)(?:\n|$)",
+- ⬜ [build] ?\s*(.+?)(?:\n|$)",
+- ⬜ [fix] ?\s*(.+?)(?:\n|$)",
+- ⬜ [todo] dict for modifier calculation
+- ⬜ [build] todo dict for modifier calculation
+- ⬜ [checkbox] shuffled = []
+- ⬜ [checkbox] by_domain[domain].append(todo)
+- ⬜ [checkbox] stats = defaultdict(int)
+- ⬜ [todo] Extractor
+- ⬜ [todo] EXTRACTOR
+- ⬜ [next] [What happens next]
+- ⬜ [next] next steps
+- ⬜ [action] action items
+- ⬜ [action] \s*(.+)', 'action'),         # ACTION: something
+- ⬜ [build] items important
+- ⬜ [checkbox] checkbox format
+- ⬜ [checkbox] unchecked
+- ⬜ [build] {{ background: rgba(0, 255, 136, 0.2); color: var(--accent-green); }}
+- ⬜ [checkbox] stats = {
+- ⬜ [checkbox] for tool in sorted(tools, key=lambda x: (x["domain"], x["name"])):
+- ⬜ [build] upon |
+- ⬜ [build] 1_COMMAND_CONNECT
+- ⬜ [build] tools | `function:build` |
+- ⬜ [next] [What happens next]
+- ⬜ [build] [What does this build/create?]
+- ⬜ [build] Creates payment checkout flow + subscription tiers
+- ⬜ [step] WHEN was this created? → Add date
+- ⬜ [step] WHY does this exist? → Add intent
+- ⬜ [build] | 3_CONNECT | 4_PROTECT | 5_GROW | 6_LEARN | 7_TRANSCEND
+- ⬜ [build] | _CONNECT | _PROTECT | _GROW | _LEARN | _TRANSCEND
+- ⬜ [step] DOMAIN - "This is mainly about..."
+- ⬜ [step] ASPECT - "The ___ perspective of that domain..."
+- ⬜ [next] [What happens next]
+- ⬜ [next] | 7_ITERATE |
+- ⬜ [build] | 2_CREATE, 4_DEPLOY |
+- ⬜ [checkbox] for domain in DOMAINS:
+- ⬜ [checkbox] # Scan Desktop for files outside structure
+- ⬜ [step] Extract content + filename
+- ⬜ [step] Run through 7×7×7 classifier
+- ⬜ [next] ### Recommendations for Consciousness Integration
+- ⬜ [next] level)
+- ⬜ [build] | Sacral | Orange | 417 Hz | Creation |
+- ⬜ [next] [What happens next]
+- ⬜ [build] → Code, projects, tools, construction
+- ⬜ [build] ├── 2_BUILD/    ← Pure build (code, tools)
+- ⬜ [step] What's the PRIMARY domain?
+- ⬜ [step] What ASPECT of that domain?
+- ⬜ [next] [What happens next]
+- ⬜ [next] Conveyor belt automation
+- ⬜ [next] [What happens next]
+- ⬜ [action] 1. **Shopify** - Revenue stream offline
+- ⬜ [build] | `2_BUILD/` | Code, projects, things you're making |
+- ⬜ [next] [What happens next]
+- ⬜ [checkbox] Zapier template library
+- ⬜ [checkbox] N8N workflow examples
+- ⬜ [next] ACTIONS
+- ⬜ [build] | AUTOMATE | Automation scripts, APIs |
+- ⬜ [build] Suno downloader for ARAYA
+- ⬜ [checkbox] Browser Claude download guide
+- ⬜ [checkbox] ChatGPT app setup guide
+- ⬜ [next] [What happens next]
+- ⬜ [build] (Factory Floor)
+- ⬜ [next] [What happens next]
+- ⬜ [action] ** Consolidate into one SACRED_GEOMETRY_PLAYGROUND.html
+- ⬜ [build] Inventory
+- ⬜ [build] INVENTORY
+- ⬜ [next] Step:** Build SACRED_GEOMETRY_PLAYGROUND.html and begin professional polish of 7 domains.
+- ⬜ [build] SACRED_GEOMETRY_PLAYGROUND.html
+- ⬜ [build] component library
+- ⬜ [checkbox] Build SACRED_GEOMETRY_PLAYGROUND.html
+- ⬜ [checkbox] Update 25 Stonehenge references
+- ⬜ [next] [What happens next]
+- ⬜ [next] STEPS (Updated Dec 27, 2025)
+- ⬜ [build] | Code, projects | VS Code, Docker, Git, Cursor, Claude CLI |
+- ⬜ [build] (Code & Projects)
+- ⬜ [next] session. Wave 1 complete. Infrastructure awaits.*
+- ⬜ [build] file structure that "makes itself"~~ ✅ DONE (tools/ folders created)
+- ⬜ [build] | `7_TRANSCEND/_BUILD/music/` |
+- ⬜ [build] | _BUILD | `2_BUILD/_BUILD/scripts/` |
+- ⬜ [checkbox] Create inner folders in each domain
+- ⬜ [checkbox] Migrate existing files to fractal structure
+- ⬜ [next] [What happens next]
+- ⬜ [next] Next action
+- ⬜ [action] - trinity: C1/C2/C3 focus areas
+- ⬜ [action] (d8_next)
+- ⬜ [build] | `Desktop/2_BUILD/_BOOTSTRAP.json` | ✓ Created |
+- ⬜ [build] conscious network of builders | C1=Communicate, C2=Structure, C3=Harmony |
+- ⬜ [build] domain-specific tools** using bootstrap metadata
+- ⬜ [next] [What happens next]
+- ⬜ [action] Injection** - Fill forms, click buttons, navigate
+- ⬜ [action] → ARAYA DETECTION → WORKFLOW SUGGESTION     │
+- ⬜ [build] ║          │

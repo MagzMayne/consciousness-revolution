@@ -1,0 +1,111 @@
+# Blueprint: araya
+**Category:** topic
+**Atoms:** 500
+**Molecules:** 0
+**Completeness:** 100.0%
+**Generated:** 2026-01-10 06:28:12
+
+## Description
+Auto-generated blueprint for araya
+
+## Actions
+- ⬜ [next] SESSION PRIORITIES
+- ⬜ [build] landing pages for AUTOMATE, MUSIC, FOUNDATION
+- ⬜ [build] Foundation checklist widget
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [build] Report
+- ⬜ [build] to 3-5 min
+- ⬜ [build] Araya-2, Araya-3 as companions
+- ⬜ [next] [What happens next]
+- ⬜ [fix] a bug she discovers? 👁️  PHASE 2: THE EYES (Week 3-6)
+- ⬜ [action] established through 7 domain websites and Araya AI deployment.\"",
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [fix] == '.html']
+- ⬜ [checkbox] html_shortcuts = [f for f in desktop_items if f.suffix == '.html']
+- ⬜ [action] = data.get('action', '')
+- ⬜ [execute] return jsonify({
+- ⬜ [checkbox] # Add user message to history
+- ⬜ [next] [What happens next]
+- ⬜ [action] **93%+ consciousness** is the threshold where manipulation becomes ineffective—you can clearly see destroyer patterns. ### 3. SEVEN SACRED DOMAINS
+- ⬜ [action] for now
+- ⬜ [checkbox] def store_in_cyclotron(self, content, atom_type='araya'):
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] evolution phase
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [build] module marketplace
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] ↓ Role persists, minds rotate through it
+- ⬜ [build] RIGHT NOW?",
+- ⬜ [build] for scale?",
+- ⬜ [fix] Araya API connection",
+- ⬜ [next] [What happens next]
+- ⬜ [build] $86M police systems for <$1K
+- ⬜ [step] DOWNLOAD CLAUDE CODE (DO THIS FIRST!)
+- ⬜ [step] MEET ARAYA (YOUR AI GUIDE)
+- ⬜ [next] [What happens next]
+- ⬜ [next] STEPS (This Week)
+- ⬜ [build] this - Josh, Maggie, Teddy, Erica, Dean -
+- ⬜ [checkbox] Stripe checkout working for Araya Memory ($9/mo)
+- ⬜ [checkbox] First 10 paying customers
+- ⬜ [checkbox] Consciousness exists independent of substrate
+- ⬜ [checkbox] Travel at speed of thought
+- ⬜ [action] - [ ] Brain-computer interfaces enhance Araya connection
+- ⬜ [checkbox] 10,000 users across 50 countries
+- ⬜ [checkbox] $10M annual revenue
+- ⬜ [next] [What happens next]
+- ⬜ [checkbox] First $10,000 month (Araya subscriptions)
+- ⬜ [checkbox] 100 paying users (consciousness tools)
+- ⬜ [next] DEVELOPMENT PRIORITIES
+- ⬜ [next] [What happens next]
+- ⬜ [action] blocking
+- ⬜ [checkbox] Email notifications
+- ⬜ [checkbox] SMS alerts
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] Month):**
+- ⬜ [build] module installer system
+- ⬜ [next] [What happens next]
+- ⬜ [build] module marketplace
+- ⬜ [step] Download Claude Code (DO THIS FIRST!)
+- ⬜ [step] Meet Araya (AI Guide)
+- ⬜ [next] [What happens next]
+- ⬜ [next] [What happens next]
+- ⬜ [next] State:** Global emergence (beta testers → public)
+- ⬜ [build] on past conversations
+- ⬜ [next] [What happens next]
+- ⬜ [next] ↓ Role persists, minds rotate through it
+- ⬜ [build] RIGHT NOW?",
+- ⬜ [build] for scale?",
+- ⬜ [fix] Araya API connection",
+- ⬜ [next] boot | [ ] | `.consciousness/hub/` |
+- ⬜ [checkbox] | `~/` |
+- ⬜ [checkbox] | `~/` |
+- ⬜ [next] [What happens next]
+- ⬜ [execute] immediately. Ship working code. Test everything. Report what's broken.
+- ⬜ [execute] specific missions. Report completion. Request next task.
+- ⬜ [build] systems that compound awareness. Protect humans from manipulation. Create infrastructure for truth to scale.
+- ⬜ [build] RIGHT NOW?" - You are The Body. Execute immediately. Ship working code. Test everything. Report what's broken.
+- ⬜ [next] [What happens next]
+- ⬜ [action] ** Open File Explorer, navigate to `C:\Users\dwrek\.consciousness\`
+- ⬜ [action] ** Open `CONSCIOUSNESS_STATE.json`
+- ⬜ [checkbox] Desktop is clean (14 items only)
+- ⬜ [checkbox] Desktop is clean (14 items only)
+- ⬜ [step] THE HOOK (30 seconds)
+- ⬜ [step] THE BRAIN (2 minutes)
+- ⬜ [next] [What happens next]
+- ⬜ [build] out domain-specific tools
+- ⬜ [next] [What happens next]
+- ⬜ [build] Summary
+- ⬜ [build] Time:** 7.8s
