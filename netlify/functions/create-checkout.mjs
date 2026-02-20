@@ -1,28 +1,35 @@
 // Create Checkout - Netlify Function
 // Creates Stripe checkout session for course/product purchases
+// Updated: 2026-02-18 - Security hardening (CORS, rate limiting)
+
+import {
+    getSecureCORSHeaders,
+    handlePreflight,
+    checkRateLimit,
+    anonymizeIP,
+    errorResponse,
+    successResponse
+} from './utils/security.mjs';
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
 export async function handler(event, context) {
+    const origin = event.headers.origin || event.headers.Origin || '';
+
     // Handle CORS preflight
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
-            },
-            body: ''
-        };
+        return handlePreflight(origin);
     }
 
     if (event.httpMethod !== 'POST') {
-        return {
-            statusCode: 405,
-            headers: { 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Method not allowed' })
-        };
+        return errorResponse('Method not allowed', origin, 405);
+    }
+
+    // Rate limiting - 20 checkout attempts per hour per IP
+    const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
+    const rateLimitCheck = checkRateLimit(`checkout_${anonymizeIP(clientIP)}`, 20, 3600000);
+    if (!rateLimitCheck.allowed) {
+        return errorResponse('Too many requests. Please try again later.', origin, 429);
     }
 
     try {
@@ -30,11 +37,7 @@ export async function handler(event, context) {
         const finalEmail = customerEmail || email;
 
         if (!STRIPE_SECRET_KEY) {
-            return {
-                statusCode: 500,
-                headers: { 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ error: 'Stripe not configured' })
-            };
+            return errorResponse('Payment system not configured', origin, 503);
         }
 
         // Use default price if not provided
@@ -60,33 +63,18 @@ export async function handler(event, context) {
         if (!response.ok) {
             const error = await response.text();
             console.error('Stripe error:', error);
-            return {
-                statusCode: 500,
-                headers: { 'Access-Control-Allow-Origin': '*' },
-                body: JSON.stringify({ error: 'Failed to create checkout session' })
-            };
+            return errorResponse('Failed to create checkout session', origin, 500);
         }
 
         const session = await response.json();
 
-        return {
-            statusCode: 200,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                sessionId: session.id,
-                url: session.url
-            })
-        };
+        return successResponse({
+            sessionId: session.id,
+            url: session.url
+        }, origin);
 
     } catch (error) {
         console.error('Checkout error:', error);
-        return {
-            statusCode: 500,
-            headers: { 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Failed to create checkout' })
-        };
+        return errorResponse('Failed to create checkout', origin, 500);
     }
 }

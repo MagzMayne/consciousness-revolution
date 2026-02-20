@@ -1138,6 +1138,37 @@ function analyzePatterns(text) {
     };
 }
 
+// Call Ollama (local AI - works offline)
+async function callOllama(messages, model = 'deepseek-r1:1.5b') {
+    // Convert messages to single prompt for Ollama
+    const prompt = messages.map(m => {
+        if (m.role === 'system') return `System: ${m.content}`;
+        if (m.role === 'assistant') return `Araya: ${m.content}`;
+        return `User: ${m.content}`;
+    }).join('\n\n') + '\n\nAraya:';
+
+    const response = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model,
+            prompt,
+            stream: false,
+            options: {
+                temperature: 0.8,
+                num_predict: 2000
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Ollama error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response;
+}
+
 // Call AI API
 async function callAI(messages, useDeepSeek = true) {
     const apiKey = useDeepSeek ? DEEPSEEK_API_KEY : OPENAI_API_KEY;
@@ -1263,13 +1294,32 @@ async function callClaudeVision(textPrompt, imageAttachments) {
     return data.content[0].text;
 }
 
+// Security: Allowed origins for CORS (no wildcard)
+const ALLOWED_ORIGINS = [
+    'https://conciousnessrevolution.io',
+    'https://www.conciousnessrevolution.io',
+    'https://verdant-tulumba-fa2a5a.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:8888'
+];
+
+function getCorsOrigin(headers) {
+    const origin = headers?.origin || headers?.Origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        return origin;
+    }
+    return ALLOWED_ORIGINS[0];
+}
+
 export async function handler(event, context) {
+    const corsOrigin = getCorsOrigin(event.headers);
+
     // CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
@@ -1280,7 +1330,7 @@ export async function handler(event, context) {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers: { 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Access-Control-Allow-Origin': corsOrigin },
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -1297,8 +1347,8 @@ export async function handler(event, context) {
         console.error('[CONFIG ERROR] Missing required environment variables:', missingVars);
         return {
             statusCode: 503,
-            headers: { 
-                'Access-Control-Allow-Origin': '*',
+            headers: {
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -1334,7 +1384,7 @@ export async function handler(event, context) {
                 return {
                     statusCode: 200,
                     headers: {
-                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Origin': corsOrigin,
                         'Content-Type': 'application/json',
                         'X-Routed-Via': 'Railway'
                     },
@@ -1349,7 +1399,7 @@ export async function handler(event, context) {
         if (!message && attachments.length === 0) {
             return {
                 statusCode: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' },
+                headers: { 'Access-Control-Allow-Origin': corsOrigin, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ error: 'Missing message' })
             };
         }
@@ -1385,7 +1435,7 @@ export async function handler(event, context) {
             return {
                 statusCode: 200,
                 headers: {
-                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Origin': corsOrigin,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -1988,9 +2038,17 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                     response = await callAI(messages, false);
                     apiMode = 'openai_fallback';
                 } catch (openaiError) {
-                    console.error('OpenAI fallback also failed:', openaiError);
-                    response = "I can see you sent an image but I'm having trouble processing it right now. Can you describe what you'd like me to look at?";
-                    apiMode = 'fallback';
+                    console.error('OpenAI fallback also failed, trying Ollama:', openaiError);
+                    // Final fallback for images: Ollama (can't see images but can respond)
+                    try {
+                        const textOnlyMessages = [...messages];
+                        textOnlyMessages.push({ role: 'user', content: `[User sent an image that I cannot see in offline mode. The user asked: ${fullMessage || 'What do you see?'}] Please acknowledge you cannot see the image and offer to help once they describe it.` });
+                        response = await callOllama(textOnlyMessages);
+                        apiMode = 'ollama_offline_no_vision';
+                    } catch (ollamaError) {
+                        response = "I can see you sent an image but all my AI connections are down. If you're offline, make sure Ollama is running. Can you describe what you'd like me to look at?";
+                        apiMode = 'all_failed';
+                    }
                 }
             }
         } else {
@@ -2002,8 +2060,17 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                     response = await callAI(messages, false);
                     apiMode = 'openai';
                 } catch (openaiError) {
-                    response = "My connection glitched. Try again?";
-                    apiMode = 'fallback';
+                    console.error('OpenAI also failed, trying Ollama (local):', openaiError);
+                    // Final fallback: Ollama local AI (works offline!)
+                    try {
+                        response = await callOllama(messages);
+                        apiMode = 'ollama_offline';
+                        console.log('✓ Ollama offline mode successful');
+                    } catch (ollamaError) {
+                        console.error('All AI providers failed including Ollama:', ollamaError);
+                        response = "All my AI connections are down. If you're offline, make sure Ollama is running (ollama serve). Try again?";
+                        apiMode = 'all_failed';
+                    }
                 }
             }
         }
@@ -2016,7 +2083,7 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         return {
             statusCode: 200,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -2047,7 +2114,7 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         return {
             statusCode: 500,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({

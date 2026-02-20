@@ -1,3 +1,18 @@
+/**
+ * security.mjs - Consciousness Revolution
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Copyright (c) 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * IP Classification: TIER 1 - TRADE SECRET
+ * Contact: darrickpreble@proton.me
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
 // ═══════════════════════════════════════════════════════════════
 // ZERO TRUST SECURITY UTILITIES
 // Centralized security functions for all Netlify functions

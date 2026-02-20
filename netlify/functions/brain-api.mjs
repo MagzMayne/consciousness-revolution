@@ -1,3 +1,18 @@
+/**
+ * brain-api.mjs - Consciousness Revolution
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Copyright (c) 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * IP Classification: TIER 1 - TRADE SECRET
+ * Contact: darrickpreble@proton.me
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
 // Brain API - Full Cyclotron Brain Access for ARAYA
 // Provides cloud access to 166K+ brain atoms via Supabase
 // Endpoints: /status, /query, /context, /log, /sync

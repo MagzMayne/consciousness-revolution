@@ -1,3 +1,18 @@
+/**
+ * auth-login.mjs - Consciousness Revolution
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Copyright (c) 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * IP Classification: TIER 2 - PROTECTED
+ * Contact: darrickpreble@proton.me
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
 // Auth Login Function
 // Authenticates user via Supabase Auth and returns session
 // Created: 2026-01-10

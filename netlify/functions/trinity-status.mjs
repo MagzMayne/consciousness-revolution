@@ -137,10 +137,29 @@ async function getBrainStats() {
     return defaultBrain;
 }
 
+// Security: Allowed origins for CORS (no wildcard)
+const ALLOWED_ORIGINS = [
+    'https://conciousnessrevolution.io',
+    'https://www.conciousnessrevolution.io',
+    'https://verdant-tulumba-fa2a5a.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:8888'
+];
+
+function getCorsOrigin(request) {
+    const origin = request.headers.get('origin') || request.headers.get('Origin');
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        return origin;
+    }
+    // Default to main domain for non-browser requests
+    return ALLOWED_ORIGINS[0];
+}
+
 // Netlify Functions v2 format
 export default async function handler(request) {
+    const corsOrigin = getCorsOrigin(request);
     const headers = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Content-Type': 'application/json'
