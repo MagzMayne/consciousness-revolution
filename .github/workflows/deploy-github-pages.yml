@@ -3,13 +3,26 @@
 # Purpose: Deploy the static site to GitHub Pages as a backup hosting option.
 #          When Netlify is unavailable, the site remains accessible at:
 #          https://overkor-tek.github.io/consciousness-revolution/
-#          (or at the custom domain if DNS is updated to point to GitHub Pages)
+#
+# Why this workflow exists:
+#   The primary site runs on Netlify (consciousnessrevolution.io).  When Netlify
+#   is unavailable (e.g. payment pending), GitHub Pages at the github.io URL
+#   serves as an automatic backup.
+#
+# Two problems this workflow solves:
+#   1. CNAME redirect: If a CNAME file is present in the gh-pages branch GitHub
+#      Pages redirects the github.io URL to the custom domain, which defeats the
+#      purpose of the backup.  We therefore exclude CNAME from the deployment.
+#   2. Root-relative paths: The source files use root-relative paths (e.g.
+#      src="/js/foo.js") that work fine at a domain root but break when the site
+#      is served at the /consciousness-revolution/ subpath on GitHub Pages.
+#      A path-fixing script rewrites those paths before publishing.
 #
 # Triggers: Every push to main/master, plus manual dispatch
 # Critical: YES - Provides site availability when Netlify is down
 #
-# Note: This workflow pushes to the gh-pages branch. In GitHub repository
-# Settings → Pages, set the source to "Deploy from a branch" → gh-pages / root.
+# Note: In GitHub repository Settings → Pages, set the source to
+#       "Deploy from a branch" → gh-pages / root.
 
 name: Deploy to GitHub Pages
 
@@ -33,14 +46,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare deploy directory
+        run: |
+          mkdir -p /tmp/gh-pages-deploy
+          # Copy all files except CNAME and node_modules.
+          # Excluding CNAME prevents GitHub Pages from configuring a custom-domain
+          # redirect that would send github.io visitors to the (potentially down)
+          # Netlify domain.
+          rsync -a \
+            --exclude='.git' \
+            --exclude='CNAME' \
+            --exclude='node_modules' \
+            . /tmp/gh-pages-deploy/
+
+          # Rewrite root-relative paths (e.g. src="/js/foo.js") so they resolve
+          # correctly when served from the /consciousness-revolution/ subpath.
+          python3 .github/scripts/fix-gh-pages-paths.py /tmp/gh-pages-deploy
+
       - name: Deploy to gh-pages branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          # This repo's static site lives at the repo root (300+ HTML files).
-          # GitHub Pages never serves .git/ or .github/, so deploying from .
-          # is safe and correct here.
-          folder: .
+          folder: /tmp/gh-pages-deploy
           # Remove stale files from the gh-pages branch so deleted source
           # files don't linger in the deployment.
           clean: true
@@ -51,4 +78,5 @@ jobs:
           echo "**URL:** https://overkor-tek.github.io/consciousness-revolution/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Content deployed to the \`gh-pages\` branch." >> $GITHUB_STEP_SUMMARY
+          echo "CNAME excluded – github.io URL is served directly (no Netlify redirect)." >> $GITHUB_STEP_SUMMARY
           echo "Ensure GitHub Pages source is set to: **gh-pages branch / root**" >> $GITHUB_STEP_SUMMARY
