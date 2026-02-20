@@ -195,15 +195,19 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         <button onclick="location.reload()">🔄 TRY RECONNECTING</button>
         <button onclick="window.history.back()">← GO BACK</button>
 
-        <div style="margin-top: 25px; padding: 15px; background: rgba(0,100,255,0.1); border: 1px solid rgba(0,100,255,0.4); border-radius: 10px;">
+        <div id="backup-section" style="margin-top: 25px; padding: 15px; background: rgba(0,100,255,0.1); border: 1px solid rgba(0,100,255,0.4); border-radius: 10px;">
             <p style="color: #88aaff; font-size: 0.95em; margin-bottom: 8px;"><strong>🔗 Backup Access</strong></p>
             <p style="font-size: 0.85em; color: #8addff;">
                 If the main site is down, you can access a backup at:<br>
                 <a href="https://overkor-tek.github.io/consciousness-revolution/"
-                   style="color: #00ffff; word-break: break-all;"
-                   target="_blank" rel="noopener">
+                   id="backup-link"
+                   style="color: #00ffff; word-break: break-all;">
                     overkor-tek.github.io/consciousness-revolution/
                 </a>
+            </p>
+            <p id="redirect-countdown" style="display:none; color: #ffa500; font-size: 0.85em; margin-top: 8px;">
+                Redirecting to backup in <span id="countdown-num">10</span>s…
+                <button onclick="cancelRedirect()" style="padding:4px 10px; font-size:0.8em; margin-left:8px;">Cancel</button>
             </p>
         </div>
 
@@ -225,6 +229,49 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 location.reload();
             }
         }, 5000);
+
+        // Auto-redirect to GitHub Pages backup when primary domain is unreachable
+        const FALLBACK_URL = 'https://overkor-tek.github.io/consciousness-revolution/';
+        // Wait 1.5 s for the page to settle before deciding whether to redirect
+        const PROBE_DELAY_MS = 1500;
+        let redirectTimer = null;
+        let countdownInterval = null;
+        let redirectCancelled = false;
+
+        function cancelRedirect() {
+            redirectCancelled = true;
+            clearTimeout(redirectTimer);
+            clearInterval(countdownInterval);
+            document.getElementById('redirect-countdown').style.display = 'none';
+        }
+
+        function startRedirectCountdown(seconds) {
+            const countdownEl = document.getElementById('redirect-countdown');
+            const numEl = document.getElementById('countdown-num');
+            countdownEl.style.display = 'block';
+            numEl.textContent = seconds;
+            let remaining = seconds;
+            countdownInterval = setInterval(() => {
+                remaining--;
+                numEl.textContent = remaining;
+                if (remaining <= 0) clearInterval(countdownInterval);
+            }, 1000);
+            redirectTimer = setTimeout(() => {
+                if (!redirectCancelled) {
+                    window.location.href = FALLBACK_URL;
+                }
+            }, seconds * 1000);
+        }
+
+        // If the browser has internet access but we are still on the offline page,
+        // the primary domain server is down — auto-redirect to the GitHub Pages backup.
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (navigator.onLine) {
+                    startRedirectCountdown(10);
+                }
+            }, PROBE_DELAY_MS);
+        });
     </script>
 
 <!-- PayPal Integration -->

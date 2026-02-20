@@ -55,6 +55,7 @@
 
 const CACHE_NAME = 'barbrickdesign-v10-resilient';
 const OFFLINE_URL = 'offline.html';
+const FALLBACK_URL = 'https://overkor-tek.github.io/consciousness-revolution/';
 
 // Critical pages to pre-cache for resilience when hosting is unavailable
 const CACHE_URLS = [
@@ -206,8 +207,11 @@ self.addEventListener('fetch', (event) => {
                             return networkResponse;
                         })
                         .catch(() => {
-                            // Network failed - return offline page if no cached version
+                            // Network failed - redirect navigation requests to GitHub Pages fallback
                             if (!cachedResponse) {
+                                if (event.request.mode === 'navigate') {
+                                    return Response.redirect(FALLBACK_URL, 302);
+                                }
                                 return caches.match(OFFLINE_URL);
                             }
                         });
@@ -231,7 +235,12 @@ self.addEventListener('fetch', (event) => {
                 })
                 .catch(() => {
                     return caches.match(event.request).then((response) => {
-                        return response || new Response('Offline - Content not available', {
+                        if (response) return response;
+                        // No cached response - redirect navigation requests to GitHub Pages fallback
+                        if (event.request.mode === 'navigate') {
+                            return Response.redirect(FALLBACK_URL, 302);
+                        }
+                        return new Response('Offline - Content not available', {
                             status: 503,
                             statusText: 'Service Unavailable',
                             headers: new Headers({
