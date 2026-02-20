@@ -5,8 +5,11 @@
 #          https://overkor-tek.github.io/consciousness-revolution/
 #          (or at the custom domain if DNS is updated to point to GitHub Pages)
 #
-# Triggers: Every push to main, plus manual dispatch
+# Triggers: Every push to main/master, plus manual dispatch
 # Critical: YES - Provides site availability when Netlify is down
+#
+# Note: This workflow pushes to the gh-pages branch. In GitHub repository
+# Settings → Pages, set the source to "Deploy from a branch" → gh-pages / root.
 
 name: Deploy to GitHub Pages
 
@@ -16,9 +19,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -27,30 +28,27 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to GitHub Pages
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: '.'
+          branch: gh-pages
+          # This repo's static site lives at the repo root (300+ HTML files).
+          # GitHub Pages never serves .git/ or .github/, so deploying from .
+          # is safe and correct here.
+          folder: .
+          # Remove stale files from the gh-pages branch so deleted source
+          # files don't linger in the deployment.
+          clean: true
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Report deployment URL
+      - name: Report deployment
         run: |
           echo "## GitHub Pages Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "**Fallback URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://overkor-tek.github.io/consciousness-revolution/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "This GitHub Pages deployment serves as a backup when Netlify is unavailable." >> $GITHUB_STEP_SUMMARY
-          echo "To use this as the primary host, update DNS to point to GitHub Pages IPs." >> $GITHUB_STEP_SUMMARY
+          echo "Content deployed to the \`gh-pages\` branch." >> $GITHUB_STEP_SUMMARY
+          echo "Ensure GitHub Pages source is set to: **gh-pages branch / root**" >> $GITHUB_STEP_SUMMARY
