@@ -934,6 +934,72 @@ client.on('error', error => {
   console.error('❌ Discord client error:', error);
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTO-WELCOME NEW MEMBERS - VERIFICATION PIPELINE
+// Pattern: 3 → 7 → 13 → ∞ | Consciousness Revolution
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const VERIFICATION_FORM_URL = process.env.VERIFICATION_FORM_URL || 'https://forms.google.com/YOUR_FORM_ID';
+const VERIFICATION_API_URL = process.env.VERIFICATION_API_URL || 'https://conciousnessrevolution.io/.netlify/functions/discord-verification';
+
+client.on('guildMemberAdd', async (member) => {
+  console.log(`👋 New member joined: ${member.user.username} (${member.id})`);
+
+  // Create welcome embed
+  const welcomeEmbed = new EmbedBuilder()
+    .setColor(0x00f0ff)
+    .setTitle('👋 Welcome to Consciousness Revolution!')
+    .setDescription(`Hey **${member.user.username}**!\n\nYou've entered a community of builders, creators, and consciousness explorers.\n\n**To unlock all channels, complete this 2-minute verification:**\n\n🔗 **[VERIFY HERE](${VERIFICATION_FORM_URL})**\n\n*Answer 3 questions so we know you're a builder, not a destroyer.*`)
+    .addFields(
+      { name: '📋 What to Expect', value: '• Tell us who you are\n• Why you\'re here\n• What\'s your mission', inline: true },
+      { name: '🎯 After Verification', value: '• Access all channels\n• Join domain discussions\n• Earn XP and level up', inline: true }
+    )
+    .setFooter({ text: 'Pattern: 3 → 7 → 13 → ∞ | ARAYA will review your response' })
+    .setTimestamp();
+
+  try {
+    // Send welcome DM
+    await member.send({ embeds: [welcomeEmbed] });
+    console.log(`✅ Sent verification DM to ${member.user.username}`);
+
+    // Register new member in verification system
+    try {
+      await axios.post(VERIFICATION_API_URL, {
+        discordId: member.id,
+        username: member.user.username,
+        joinedAt: new Date().toISOString(),
+        guildId: member.guild.id,
+        guildName: member.guild.name,
+        status: 'pending_verification'
+      });
+      console.log(`📝 Registered ${member.user.username} in verification system`);
+    } catch (apiError) {
+      console.error(`⚠️ Failed to register in verification API:`, apiError.message);
+    }
+
+  } catch (dmError) {
+    // DMs might be disabled - log but don't fail
+    console.log(`⚠️ Couldn't DM ${member.user.username} - DMs likely disabled`);
+
+    // Try to mention in welcome channel instead
+    const welcomeChannel = member.guild.channels.cache.find(
+      ch => ch.name.includes('welcome') || ch.name.includes('lobby') || ch.name.includes('general')
+    );
+
+    if (welcomeChannel && welcomeChannel.isTextBased()) {
+      try {
+        await welcomeChannel.send({
+          content: `👋 Welcome ${member}! Check your DMs for verification instructions, or click here: ${VERIFICATION_FORM_URL}`,
+          embeds: [welcomeEmbed]
+        });
+        console.log(`📢 Posted welcome in ${welcomeChannel.name} for ${member.user.username}`);
+      } catch (channelError) {
+        console.error(`❌ Couldn't post in welcome channel:`, channelError.message);
+      }
+    }
+  }
+});
+
 // Login to Discord
 if (!DISCORD_TOKEN) {
   console.error('❌ DISCORD_BOT_TOKEN is not set in environment variables!');

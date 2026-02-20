@@ -55,6 +55,61 @@ const GENERIC_PATTERNS = [
     /^.{1,10}$/  // Less than 10 characters total
 ];
 
+// Social media link extraction (Pattern: 3 → 7 → 13 → ∞)
+function extractSocialLinks(text) {
+    if (!text) return {};
+
+    const socials = {
+        twitter: null,
+        instagram: null,
+        linkedin: null,
+        github: null,
+        youtube: null,
+        tiktok: null,
+        website: null
+    };
+
+    // Twitter/X patterns
+    const twitterMatch = text.match(/(?:twitter\.com|x\.com)\/(\w+)/i) ||
+                         text.match(/@(\w{1,15})(?:\s|$)/);
+    if (twitterMatch) socials.twitter = twitterMatch[1];
+
+    // Instagram patterns
+    const instaMatch = text.match(/instagram\.com\/([^\/\s\?]+)/i) ||
+                       text.match(/ig:\s*@?(\w+)/i);
+    if (instaMatch) socials.instagram = instaMatch[1];
+
+    // LinkedIn patterns
+    const linkedinMatch = text.match(/linkedin\.com\/in\/([^\/\s\?]+)/i);
+    if (linkedinMatch) socials.linkedin = linkedinMatch[1];
+
+    // GitHub patterns
+    const githubMatch = text.match(/github\.com\/([^\/\s\?]+)/i);
+    if (githubMatch) socials.github = githubMatch[1];
+
+    // YouTube patterns
+    const youtubeMatch = text.match(/youtube\.com\/@?([^\/\s\?]+)/i) ||
+                         text.match(/youtu\.be\/([^\/\s\?]+)/i);
+    if (youtubeMatch) socials.youtube = youtubeMatch[1];
+
+    // TikTok patterns
+    const tiktokMatch = text.match(/tiktok\.com\/@([^\/\s\?]+)/i);
+    if (tiktokMatch) socials.tiktok = tiktokMatch[1];
+
+    // Generic website (capture first valid URL that's not a known social)
+    const urlMatch = text.match(/https?:\/\/(?!(?:twitter|x|instagram|linkedin|github|youtube|tiktok)\.com)[^\s]+/i);
+    if (urlMatch) socials.website = urlMatch[0];
+
+    // Count how many socials were found
+    const count = Object.values(socials).filter(v => v !== null).length;
+
+    return {
+        ...socials,
+        count,
+        raw: text
+    };
+}
+
 // Supabase helper
 async function supabase(table, method, data = null, query = '') {
     const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
@@ -281,7 +336,7 @@ export async function handler(event) {
         // POST: Submit new verification
         if (event.httpMethod === 'POST') {
             const body = JSON.parse(event.body || '{}');
-            const { userId, username, whoAreYou, whyHere, mission, discordId } = body;
+            const { userId, username, whoAreYou, whyHere, mission, discordId, socialLinks } = body;
 
             if (!whoAreYou || !whyHere || !mission) {
                 return {
@@ -326,6 +381,10 @@ export async function handler(event) {
                                      VERIFICATION_LEVELS.SEEKER :
                                      VERIFICATION_LEVELS.LOBBY;
 
+            // Extract social links from all text fields
+            const allText = `${whoAreYou} ${whyHere} ${mission} ${socialLinks || ''}`;
+            const extractedSocials = extractSocialLinks(allText);
+
             // Store verification record
             const verificationRecord = {
                 user_id: discordId || `pending_${Date.now()}`,
@@ -335,6 +394,7 @@ export async function handler(event) {
                     whoAreYou,
                     whyHere,
                     mission,
+                    socialLinks: socialLinks || '',
                     submittedAt: new Date().toISOString()
                 },
                 verification_analysis: {
@@ -345,6 +405,7 @@ export async function handler(event) {
                     trinityFit,
                     aiReasoning
                 },
+                social_links: extractedSocials,
                 current_level: recommendedLevel,
                 total_xp: 0,
                 builder_score: patternAnalysis.authenticityScore,
@@ -385,7 +446,8 @@ export async function handler(event) {
                         authenticityScore: patternAnalysis.authenticityScore,
                         flags: patternAnalysis.flags,
                         recommendedLevel: recommendedLevel === 1 ? 'SEEKER' : 'LOBBY',
-                        aiReasoning
+                        aiReasoning,
+                        socialLinks: extractedSocials
                     }
                 })
             };
