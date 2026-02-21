@@ -279,9 +279,21 @@ export const ACCESS_TIERS = {
 
 // Get builder by name or discord_id
 export function getBuilder(identifier) {
+    if (!identifier) return null;
+
+    // Normalize: lowercase and replace spaces/hyphens with underscores
+    const normalized = identifier.toLowerCase().replace(/[\s-]/g, '_');
+
+    // First check by object key (e.g., "tiger", "agent_r", "josh_serrano")
+    if (BUILDER_COCKPITS[normalized]) {
+        return BUILDER_COCKPITS[normalized];
+    }
+
+    // Then check by name or discord_id
     const builders = Object.values(BUILDER_COCKPITS);
     return builders.find(b =>
         b.name.toLowerCase() === identifier.toLowerCase() ||
+        b.name.toLowerCase().replace(/[\s-]/g, '_') === normalized ||
         b.discord_id === identifier
     );
 }
