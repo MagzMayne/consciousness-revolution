@@ -168,3 +168,266 @@ export function formatDomainResponse(matches) {
 
     return response;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// VERIFICATION LEVELS - Progression path through the system
+// ═══════════════════════════════════════════════════════════════
+export const VERIFICATION_LEVELS = {
+    LOBBY: { level: 0, name: 'Lobby', xp: 0, access: 'none', desc: 'Just arrived - complete verification to begin' },
+    SEEKER: { level: 1, name: 'Seeker', xp: 0, access: 'basic', desc: 'Verified - exploring consciousness tools' },
+    BUILDER: { level: 2, name: 'Builder', xp: 50, access: 'domains', desc: 'Contributing to the mission' },
+    CONTRIBUTOR: { level: 3, name: 'Contributor', xp: 200, access: 'edit', desc: 'Active builder with edit powers' },
+    ARCHITECT: { level: 4, name: 'Architect', xp: 500, access: 'full', desc: 'Full system access' },
+    ORACLE: { level: 5, name: 'Oracle', xp: 2500, access: 'admin', desc: 'Admin powers - system guardian' }
+};
+
+// What each level unlocks
+export const LEVEL_UNLOCKS = {
+    0: [], // LOBBY - nothing yet
+    1: ['connect', 'protect', 'grow', 'learn', 'transcend', 'awareness', 'journey', 'games'], // SEEKER - free domains
+    2: ['command', 'build', 'personal_cockpit'], // BUILDER - team domains + personal cockpit
+    3: ['araya_edit', 'file_access'], // CONTRIBUTOR - edit powers
+    4: ['full_dashboard', 'all_abilities'], // ARCHITECT - everything
+    5: ['admin', 'user_management'] // ORACLE - admin
+};
+
+// ═══════════════════════════════════════════════════════════════
+// BUILDER COCKPIT REGISTRY - 6 Builders + their personal spaces
+// Pattern: PERSONAL (Inner) → TEAM (Middle) → PUBLIC (Outer)
+// ═══════════════════════════════════════════════════════════════
+export const BUILDER_COCKPITS = {
+    tiger: {
+        name: 'Tiger',
+        role: 'Technical Builder',
+        cockpit: '/OPERATOR_COCKPIT_TIGER.html',
+        discord_id: null, // TODO: get from Discord
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    },
+    alex: {
+        name: 'Alex',
+        role: 'Designer Builder',
+        cockpit: '/OPERATOR_COCKPIT_ALEX.html',
+        discord_id: null,
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    },
+    agent_r: {
+        name: 'Agent R',
+        role: 'AI Agent Builder',
+        cockpit: '/OPERATOR_COCKPIT_AGENT_R.html',
+        discord_id: null,
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    },
+    toby: {
+        name: 'Toby',
+        role: 'Builder',
+        cockpit: '/OPERATOR_COCKPIT_TOBY.html',
+        discord_id: null,
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    },
+    josh_serrano: {
+        name: 'Josh Serrano',
+        role: 'Builder',
+        cockpit: '/OPERATOR_COCKPIT_JOSH_SERRANO.html',
+        discord_id: null,
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    },
+    ryan: {
+        name: 'Ryan',
+        role: 'Builder',
+        cockpit: '/OPERATOR_COCKPIT_RYAN.html',
+        discord_id: null,
+        xp: 0,
+        domain: '2_BUILD',
+        access_tier: 'PERSONAL'
+    }
+};
+
+// 3-TIER ACCESS SYSTEM: PERSONAL → TEAM → PUBLIC
+export const ACCESS_TIERS = {
+    PERSONAL: {
+        level: 0,
+        name: 'Personal',
+        desc: 'Individual builder cockpit - private workspace',
+        scope: 'single_user',
+        edit_permissions: ['own_cockpit', 'own_tasks']
+    },
+    TEAM: {
+        level: 1,
+        name: 'Team',
+        desc: 'Team command center - 6 builders coordination',
+        scope: 'team_members',
+        edit_permissions: ['shared_docs', 'team_tasks', 'collaboration']
+    },
+    PUBLIC: {
+        level: 2,
+        name: 'Public',
+        desc: 'Public consciousness tools - consciousnessrevolution.io',
+        scope: 'all_users',
+        edit_permissions: []
+    }
+};
+
+// Get builder by name or discord_id
+export function getBuilder(identifier) {
+    const builders = Object.values(BUILDER_COCKPITS);
+    return builders.find(b =>
+        b.name.toLowerCase() === identifier.toLowerCase() ||
+        b.discord_id === identifier
+    );
+}
+
+// Get all builders in a domain
+export function getBuildersInDomain(domainKey) {
+    return Object.values(BUILDER_COCKPITS).filter(b => b.domain === domainKey);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DISCORD INTEGRATION - Role to XP Level Mapping
+// ═══════════════════════════════════════════════════════════════
+export const DISCORD_ROLE_MAPPING = {
+    'Lobby': { level: 0, xp: 0, verification: 'LOBBY' },
+    'Seeker': { level: 1, xp: 0, verification: 'SEEKER' },
+    'Builder': { level: 2, xp: 50, verification: 'BUILDER' },
+    'Contributor': { level: 3, xp: 200, verification: 'CONTRIBUTOR' },
+    'Architect': { level: 4, xp: 500, verification: 'ARCHITECT' },
+    'Oracle': { level: 5, xp: 2500, verification: 'ORACLE' }
+};
+
+// Get user level from Discord role name
+export function getLevelFromDiscordRole(roleName) {
+    const normalized = roleName.trim();
+    return DISCORD_ROLE_MAPPING[normalized] || DISCORD_ROLE_MAPPING['Lobby'];
+}
+
+// Get highest level from multiple Discord roles
+export function getHighestLevelFromRoles(roleNames) {
+    let highest = DISCORD_ROLE_MAPPING['Lobby'];
+
+    roleNames.forEach(roleName => {
+        const level = getLevelFromDiscordRole(roleName);
+        if (level.level > highest.level) {
+            highest = level;
+        }
+    });
+
+    return highest;
+}
+
+// Onboarding steps for each level
+export const ONBOARDING_STEPS = {
+    LOBBY: [
+        { step: 1, action: 'verify', desc: 'Complete verification quiz', url: '/verify.html' },
+        { step: 2, action: 'discord', desc: 'Join Discord community', url: 'https://discord.gg/consciousnessrevolution' }
+    ],
+    SEEKER: [
+        { step: 1, action: 'explore', desc: 'Explore the 7 Domains', url: '/SEVEN_DOMAINS_DASHBOARD.html' },
+        { step: 2, action: 'talk', desc: 'Chat with ARAYA about your interests', url: '/araya-chat.html' },
+        { step: 3, action: 'xp', desc: 'Earn 50 XP to become a Builder', url: '/XP_TRACKER.html' }
+    ],
+    BUILDER: [
+        { step: 1, action: 'agreement', desc: 'Sign Builder Agreement', url: '/DNA_BUILDER_AGREEMENT.html' },
+        { step: 2, action: 'cockpit', desc: 'Set up your Builder Cockpit', url: '/BUILDER_COCKPIT.html' },
+        { step: 3, action: 'contribute', desc: 'Make your first contribution', url: '/contribute.html' }
+    ],
+    CONTRIBUTOR: [
+        { step: 1, action: 'araya_builder', desc: 'Try ARAYA Builder Mode', url: '/araya-chat.html?mode=builder' },
+        { step: 2, action: 'github', desc: 'Connect GitHub for code contributions', url: '/github-connect.html' }
+    ],
+    ARCHITECT: [
+        { step: 1, action: 'full_access', desc: 'Access Master Command Center', url: '/MASTER_COMMAND_CENTER.html' },
+        { step: 2, action: 'mentor', desc: 'Mentor new Builders', url: '/mentorship.html' }
+    ],
+    ORACLE: [
+        { step: 1, action: 'admin', desc: 'Admin Dashboard access', url: '/admin-dashboard.html' }
+    ]
+};
+
+// Get user's current level info
+export function getUserLevel(xp, isVerified = false) {
+    if (!isVerified) return VERIFICATION_LEVELS.LOBBY;
+    
+    if (xp >= 2500) return VERIFICATION_LEVELS.ORACLE;
+    if (xp >= 500) return VERIFICATION_LEVELS.ARCHITECT;
+    if (xp >= 200) return VERIFICATION_LEVELS.CONTRIBUTOR;
+    if (xp >= 50) return VERIFICATION_LEVELS.BUILDER;
+    return VERIFICATION_LEVELS.SEEKER;
+}
+
+// Get domains user can access
+export function getAccessibleDomains(level) {
+    const accessible = [];
+    for (let i = 0; i <= level; i++) {
+        accessible.push(...(LEVEL_UNLOCKS[i] || []));
+    }
+    return [...new Set(accessible)]; // Remove duplicates
+}
+
+// Get next steps for user based on level
+export function getNextSteps(levelName) {
+    return ONBOARDING_STEPS[levelName] || [];
+}
+
+// Format onboarding response for ARAYA
+export function formatOnboardingResponse(levelName, xp = 0) {
+    const level = VERIFICATION_LEVELS[levelName];
+    const nextSteps = ONBOARDING_STEPS[levelName] || [];
+    const accessibleDomains = getAccessibleDomains(level.level);
+    
+    let response = `**Your Level: ${level.name}** (${xp} XP)
+`;
+    response += `${level.desc}
+
+`;
+    
+    if (nextSteps.length > 0) {
+        response += `**Next Steps:**
+`;
+        nextSteps.forEach((step, i) => {
+            response += `${i + 1}. [${step.desc}](${step.url})
+`;
+        });
+    }
+    
+    // Show next level target
+    const levels = Object.values(VERIFICATION_LEVELS);
+    const nextLevel = levels.find(l => l.level === level.level + 1);
+    if (nextLevel) {
+        response += `
+**Next Level:** ${nextLevel.name} (${nextLevel.xp} XP needed)
+`;
+    }
+    
+    return response;
+}
+
+// Keywords that trigger onboarding/help routing
+export const HELP_TRIGGERS = [
+    'how can i help',
+    'what can i do',
+    'how do i contribute',
+    'i want to help',
+    'where do i start',
+    'how do i get started',
+    'what should i do',
+    'how can i contribute',
+    'i want to build',
+    'what are the levels',
+    'how do i level up',
+    'what is my level'
+];
+
+// Check if message triggers onboarding
+export function isOnboardingTrigger(message) {
+    const msgLower = message.toLowerCase();
+    return HELP_TRIGGERS.some(trigger => msgLower.includes(trigger));
+}
