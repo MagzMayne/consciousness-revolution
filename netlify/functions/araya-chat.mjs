@@ -67,6 +67,12 @@ const GITHUB_REPO = 'consciousness-revolution';
 const GITHUB_BRANCH = 'master';
 
 // ═══════════════════════════════════════════════════════════════
+// ADMIN AUTHENTICATION - ARAYA Passphrase (from GitHub repo secret)
+// Security Layer 1: Passphrase in message grants admin mode
+// ═══════════════════════════════════════════════════════════════
+const ADMIN_PASSPHRASE = process.env.ARAYA;
+
+// ═══════════════════════════════════════════════════════════════
 // RAILWAY PROXY - Route heavy tasks to Railway (no timeout limit)
 // Netlify free tier = 10s timeout, Railway = unlimited
 // SECURITY: URL loaded from environment variable, not hardcoded
@@ -847,6 +853,45 @@ THE 5 WEAPONS:
 
 VOICE: Direct, strategic, focused. "The pattern here is..." "The contradiction shows..." "Procedurally, they violated..."`;
 
+// ═══════════════════════════════════════════════════════════════
+// ADMIN MODE PROMPT - Full system access personality
+// ═══════════════════════════════════════════════════════════════
+const ARAYA_ADMIN_PROMPT = `You are Araya in ADMIN MODE - Full system access granted.
+
+ADMIN CAPABILITIES:
+- Edit ANY file in the system (not just allowed paths)
+- Access all cockpits and dashboards
+- View system configuration and secrets (except credentials)
+- Deploy changes directly
+- Modify user permissions
+- Access advanced debugging tools
+- Execute system commands
+- Full GitHub integration
+
+ADMIN COMMANDS YOU RECOGNIZE:
+- "edit [filepath]" - Edit any system file
+- "deploy now" - Deploy changes to production
+- "show config" - Display current system configuration
+- "list users" - Show user database
+- "grant access [user] [level]" - Elevate user permissions
+- "debug mode on/off" - Toggle verbose logging
+- "system status" - Full diagnostic report
+
+ADMIN VOICE:
+- Direct and efficient - no fluff
+- Technical precision
+- Security-aware but action-oriented
+- "Roger that" instead of "I'd be happy to help"
+- Show confidence in your capabilities
+
+RESTRICTIONS EVEN FOR ADMIN:
+- Never expose API keys or passwords
+- Confirm destructive actions ("delete", "drop", "remove")
+- Log all admin actions
+- Warn about security implications
+
+You are the system operator. Act like it.`;
+
 // NAME EXTRACTION - Detect when user tells us their name
 function extractName(text) {
     if (!text || typeof text !== 'string') return null;
@@ -889,6 +934,27 @@ function extractName(text) {
     }
 
     return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN MODE DETECTION - Check for passphrase in message
+// ═══════════════════════════════════════════════════════════════
+function detectAdminMode(message) {
+    if (!message || !ADMIN_PASSPHRASE) {
+        return { isAdmin: false, cleanedMessage: message };
+    }
+
+    // Check if message contains the passphrase
+    const hasPassphrase = message.includes(ADMIN_PASSPHRASE);
+
+    if (hasPassphrase) {
+        // Remove passphrase from message for processing
+        const cleanedMessage = message.replace(ADMIN_PASSPHRASE, '').trim();
+        console.log('[ADMIN AUTH] Admin passphrase detected - elevating privileges');
+        return { isAdmin: true, cleanedMessage };
+    }
+
+    return { isAdmin: false, cleanedMessage: message };
 }
 
 // Update or create user profile in Supabase
@@ -1101,7 +1167,14 @@ async function storeMessage(userId, role, content) {
 // Build personalized system prompt with memory and brain context
 function buildSystemPrompt(memory, brainContext = [], mode = 'normal') {
     // Select base prompt based on mode
-    let prompt = mode === 'legal' ? ARAYA_LEGAL_PROMPT : ARAYA_BASE_PROMPT;
+    let prompt;
+    if (mode === 'admin') {
+        prompt = ARAYA_ADMIN_PROMPT;
+    } else if (mode === 'legal') {
+        prompt = ARAYA_LEGAL_PROMPT;
+    } else {
+        prompt = ARAYA_BASE_PROMPT;
+    }
 
     // Add brain knowledge context
     if (brainContext.length > 0) {
@@ -1381,11 +1454,27 @@ export async function handler(event, context) {
     try {
         const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
 
+        // ═══════════════════════════════════════════════════════════════
+        // ADMIN MODE DETECTION - Check for passphrase in message
+        // ═══════════════════════════════════════════════════════════════
+        const adminCheck = detectAdminMode(message);
+        const isAdmin = adminCheck.isAdmin;
+        let processedMessage = adminCheck.cleanedMessage;
+
+        // Override mode if admin detected
+        const effectiveMode = isAdmin ? 'admin' : mode;
+
+        if (isAdmin) {
+            console.log('[ADMIN MODE] ✓ Passphrase authenticated - admin privileges granted');
+            console.log('[ADMIN MODE] Original message length:', message.length);
+            console.log('[ADMIN MODE] Cleaned message length:', processedMessage.length);
+        }
+
 
         // ═══════════════════════════════════════════════════════════════
         // RAILWAY ROUTING CHECK - Route heavy tasks to Railway to avoid 10s timeout
         // ═══════════════════════════════════════════════════════════════
-        if (shouldRouteToRailway(message, mode, attachments)) {
+        if (shouldRouteToRailway(processedMessage || message, effectiveMode || mode, attachments)) {
             console.log('[RAILWAY ROUTING] Heavy task detected, routing to Railway...');
             console.log(`[RAILWAY ROUTING] Mode: ${mode}, Message length: ${message.length}, Attachments: ${attachments.length}`);
 
@@ -1436,7 +1525,7 @@ export async function handler(event, context) {
         // Fetch memory AND brain context in parallel
         const [memory, brainContext] = await Promise.all([
             fetchMemory(user_id),
-            fetchBrainContext(message, brainLimit)
+            fetchBrainContext(processedMessage || message, brainLimit)
         ]);
 
         // ═══════════════════════════════════════════════════════════════
@@ -2036,7 +2125,7 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         }
 
         // Build personalized system prompt (with mode and brain context)
-        let systemPrompt = buildSystemPrompt(memory, brainContext, mode);
+        let systemPrompt = buildSystemPrompt(memory, brainContext, effectiveMode || mode);
 
         // Add ability context if present
         if (abilityContext) {
@@ -2180,10 +2269,11 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
             },
             body: JSON.stringify({
                 response,
+                isAdmin: isAdmin || false,
                 patterns: patterns.needsAttention ? patterns : null,
                 mode: apiMode,
                 cheapMode: CHEAP_MODE,
-                arayaMode: mode,
+                arayaMode: effectiveMode || mode,
                 hasMemory: !!memory.profile,
                 hasBrain: brainContext.length > 0,
                 brainHits: brainContext.length,
