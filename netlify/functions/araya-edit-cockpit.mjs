@@ -32,9 +32,10 @@
 import { BUILDER_COCKPITS, getBuilder, ACCESS_TIERS } from './domain-tools.mjs';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_OWNER = 'overkor-tek';
-const GITHUB_REPO = 'consciousness-revolution';
-const GITHUB_BRANCH = 'master';
+// ISOLATED REPO: ARAYA edits dashboards repo, not main site
+const GITHUB_OWNER = 'overkillkulture';
+const GITHUB_REPO = 'consciousness-dashboards';
+const GITHUB_BRANCH = 'main';
 
 // CORS headers for client access
 const CORS_HEADERS = {
