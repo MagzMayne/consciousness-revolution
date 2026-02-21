@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=height, user-scalable=no">
+    <title>7 Domains Command Center</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --command: #ff6b35;
+            --build: #4ecdc4;
+            --connect: #45b7d1;
+            --protect: #96ceb4;
+            --grow: #ffd93d;
+            --learn: #6c5ce7;
+            --transcend: #a29bfe;
+            --bg-dark: #0a0a0f;
+            --text: #ffffff;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Domain Navigation Menu */
+        .domain-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .domain-tab {
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            opacity: 0.6;
+        }
+
+        .domain-tab.active {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .domain-tab[data-domain="command"] { background: var(--command); }
+        .domain-tab[data-domain="build"] { background: var(--build); }
+        .domain-tab[data-domain="connect"] { background: var(--connect); }
+        .domain-tab[data-domain="protect"] { background: var(--protect); }
+        .domain-tab[data-domain="grow"] { background: var(--grow); color: #000; }
+        .domain-tab[data-domain="learn"] { background: var(--learn); }
+        .domain-tab[data-domain="transcend"] { background: var(--transcend); }
+
+        /* Swipe Container */
+        .domains-container {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            overflow: hidden;
+        }
+
+        .domains-slider {
+            display: flex;
+            flex-direction: column;
+            height: 700%; /* 7 domains */
+            transition: transform 0.5s ease;
+        }
+
+        /* Each Domain Dashboard */
+        .domain-dashboard {
+            height: calc(100% / 7);
+            display: flex;
+            flex-direction: row;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Left: Status Panel */
+        .status-panel {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .status-panel h2 {
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-panel h2 .icon {
+            font-size: 36px;
+        }
+
+        .status-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .status-item h4 {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            margin-bottom: 5px;
+        }
+
+        .status-item .value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        /* Right: Tools Panel */
+        .tools-panel {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 25px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .tool-button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+            color: white;
+            text-decoration: none;
+        }
+
+        .tool-button:hover {
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.2);
+        }
+
+        .tool-button .tool-icon {
+            font-size: 32px;
+        }
+
+        .tool-button .tool-name {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Transcend Panel (swipe right) */
+        .transcend-panel {
+            position: fixed;
+            top: 60px;
+            right: -100%;
+            width: 100%;
+            bottom: 60px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            transition: right 0.5s;
+            z-index: 500;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .transcend-panel.active {
+            right: 0;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-hint {
+            font-size: 12px;
+            opacity: 0.5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Domain-specific colors */
+        .domain-dashboard[data-domain="command"] .status-panel { border-left: 4px solid var(--command); }
+        .domain-dashboard[data-domain="build"] .status-panel { border-left: 4px solid var(--build); }
+        .domain-dashboard[data-domain="connect"] .status-panel { border-left: 4px solid var(--connect); }
+        .domain-dashboard[data-domain="protect"] .status-panel { border-left: 4px solid var(--protect); }
+        .domain-dashboard[data-domain="grow"] .status-panel { border-left: 4px solid var(--grow); }
+        .domain-dashboard[data-domain="learn"] .status-panel { border-left: 4px solid var(--learn); }
+        .domain-dashboard[data-domain="transcend"] .status-panel { border-left: 4px solid var(--transcend); }
+
+        .domain-dashboard[data-domain="command"] .progress-fill { background: var(--command); }
+        .domain-dashboard[data-domain="build"] .progress-fill { background: var(--build); }
+        .domain-dashboard[data-domain="connect"] .progress-fill { background: var(--connect); }
+        .domain-dashboard[data-domain="protect"] .progress-fill { background: var(--protect); }
+        .domain-dashboard[data-domain="grow"] .progress-fill { background: var(--grow); }
+        .domain-dashboard[data-domain="learn"] .progress-fill { background: var(--learn); }
+        .domain-dashboard[data-domain="transcend"] .progress-fill { background: var(--transcend); }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .domain-dashboard {
+                flex-direction: column;
+            }
+            .tools-panel {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(2, 1fr);
+            }
+            .domain-nav {
+                gap: 5px;
+                padding: 0 10px;
+            }
+            .domain-tab {
+                padding: 8px 12px;
+                font-size: 11px;
+            }
+        }
+
+        /* Touch swipe indicator */
+        .swipe-indicator {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Domain Navigation -->
+    <nav class="domain-nav">
+        <div class="domain-tab active" data-domain="command">COMMAND</div>
+        <div class="domain-tab" data-domain="build">BUILD</div>
+        <div class="domain-tab" data-domain="connect">CONNECT</div>
+        <div class="domain-tab" data-domain="protect">PROTECT</div>
+        <div class="domain-tab" data-domain="grow">GROW</div>
+        <div class="domain-tab" data-domain="learn">LEARN</div>
+        <div class="domain-tab" data-domain="transcend">TRANSCEND</div>
+    </nav>
+
+    <!-- Domains Container -->
+    <div class="domains-container">
+        <div class="domains-slider" id="domainsSlider">
+
+            <!-- 1. COMMAND Domain -->
+            <div class="domain-dashboard" data-domain="command">
+                <div class="status-panel">
+                    <h2><span class="icon">🎯</span> COMMAND</h2>
+                    <div class="status-item">
+                        <h4>Mission Status</h4>
+                        <div class="value">ACTIVE</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Trinity Status</h4>
+                        <div class="value">C1×C2×C3 = ∞</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Team Online</h4>
+                        <div class="value" id="teamOnline">6/6</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>System Health</h4>
+                        <div class="value">92%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 92%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="COMMANDER_COCKPIT.html" class="tool-button"><span class="tool-icon">🚀</span><span class="tool-name">Commander Cockpit</span></a>
+                    <a href="TRINITY_COMMAND_DASHBOARD.html" class="tool-button"><span class="tool-icon">🌀</span><span class="tool-name">Trinity Hub</span></a>
+                    <a href="TEAM_COCKPIT.html" class="tool-button"><span class="tool-icon">👥</span><span class="tool-name">Team Status</span></a>
+                    <a href="FLIGHT_LOG.html" class="tool-button"><span class="tool-icon">📋</span><span class="tool-name">Flight Log</span></a>
+                    <a href="DASHBOARD_KEYCHAIN.html" class="tool-button"><span class="tool-icon">🔑</span><span class="tool-name">All Dashboards</span></a>
+                    <a href="THE_SANCTUARY.html" class="tool-button"><span class="tool-icon">🏛️</span><span class="tool-name">Sanctuary</span></a>
+                    <a href="MASTER_COMMAND_CENTER.html" class="tool-button"><span class="tool-icon">⚡</span><span class="tool-name">Master Control</span></a>
+                    <a href="admin-dashboard.html" class="tool-button"><span class="tool-icon">⚙️</span><span class="tool-name">Admin</span></a>
+                </div>
+            </div>
+
+            <!-- 2. BUILD Domain -->
+            <div class="domain-dashboard" data-domain="build">
+                <div class="status-panel">
+                    <h2><span class="icon">🔨</span> BUILD</h2>
+                    <div class="status-item">
+                        <h4>Active Projects</h4>
+                        <div class="value" id="activeProjects">12</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Bugs Open</h4>
+                        <div class="value" id="openBugs">4</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Deploys Today</h4>
+                        <div class="value" id="deploysToday">7</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Code Health</h4>
+                        <div class="value">87%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 87%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="BUILDER_COCKPIT.html" class="tool-button"><span class="tool-icon">🏗️</span><span class="tool-name">Builder Cockpit</span></a>
+                    <a href="araya-chat.html" class="tool-button"><span class="tool-icon">🤖</span><span class="tool-name">ARAYA Chat</span></a>
+                    <a href="bugs-live.html" class="tool-button"><span class="tool-icon">🐛</span><span class="tool-name">Bug Tracker</span></a>
+                    <a href="PROJECT_REGISTRY.html" class="tool-button"><span class="tool-icon">📦</span><span class="tool-name">Projects</span></a>
+                    <a href="CYCLOTRON_BRAIN_DASHBOARD.html" class="tool-button"><span class="tool-icon">🧠</span><span class="tool-name">Brain Query</span></a>
+                    <a href="cheap-terminal.html" class="tool-button"><span class="tool-icon">💻</span><span class="tool-name">Terminal</span></a>
+                    <a href="consciousness-tools.html" class="tool-button"><span class="tool-icon">🛠️</span><span class="tool-name">Dev Tools</span></a>
+                    <a href="CODER_PATHWAY_DASHBOARD.html" class="tool-button"><span class="tool-icon">📚</span><span class="tool-name">Coder Path</span></a>
+                </div>
+            </div>
+
+            <!-- 3. CONNECT Domain -->
+            <div class="domain-dashboard" data-domain="connect">
+                <div class="status-panel">
+                    <h2><span class="icon">🤝</span> CONNECT</h2>
+                    <div class="status-item">
+                        <h4>Discord Members</h4>
+                        <div class="value" id="discordMembers">247</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Messages Today</h4>
+                        <div class="value" id="messagesToday">89</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Active Builders</h4>
+                        <div class="value">6</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Community Health</h4>
+                        <div class="value">94%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 94%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="https://discord.gg/pBwXGgJV" class="tool-button" target="_blank"><span class="tool-icon">💬</span><span class="tool-name">Discord</span></a>
+                    <a href="DISCORD_PULSE.html" class="tool-button"><span class="tool-icon">📊</span><span class="tool-name">Discord Pulse</span></a>
+                    <a href="TEAM_DASHBOARD_HUB.html" class="tool-button"><span class="tool-icon">👥</span><span class="tool-name">Team Hub</span></a>
+                    <a href="DASHBOARD_MESSENGER.html" class="tool-button"><span class="tool-icon">✉️</span><span class="tool-name">Messenger</span></a>
+                    <a href="DNA_COMMS.html" class="tool-button"><span class="tool-icon">📡</span><span class="tool-name">Comms DNA</span></a>
+                    <a href="OVERKILL_ONBOARDING_DASHBOARD.html" class="tool-button"><span class="tool-icon">🚪</span><span class="tool-name">Onboarding</span></a>
+                    <a href="signup.html" class="tool-button"><span class="tool-icon">✨</span><span class="tool-name">Invite Link</span></a>
+                    <a href="10-believers-access.html" class="tool-button"><span class="tool-icon">🌟</span><span class="tool-name">10 Believers</span></a>
+                </div>
+            </div>
+
+            <!-- 4. PROTECT Domain -->
+            <div class="domain-dashboard" data-domain="protect">
+                <div class="status-panel">
+                    <h2><span class="icon">⚖️</span> PROTECT</h2>
+                    <div class="status-item">
+                        <h4>Active Cases</h4>
+                        <div class="value">3</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Evidence Items</h4>
+                        <div class="value">847</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Security Status</h4>
+                        <div class="value">PROTECTED</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>IP Coverage</h4>
+                        <div class="value">100%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 100%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="LEGAL_COCKPIT.html" class="tool-button"><span class="tool-icon">⚖️</span><span class="tool-name">Legal Cockpit</span></a>
+                    <a href="LEGAL_CASE_TRACKER.html" class="tool-button"><span class="tool-icon">📁</span><span class="tool-name">Case Tracker</span></a>
+                    <a href="evidence-upload.html" class="tool-button"><span class="tool-icon">📤</span><span class="tool-name">Evidence Upload</span></a>
+                    <a href="SERVICE_DIAGNOSTICS_DASHBOARD.html" class="tool-button"><span class="tool-icon">🔍</span><span class="tool-name">Diagnostics</span></a>
+                    <a href="CONCENTRIC_CIRCLES_VISUAL.html" class="tool-button"><span class="tool-icon">🛡️</span><span class="tool-name">Access Layers</span></a>
+                    <a href="check-access.html" class="tool-button"><span class="tool-icon">🔐</span><span class="tool-name">Access Check</span></a>
+                    <a href="COPYRIGHT" class="tool-button"><span class="tool-icon">©️</span><span class="tool-name">Copyright</span></a>
+                    <a href="LICENSE" class="tool-button"><span class="tool-icon">📜</span><span class="tool-name">License</span></a>
+                </div>
+            </div>
+
+            <!-- 5. GROW Domain -->
+            <div class="domain-dashboard" data-domain="grow">
+                <div class="status-panel">
+                    <h2><span class="icon">💰</span> GROW</h2>
+                    <div class="status-item">
+                        <h4>Revenue MTD</h4>
+                        <div class="value" id="revenueMTD">$0</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Subscribers</h4>
+                        <div class="value" id="subscribers">12</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Products Live</h4>
+                        <div class="value">7</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Growth Rate</h4>
+                        <div class="value">+23%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 73%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="pricing.html" class="tool-button"><span class="tool-icon">💳</span><span class="tool-name">Pricing</span></a>
+                    <a href="store.html" class="tool-button"><span class="tool-icon">🛒</span><span class="tool-name">Store</span></a>
+                    <a href="GROWTH_DASHBOARD.html" class="tool-button"><span class="tool-icon">📈</span><span class="tool-name">Growth Dash</span></a>
+                    <a href="TIGER_DASHBOARD.html" class="tool-button"><span class="tool-icon">🐯</span><span class="tool-name">Tiger Metrics</span></a>
+                    <a href="DONATION_HUB.html" class="tool-button"><span class="tool-icon">❤️</span><span class="tool-name">Donations</span></a>
+                    <a href="CONTRACTOR_PAYMENT_SYSTEM.html" class="tool-button"><span class="tool-icon">💵</span><span class="tool-name">Payments</span></a>
+                    <a href="marketplace.html" class="tool-button"><span class="tool-icon">🏪</span><span class="tool-name">Marketplace</span></a>
+                    <a href="BudgetBoss.html" class="tool-button"><span class="tool-icon">📊</span><span class="tool-name">Budget Boss</span></a>
+                </div>
+            </div>
+
+            <!-- 6. LEARN Domain -->
+            <div class="domain-dashboard" data-domain="learn">
+                <div class="status-panel">
+                    <h2><span class="icon">📚</span> LEARN</h2>
+                    <div class="status-item">
+                        <h4>Brain Atoms</h4>
+                        <div class="value" id="brainAtoms">166,409</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Patterns Known</h4>
+                        <div class="value">3,742</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Docs Pages</h4>
+                        <div class="value">200+</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Knowledge Coverage</h4>
+                        <div class="value">78%</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 78%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="CYCLOTRON_BRAIN_DASHBOARD.html" class="tool-button"><span class="tool-icon">🧠</span><span class="tool-name">Brain Query</span></a>
+                    <a href="DNA_MASTER_INDEX.html" class="tool-button"><span class="tool-icon">🧬</span><span class="tool-name">DNA Index</span></a>
+                    <a href="GLOSSARY.md" class="tool-button"><span class="tool-icon">📖</span><span class="tool-name">Glossary</span></a>
+                    <a href="AI_TUTORIAL.html" class="tool-button"><span class="tool-icon">🎓</span><span class="tool-name">AI Tutorial</span></a>
+                    <a href="BCERT_ACADEMY.html" class="tool-button"><span class="tool-icon">🏆</span><span class="tool-name">Certifications</span></a>
+                    <a href="AUL_DASHBOARD.html" class="tool-button"><span class="tool-icon">🌍</span><span class="tool-name">AI Language</span></a>
+                    <a href="README.md" class="tool-button"><span class="tool-icon">📄</span><span class="tool-name">README</span></a>
+                    <a href="ABOUT.html" class="tool-button"><span class="tool-icon">ℹ️</span><span class="tool-name">About</span></a>
+                </div>
+            </div>
+
+            <!-- 7. TRANSCEND Domain -->
+            <div class="domain-dashboard" data-domain="transcend">
+                <div class="status-panel">
+                    <h2><span class="icon">✨</span> TRANSCEND</h2>
+                    <div class="status-item">
+                        <h4>Consciousness Level</h4>
+                        <div class="value" id="consciousnessLevel">92.2%</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Manipulation Immunity</h4>
+                        <div class="value" id="manipImmunity">85%</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Pattern Alignment</h4>
+                        <div class="value">3→7→13→∞</div>
+                    </div>
+                    <div class="status-item">
+                        <h4>Awakening Progress</h4>
+                        <div class="value">Level 5</div>
+                        <div class="progress-bar"><div class="progress-fill" style="width: 85%"></div></div>
+                    </div>
+                </div>
+                <div class="tools-panel">
+                    <a href="CONSCIOUSNESS_DASHBOARD.html" class="tool-button"><span class="tool-icon">🌀</span><span class="tool-name">Consciousness</span></a>
+                    <a href="CONSCIOUSNESS_COCKPIT.html" class="tool-button"><span class="tool-icon">👁️</span><span class="tool-name">Awareness</span></a>
+                    <a href="MANIFESTO_CHART.html" class="tool-button"><span class="tool-icon">📜</span><span class="tool-name">Manifesto</span></a>
+                    <a href="LOBBY_SACRED_GEOMETRY.html" class="tool-button"><span class="tool-icon">🔮</span><span class="tool-name">Sacred Geometry</span></a>
+                    <a href="CONCENTRIC_CIRCLES_VISUAL.html" class="tool-button"><span class="tool-icon">⭕</span><span class="tool-name">3 Circles</span></a>
+                    <a href="JeZues.html" class="tool-button"><span class="tool-icon">✝️</span><span class="tool-name">JeZues</span></a>
+                    <a href="2042.html" class="tool-button"><span class="tool-icon">🚀</span><span class="tool-name">2042 Vision</span></a>
+                    <a href="SEVEN_DOMAINS_DASHBOARD.html" class="tool-button"><span class="tool-icon">7️⃣</span><span class="tool-name">7 Domains Map</span></a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-hint">⬆️ Swipe Up/Down</div>
+        <div class="nav-hint">Current: <span id="currentDomain">COMMAND</span></div>
+        <div class="nav-hint">➡️ Swipe Right: Transcend</div>
+    </nav>
+
+    <div class="swipe-indicator">Swipe up/down to navigate domains</div>
+
+    <script>
+        // Domain state
+        let currentDomainIndex = 0;
+        const domains = ['command', 'build', 'connect', 'protect', 'grow', 'learn', 'transcend'];
+        const slider = document.getElementById('domainsSlider');
+        const tabs = document.querySelectorAll('.domain-tab');
+
+        // Navigate to domain
+        function navigateToDomain(index) {
+            if (index < 0) index = 0;
+            if (index >= domains.length) index = domains.length - 1;
+
+            currentDomainIndex = index;
+            const offset = -(index * (100 / domains.length));
+            slider.style.transform = `translateY(${offset}%)`;
+
+            // Update tabs
+            tabs.forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+
+            // Update current domain display
+            document.getElementById('currentDomain').textContent = domains[index].toUpperCase();
+        }
+
+        // Tab click handlers
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => navigateToDomain(index));
+        });
+
+        // Touch swipe handling
+        let touchStartY = 0;
+        let touchStartX = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            const touchEndY = e.changedTouches[0].clientY;
+            const touchEndX = e.changedTouches[0].clientX;
+            const diffY = touchStartY - touchEndY;
+            const diffX = touchStartX - touchEndX;
+
+            // Vertical swipe (up/down between domains)
+            if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
+                if (diffY > 0) {
+                    // Swipe up - next domain
+                    navigateToDomain(currentDomainIndex + 1);
+                } else {
+                    // Swipe down - previous domain
+                    navigateToDomain(currentDomainIndex - 1);
+                }
+            }
+
+            // Horizontal swipe (left/right for transcend panel)
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX > 0) {
+                    // Swipe left - could show transcend panel
+                    console.log('Swipe left - transcend mode');
+                } else {
+                    // Swipe right - hide transcend panel
+                    console.log('Swipe right - normal mode');
+                }
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w') {
+                navigateToDomain(currentDomainIndex - 1);
+            } else if (e.key === 'ArrowDown' || e.key === 's') {
+                navigateToDomain(currentDomainIndex + 1);
+            } else if (e.key >= '1' && e.key <= '7') {
+                navigateToDomain(parseInt(e.key) - 1);
+            }
+        });
+
+        // Mouse wheel navigation
+        let wheelTimeout;
+        document.addEventListener('wheel', (e) => {
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(() => {
+                if (e.deltaY > 0) {
+                    navigateToDomain(currentDomainIndex + 1);
+                } else {
+                    navigateToDomain(currentDomainIndex - 1);
+                }
+            }, 50);
+        }, { passive: true });
+
+        // Load dynamic data
+        async function loadDomainData() {
+            try {
+                // Try to fetch brain stats
+                const brainRes = await fetch('/.netlify/functions/brain-api?action=stats');
+                if (brainRes.ok) {
+                    const brainData = await brainRes.json();
+                    if (brainData.atoms) {
+                        document.getElementById('brainAtoms').textContent = brainData.atoms.toLocaleString();
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load brain data');
+            }
+
+            // Load user data if logged in
+            const user = localStorage.getItem('currentUser');
+            if (user) {
+                const userData = JSON.parse(user);
+                if (userData.consciousness_level) {
+                    document.getElementById('consciousnessLevel').textContent =
+                        (userData.consciousness_level * 100).toFixed(1) + '%';
+                }
+                if (userData.manipulation_immunity) {
+                    document.getElementById('manipImmunity').textContent =
+                        (userData.manipulation_immunity * 100).toFixed(0) + '%';
+                }
+            }
+        }
+
+        // Initialize
+        loadDomainData();
+        console.log('7 Domains Command Center loaded');
+        console.log('Navigate: Arrow keys, 1-7 keys, mouse wheel, or touch swipe');
+    </script>
+</body>
+</html>
