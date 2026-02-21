@@ -29,7 +29,11 @@
  */
 
 // Import domain tools for routing people to the right tools
-import { DOMAIN_TOOLS, findDomainTools, formatDomainResponse } from './domain-tools.mjs';
+import { 
+    DOMAIN_TOOLS, findDomainTools, formatDomainResponse,
+    VERIFICATION_LEVELS, getUserLevel, getAccessibleDomains, 
+    getNextSteps, formatOnboardingResponse, isOnboardingTrigger, HELP_TRIGGERS
+} from './domain-tools.mjs';
 // Lazy-load Supabase to avoid crash if module unavailable
 let _supabaseClient = null;
 let _supabaseLoaded = false;
@@ -580,6 +584,12 @@ const ARAYA_ABILITIES = {
         name: 'Domain Guide',
         description: 'Help people find the right tools across all 7 consciousness domains',
         triggers: ['where do i', 'i need help with', 'how do i', 'what tool', 'show me tools', 'find tools for', 'help me with', 'where can i', 'which domain', 'what domain', 'tools for', 'need a tool']
+    },
+    // === ONBOARDING ABILITY ===
+    'onboard': {
+        name: 'Onboarding Guide',
+        description: 'Guide users through verification levels and show them how to help',
+        triggers: ['how can i help', 'what can i do', 'how do i contribute', 'i want to help', 'where do i start', 'how do i get started', 'what should i do', 'how can i contribute', 'i want to build', 'what are the levels', 'how do i level up', 'what is my level', 'how to join', 'become a builder', 'get verified']
     }
 };
 
@@ -1969,6 +1979,45 @@ Present these tools to help the user. Explain briefly what each domain is for an
 
 Ask them what they're trying to accomplish and guide them to the right domain.`;
                     }
+                    break;
+
+                case 'onboard':
+                    // Get user's current level and show progression path
+                    // For now, assume unverified - will integrate with auth later
+                    const userXP = 0; // TODO: Get from user profile
+                    const isVerified = false; // TODO: Get from auth
+                    const currentLevel = getUserLevel(userXP, isVerified);
+                    const nextSteps = getNextSteps(currentLevel.name.toUpperCase());
+                    const accessibleDomains = getAccessibleDomains(currentLevel.level);
+                    
+                    abilityResult = {
+                        type: 'onboard',
+                        level: currentLevel,
+                        xp: userXP,
+                        nextSteps: nextSteps,
+                        accessibleDomains: accessibleDomains
+                    };
+                    
+                    abilityContext = `
+
+[ONBOARDING]: User wants to know how to help or get started!
+
+**Current Level:** ${currentLevel.name} (${userXP} XP)
+**Description:** ${currentLevel.desc}
+**Accessible Domains:** ${accessibleDomains.join(', ') || 'None yet - complete verification!'}
+
+**Next Steps to Progress:**
+${nextSteps.map((s, i) => `${i + 1}. ${s.desc} - ${s.url}`).join('\n')}
+
+**Verification Levels:**
+- LOBBY (0 XP) - Just arrived, complete verification
+- SEEKER (Verified) - Exploring consciousness tools
+- BUILDER (50 XP) - Contributing to the mission
+- CONTRIBUTOR (200 XP) - Active builder with edit powers
+- ARCHITECT (500 XP) - Full system access
+- ORACLE (2500 XP) - Admin powers
+
+Guide them through their next steps enthusiastically! Show them the path and what they'll unlock. Make them feel welcomed and show them how valuable their contribution can be.`;
                     break;
 
                 case 'file_write':
