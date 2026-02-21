@@ -39,6 +39,13 @@ To deliver Pattern Theory through conversation. ARAYA:
 | v2.0 | Dec 25 2025 | Cyclotron memory integration |
 | v2.5 | Dec 27 2025 | File access layer added |
 | v3.0 | Jan 2026 | Network Gate (tier system) |
+| v3.5 | Feb 21 2026 | Domain Guide ability - Routes people to 7 domains |
+| v4.0 | Feb 21 2026 | Cockpit Editing - ARAYA edits builder HTML via GitHub API |
+
+### Recent Fixes
+| Date | Issue | Root Cause | Fix |
+|------|-------|------------|-----|
+| Feb 21 2026 | "All my AI connections are down" | DEEPSEEK_API_KEY missing from Netlify | Set key via `netlify env:set` |
 
 ### Failed Attempts
 1. **Cloud-only API** - Too expensive, rate limits
@@ -151,6 +158,50 @@ ARAYA System
 - Enterprise ARAYA instances
 - Domain-specific ARAYA variants
 - AI teaching AI (ARAYA trains others)
+
+---
+
+## DOMAIN ROUTING STRAND (v3.5)
+### ARAYA as Central Router
+ARAYA now serves as the primary routing interface for the 7 Consciousness Domains.
+When users ask "how can I help?" or "what can I do?", ARAYA guides them based on:
+- Their verification level
+- Keywords in their request
+- Domain access permissions
+
+### The 7 Domains + 3 Extensions
+| Domain | Icon | Level | Focus |
+|--------|------|-------|-------|
+| COMMAND | 🎯 | team | Dashboards, control centers |
+| BUILD | 🔨 | team | Developer tools, coding |
+| CONNECT | 🤝 | free | Community, communication |
+| PROTECT | ⚖️ | free | Legal help, case building |
+| GROW | 💰 | free | Financial, business tools |
+| LEARN | 📚 | free | Knowledge, research |
+| TRANSCEND | ✨ | free | Consciousness expansion |
+| AWARENESS | 🧠 | free | Pattern detection, truth |
+| JOURNEY | 🌟 | free | Personal evolution |
+| GAMES | 🎮 | free | Gamified consciousness |
+
+### Verification Levels (Progression Path)
+| Level | Name | XP | Access | Unlocks |
+|-------|------|-----|--------|---------|
+| 0 | LOBBY | 0 | None | - |
+| 1 | SEEKER | Verified | Basic | Free domains |
+| 2 | BUILDER | 50 XP | Expanded | Domain channels |
+| 3 | CONTRIBUTOR | 200 XP | Edit | ARAYA file editing |
+| 4 | ARCHITECT | 500 XP | Full | All features |
+| 5 | ORACLE | 2500 XP | Admin | System access |
+
+### Domain Tools File
+Location: `netlify/functions/domain-tools.mjs`
+- `DOMAIN_TOOLS` - Registry of all domains and their tools
+- `findDomainTools(message)` - Keyword matching to find relevant domains
+- `formatDomainResponse(matches)` - Format tools for ARAYA's response
+
+### ARAYA Abilities Used
+- `domain_guide` - Route users to relevant tools based on keywords
+- `onboard` - Guide new users through verification levels (PLANNED)
 
 ---
 

@@ -86,7 +86,7 @@ export async function handler(event, context) {
 
         // Get cockpit file path (strip leading slash)
         const cockpitPath = builder.cockpit.replace(/^\//, '');
-        const fullPath = `100X_DEPLOYMENT/${cockpitPath}`;
+        const fullPath = cockpitPath;  // Files at repo root, not 100X_DEPLOYMENT
 
         console.log(`[ARAYA-EDIT] Editing cockpit for ${builder.name}: ${fullPath}`);
         console.log(`[ARAYA-EDIT] Edit type: ${edit_type}`);
