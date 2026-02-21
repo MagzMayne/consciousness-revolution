@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ARAYA Admin Auth Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #0a0a0c;
+            color: #0ff5e0;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(20,18,25,0.92);
+            border: 1px solid #0ff5e0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        h1 { color: #ff6b35; }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 3px solid #39ff14;
+            background: rgba(0,0,0,0.3);
+        }
+        .result {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        .success { border-left: 3px solid #39ff14; }
+        .error { border-left: 3px solid #ff0080; }
+        button {
+            background: #0ff5e0;
+            color: #0a0a0c;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        button:hover { background: #39ff14; }
+        input {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #0ff5e0;
+            color: #0ff5e0;
+            padding: 8px;
+            width: 400px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔐 ARAYA Admin Authentication Test</h1>
+
+        <div class="test-section">
+            <h3>Test 1: Normal User Message</h3>
+            <p>Should return: <code>isAdmin: false</code></p>
+            <button onclick="testNormalUser()">Test Normal User</button>
+            <div id="normal-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Admin User Message (with passphrase)</h3>
+            <p>Enter passphrase: <input type="password" id="passphrase" placeholder="Enter ARAYA passphrase"></p>
+            <button onclick="testAdminUser()">Test Admin User</button>
+            <div id="admin-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Custom Message</h3>
+            <input type="text" id="custom-message" placeholder="Enter test message" value="system status">
+            <br><br>
+            <button onclick="testCustom(false)">Test as Normal</button>
+            <button onclick="testCustom(true)">Test as Admin</button>
+            <div id="custom-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Implementation Details</h3>
+            <pre style="color: #c8c8c8;">
+Location: netlify/functions/araya-chat.mjs
+
+✓ Line 73:   ADMIN_PASSPHRASE = process.env.ARAYA
+✓ Line 942:  detectAdminMode() function
+✓ Line 859:  ARAYA_ADMIN_PROMPT personality
+✓ Line 1460: Admin detection in handler
+✓ Line 1169: buildSystemPrompt admin mode
+✓ Line 2272: isAdmin in response
+
+Security: Layer 1 of 5 complete (passphrase-based auth)
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        async function testNormalUser() {
+            const resultDiv = document.getElementById('normal-result');
+            resultDiv.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: 'What can you help me with?',
+                        user_id: 'test-user-normal',
+                        conversationHistory: []
+                    })
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result ' + (data.isAdmin === false ? 'success' : 'error');
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testAdminUser() {
+            const resultDiv = document.getElementById('admin-result');
+            const passphrase = document.getElementById('passphrase').value;
+
+            if (!passphrase) {
+                alert('Please enter the ARAYA passphrase');
+                return;
+            }
+
+            resultDiv.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: passphrase + ' system status',
+                        user_id: 'test-user-admin',
+                        conversationHistory: []
+                    })
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result ' + (data.isAdmin === true ? 'success' : 'error');
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+
+                if (data.isAdmin) {
+                    const hasAdminVoice = data.response.includes('Roger') ||
+                                        data.response.includes('System') ||
+                                        data.arayaMode === 'admin';
+                    if (hasAdminVoice) {
+                        resultDiv.textContent += '\n\n✓ Admin voice detected!';
+                    }
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testCustom(isAdmin) {
+            const resultDiv = document.getElementById('custom-result');
+            const message = document.getElementById('custom-message').value;
+            const passphrase = document.getElementById('passphrase').value;
+
+            if (isAdmin && !passphrase) {
+                alert('Please enter the ARAYA passphrase for admin test');
+                return;
+            }
+
+            resultDiv.textContent = 'Testing...';
+
+            try {
+                const finalMessage = isAdmin ? (passphrase + ' ' + message) : message;
+
+                const response = await fetch('/.netlify/functions/araya-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: finalMessage,
+                        user_id: 'test-user-custom',
+                        conversationHistory: []
+                    })
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result ' + (data.isAdmin === isAdmin ? 'success' : 'error');
+                resultDiv.textContent = 'Expected isAdmin: ' + isAdmin + '\n';
+                resultDiv.textContent += 'Actual isAdmin: ' + data.isAdmin + '\n\n';
+                resultDiv.textContent += JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
