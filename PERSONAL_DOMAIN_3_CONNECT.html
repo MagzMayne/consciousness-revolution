@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain 3: CONNECT | Personal Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,221,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #ffdd00, #ccaa00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .domain-badge {
+            background: linear-gradient(135deg, #ffdd00, #bb9900);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #1a1a2e;
+        }
+
+        .view-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .view-slider-label { font-size: 0.85rem; color: #888; min-width: 60px; }
+
+        .view-slider-track {
+            flex: 1;
+            display: flex;
+            background: rgba(255,255,255,0.08);
+            border-radius: 25px;
+            padding: 4px;
+            position: relative;
+            max-width: 400px;
+        }
+
+        .view-option {
+            flex: 1;
+            text-align: center;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #666;
+            z-index: 1;
+            position: relative;
+        }
+
+        .view-option:hover { color: #aaa; }
+        .view-option.active { color: #fff; }
+
+        .slider-highlight {
+            position: absolute;
+            top: 4px;
+            height: calc(100% - 8px);
+            width: calc(33.33% - 4px);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            z-index: 0;
+        }
+
+        .slider-highlight.personal { left: 4px; background: linear-gradient(135deg, #ffdd00, #bb9900); }
+        .slider-highlight.team { left: calc(33.33% + 2px); background: linear-gradient(135deg, #4ecdc4, #26a69a); }
+        .slider-highlight.public { left: calc(66.66%); background: linear-gradient(135deg, #ffd93d, #f39c12); }
+
+        .current-view-badge { padding: 6px 14px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; }
+        .current-view-badge.personal { background: rgba(255,221,0,0.2); color: #ffdd00; }
+        .current-view-badge.team { background: rgba(78,205,196,0.2); color: #4ecdc4; }
+        .current-view-badge.public { background: rgba(255,217,61,0.2); color: #ffd93d; }
+
+        .personal-only, .team-only { transition: opacity 0.3s; }
+        body.view-team .personal-only { opacity: 0.3; pointer-events: none; }
+        body.view-public .personal-only, body.view-public .team-only { opacity: 0.3; pointer-events: none; }
+
+        .nav-domains { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+        .nav-domains a {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        .nav-domains a:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .nav-domains a.active { background: linear-gradient(135deg, #ffdd00, #bb9900); color: #1a1a2e; border-color: #ffdd00; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 350px 1fr; gap: 25px; }
+        @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .filing-cabinet {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255,221,0,0.3);
+            overflow: hidden;
+        }
+
+        .cabinet-header {
+            background: linear-gradient(135deg, #ffdd00, #bb9900);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #1a1a2e;
+        }
+
+        .cabinet-header h2 { font-size: 1.1rem; font-weight: 600; }
+        .cabinet-icon { font-size: 1.5rem; }
+        .cabinet-drawers { padding: 15px; }
+
+        .drawer {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .drawer-handle {
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        .drawer-handle:hover { background: rgba(255,255,255,0.05); }
+        .drawer-handle h3 { font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .drawer-count { background: rgba(255,221,0,0.3); padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; }
+        .drawer-contents { display: none; padding: 0 15px 15px; }
+        .drawer.open .drawer-contents { display: block; }
+        .drawer.open .drawer-arrow { transform: rotate(180deg); }
+        .drawer-arrow { transition: transform 0.3s; color: #888; }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            text-decoration: none;
+            color: #ccc;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .file-item:hover { background: rgba(255,221,0,0.15); border-color: rgba(255,221,0,0.3); color: #fff; }
+        .file-icon { font-size: 1.2rem; }
+        .file-info { flex: 1; }
+        .file-name { font-size: 0.9rem; font-weight: 500; }
+        .file-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+        .main-content { display: flex; flex-direction: column; gap: 20px; }
+
+        .widget {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .widget h3 { font-size: 1rem; margin-bottom: 15px; color: #ffdd00; display: flex; align-items: center; gap: 8px; }
+
+        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 15px;
+            background: rgba(255,221,0,0.1);
+            border: 1px solid rgba(255,221,0,0.3);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover { background: rgba(255,221,0,0.25); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255,221,0,0.2); }
+        .action-btn .icon { font-size: 1.8rem; }
+        .action-btn .label { font-size: 0.85rem; font-weight: 500; }
+
+        .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .status-card { text-align: center; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+        .status-card .value { font-size: 1.8rem; font-weight: bold; color: #ffdd00; }
+        .status-card .label { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+        .mission-statement {
+            background: linear-gradient(135deg, rgba(255,221,0,0.15), rgba(187,153,0,0.1));
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #ffdd00;
+        }
+
+        .mission-statement p { font-style: italic; line-height: 1.6; color: #ccc; }
+
+        .activity-list { list-style: none; }
+        .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-icon { width: 35px; height: 35px; background: rgba(255,221,0,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .activity-text { font-size: 0.9rem; color: #ccc; }
+        .activity-time { font-size: 0.75rem; color: #666; margin-top: 3px; }
+
+        .footer { text-align: center; padding: 20px; margin-top: 30px; color: #555; font-size: 0.8rem; }
+    </style>
+</head>
+<body class="view-personal">
+    <div class="header">
+        <div>
+            <h1>Domain 3: CONNECT</h1>
+            <p style="color:#888; font-size:0.9rem; margin-top:5px;">Communication, Team, Networks</p>
+        </div>
+        <div class="domain-badge">PERSONAL DASHBOARD</div>
+    </div>
+
+    <div class="view-slider-container">
+        <span class="view-slider-label">View:</span>
+        <div class="view-slider-track">
+            <div class="slider-highlight personal" id="slider-highlight"></div>
+            <div class="view-option active" data-level="personal" onclick="setViewLevel('personal')">🔐 Personal</div>
+            <div class="view-option" data-level="team" onclick="setViewLevel('team')">👥 Team</div>
+            <div class="view-option" data-level="public" onclick="setViewLevel('public')">🌍 Public</div>
+        </div>
+        <span class="current-view-badge personal" id="view-badge">Full Access</span>
+    </div>
+
+    <nav class="nav-domains">
+        <a href="PERSONAL_DOMAIN_1_COMMAND.html">1. Command</a>
+        <a href="PERSONAL_DOMAIN_2_BUILD.html">2. Build</a>
+        <a href="PERSONAL_DOMAIN_3_CONNECT.html" class="active">3. Connect</a>
+        <a href="PERSONAL_DOMAIN_4_PROTECT.html">4. Protect</a>
+        <a href="PERSONAL_DOMAIN_5_GROW.html">5. Grow</a>
+        <a href="PERSONAL_DOMAIN_6_LEARN.html">6. Learn</a>
+        <a href="PERSONAL_DOMAIN_7_TRANSCEND.html">7. Transcend</a>
+    </nav>
+
+    <div class="dashboard-grid">
+        <div class="filing-cabinet personal-only">
+            <div class="cabinet-header">
+                <span class="cabinet-icon">🗄️</span>
+                <h2>Connection Hub Files</h2>
+            </div>
+            <div class="cabinet-drawers">
+                <!-- TEAM DRAWER -->
+                <div class="drawer open">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>👥 Team</h3>
+                        <span class="drawer-count">4 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/3_CONNECT/DOMAIN_BLUEPRINT_3_CONNECT.md')">
+                            <span class="file-icon">📋</span>
+                            <div class="file-info">
+                                <div class="file-name">Domain Blueprint</div>
+                                <div class="file-desc">Connect domain strategy</div>
+                            </div>
+                        </a>
+                        <a href="TEAM_COCKPIT.html" class="file-item" target="_blank">
+                            <span class="file-icon">👨‍👩‍👧‍👦</span>
+                            <div class="file-info">
+                                <div class="file-name">Team Cockpit</div>
+                                <div class="file-desc">Team management hub</div>
+                            </div>
+                        </a>
+                        <a href="TEAM_DASHBOARD_HUB.html" class="file-item" target="_blank">
+                            <span class="file-icon">📊</span>
+                            <div class="file-info">
+                                <div class="file-name">Team Dashboard</div>
+                                <div class="file-desc">Team status overview</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('.claude/boot/06_TEAM_CONTACTS.md')">
+                            <span class="file-icon">📇</span>
+                            <div class="file-info">
+                                <div class="file-name">Team Contacts</div>
+                                <div class="file-desc">7 team members</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- EMAIL COMMUNICATIONS -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>📧 Email Gateway</h3>
+                        <span class="drawer-count">3 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/3_CONNECT/C3_ORACLE_EMAIL_INFRASTRUCTURE_VISION.md')">
+                            <span class="file-icon">🔮</span>
+                            <div class="file-info">
+                                <div class="file-name">Email Infrastructure</div>
+                                <div class="file-desc">C3 Oracle vision</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/EMAIL_GATEWAY_ARCHITECTURE_BLUEPRINT.md')">
+                            <span class="file-icon">🏗️</span>
+                            <div class="file-info">
+                                <div class="file-name">Gateway Blueprint</div>
+                                <div class="file-desc">Email architecture</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item personal-only">
+                            <span class="file-icon">🔑</span>
+                            <div class="file-info">
+                                <div class="file-name">Gmail Credentials</div>
+                                <div class="file-desc">OAuth tokens</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- DISCORD -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>💬 Discord</h3>
+                        <span class="drawer-count">2 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="DISCORD_PULSE.html" class="file-item" target="_blank">
+                            <span class="file-icon">💜</span>
+                            <div class="file-info">
+                                <div class="file-name">Discord Pulse</div>
+                                <div class="file-desc">Community dashboard</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('.consciousness/discord_round_robin_state.json')">
+                            <span class="file-icon">🔄</span>
+                            <div class="file-info">
+                                <div class="file-name">Round Robin State</div>
+                                <div class="file-desc">Message distribution</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- EXTERNAL NETWORKS -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>🌐 Networks</h3>
+                        <span class="drawer-count">3 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('.social_media_automation/')">
+                            <span class="file-icon">📱</span>
+                            <div class="file-info">
+                                <div class="file-name">Social Media</div>
+                                <div class="file-desc">Automation scripts</div>
+                            </div>
+                        </a>
+                        <a href="https://github.com/overkillkulture" class="file-item" target="_blank">
+                            <span class="file-icon">🐙</span>
+                            <div class="file-info">
+                                <div class="file-name">GitHub</div>
+                                <div class="file-desc">overkillkulture</div>
+                            </div>
+                        </a>
+                        <a href="LINK_HUB.html" class="file-item" target="_blank">
+                            <span class="file-icon">🔗</span>
+                            <div class="file-info">
+                                <div class="file-name">Link Hub</div>
+                                <div class="file-desc">All external links</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="widget">
+                <h3>🎯 Domain Mission</h3>
+                <div class="mission-statement">
+                    <p>"CONNECT bridges all the pieces. Communication, team, networks.
+                    No human is an island. Build the mesh. Strengthen the bonds.
+                    Every connection amplifies the whole."</p>
+                </div>
+            </div>
+
+            <div class="widget team-only">
+                <h3>⚡ Quick Actions</h3>
+                <div class="quick-actions">
+                    <a href="TEAM_COCKPIT.html" class="action-btn" target="_blank">
+                        <span class="icon">👥</span>
+                        <span class="label">Team Hub</span>
+                    </a>
+                    <a href="DISCORD_PULSE.html" class="action-btn" target="_blank">
+                        <span class="icon">💬</span>
+                        <span class="label">Discord</span>
+                    </a>
+                    <a href="#" class="action-btn personal-only" onclick="window.open('https://mail.google.com', '_blank')">
+                        <span class="icon">📧</span>
+                        <span class="label">Email</span>
+                    </a>
+                    <a href="https://github.com/overkillkulture" class="action-btn" target="_blank">
+                        <span class="icon">🐙</span>
+                        <span class="label">GitHub</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="widget">
+                <h3>📊 Connection Status</h3>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <div class="value">7</div>
+                        <div class="label">Team Members</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="value">15</div>
+                        <div class="label">MCP Servers</div>
+                    </div>
+                    <div class="status-card personal-only">
+                        <div class="value">5+</div>
+                        <div class="label">Active Channels</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget team-only">
+                <h3>🕐 Recent Activity</h3>
+                <ul class="activity-list">
+                    <li class="activity-item">
+                        <div class="activity-icon">🔗</div>
+                        <div>
+                            <div class="activity-text">Personal Domain dashboards connected</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                    <li class="activity-item">
+                        <div class="activity-icon">👥</div>
+                        <div>
+                            <div class="activity-text">Team contacts indexed</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                    <li class="activity-item">
+                        <div class="activity-icon">💬</div>
+                        <div>
+                            <div class="activity-text">Discord integration active</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Domain 3: CONNECT | Pattern: 3 → 7 → 13 → ∞ | conciousnessrevolution.io
+    </div>
+
+    <script>
+        function toggleDrawer(handle) { handle.parentElement.classList.toggle('open'); }
+        function openLocalFile(path) { alert('Local file: C:\\Users\\dwrek\\' + path + '\n\nOpen in VS Code or file explorer.'); }
+
+        function setViewLevel(level) {
+            document.body.classList.remove('view-personal', 'view-team', 'view-public');
+            document.body.classList.add('view-' + level);
+            document.querySelectorAll('.view-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.dataset.level === level) opt.classList.add('active');
+            });
+            document.getElementById('slider-highlight').className = 'slider-highlight ' + level;
+            const badge = document.getElementById('view-badge');
+            badge.className = 'current-view-badge ' + level;
+            badge.textContent = { 'personal': 'Full Access', 'team': 'Team View', 'public': 'Public View' }[level];
+            localStorage.setItem('viewLevel_domain3', level);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setViewLevel(localStorage.getItem('viewLevel_domain3') || 'personal');
+        });
+    </script>
+</body>
+</html>

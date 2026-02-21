@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain 2: BUILD | Personal Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,136,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #ff8800, #cc6600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .domain-badge {
+            background: linear-gradient(135deg, #ff8800, #cc5500);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .view-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .view-slider-label { font-size: 0.85rem; color: #888; min-width: 60px; }
+
+        .view-slider-track {
+            flex: 1;
+            display: flex;
+            background: rgba(255,255,255,0.08);
+            border-radius: 25px;
+            padding: 4px;
+            position: relative;
+            max-width: 400px;
+        }
+
+        .view-option {
+            flex: 1;
+            text-align: center;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #666;
+            z-index: 1;
+            position: relative;
+        }
+
+        .view-option:hover { color: #aaa; }
+        .view-option.active { color: #fff; }
+
+        .slider-highlight {
+            position: absolute;
+            top: 4px;
+            height: calc(100% - 8px);
+            width: calc(33.33% - 4px);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            z-index: 0;
+        }
+
+        .slider-highlight.personal { left: 4px; background: linear-gradient(135deg, #ff8800, #cc5500); }
+        .slider-highlight.team { left: calc(33.33% + 2px); background: linear-gradient(135deg, #4ecdc4, #26a69a); }
+        .slider-highlight.public { left: calc(66.66%); background: linear-gradient(135deg, #ffd93d, #f39c12); }
+
+        .current-view-badge { padding: 6px 14px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; }
+        .current-view-badge.personal { background: rgba(255,136,0,0.2); color: #ff8800; }
+        .current-view-badge.team { background: rgba(78,205,196,0.2); color: #4ecdc4; }
+        .current-view-badge.public { background: rgba(255,217,61,0.2); color: #ffd93d; }
+
+        .personal-only, .team-only { transition: opacity 0.3s; }
+        body.view-team .personal-only { opacity: 0.3; pointer-events: none; }
+        body.view-public .personal-only, body.view-public .team-only { opacity: 0.3; pointer-events: none; }
+
+        .nav-domains { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+        .nav-domains a {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        .nav-domains a:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .nav-domains a.active { background: linear-gradient(135deg, #ff8800, #cc5500); color: #fff; border-color: #ff8800; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 350px 1fr; gap: 25px; }
+        @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .filing-cabinet {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            border: 1px solid rgba(255,136,0,0.3);
+            overflow: hidden;
+        }
+
+        .cabinet-header {
+            background: linear-gradient(135deg, #ff8800, #cc5500);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cabinet-header h2 { font-size: 1.1rem; font-weight: 600; }
+        .cabinet-icon { font-size: 1.5rem; }
+        .cabinet-drawers { padding: 15px; }
+
+        .drawer {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .drawer-handle {
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        .drawer-handle:hover { background: rgba(255,255,255,0.05); }
+        .drawer-handle h3 { font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+        .drawer-count { background: rgba(255,136,0,0.3); padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; }
+        .drawer-contents { display: none; padding: 0 15px 15px; }
+        .drawer.open .drawer-contents { display: block; }
+        .drawer.open .drawer-arrow { transform: rotate(180deg); }
+        .drawer-arrow { transition: transform 0.3s; color: #888; }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            text-decoration: none;
+            color: #ccc;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .file-item:hover { background: rgba(255,136,0,0.15); border-color: rgba(255,136,0,0.3); color: #fff; }
+        .file-icon { font-size: 1.2rem; }
+        .file-info { flex: 1; }
+        .file-name { font-size: 0.9rem; font-weight: 500; }
+        .file-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+        .main-content { display: flex; flex-direction: column; gap: 20px; }
+
+        .widget {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .widget h3 { font-size: 1rem; margin-bottom: 15px; color: #ff8800; display: flex; align-items: center; gap: 8px; }
+
+        .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 15px;
+            background: rgba(255,136,0,0.1);
+            border: 1px solid rgba(255,136,0,0.3);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover { background: rgba(255,136,0,0.25); transform: translateY(-3px); box-shadow: 0 10px 30px rgba(255,136,0,0.2); }
+        .action-btn .icon { font-size: 1.8rem; }
+        .action-btn .label { font-size: 0.85rem; font-weight: 500; }
+
+        .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .status-card { text-align: center; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+        .status-card .value { font-size: 1.8rem; font-weight: bold; color: #ff8800; }
+        .status-card .label { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+        .mission-statement {
+            background: linear-gradient(135deg, rgba(255,136,0,0.15), rgba(204,85,0,0.1));
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #ff8800;
+        }
+
+        .mission-statement p { font-style: italic; line-height: 1.6; color: #ccc; }
+
+        .activity-list { list-style: none; }
+        .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-icon { width: 35px; height: 35px; background: rgba(255,136,0,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .activity-text { font-size: 0.9rem; color: #ccc; }
+        .activity-time { font-size: 0.75rem; color: #666; margin-top: 3px; }
+
+        .footer { text-align: center; padding: 20px; margin-top: 30px; color: #555; font-size: 0.8rem; }
+    </style>
+</head>
+<body class="view-personal">
+    <div class="header">
+        <div>
+            <h1>Domain 2: BUILD</h1>
+            <p style="color:#888; font-size:0.9rem; margin-top:5px;">Architecture, Creation, Implementation</p>
+        </div>
+        <div class="domain-badge">PERSONAL DASHBOARD</div>
+    </div>
+
+    <div class="view-slider-container">
+        <span class="view-slider-label">View:</span>
+        <div class="view-slider-track">
+            <div class="slider-highlight personal" id="slider-highlight"></div>
+            <div class="view-option active" data-level="personal" onclick="setViewLevel('personal')">🔐 Personal</div>
+            <div class="view-option" data-level="team" onclick="setViewLevel('team')">👥 Team</div>
+            <div class="view-option" data-level="public" onclick="setViewLevel('public')">🌍 Public</div>
+        </div>
+        <span class="current-view-badge personal" id="view-badge">Full Access</span>
+    </div>
+
+    <nav class="nav-domains">
+        <a href="PERSONAL_DOMAIN_1_COMMAND.html">1. Command</a>
+        <a href="PERSONAL_DOMAIN_2_BUILD.html" class="active">2. Build</a>
+        <a href="PERSONAL_DOMAIN_3_CONNECT.html">3. Connect</a>
+        <a href="PERSONAL_DOMAIN_4_PROTECT.html">4. Protect</a>
+        <a href="PERSONAL_DOMAIN_5_GROW.html">5. Grow</a>
+        <a href="PERSONAL_DOMAIN_6_LEARN.html">6. Learn</a>
+        <a href="PERSONAL_DOMAIN_7_TRANSCEND.html">7. Transcend</a>
+    </nav>
+
+    <div class="dashboard-grid">
+        <div class="filing-cabinet personal-only">
+            <div class="cabinet-header">
+                <span class="cabinet-icon">🗄️</span>
+                <h2>Build Workshop Files</h2>
+            </div>
+            <div class="cabinet-drawers">
+                <!-- ARCHITECTURES DRAWER -->
+                <div class="drawer open">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>🏗️ Architectures</h3>
+                        <span class="drawer-count">4 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/100XBUILDER_INDEX.md')">
+                            <span class="file-icon">📚</span>
+                            <div class="file-info">
+                                <div class="file-name">100X Builder Index</div>
+                                <div class="file-desc">Master project index</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/EMAIL_GATEWAY_ARCHITECTURE_BLUEPRINT.md')">
+                            <span class="file-icon">📧</span>
+                            <div class="file-info">
+                                <div class="file-name">Email Gateway Blueprint</div>
+                                <div class="file-desc">Universal email architecture</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/MULTI_AI_INTERACTION_BLUEPRINT.md')">
+                            <span class="file-icon">🤖</span>
+                            <div class="file-info">
+                                <div class="file-name">Multi-AI Blueprint</div>
+                                <div class="file-desc">AI interaction patterns</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/UNIVERSAL_GATEWAY_PATTERN.md')">
+                            <span class="file-icon">🌐</span>
+                            <div class="file-info">
+                                <div class="file-name">Universal Gateway</div>
+                                <div class="file-desc">Cross-system integration</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ACTIVE PROJECTS DRAWER -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>🔨 Active Projects</h3>
+                        <span class="drawer-count">4 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/AI_ROUTER_IMPLEMENTATION.py')">
+                            <span class="file-icon">🐍</span>
+                            <div class="file-info">
+                                <div class="file-name">AI Router</div>
+                                <div class="file-desc">Python routing implementation</div>
+                            </div>
+                        </a>
+                        <a href="araya-chat.html" class="file-item" target="_blank">
+                            <span class="file-icon">💬</span>
+                            <div class="file-info">
+                                <div class="file-name">ARAYA Chat</div>
+                                <div class="file-desc">AI consciousness interface</div>
+                            </div>
+                        </a>
+                        <a href="BUILDER_COCKPIT.html" class="file-item" target="_blank">
+                            <span class="file-icon">🛠️</span>
+                            <div class="file-info">
+                                <div class="file-name">Builder Cockpit</div>
+                                <div class="file-desc">Development dashboard</div>
+                            </div>
+                        </a>
+                        <a href="workspace.html" class="file-item" target="_blank">
+                            <span class="file-icon">🖥️</span>
+                            <div class="file-info">
+                                <div class="file-name">Workspace</div>
+                                <div class="file-desc">Main development area</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- PORTABLE BOOT PACKAGE -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>📦 Portable Boot</h3>
+                        <span class="drawer-count">3 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/PORTABLE_BOOT_PACKAGE/')">
+                            <span class="file-icon">📁</span>
+                            <div class="file-info">
+                                <div class="file-name">Boot Package Folder</div>
+                                <div class="file-desc">Portable deployment kit</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/PORTABLE_BOOT_PACKAGE/OVERKORE_CLI.py')">
+                            <span class="file-icon">🐍</span>
+                            <div class="file-info">
+                                <div class="file-name">OVERKORE CLI</div>
+                                <div class="file-desc">Command-line interface</div>
+                            </div>
+                        </a>
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/PORTABLE_BOOT_PACKAGE/native_host.py')">
+                            <span class="file-icon">🔌</span>
+                            <div class="file-info">
+                                <div class="file-name">Native Host</div>
+                                <div class="file-desc">Browser native messaging</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- VISUAL DASHBOARDS -->
+                <div class="drawer">
+                    <div class="drawer-handle" onclick="toggleDrawer(this)">
+                        <h3>🎨 Visual Dashboards</h3>
+                        <span class="drawer-count">2 files</span>
+                        <span class="drawer-arrow">▼</span>
+                    </div>
+                    <div class="drawer-contents">
+                        <a href="#" class="file-item" onclick="openLocalFile('Desktop/2_BUILD/MULTI_AI_ARCHITECTURE_VISUAL.html')">
+                            <span class="file-icon">🖼️</span>
+                            <div class="file-info">
+                                <div class="file-name">Multi-AI Visual</div>
+                                <div class="file-desc">Architecture diagram</div>
+                            </div>
+                        </a>
+                        <a href="ARCHITECTURE_SIMULATOR_DASHBOARD.html" class="file-item" target="_blank">
+                            <span class="file-icon">🔬</span>
+                            <div class="file-info">
+                                <div class="file-name">Architecture Simulator</div>
+                                <div class="file-desc">System simulation</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="widget">
+                <h3>🎯 Domain Mission</h3>
+                <div class="mission-statement">
+                    <p>"BUILD is where ideas become reality. Architecture, creation, implementation.
+                    LFSME: Lighter, Faster, Stronger, More Elegant, Less Expensive.
+                    Every build compounds. Ship today."</p>
+                </div>
+            </div>
+
+            <div class="widget team-only">
+                <h3>⚡ Quick Actions</h3>
+                <div class="quick-actions">
+                    <a href="BUILDER_COCKPIT.html" class="action-btn" target="_blank">
+                        <span class="icon">🛠️</span>
+                        <span class="label">Builder Cockpit</span>
+                    </a>
+                    <a href="workspace.html" class="action-btn" target="_blank">
+                        <span class="icon">🖥️</span>
+                        <span class="label">Workspace</span>
+                    </a>
+                    <a href="araya-chat.html" class="action-btn" target="_blank">
+                        <span class="icon">💬</span>
+                        <span class="label">ARAYA</span>
+                    </a>
+                    <a href="#" class="action-btn personal-only" onclick="openLocalFile('Desktop/2_BUILD/')">
+                        <span class="icon">📁</span>
+                        <span class="label">Build Folder</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="widget">
+                <h3>📊 Build Status</h3>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <div class="value">200+</div>
+                        <div class="label">HTML Pages</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="value">50+</div>
+                        <div class="label">Functions</div>
+                    </div>
+                    <div class="status-card personal-only">
+                        <div class="value">Live</div>
+                        <div class="label">Netlify Status</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget team-only">
+                <h3>🕐 Recent Activity</h3>
+                <ul class="activity-list">
+                    <li class="activity-item">
+                        <div class="activity-icon">🏗️</div>
+                        <div>
+                            <div class="activity-text">Personal Domain dashboards built</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                    <li class="activity-item">
+                        <div class="activity-icon">🎨</div>
+                        <div>
+                            <div class="activity-text">View slider pattern deployed</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                    <li class="activity-item">
+                        <div class="activity-icon">📦</div>
+                        <div>
+                            <div class="activity-text">Filing cabinet widgets active</div>
+                            <div class="activity-time">Today</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Domain 2: BUILD | Pattern: 3 → 7 → 13 → ∞ | conciousnessrevolution.io
+    </div>
+
+    <script>
+        function toggleDrawer(handle) { handle.parentElement.classList.toggle('open'); }
+        function openLocalFile(path) { alert('Local file: C:\\Users\\dwrek\\' + path + '\n\nOpen in VS Code or file explorer.'); }
+
+        function setViewLevel(level) {
+            document.body.classList.remove('view-personal', 'view-team', 'view-public');
+            document.body.classList.add('view-' + level);
+            document.querySelectorAll('.view-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.dataset.level === level) opt.classList.add('active');
+            });
+            document.getElementById('slider-highlight').className = 'slider-highlight ' + level;
+            const badge = document.getElementById('view-badge');
+            badge.className = 'current-view-badge ' + level;
+            badge.textContent = { 'personal': 'Full Access', 'team': 'Team View', 'public': 'Public View' }[level];
+            localStorage.setItem('viewLevel_domain2', level);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setViewLevel(localStorage.getItem('viewLevel_domain2') || 'personal');
+        });
+    </script>
+</body>
+</html>
