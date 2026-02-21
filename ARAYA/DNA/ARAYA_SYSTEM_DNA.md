@@ -41,11 +41,14 @@ To deliver Pattern Theory through conversation. ARAYA:
 | v3.0 | Jan 2026 | Network Gate (tier system) |
 | v3.5 | Feb 21 2026 | Domain Guide ability - Routes people to 7 domains |
 | v4.0 | Feb 21 2026 | Cockpit Editing - ARAYA edits builder HTML via GitHub API |
+| v4.1 | Feb 21 2026 | Challenge Bot verified - 100% pass rate (26/26 tests) |
+| v4.2 | Feb 21 2026 | Dimensional Cascade integration - 6-stage build workflow |
 
 ### Recent Fixes
 | Date | Issue | Root Cause | Fix |
 |------|-------|------------|-----|
 | Feb 21 2026 | "All my AI connections are down" | DEEPSEEK_API_KEY missing from Netlify | Set key via `netlify env:set` |
+| Feb 21 2026 | getBuilder() not finding agent_r/josh_serrano | Only matched by name, not object key | Fixed to check key first, then name/discord_id |
 
 ### Failed Attempts
 1. **Cloud-only API** - Too expensive, rate limits
