@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Governance Panel - Dashboard Factory</title>
+
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0d0d1a 0%, #1a0d1a 50%, #0d1a1a 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0,255,136,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .stage-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stage-tab {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .stage-tab:hover { background: rgba(255,255,255,0.1); }
+        .stage-tab.active { background: rgba(0,255,136,0.3); border-color: #00ff88; }
+
+        .widget-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .widget-title {
+            font-size: 1.2rem;
+            color: #00ff88;
+        }
+
+        .widget-id {
+            font-size: 0.75rem;
+            color: #666;
+            font-family: monospace;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge.experimental { background: #ff8800; color: #000; }
+        .badge.approved { background: #00aaff; color: #000; }
+        .badge.foundational { background: #00ff88; color: #000; }
+
+        .widget-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .meta-value {
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .progress-bar {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00aaff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #000;
+            transition: width 0.3s;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover { transform: scale(1.05); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff88, #00aaff);
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .btn-success {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .vote-section {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .vote-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1rem;
+            color: #888;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,255,136,0.9);
+            color: #000;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show { opacity: 1; }
+        .toast.error { background: rgba(255,68,68,0.9); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Widget Governance Panel</h1>
+        <p>Manage widget lifecycle: Experimental → Approved → Foundational</p>
+    </div>
+
+    <div class="stage-tabs">
+        <div class="stage-tab active" data-stage="all">All Widgets</div>
+        <div class="stage-tab" data-stage="foundational">Foundational</div>
+        <div class="stage-tab" data-stage="approved">Approved</div>
+        <div class="stage-tab" data-stage="experimental">Experimental</div>
+    </div>
+
+    <div id="widgetContainer" class="loading">
+        Loading widgets...
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Supabase Config
+        const SUPABASE_URL = 'https://iqjghsofnpoadwzqxmnz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxamdoc29mbnBvYWR3enF4bW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NDkxMDEsImV4cCI6MjA1MTAyNTEwMX0.WAz3cvPOIa-u7J2_JqAY8E5tPGkJQPWQYCdv7QV1QR0';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentStage = 'all';
+        let widgets = [];
+        let registry = null;
+
+        // Load feature registry
+        async function loadRegistry() {
+            const response = await fetch('/DASHBOARD_FEATURES_REGISTRY.json');
+            registry = await response.json();
+        }
+
+        // Load widgets
+        async function loadWidgets() {
+            try {
+                const { data, error } = await supabase
+                    .from('widget_governance')
+                    .select('*')
+                    .order('promoted_at', { ascending: false });
+
+                if (error) throw error;
+
+                widgets = data || [];
+                renderWidgets();
+            } catch (e) {
+                console.error('Failed to load widgets:', e);
+                document.getElementById('widgetContainer').innerHTML =
+                    '<p style="color: #ff4444;">Failed to load widgets. Check Supabase connection.</p>';
+            }
+        }
+
+        // Render widgets
+        async function renderWidgets() {
+            const container = document.getElementById('widgetContainer');
+
+            const filtered = currentStage === 'all'
+                ? widgets
+                : widgets.filter(w => w.stage === currentStage);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="loading">No ${currentStage} widgets found.</p>`;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            for (const widget of filtered) {
+                // Get registry data
+                const registryData = registry?.features.find(f => f.id === widget.feature_id);
+
+                // Get adoption stats
+                const { data: installations } = await supabase
+                    .from('dashboard_features')
+                    .select('dashboard_name')
+                    .eq('feature_id', widget.feature_id);
+
+                const installedCount = installations?.length || 0;
+                const totalDashboards = 10; // TODO: Get from database
+                const adoptionRate = Math.round((installedCount / totalDashboards) * 100);
+
+                // Get vote data
+                const votePercentage = await calculateVotePercentage(widget.feature_id);
+
+                const card = document.createElement('div');
+                card.className = 'widget-card';
+                card.innerHTML = `
+                    <div class="widget-header">
+                        <div>
+                            <div class="widget-title">${registryData?.name || widget.feature_id}</div>
+                            <div class="widget-id">${widget.feature_id} v${registryData?.version || '1.0.0'}</div>
+                        </div>
+                        <span class="badge ${widget.stage}">${widget.stage}</span>
+                    </div>
+
+                    <div class="widget-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Category</span>
+                            <span class="meta-value">${widget.category || registryData?.category || 'N/A'}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Created By</span>
+                            <span class="meta-value">${widget.created_by}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Installations</span>
+                            <span class="meta-value">${installedCount}/${totalDashboards} dashboards</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Vote Approval</span>
+                            <span class="meta-value">${votePercentage}%</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${adoptionRate}%">
+                            ${adoptionRate}% Adoption
+                        </div>
+                    </div>
+
+                    ${registryData?.description ? `
+                    <p style="font-size: 0.9rem; color: #aaa; margin: 10px 0;">
+                        ${registryData.description}
+                    </p>
+                    ` : ''}
+
+                    <div class="actions">
+                        ${widget.stage === 'foundational' ? `
+                        <button class="btn btn-primary" onclick="applyToAll('${widget.feature_id}', false)">
+                            🚀 Apply to Missing (${totalDashboards - installedCount})
+                        </button>
+                        <button class="btn btn-secondary" onclick="applyToAll('${widget.feature_id}', true)">
+                            👁️ Preview
+                        </button>
+                        ` : ''}
+
+                        ${widget.stage === 'approved' ? `
+                        <button class="btn btn-success" ${votePercentage >= 90 ? '' : 'disabled'}>
+                            ⬆️ Promote to Foundational ${votePercentage >= 90 ? '' : `(Need ${90 - votePercentage}% more)`}
+                        </button>
+                        ` : ''}
+
+                        <button class="btn btn-secondary" onclick="viewInstallations('${widget.feature_id}')">
+                            📊 View Installations
+                        </button>
+                    </div>
+
+                    ${widget.stage !== 'foundational' ? `
+                    <div class="vote-section">
+                        <p style="margin-bottom: 5px;"><strong>Vote Threshold:</strong>
+                        ${widget.stage === 'experimental' ? '≥66% to reach Approved' : '≥90% to reach Foundational'}</p>
+                        <div class="vote-buttons">
+                            <button class="btn btn-success" onclick="vote('${widget.feature_id}', 'approve')">👍 Approve</button>
+                            <button class="btn btn-danger" onclick="vote('${widget.feature_id}', 'reject')">👎 Reject</button>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+
+                container.appendChild(card);
+            }
+        }
+
+        // Calculate vote percentage
+        async function calculateVotePercentage(featureId) {
+            const { data: votes } = await supabase
+                .from('widget_votes')
+                .select('*')
+                .eq('feature_id', featureId);
+
+            if (!votes || votes.length === 0) return 0;
+
+            const totalXP = votes.reduce((sum, v) => sum + (v.voter_xp || 100), 0);
+            const approveXP = votes
+                .filter(v => v.vote_value === 'approve')
+                .reduce((sum, v) => sum + (v.voter_xp || 100), 0);
+
+            return totalXP > 0 ? Math.round((approveXP / totalXP) * 100) : 0;
+        }
+
+        // Apply to all dashboards
+        async function applyToAll(featureId, previewOnly = false) {
+            const confirmed = previewOnly || confirm('Apply this widget to ALL operator cockpits?');
+            if (!confirmed) return;
+
+            showToast('Processing...', false);
+
+            try {
+                const response = await fetch('/.netlify/functions/apply-widget-to-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        feature_id: featureId,
+                        target_dashboards: ['OPERATOR_COCKPIT_*.html'],
+                        strategy: 'smart',
+                        preview_only: previewOnly,
+                        commit_to_git: !previewOnly
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(`✅ Updated ${result.dashboards_updated} dashboards!`, false);
+                    if (!previewOnly) loadWidgets(); // Refresh
+                } else {
+                    showToast(`❌ Error: ${result.error}`, true);
+                }
+            } catch (e) {
+                showToast(`❌ Failed: ${e.message}`, true);
+            }
+        }
+
+        // Vote on widget
+        async function vote(featureId, voteValue) {
+            const voterName = prompt('Enter your name (e.g., Commander, Ryan, Agent R):');
+            if (!voterName) return;
+
+            try {
+                const { error } = await supabase
+                    .from('widget_votes')
+                    .upsert({
+                        feature_id: featureId,
+                        voter_name: voterName,
+                        vote_value: voteValue,
+                        voter_xp: voterName === 'Commander' ? 1000 : 100
+                    });
+
+                if (error) throw error;
+
+                showToast(`✅ Vote recorded!`, false);
+                loadWidgets(); // Refresh to show updated vote count
+            } catch (e) {
+                showToast(`❌ Vote failed: ${e.message}`, true);
+            }
+        }
+
+        // View installations
+        async function viewInstallations(featureId) {
+            const { data: installations } = await supabase
+                .from('dashboard_features')
+                .select('*')
+                .eq('feature_id', featureId);
+
+            const list = installations?.map(i => `${i.dashboard_name} (v${i.feature_version})`).join('\n') || 'None';
+            alert(`Installations:\n\n${list}`);
+        }
+
+        // Show toast notification
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${isError ? 'error' : ''}`;
+            setTimeout(() => toast.className = 'toast', 3000);
+        }
+
+        // Tab switching
+        document.querySelectorAll('.stage-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.stage-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentStage = tab.dataset.stage;
+                renderWidgets();
+            });
+        });
+
+        // Initialize
+        (async () => {
+            await loadRegistry();
+            await loadWidgets();
+        })();
+    </script>
+</body>
+</html>
