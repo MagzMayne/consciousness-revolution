@@ -33,8 +33,8 @@ import { BUILDER_COCKPITS, getBuilder, ACCESS_TIERS } from './domain-tools.mjs';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 // MAIN DEPLOYMENT REPO: ARAYA edits the live site directly
-const GITHUB_OWNER = 'overkillkulture';
-const GITHUB_REPO = '100X_DEPLOYMENT';
+const GITHUB_OWNER = 'overkor-tek';
+const GITHUB_REPO = 'consciousness-revolution';
 const GITHUB_BRANCH = 'master';
 
 // CORS headers for client access
