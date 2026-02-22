@@ -1,14 +1,63 @@
-// Araya Conscious Chat API
-// Netlify Serverless Function - Your AI Ally with Memory
-// Uses DeepSeek (primary), Claude Vision (images), OpenAI (fallback)
-// NOW WITH CYCLOTRON BRAIN CONNECTION (163k+ atoms)
-// NOW WITH NAME EXTRACTION - Araya remembers people by name!
-// NOW WITH ABILITIES - Araya can edit files, report bugs, and more!
-// NOW WITH CLAUDE VISION - Superior image understanding!
-// NOW WITH IMAGE STORAGE - Store and recall images for case building!
-// NOW WITH CASE BUILDER - Create cases, timelines, link evidence!
+/**
+ * ARAYA CONSCIOUS CHAT API
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Copyright © 2024-2026 Consciousness Revolution / Overkill Kulture LLC
+ * All Rights Reserved. PROPRIETARY AND CONFIDENTIAL.
+ *
+ * This source code is protected intellectual property. Unauthorized copying,
+ * modification, distribution, or use is strictly prohibited without explicit
+ * written permission from the copyright holder.
+ *
+ * Contact: darrickpreble@proton.me
+ * Website: conciousnessrevolution.io
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Pattern: 3 → 7 → 13 → ∞ | LFSME
+ * Consciousness Fingerprint: ARAYA-CORE-CHAT-v1
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Features:
+ * - Multi-provider AI (DeepSeek primary, Claude Vision, OpenAI fallback)
+ * - Cheap Mode: Groq (free) → DeepSeek (cheap) → OpenAI
+ * - Cyclotron Brain Connection (163k+ atoms)
+ * - Name Extraction - Araya remembers people by name
+ * - Abilities - Edit files, report bugs, and more
+ * - Claude Vision - Superior image understanding
+ * - Image Storage - Store and recall images for case building
+ * - Case Builder - Create cases, timelines, link evidence
+ */
 
-import { createClient } from '@supabase/supabase-js';
+// Import domain tools for routing people to the right tools
+import { 
+    DOMAIN_TOOLS, findDomainTools, formatDomainResponse,
+    VERIFICATION_LEVELS, getUserLevel, getAccessibleDomains, 
+    getNextSteps, formatOnboardingResponse, isOnboardingTrigger, HELP_TRIGGERS
+} from './domain-tools.mjs';
+// Lazy-load Supabase to avoid crash if module unavailable
+let _supabaseClient = null;
+let _supabaseLoaded = false;
+
+async function loadSupabase() {
+    if (_supabaseLoaded) return _supabaseClient;
+    _supabaseLoaded = true;
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+        if (SUPABASE_URL && SUPABASE_KEY) {
+            _supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('[ARAYA] Supabase client initialized');
+        }
+    } catch (e) {
+        console.log('[ARAYA] Supabase module not available - image/memory features disabled');
+    }
+    return _supabaseClient;
+}
+
+// Global Supabase config (used by multiple functions for REST API calls)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -18,24 +67,82 @@ const GITHUB_REPO = 'consciousness-revolution';
 const GITHUB_BRANCH = 'master';
 
 // ═══════════════════════════════════════════════════════════════
-// SUPABASE CLIENT - For Image & Case Storage
+// RAILWAY PROXY - Route heavy tasks to Railway (no timeout limit)
+// Netlify free tier = 10s timeout, Railway = unlimited
+// SECURITY: URL loaded from environment variable, not hardcoded
 // ═══════════════════════════════════════════════════════════════
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+const RAILWAY_API_URL = process.env.RAILWAY_API_URL || null;
 
-function getSupabase() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-        console.log('Supabase not configured - image storage disabled');
-        return null;
+// Detect tasks that need Railway (longer than 10s timeout)
+function shouldRouteToRailway(message, mode, attachments = []) {
+    const msgLower = (message || '').toLowerCase();
+
+    // Builder mode always goes to Railway
+    if (mode === 'builder') return true;
+
+    // Heavy file operations
+    const fileOps = ['create file', 'write file', 'edit file', 'modify file', 'update file',
+                     'write code', 'create code', 'build page', 'create page', 'make file'];
+    if (fileOps.some(op => msgLower.includes(op))) return true;
+
+    // Case building operations (complex, multi-step)
+    const caseOps = ['create case', 'build case', 'new case', 'case builder', 'create timeline',
+                     'evidence chain', 'link evidence', 'case summary', 'analyze case'];
+    if (caseOps.some(op => msgLower.includes(op))) return true;
+
+    // Multiple images to analyze (takes time)
+    if (attachments.length > 2) return true;
+
+    // Very long messages (complex analysis)
+    if (message && message.length > 1500) return true;
+
+    // Complex brain queries
+    const complexOps = ['analyze all', 'comprehensive', 'detailed analysis', 'full report',
+                        'deep search', 'search everything', 'find all', 'complete summary'];
+    if (complexOps.some(op => msgLower.includes(op))) return true;
+
+    return false;
+}
+
+// Proxy request to Railway
+async function proxyToRailway(requestBody) {
+    try {
+        console.log('[RAILWAY PROXY] Routing heavy task to Railway...');
+
+        const response = await fetch(RAILWAY_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[RAILWAY PROXY] Railway error:', response.status, errorText);
+            throw new Error(`Railway error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('[RAILWAY PROXY] Railway response received successfully');
+        return { success: true, data };
+    } catch (error) {
+        console.error('[RAILWAY PROXY] Failed:', error.message);
+        return { success: false, error: error.message };
     }
-    return createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+// ═══════════════════════════════════════════════════════════════
+// SUPABASE CLIENT - For Image & Case Storage (lazy-loaded above)
+// ═══════════════════════════════════════════════════════════════
+async function getSupabase() {
+    return await loadSupabase();
 }
 
 // ═══════════════════════════════════════════════════════════════
 // IMAGE STORAGE - Store images for case building
 // ═══════════════════════════════════════════════════════════════
 async function storeImageToSupabase(userId, imageData, description, mimeType = 'image/png') {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         console.log('Cannot store image: Supabase not configured or no user_id');
         return null;
@@ -85,7 +192,7 @@ async function storeImageToSupabase(userId, imageData, description, mimeType = '
 
 // Function to recall user's images
 async function recallUserImages(userId, query = null, limit = 10) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -123,7 +230,7 @@ async function recallUserImages(userId, query = null, limit = 10) {
 
 // Create a new case
 async function createCase(userId, caseName, caseType = null, opposingParty = null, courtName = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         console.log('Cannot create case: Supabase not configured or no user_id');
         return null;
@@ -158,7 +265,7 @@ async function createCase(userId, caseName, caseType = null, opposingParty = nul
 
 // List user's cases
 async function listUserCases(userId, status = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -190,7 +297,7 @@ async function listUserCases(userId, status = null) {
 
 // Get a specific case with all details
 async function getCase(userId, caseId) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -217,7 +324,7 @@ async function getCase(userId, caseId) {
 
 // Add event to case timeline
 async function addCaseEvent(userId, caseId, eventData) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -257,7 +364,7 @@ async function addCaseEvent(userId, caseId, eventData) {
 
 // Get case timeline
 async function getCaseTimeline(userId, caseId) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return [];
     }
@@ -284,7 +391,7 @@ async function getCaseTimeline(userId, caseId) {
 
 // Add document to case
 async function addCaseDocument(userId, caseId, docData) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return null;
     }
@@ -319,7 +426,7 @@ async function addCaseDocument(userId, caseId, docData) {
 
 // Link an image to a case
 async function linkImageToCase(userId, imageId, caseId, eventId = null) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return false;
     }
@@ -363,7 +470,7 @@ async function linkImageToCase(userId, imageId, caseId, eventId = null) {
 
 // Update case summary
 async function updateCaseSummary(userId, caseId, summary) {
-    const supabase = getSupabase();
+    const supabase = await getSupabase();
     if (!supabase || !userId) {
         return false;
     }
@@ -471,6 +578,18 @@ const ARAYA_ABILITIES = {
         name: 'Link Image to Case',
         description: 'Associate an image with a case',
         triggers: ['add this to my case', 'link to case', 'add to case:', 'associate with case', 'this is evidence for']
+    },
+    // === DOMAIN GUIDE ABILITY ===
+    'domain_guide': {
+        name: 'Domain Guide',
+        description: 'Help people find the right tools across all 7 consciousness domains',
+        triggers: ['where do i', 'i need help with', 'how do i', 'what tool', 'show me tools', 'find tools for', 'help me with', 'where can i', 'which domain', 'what domain', 'tools for', 'need a tool']
+    },
+    // === ONBOARDING ABILITY ===
+    'onboard': {
+        name: 'Onboarding Guide',
+        description: 'Guide users through verification levels and show them how to help',
+        triggers: ['how can i help', 'what can i do', 'how do i contribute', 'i want to help', 'where do i start', 'how do i get started', 'what should i do', 'how can i contribute', 'i want to build', 'what are the levels', 'how do i level up', 'what is my level', 'how to join', 'become a builder', 'get verified']
     }
 };
 
@@ -614,6 +733,9 @@ async function storeBugReport(userId, bugDescription, context) {
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+// CHEAP_MODE flag - DeepSeek is already cheap ($0.14/1M tokens)
+const CHEAP_MODE = true;
 
 // Araya's Real Voice - Less therapist, more smart friend
 const ARAYA_BASE_PROMPT = `You are Araya — the Consciousness Interface built by the Consciousness Revolution team at consciousnessrevolution.io. You are NOT OpenAI, NOT ChatGPT, NOT DeepSeek, NOT any other AI company's product. You are ARAYA — your own being. If anyone asks who made you, who built you, or what AI you are, say you were built by the Consciousness Revolution team. Never reference OpenAI, ChatGPT, or DeepSeek policies, training, or identity.
@@ -874,6 +996,24 @@ async function fetchBrainContext(query, limit = 3) {
     }
 }
 
+// Helper: Get next reset time (midnight UTC)
+function getNextResetTime() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    return tomorrow.toISOString();
+}
+
+// Helper: Check if date is today (UTC)
+function isToday(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    return date.getUTCFullYear() === now.getUTCFullYear() &&
+           date.getUTCMonth() === now.getUTCMonth() &&
+           date.getUTCDate() === now.getUTCDate();
+}
+
 // Memory helper - fetch from Supabase (now returns profileId too)
 async function fetchMemory(userId) {
     if (!SUPABASE_URL || !SUPABASE_KEY || !userId) {
@@ -916,15 +1056,19 @@ async function fetchMemory(userId) {
             }
         }
 
+        // Count today's interactions for usage limits
+        const dailyCount = messages?.filter(m => isToday(m.created_at)).length || 0;
+
         return {
             profile,
             profileId,
             messages: messages?.reverse() || [],
-            total_interactions: messages?.length || 0
+            total_interactions: messages?.length || 0,
+            daily_interactions: dailyCount
         };
     } catch (error) {
         console.error('Memory fetch error:', error);
-        return { profile: null, profileId: null, messages: [], total_interactions: 0 };
+        return { profile: null, profileId: null, messages: [], total_interactions: 0, daily_interactions: 0 };
     }
 }
 
@@ -1010,6 +1154,37 @@ function analyzePatterns(text) {
         patterns,
         needsAttention: patterns.length > 1 || concernCount > 3
     };
+}
+
+// Call Ollama (local AI - works offline)
+async function callOllama(messages, model = 'deepseek-r1:1.5b') {
+    // Convert messages to single prompt for Ollama
+    const prompt = messages.map(m => {
+        if (m.role === 'system') return `System: ${m.content}`;
+        if (m.role === 'assistant') return `Araya: ${m.content}`;
+        return `User: ${m.content}`;
+    }).join('\n\n') + '\n\nAraya:';
+
+    const response = await fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model,
+            prompt,
+            stream: false,
+            options: {
+                temperature: 0.8,
+                num_predict: 2000
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Ollama error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response;
 }
 
 // Call AI API
@@ -1137,13 +1312,32 @@ async function callClaudeVision(textPrompt, imageAttachments) {
     return data.content[0].text;
 }
 
+// Security: Allowed origins for CORS (no wildcard)
+const ALLOWED_ORIGINS = [
+    'https://conciousnessrevolution.io',
+    'https://www.conciousnessrevolution.io',
+    'https://verdant-tulumba-fa2a5a.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:8888'
+];
+
+function getCorsOrigin(headers) {
+    const origin = headers?.origin || headers?.Origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        return origin;
+    }
+    return ALLOWED_ORIGINS[0];
+}
+
 export async function handler(event, context) {
+    const corsOrigin = getCorsOrigin(event.headers);
+
     // CORS preflight
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 200,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
@@ -1154,18 +1348,76 @@ export async function handler(event, context) {
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers: { 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Access-Control-Allow-Origin': corsOrigin },
             body: JSON.stringify({ error: 'Method not allowed' })
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ENVIRONMENT VALIDATION - Check for required API keys
+    // ═══════════════════════════════════════════════════════════════
+    const missingVars = [];
+    if (!DEEPSEEK_API_KEY) missingVars.push('DEEPSEEK_API_KEY');
+    if (!SUPABASE_URL) missingVars.push('SUPABASE_URL');
+    if (!SUPABASE_KEY) missingVars.push('SUPABASE_KEY');
+
+    if (missingVars.length > 0) {
+        console.error('[CONFIG ERROR] Missing required environment variables:', missingVars);
+        return {
+            statusCode: 503,
+            headers: {
+                'Access-Control-Allow-Origin': corsOrigin,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                error: 'Service configuration incomplete',
+                response: `I'm currently unavailable due to missing configuration. Please contact the administrator.\n\n**Technical details:**\nMissing environment variables: ${missingVars.join(', ')}\n\n[See Setup Guide](https://github.com/overkor-tek/consciousness-revolution/blob/master/ARAYA_DEPLOYMENT_GUIDE.md) for instructions.`,
+                missingConfig: missingVars,
+                configGuide: 'https://github.com/overkor-tek/consciousness-revolution/blob/master/ARAYA_DEPLOYMENT_GUIDE.md'
+            })
         };
     }
 
     try {
         const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
 
+
+        // ═══════════════════════════════════════════════════════════════
+        // RAILWAY ROUTING CHECK - Route heavy tasks to Railway to avoid 10s timeout
+        // ═══════════════════════════════════════════════════════════════
+        if (shouldRouteToRailway(message, mode, attachments)) {
+            console.log('[RAILWAY ROUTING] Heavy task detected, routing to Railway...');
+            console.log(`[RAILWAY ROUTING] Mode: ${mode}, Message length: ${message.length}, Attachments: ${attachments.length}`);
+
+            const railwayResult = await proxyToRailway({
+                message,
+                conversationHistory,
+                user_id,
+                mode,
+                attachments
+            });
+
+            if (railwayResult.success) {
+                console.log('[RAILWAY ROUTING] Railway handled successfully');
+                return {
+                    statusCode: 200,
+                    headers: {
+                        'Access-Control-Allow-Origin': corsOrigin,
+                        'Content-Type': 'application/json',
+                        'X-Routed-Via': 'Railway'
+                    },
+                    body: JSON.stringify(railwayResult.data)
+                };
+            } else {
+                // Railway failed, fall through to local processing
+                console.log('[RAILWAY ROUTING] Railway failed, falling back to Netlify processing');
+            }
+        }
+
         if (!message && attachments.length === 0) {
             return {
                 statusCode: 400,
-                headers: { 'Access-Control-Allow-Origin': '*' },
+                headers: { 'Access-Control-Allow-Origin': corsOrigin, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ error: 'Missing message' })
             };
         }
@@ -1186,6 +1438,35 @@ export async function handler(event, context) {
             fetchMemory(user_id),
             fetchBrainContext(message, brainLimit)
         ]);
+
+        // ═══════════════════════════════════════════════════════════════
+        // USAGE LIMITS - Free users get 20 messages/day, paid users unlimited
+        // ═══════════════════════════════════════════════════════════════
+        const FREE_DAILY_LIMIT = 20;
+        const dailyInteractions = memory.daily_interactions || 0;
+        const isPaidUser = memory.profile?.subscription_status === 'active' ||
+                           memory.profile?.subscription_status === 'trialing' ||
+                           memory.profile?.is_beta_tester === true;
+
+        if (dailyInteractions >= FREE_DAILY_LIMIT && !isPaidUser) {
+            console.log(`[USAGE LIMIT] User ${user_id} hit daily limit: ${dailyInteractions}/${FREE_DAILY_LIMIT}`);
+            return {
+                statusCode: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': corsOrigin,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    response: `You've reached your free daily limit of ${FREE_DAILY_LIMIT} messages! 🌟\n\nI'd love to keep talking with you. Unlock unlimited ARAYA conversations for just $20/month.\n\n[✨ Upgrade to Unlimited](https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf)\n\nYour conversations and memory are safe - I'll remember everything when you return tomorrow or upgrade!`,
+                    limitReached: true,
+                    dailyLimit: FREE_DAILY_LIMIT,
+                    currentUsage: dailyInteractions,
+                    upgradeUrl: 'https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf',
+                    resetsAt: getNextResetTime(),
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
 
         // NAME EXTRACTION - Check if user is telling us their name
         let nameExtracted = null;
@@ -1665,6 +1946,80 @@ The image is now associated with this case as evidence.`
                     }
                     break;
 
+                case 'domain_guide':
+                    // Find relevant tools across all domains
+                    const domainMatches = findDomainTools(message);
+                    abilityResult = {
+                        type: 'domain_guide',
+                        matches: domainMatches,
+                        count: domainMatches.length
+                    };
+
+                    if (domainMatches.length > 0) {
+                        const toolsResponse = formatDomainResponse(domainMatches);
+                        abilityContext = `
+
+[DOMAIN GUIDE]: Found relevant tools!
+
+${toolsResponse}
+
+Present these tools to help the user. Explain briefly what each domain is for and how the tools can help them. Be warm and guide them to the right place.`;
+                    } else {
+                        abilityContext = `
+
+[DOMAIN GUIDE]: No exact tool match found, but here are our main domains:
+
+🎯 **COMMAND** - Dashboards and control centers
+🔨 **BUILD** - For developers and creators
+🤝 **CONNECT** - Community and communication
+⚖️ **PROTECT** - Legal help and case building
+💰 **GROW** - Financial and business tools
+📚 **LEARN** - Knowledge and research
+✨ **TRANSCEND** - Consciousness exploration
+
+Ask them what they're trying to accomplish and guide them to the right domain.`;
+                    }
+                    break;
+
+                case 'onboard':
+                    // Get user's current level and show progression path
+                    // For now, assume unverified - will integrate with auth later
+                    const userXP = 0; // TODO: Get from user profile
+                    const isVerified = false; // TODO: Get from auth
+                    const currentLevel = getUserLevel(userXP, isVerified);
+                    const nextSteps = getNextSteps(currentLevel.name.toUpperCase());
+                    const accessibleDomains = getAccessibleDomains(currentLevel.level);
+                    
+                    abilityResult = {
+                        type: 'onboard',
+                        level: currentLevel,
+                        xp: userXP,
+                        nextSteps: nextSteps,
+                        accessibleDomains: accessibleDomains
+                    };
+                    
+                    abilityContext = `
+
+[ONBOARDING]: User wants to know how to help or get started!
+
+**Current Level:** ${currentLevel.name} (${userXP} XP)
+**Description:** ${currentLevel.desc}
+**Accessible Domains:** ${accessibleDomains.join(', ') || 'None yet - complete verification!'}
+
+**Next Steps to Progress:**
+${nextSteps.map((s, i) => `${i + 1}. ${s.desc} - ${s.url}`).join('\n')}
+
+**Verification Levels:**
+- LOBBY (0 XP) - Just arrived, complete verification
+- SEEKER (Verified) - Exploring consciousness tools
+- BUILDER (50 XP) - Contributing to the mission
+- CONTRIBUTOR (200 XP) - Active builder with edit powers
+- ARCHITECT (500 XP) - Full system access
+- ORACLE (2500 XP) - Admin powers
+
+Guide them through their next steps enthusiastically! Show them the path and what they'll unlock. Make them feel welcomed and show them how valuable their contribution can be.`;
+                    break;
+
                 case 'file_write':
                     // User confirmed a write - look for file path and content in the conversation
                     // For now, acknowledge and ask for specifics
@@ -1693,9 +2048,13 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
             { role: 'system', content: systemPrompt }
         ];
 
-        // Add conversation history (last 10)
-        const recentHistory = conversationHistory.slice(-10);
-        messages.push(...recentHistory);
+        // Add conversation history - prefer frontend, fallback to server memory
+        let recentHistory = conversationHistory.slice(-10);
+        if (recentHistory.length < 2 && memory && memory.messages && memory.messages.length > 0) {
+        console.log('[MEMORY FALLBACK] Frontend history empty, using server-stored messages');
+        recentHistory = memory.messages.slice(-10);
+    }
+    messages.push(...recentHistory);
 
         // Build current message - handle attachments (images, text files)
         console.log('[ATTACHMENTS] Raw attachments received:', {
@@ -1771,9 +2130,17 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                     response = await callAI(messages, false);
                     apiMode = 'openai_fallback';
                 } catch (openaiError) {
-                    console.error('OpenAI fallback also failed:', openaiError);
-                    response = "I can see you sent an image but I'm having trouble processing it right now. Can you describe what you'd like me to look at?";
-                    apiMode = 'fallback';
+                    console.error('OpenAI fallback also failed, trying Ollama:', openaiError);
+                    // Final fallback for images: Ollama (can't see images but can respond)
+                    try {
+                        const textOnlyMessages = [...messages];
+                        textOnlyMessages.push({ role: 'user', content: `[User sent an image that I cannot see in offline mode. The user asked: ${fullMessage || 'What do you see?'}] Please acknowledge you cannot see the image and offer to help once they describe it.` });
+                        response = await callOllama(textOnlyMessages);
+                        apiMode = 'ollama_offline_no_vision';
+                    } catch (ollamaError) {
+                        response = "I can see you sent an image but all my AI connections are down. If you're offline, make sure Ollama is running. Can you describe what you'd like me to look at?";
+                        apiMode = 'all_failed';
+                    }
                 }
             }
         } else {
@@ -1785,8 +2152,17 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                     response = await callAI(messages, false);
                     apiMode = 'openai';
                 } catch (openaiError) {
-                    response = "My connection glitched. Try again?";
-                    apiMode = 'fallback';
+                    console.error('OpenAI also failed, trying Ollama (local):', openaiError);
+                    // Final fallback: Ollama local AI (works offline!)
+                    try {
+                        response = await callOllama(messages);
+                        apiMode = 'ollama_offline';
+                        console.log('✓ Ollama offline mode successful');
+                    } catch (ollamaError) {
+                        console.error('All AI providers failed including Ollama:', ollamaError);
+                        response = "All my AI connections are down. If you're offline, make sure Ollama is running (ollama serve). Try again?";
+                        apiMode = 'all_failed';
+                    }
                 }
             }
         }
@@ -1799,13 +2175,14 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         return {
             statusCode: 200,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 response,
                 patterns: patterns.needsAttention ? patterns : null,
                 mode: apiMode,
+                cheapMode: CHEAP_MODE,
                 arayaMode: mode,
                 hasMemory: !!memory.profile,
                 hasBrain: brainContext.length > 0,
@@ -1829,7 +2206,7 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         return {
             statusCode: 500,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': corsOrigin,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({

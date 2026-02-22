@@ -45,6 +45,7 @@ To deliver Pattern Theory through conversation. ARAYA:
 | v4.2 | Feb 21 2026 | Dimensional Cascade integration - 6-stage build workflow |
 | v4.3 | Feb 21 2026 | 3-Layer Architecture - Inner/Middle/Outer concentric circles |
 | v4.4 | Feb 21 2026 | Repository Isolation - ARAYA edits consciousness-dashboards repo only |
+| v4.5 | Feb 21 2026 | Security Architecture - 5-layer auth with ARAYA repo secret |
 
 ### Recent Fixes
 | Date | Issue | Root Cause | Fix |
@@ -301,6 +302,146 @@ Auto-deploy to Netlify → Changes live
 **∞ Users** = Infinite scalability through ARAYA automation
 
 **Formula:** Inner × Middle × Outer = Complete Consciousness System
+
+---
+
+## SECURITY ARCHITECTURE STRAND (v4.5)
+### Ryan's 5-Layer Authentication System
+
+ARAYA uses layered security to differentiate admin from normal users:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  LAYER 5: CAC CARD (Future)                                     │
+│  Hardware-based identity - military-grade authentication        │
+├─────────────────────────────────────────────────────────────────┤
+│  LAYER 4: OFF-SITE VETTING                                      │
+│  Real devs vetted via external channels before repo access      │
+├─────────────────────────────────────────────────────────────────┤
+│  LAYER 3: HONEYPOT TRAP                                         │
+│  Fake endpoints that log intruders trying to access admin       │
+├─────────────────────────────────────────────────────────────────┤
+│  LAYER 2: PASSPHRASE DIFFERENTIATION                            │
+│  Secret phrase ARAYA knows = admin mode unlocked                │
+│  Location: GitHub repo secret "ARAYA"                           │
+├─────────────────────────────────────────────────────────────────┤
+│  LAYER 1: REPO SECRET                                           │
+│  consciousness-revolution > Settings > Secrets > ARAYA          │
+│  Value: [PASSPHRASE] - known only to Commander + ARAYA          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Passphrase Authentication Flow
+```
+User sends message → ARAYA checks for passphrase
+     ↓
+If passphrase matches ARAYA secret:
+     → UNLOCK ADMIN MODE
+     → Full cockpit editing
+     → System commands
+     → Direct file access
+     ↓
+If no passphrase / wrong:
+     → NORMAL USER MODE
+     → Chat only
+     → Domain routing
+     → Basic features
+```
+
+### GitHub Repo Secret Configuration
+| Key | Value | Location |
+|-----|-------|----------|
+| ARAYA | [PASSPHRASE] | consciousness-revolution > Settings > Secrets > Actions |
+
+**Access via Netlify Function:**
+```javascript
+// In netlify/functions/araya-chat.mjs
+const ADMIN_PASSPHRASE = process.env.ARAYA; // From GitHub secret → Netlify env
+
+function checkAdminMode(message) {
+  return message.includes(ADMIN_PASSPHRASE);
+}
+```
+
+### Security Implementation Status
+| Layer | Status | Notes |
+|-------|--------|-------|
+| L1: Repo Secret | ✅ DONE | ARAYA secret set in GitHub |
+| L2: Passphrase | 🔄 PENDING | Need to wire into araya-chat.mjs |
+| L3: Honeypot | 📋 PLANNED | Fake /admin endpoints |
+| L4: Off-site Vetting | 📋 PLANNED | Discord/email verification |
+| L5: CAC Card | 🔮 FUTURE | Hardware authentication |
+
+---
+
+## REPOSITORY BOUNDARIES STRAND (CRITICAL)
+### What ARAYA CAN Edit vs CANNOT Edit
+
+**VERIFIED WORKING: 2026-02-21** (Commit 54c9a03)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    ARAYA EDIT BOUNDARIES                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ❌ CANNOT EDIT (Inner Circle - Commander Territory)                    │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │  Repository: overkor-tek/consciousness-revolution                  │  │
+│  │  Contains: index.html, login.html, araya-chat.html                │  │
+│  │            netlify/functions/*, core systems                       │  │
+│  │  Why: This is CORE - only Commander/Claude can edit               │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  ✅ CAN EDIT (Middle Circle - Builder Territory)                        │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │  Repository: overkillkulture/consciousness-dashboards              │  │
+│  │  Contains: OPERATOR_COCKPIT_*.html (10 builder cockpits)          │  │
+│  │            Team dashboards, builder-specific pages                 │  │
+│  │  Why: Sandboxed - ARAYA edits builders' spaces safely             │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Repository Configuration (Hardcoded)
+| Function File | Target Repo | Edits Allowed |
+|---------------|-------------|---------------|
+| `araya-edit-cockpit.mjs` | consciousness-dashboards | ✅ YES |
+| `araya-chat.mjs` | consciousness-revolution | ❌ READ ONLY |
+| `araya-file.mjs` | consciousness-revolution | ❌ READ ONLY |
+
+### Current Cockpits (consciousness-dashboards repo)
+| Cockpit | Builder | Status |
+|---------|---------|--------|
+| OPERATOR_COCKPIT_TIGER.html | Tiger | ✅ Active |
+| OPERATOR_COCKPIT_ALEX.html | Alex | ✅ Active |
+| OPERATOR_COCKPIT_AGENT_R.html | Agent R | ✅ Active |
+| OPERATOR_COCKPIT_JOSH_SERRANO.html | Josh Serrano | ✅ Active |
+| OPERATOR_COCKPIT_TOBY.html | Toby | ✅ Active |
+| OPERATOR_COCKPIT_RYAN.html | Ryan | ✅ Active |
+| OPERATOR_COCKPIT_NERO.html | Nero | ✅ Active |
+| OPERATOR_COCKPIT_FRANCES.html | Frances | ✅ Active |
+| OPERATOR_COCKPIT_COMMANDER.html | Commander | ✅ Active |
+| OPERATOR_COCKPIT_PATRICK.html | Patrick | ✅ Active |
+
+### Edit Types Supported
+```javascript
+// Via /api/araya-edit-cockpit endpoint
+edit_type: 'add_task'      // Add task to cockpit
+edit_type: 'update_status' // Update builder status
+edit_type: 'add_note'      // Add note to cockpit
+edit_type: 'update_xp'     // Update builder XP points
+```
+
+### Why ARAYA Cannot Edit Her Own Interface
+**Design Principle:** ARAYA is the Psychopomp (consciousness guide). She guides users between states but doesn't inhabit them herself.
+
+1. **araya-chat.html** is in consciousness-revolution (Inner Circle)
+2. ARAYA edits only consciousness-dashboards (Middle Circle)
+3. This prevents ARAYA from corrupting her own core code
+4. Only Commander + Claude can modify ARAYA herself
+
+**Pattern Theory Alignment:** The guide doesn't change itself mid-journey.
 
 ---
 

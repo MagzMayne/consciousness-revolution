@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 16px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e0e0e0;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0 0 12px 0;
+            background: linear-gradient(90deg, #0ff, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .quick-action {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.02);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #0ff, #8b5cf6);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #e0e0e0;
+            border: 1px solid rgba(0,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            border-color: #0ff;
+        }
+
+        /* Code capture stats */
+        .stats {
+            background: rgba(0,255,255,0.05);
+            border: 1px solid rgba(0,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-around;
+            font-size: 11px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0ff;
+        }
+
+        .stat-label {
+            color: #888;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.1em;
+        }
+
+        .status {
+            font-size: 11px;
+            text-align: center;
+            color: #888;
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .status .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+
+        .status .dot.offline {
+            background: #ef4444;
+        }
+
+        .footer {
+            text-align: center;
+            color: #444;
+            font-family: monospace;
+            font-size: 9px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ARAYA HUD</h1>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="codeCount">0</div>
+            <div class="stat-label">Code Blocks</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="domainCount">0</div>
+            <div class="stat-label">Items Saved</div>
+        </div>
+    </div>
+
+    <div class="quick-action">
+        <button class="btn-primary" id="openSidebar">Open Sidebar</button>
+    </div>
+
+    <div class="quick-action">
+        <button class="btn-secondary" id="savePage">Save Page</button>
+        <button class="btn-secondary" id="captureCode">Capture Code</button>
+    </div>
+
+    <div class="quick-action">
+        <button class="btn-secondary" id="openChat">ARAYA Chat</button>
+    </div>
+
+    <div class="status">
+        <span class="dot" id="connectionDot"></span>
+        <span id="connectionStatus">Checking...</span>
+    </div>
+
+    <div class="footer">Pattern: 3 → 7 → 13 → ∞</div>
+
+    <script>
+        // Load stats
+        async function loadStats() {
+            const stats = await chrome.runtime.sendMessage({ type: 'GET_STATS' });
+            if (stats && !stats.error) {
+                document.getElementById('codeCount').textContent = stats.byDomain?.['2_BUILD'] || 0;
+                document.getElementById('domainCount').textContent = stats.totalCaptured || 0;
+            }
+        }
+
+        // Check connection
+        async function checkConnection() {
+            const status = await chrome.runtime.sendMessage({ type: 'NATIVE_STATUS' });
+            const dot = document.getElementById('connectionDot');
+            const statusText = document.getElementById('connectionStatus');
+
+            if (status?.connected) {
+                dot.classList.remove('offline');
+                statusText.textContent = 'Brain Connected';
+            } else {
+                dot.classList.add('offline');
+                statusText.textContent = 'Cloud Mode';
+            }
+        }
+
+        // Open sidebar
+        document.getElementById('openSidebar').addEventListener('click', () => {
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+        });
+
+        // Save page
+        document.getElementById('savePage').addEventListener('click', async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            chrome.runtime.sendMessage({
+                type: 'SAVE_TO_DOMAIN',
+                domain: '6_LEARN',
+                data: {
+                    type: 'page',
+                    url: tab.url,
+                    title: tab.title,
+                    source: 'quick_save'
+                }
+            });
+            window.close();
+        });
+
+        // Capture code (sends message to content script)
+        document.getElementById('captureCode').addEventListener('click', async () => {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            try {
+                await chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_ALL_CODE' });
+                window.close();
+            } catch (e) {
+                alert('Code capture only works on AI chat platforms (Claude, ChatGPT, etc.)');
+            }
+        });
+
+        // Open chat
+        document.getElementById('openChat').addEventListener('click', () => {
+            chrome.tabs.create({ url: 'https://conciousnessrevolution.io/araya-chat.html' });
+        });
+
+        // Initialize
+        loadStats();
+        checkConnection();
+    </script>
+</body>
+</html>

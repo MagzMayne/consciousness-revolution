@@ -1,60 +1,42 @@
 # DASHBOARD SETS MAP
 ## Complete Organization for Builder Teams
-## 5 Dashboard Sets - Which to Work On
+## 4 Dashboard Sets - Which to Work On
 
 ---
 
-## THE 5 SETS AT A GLANCE
+## THE 4 SETS AT A GLANCE
 
 ```
-SET 1A: UPGRADED COCKPITS (9) ───────────────────────── Trinity-Enhanced ✅
-SET 1B: LEGACY DASHBOARDS (10) ──────────────────────── Lower Priority
-SET 2:  consciousness-dashboards REPO (10) ──────────── ARAYA-Editable Cockpits
-SET 3:  7×7×7 ARCHITECTURE (10) ─────────────────────── System Infrastructure
-SET 4:  PERSONAL_DOMAIN_1-7 (7) ─────────────────────── NEWEST (a4ec918d6)
+SET 1: ORIGINAL DASHBOARDS ──────────────────────────── "Ego Silos" (Legacy)
+SET 2: consciousness-dashboards REPO ────────────────── ARAYA-Editable Cockpits
+SET 3: 7×7×7 ARCHITECTURE ───────────────────────────── System Infrastructure
+SET 4: PERSONAL_DOMAIN_1-7 ──────────────────────────── NEWEST (a4ec918d6)
                                                         Filing Cabinet + 3-Tier
 
-BUILDER PRIORITY: Work on SET 1A, SET 2, SET 3, SET 4
-                  SET 1B is legacy (lower priority)
+BUILDER PRIORITY: Work on SET 2, SET 3, SET 4
+                  SET 1 is legacy (archived versions in .archive/)
 ```
 
 ---
 
-## SET 1A: UPGRADED COCKPITS (Trinity-Enhanced)
-
-**Location:** `100X_DEPLOYMENT/`
-**Status:** ACTIVE - Upgraded with Trinity features
-**ARAYA Can Edit:** NO (in main repo)
-
-| File | Status | Features |
-|------|--------|----------|
-| COMMANDER_COCKPIT.html | ✅ | 3-column, 7 domains, Trinity pallet, widgets |
-| BUILDER_COCKPIT.html | ✅ | Builder-focused interface |
-| TEAM_COCKPIT.html | ✅ | Team coordination |
-| LEGAL_COCKPIT.html | ✅ | Legal tracking |
-| BETA_TESTER_COCKPIT.html | ✅ | Beta tester tools |
-| CONSCIOUSNESS_COCKPIT.html | ✅ | Consciousness monitoring |
-| GROWTH_DASHBOARD.html | ✅ | Growth metrics |
-| CONSCIOUSNESS_DASHBOARD.html | ✅ | System consciousness |
-| BRAIN_QUERY_DASHBOARD.html | ✅ | Brain queries |
-
----
-
-## SET 1B: LEGACY DASHBOARDS (Lower Priority)
+## SET 1: ORIGINAL DASHBOARDS (Legacy - "Ego Silos")
 
 **Location:** `100X_DEPLOYMENT/` (scattered)
-**Status:** LEGACY - Not yet upgraded
+**Status:** LEGACY - Trinity identified as "ego silos"
 **ARAYA Can Edit:** NO (in main repo)
 
 | File | Purpose |
 |------|---------|
 | COMMANDER_DASHBOARD.html | Commander overview (old style) |
+| CONSCIOUSNESS_DASHBOARD.html | System consciousness |
 | TIGER_DASHBOARD.html | Tiger's dashboard (old) |
+| GROWTH_DASHBOARD.html | Growth metrics |
 | MUSIC_DASHBOARD.html | Music system |
 | DONKEY_DASHBOARD.html | Donkey project |
 | AUL_DASHBOARD.html | AUL system |
 | BRAIN_COUNCIL_DASHBOARD.html | Brain council |
 | BRAIN_OUTPUT_DASHBOARD.html | Brain output |
+| BRAIN_QUERY_DASHBOARD.html | Brain queries |
 | CYCLOTRON_BRAIN_DASHBOARD.html | Cyclotron system |
 | PROJECT_HEALTH_DASHBOARD.html | Project health |
 | SERVICE_DIAGNOSTICS_DASHBOARD.html | Service status |
@@ -92,6 +74,17 @@ BUILDER PRIORITY: Work on SET 1A, SET 2, SET 3, SET 4
 **API for ARAYA edits:** `/.netlify/functions/araya-edit-cockpit`
 **Edit types:** add_task, update_status, add_note, update_xp
 
+### Trinity Architecture Features (Wire into SET 4):
+- Supabase integration (task_queue, node_messages, atoms, operator_progress)
+- GitHub REST API for service status
+- Netlify/Railway status checks
+- ARAYA chat widget with context
+- Document viewer with markdown rendering
+- Checklist with localStorage + Supabase sync
+- Real-time polling (30-second refresh)
+- Task state management (pending → completed)
+- Message routing (from_node → to_node)
+
 ---
 
 ## SET 3: 7×7×7 ARCHITECTURE (System Infrastructure)
@@ -125,7 +118,7 @@ BUILDER PRIORITY: Work on SET 1A, SET 2, SET 3, SET 4
 
 **Location:** `100X_DEPLOYMENT/`
 **Status:** BRAND NEW - Just committed
-**ARAYA Can Edit:** NO (main repo, but could migrate)
+**ARAYA Can Edit:** YES (via araya-file.mjs - allows .html at root)
 **Features:** Filing cabinet widgets, 3-tier slider, localStorage persistence
 
 | Domain | Color | URL |
@@ -143,6 +136,15 @@ BUILDER PRIORITY: Work on SET 1A, SET 2, SET 3, SET 4
 - 3-tier view slider (Personal/Team/Public) with localStorage persistence
 - Cross-domain navigation bar on each dashboard
 - Domain 7 has special infinity animation
+- BLACK SWAN (#1) card - "the one thing that could change everything"
+- 6 readout cards (#2-7) with domain metrics
+
+### 3-Tier System:
+| Tier | Purpose | Data Visibility |
+|------|---------|-----------------|
+| **Personal** | Individual metrics + tasks | Only your data |
+| **Team** | Shared analytics with builders | Team aggregate |
+| **Public** | Free/paid offerings to world | Public-facing |
 
 ---
 
@@ -165,26 +167,49 @@ BUILDER PRIORITY: Work on SET 1A, SET 2, SET 3, SET 4
 
 ---
 
+## INTEGRATION ROADMAP: Wire SET 2 → SET 4
+
+### Phase 1: ARAYA Chat Widget ✅
+`js/araya-dashboard-widget.js` already deployed to domain dashboards
+
+### Phase 2: Supabase Data Connections
+Wire each domain dashboard to pull real data:
+- Domain 1 (COMMAND): task_queue, node_messages
+- Domain 2 (BUILD): project_progress, commits
+- Domain 3 (CONNECT): team_roster, messages
+- Domain 4 (PROTECT): legal_cases, evidence
+- Domain 5 (GROW): revenue_metrics, conversions
+- Domain 6 (LEARN): courses, progress
+- Domain 7 (TRANSCEND): consciousness_metrics, patterns
+
+### Phase 3: Real-time Polling
+Add 30-second refresh cycle for connected state
+
+### Phase 4: Document Viewer
+Tab-based markdown rendering from GitHub docs
+
+---
+
 ## QUICK LINKS
 
 ```
 SET 2 - Operator Cockpits:
-https://consciousnessrevolution.io/OPERATOR_COCKPIT_TIGER.html
-https://consciousnessrevolution.io/OPERATOR_COCKPIT_ALEX.html
-https://consciousnessrevolution.io/OPERATOR_COCKPIT_AGENT_R.html
+https://conciousnessrevolution.io/OPERATOR_COCKPIT_TIGER.html
+https://conciousnessrevolution.io/OPERATOR_COCKPIT_ALEX.html
+https://conciousnessrevolution.io/OPERATOR_COCKPIT_AGENT_R.html
 
 SET 3 - 7×7×7 Architecture:
-https://consciousnessrevolution.io/SEVEN_DOMAINS_DASHBOARD.html
-https://consciousnessrevolution.io/COMMANDER_7DOMAINS.html
+https://conciousnessrevolution.io/SEVEN_DOMAINS_DASHBOARD.html
+https://conciousnessrevolution.io/COMMANDER_7DOMAINS.html
 
 SET 4 - Personal Domains:
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_1_COMMAND.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_2_BUILD.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_3_CONNECT.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_4_PROTECT.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_5_GROW.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_6_LEARN.html
-https://consciousnessrevolution.io/PERSONAL_DOMAIN_7_TRANSCEND.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_1_COMMAND.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_2_BUILD.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_3_CONNECT.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_4_PROTECT.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_5_GROW.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_6_LEARN.html
+https://conciousnessrevolution.io/PERSONAL_DOMAIN_7_TRANSCEND.html
 ```
 
 ---
@@ -193,15 +218,15 @@ https://consciousnessrevolution.io/PERSONAL_DOMAIN_7_TRANSCEND.html
 
 | Set | Count | Status | ARAYA | Builder Priority |
 |-----|-------|--------|-------|------------------|
-| 1A - Upgraded Cockpits | 9 | ACTIVE ✅ | NO | HIGH |
-| 1B - Legacy | 10 | Legacy | NO | LOW |
+| 1 - Original | 13+ | Legacy | NO | SKIP |
 | 2 - consciousness-dashboards | 10 | Active | YES | HIGH |
 | 3 - 7×7×7 Architecture | 10 | Active | NO | MEDIUM |
-| 4 - Personal Domains | 7 | NEWEST | NO | HIGH |
+| 4 - Personal Domains | 7 | NEWEST | YES | HIGH |
 
 **Pattern:** 3 → 7 → 13 → ∞
 
 ---
 
 *Created: February 21, 2026*
-*Commit: a4ec918d6 (SET 4 added)*
+*Updated: February 22, 2026*
+*Session 121: Unified template complete + ARAYA edit confirmed*

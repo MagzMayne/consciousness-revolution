@@ -10,9 +10,9 @@
 **Status:** ACTIVE
 **Domain:** 2_BUILD (Source Control)
 **Created:** Jan 12, 2026
-**Last Updated:** Jan 12, 2026
-**DNA Version:** 1.0
-**Completeness:** 90%
+**Last Updated:** Feb 21, 2026
+**DNA Version:** 1.1
+**Completeness:** 95%
 
 ---
 
@@ -274,11 +274,32 @@ GitHub is our **Source Control & Collaboration Hub** - the single source of trut
 
 ## Tokens Required
 
-| Token | Purpose | Location |
-|-------|---------|----------|
-| GITHUB_TOKEN | MCP operations | .mcp.json |
-| SSH Key | Secure push/pull | ~/.ssh/id_ed25519 |
-| GPG Key | Signed commits | ~/.gnupg/ (if set up) |
+| Token | Purpose | Location | Expires |
+|-------|---------|----------|---------|
+| GITHUB_TOKEN (fine-grained) | MCP ops, API, deployments | MASTER_KEYS.json, Netlify env, Windows env | 2027-02-21 |
+| SSH Key | Secure push/pull | ~/.ssh/id_ed25519 | N/A |
+| GPG Key | Signed commits | ~/.gnupg/ (if set up) | N/A |
+
+## Current Token Details (Feb 2026)
+
+| Field | Value |
+|-------|-------|
+| Name | `git fine` |
+| Type | Fine-grained PAT |
+| Created | 2026-02-21 |
+| Expires | 2027-02-21 (366 days - ORG MAX) |
+| Org Access | `overkor-tek` + `overkillkulture` |
+| Repo Access | All repositories |
+
+**⚠️ CRITICAL ORG POLICY:** The `overkor-tek` organization forbids PATs > 366 days lifetime. "No expire" tokens will be REJECTED. Must renew by 2027-02-15.
+
+## Repository Secrets
+
+| Secret | Repo | Purpose | Set By |
+|--------|------|---------|--------|
+| ARAYA | consciousness-revolution | Automated deployments, ARAYA passphrase auth | Manual (GitHub UI) |
+
+**Note:** Fine-grained PAT cannot set secrets via API (requires `admin:org` classic). Use GitHub UI: Settings > Secrets > Actions > New repository secret.
 
 ## Access Methods
 
@@ -287,7 +308,8 @@ GitHub is our **Source Control & Collaboration Hub** - the single source of trut
 | Web UI | overkillkulture login | Browser |
 | CLI | `git push` | SSH authenticated |
 | MCP | mcp__github__* | Token in .mcp.json |
-| API | REST API | Personal access token |
+| API | REST API | Fine-grained PAT |
+| Secrets | GitHub UI only | API requires classic token |
 
 ## Security Settings
 
@@ -295,15 +317,34 @@ GitHub is our **Source Control & Collaboration Hub** - the single source of trut
 |---------|--------|-------------|
 | 2FA | CHECK | Enabled |
 | SSH keys | Active | Keep rotated |
-| Personal tokens | Active | Fine-grained preferred |
+| Personal tokens | Fine-grained (2027-02-21) | ✅ ACTIVE |
 | Dependabot | OFF | Enable |
 | Secret scanning | OFF | Enable |
+| Repo secret ARAYA | ✅ SET | Used for passphrase auth |
+
+## Token Storage Locations (3-way sync)
+
+| Location | Purpose | Update Command |
+|----------|---------|----------------|
+| `.secrets/MASTER_KEYS.json` | Source of truth | Manual edit |
+| Windows env `GITHUB_TOKEN` | CLI/local tools | `setx GITHUB_TOKEN "token"` |
+| Netlify env `GITHUB_TOKEN` | Serverless functions | `netlify env:set GITHUB_TOKEN "token"` |
 
 ---
 
 # LOG STRAND (Timeline)
 
 ## Captain's Log
+
+### Feb 21, 2026 - TOKEN + ARAYA SECRET DOCUMENTED
+**Event:** Fine-grained PAT created, ARAYA repo secret added
+**Details:**
+- New token: `git fine` expires 2027-02-21 (366 days - org max)
+- Discovered: `overkor-tek` org forbids PATs > 366 days
+- ARAYA secret: Added manually via GitHub UI (API blocked for fine-grained PAT)
+- Token stored: MASTER_KEYS.json + Windows env + Netlify env
+**Impact:** Ryan's 5-layer security architecture documented
+**Next:** Wire passphrase check into araya-chat.mjs
 
 ### Jan 12, 2026 - GITHUB DNA BLUEPRINT CREATED
 **Event:** Full extraction via MCP, documented all repos
