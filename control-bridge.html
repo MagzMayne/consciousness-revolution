@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AgentSwarm Control Bridge – oversight, logs, kill switch, daemon status, pipeline routing">
+    <title>Control Bridge – AgentSwarm</title>
+
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #1e1e2e;
+            --accent: #00ffaa;
+            --accent2: #ff00ff;
+            --warn: #ffcc00;
+            --danger: #ff4444;
+            --text: #e0e0e0;
+            --text-dim: #888;
+            --radius: 8px;
+            --gap: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--gap);
+            margin-bottom: 20px;
+        }
+
+        header nav a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.85em;
+        }
+
+        .title-block h1 {
+            font-size: 1.4em;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .title-block p {
+            font-size: 0.8em;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* ── Status badge ──────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-green  { background: rgba(0,255,170,.15); color: var(--accent); border: 1px solid var(--accent); }
+        .badge-red    { background: rgba(255,68,68,.15);  color: var(--danger);  border: 1px solid var(--danger); }
+        .badge-yellow { background: rgba(255,204,0,.15);  color: var(--warn);    border: 1px solid var(--warn); }
+        .badge-grey   { background: rgba(136,136,136,.1); color: var(--text-dim);border: 1px solid var(--text-dim); }
+
+        /* ── Grid layout ───────────────────────────────────── */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--gap);
+        }
+
+        /* ── Cards ─────────────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .card h2 {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Layer rows ────────────────────────────────────── */
+        .layer-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85em;
+        }
+
+        .layer-row:last-child { border-bottom: none; }
+        .layer-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            flex-shrink: 0;
+        }
+
+        .layer-name { flex: 1; }
+        .layer-detail { color: var(--text-dim); font-size: 0.8em; }
+
+        /* ── Buttons ───────────────────────────────────────── */
+        .btn {
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: opacity .15s;
+        }
+
+        .btn:hover { opacity: .85; }
+        .btn:active { opacity: .7; }
+
+        .btn-primary  { background: var(--accent);  color: #000; }
+        .btn-secondary{ background: var(--border);  color: var(--text); }
+        .btn-warn     { background: var(--warn);    color: #000; }
+        .btn-danger   { background: var(--danger);  color: #fff; }
+        .btn-sm       { padding: 5px 10px; font-size: 0.78em; }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* ── Log pane ──────────────────────────────────────── */
+        #log-pane {
+            background: #0c0c14;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            height: 220px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78em;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .log-info    { color: #8be9fd; }
+        .log-success { color: var(--accent); }
+        .log-warning { color: var(--warn); }
+        .log-error   { color: var(--danger); }
+
+        /* ── Metrics ───────────────────────────────────────── */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric-item {
+            background: var(--bg);
+            border-radius: 6px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        .metric-val {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .metric-label {
+            font-size: 0.7em;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* ── Pipeline builder ──────────────────────────────── */
+        .pipeline-stage {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .pipeline-stage select {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.82em;
+        }
+
+        /* ── Payment info ──────────────────────────────────── */
+        .payment-box {
+            background: rgba(0,255,170,.05);
+            border: 1px solid rgba(0,255,170,.2);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.82em;
+            margin-top: 8px;
+        }
+
+        .payment-box strong { color: var(--accent); }
+
+        /* ── Full-width sections ───────────────────────────── */
+        .full-width { grid-column: 1 / -1; }
+
+        /* ── Kill switch overlay ───────────────────────────── */
+        #kill-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255,68,68,.9);
+            color: #fff;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 9999;
+            gap: 20px;
+        }
+
+        #kill-overlay.visible { display: flex; }
+        #kill-overlay button {
+            font-size: 0.5em;
+            padding: 10px 24px;
+            background: #fff;
+            color: #c00;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 0.75em;
+            color: var(--text-dim);
+        }
+
+        footer a { color: var(--accent); text-decoration: none; }
+
+        @media (max-width: 600px) {
+            .metric-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Kill switch overlay -->
+<div id="kill-overlay" role="alert" aria-live="assertive">
+    ⚠️ KILL SWITCH ACTIVE — ALL AGENTS STOPPED
+    <button onclick="document.getElementById('kill-overlay').classList.remove('visible')">Dismiss</button>
+</div>
+
+<header>
+    <nav><a href="index.html">← Back to Hub</a></nav>
+    <div class="title-block">
+        <h1>🎛️ Control Bridge</h1>
+        <p>AgentSwarm — 7-Layer Oversight Dashboard</p>
+    </div>
+    <span id="swarm-badge" class="badge badge-grey">Initialising…</span>
+</header>
+
+<main>
+<div class="grid">
+
+    <!-- ── Layer Status ─────────────────────────────────────── -->
+    <div class="card">
+        <h2>🏗️ Layer Status</h2>
+        <div id="layer-list">
+            <!-- populated by JS -->
+        </div>
+    </div>
+
+    <!-- ── Metrics ──────────────────────────────────────────── -->
+    <div class="card">
+        <h2>📊 Metrics</h2>
+        <div class="metric-grid" id="metrics-grid">
+            <div class="metric-item">
+                <div class="metric-val" id="m-layers">—</div>
+                <div class="metric-label">Layers Active</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-val" id="m-events">—</div>
+                <div class="metric-label">Total Events</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-val" id="m-uptime">—</div>
+                <div class="metric-label">Uptime (s)</div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-val" id="m-heartbeat">—</div>
+                <div class="metric-label">Last Heartbeat</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Controls ─────────────────────────────────────────── -->
+    <div class="card">
+        <h2>⚙️ Daemon Controls</h2>
+        <p style="font-size:.82em;color:var(--text-dim);margin-bottom:10px;">
+            Start or stop the agent swarm, or activate the emergency kill switch.
+        </p>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="startSwarm()" aria-label="Start swarm">▶ Start Swarm</button>
+            <button class="btn btn-secondary" onclick="stopSwarm()" aria-label="Stop swarm">⏹ Stop</button>
+            <button class="btn btn-warn btn-sm" onclick="refreshStatus()" aria-label="Refresh status">↻ Refresh</button>
+            <button class="btn btn-danger" onclick="activateKillSwitch()" aria-label="Kill switch">☠ Kill Switch</button>
+        </div>
+    </div>
+
+    <!-- ── Pipeline Routing ──────────────────────────────────── -->
+    <div class="card">
+        <h2>🔀 Pipeline Routing</h2>
+        <div id="pipeline-stages">
+            <div class="pipeline-stage">
+                <select aria-label="Stage 1 action">
+                    <option value="">— Stage 1 —</option>
+                    <option value="research">Research Aggregation</option>
+                    <option value="scan">Opportunity Scan</option>
+                    <option value="generateDraft">Generate Draft</option>
+                    <option value="generateProposal">Generate Proposal</option>
+                    <option value="deploy">Deploy</option>
+                    <option value="seekContracts">Seek Contracts</option>
+                    <option value="market">Marketing Run</option>
+                    <option value="report">Generate Report</option>
+                    <option value="crawl">Crawl / Audit</option>
+                    <option value="monitor">Monitor</option>
+                    <option value="deliveryReport">Delivery Report</option>
+                </select>
+            </div>
+            <div class="pipeline-stage">
+                <select aria-label="Stage 2 action">
+                    <option value="">— Stage 2 —</option>
+                    <option value="research">Research Aggregation</option>
+                    <option value="scan">Opportunity Scan</option>
+                    <option value="generateDraft">Generate Draft</option>
+                    <option value="generateProposal">Generate Proposal</option>
+                    <option value="deploy">Deploy</option>
+                    <option value="report">Generate Report</option>
+                    <option value="monitor">Monitor</option>
+                </select>
+            </div>
+            <div class="pipeline-stage">
+                <select aria-label="Stage 3 action">
+                    <option value="">— Stage 3 —</option>
+                    <option value="report">Generate Report</option>
+                    <option value="deliveryReport">Delivery Report</option>
+                    <option value="monitor">Monitor</option>
+                </select>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="runPipeline()" aria-label="Run pipeline">▶ Run Pipeline</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearPipeline()" aria-label="Clear pipeline">✕ Clear</button>
+        </div>
+    </div>
+
+    <!-- ── Product Surfaces ──────────────────────────────────── -->
+    <div class="card">
+        <h2>📦 Product Surfaces</h2>
+        <div id="product-list">
+            <!-- populated by JS -->
+        </div>
+    </div>
+
+    <!-- ── Payments ──────────────────────────────────────────── -->
+    <div class="card">
+        <h2>💳 Payment Routing</h2>
+        <div class="payment-box">
+            All end-product and service payments are routed to:<br>
+            <strong>BarbrickDesign@gmail.com</strong> via PayPal donation.
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+            <a href="https://www.paypal.com/donate?business=BarbrickDesign%40gmail.com"
+               target="_blank" rel="noopener noreferrer"
+               class="btn btn-primary btn-sm" aria-label="Open PayPal donation">
+               💰 Donate / Pay
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Activity Log ─────────────────────────────────────── -->
+    <div class="card full-width">
+        <h2>📜 Activity Log</h2>
+        <div class="btn-row" style="margin-bottom:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="exportLogs('json')" aria-label="Export logs JSON">⬇ JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportLogs('csv')" aria-label="Export logs CSV">⬇ CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearLogPane()" aria-label="Clear log view">✕ Clear View</button>
+        </div>
+        <div id="log-pane" aria-live="polite" aria-label="Activity log"></div>
+    </div>
+
+</div>
+</main>
+
+<footer>
+    <p>© 2024-2025 Barbrick Design | <a href="mailto:BarbrickDesign@gmail.com">BarbrickDesign@gmail.com</a> |
+    <a href="index.html">Hub</a></p>
+</footer>
+
+<!-- ── Inline scripts ────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+// ─── Minimal in-page SwarmOrchestrator stub ──────────────────────────────────
+// When the full src/agents/swarm-orchestrator.js is loaded in a Node context,
+// window.swarm will be set. In this standalone HTML we provide a self-contained
+// stub that exercises the same public API.
+
+class SwarmOrchestrator {
+    constructor(cfg = {}) {
+        this.config  = { paymentEmail: 'BarbrickDesign@gmail.com', killSwitchEnabled: true, ...cfg };
+        this.isRunning = false;
+        this.killed    = false;
+        this.logs      = [];
+        this.eventListeners = {};
+        this.metrics   = { startedAt: null, uptime: 0, layersActive: 0, totalEvents: 0, lastHeartbeat: null };
+        this._hb       = null;
+        this._layerData = this._defaultLayers();
+    }
+
+    _defaultLayers() {
+        return {
+            1: { name: 'Human Strategy',       status: 'external',    detail: 'Agent R / Ryan Barbrick' },
+            2: { name: 'Meta-Agent (agentR)',   status: 'stopped',     detail: 'swarm-orchestrator.js' },
+            3: { name: 'Automation Assistance', status: 'stopped',     detail: 'Research · Drafts · Alerts · Scan' },
+            4: { name: 'Execution Agents',      status: 'stopped',     detail: 'Proposal · Deploy · Outreach · Report' },
+            5: { name: 'Delivery & Ops',        status: 'stopped',     detail: 'Contractors · Invoicing · Dashboards' },
+            6: { name: 'Product Surfaces',      status: 'active',      detail: 'aFactory · RepoPilot · Marketplace · Bounty' },
+            7: { name: 'Control Bridge (GUI)',  status: 'active',      detail: 'This page' }
+        };
+    }
+
+    async init() {
+        this._log('SwarmOrchestrator: initialising…', 'info');
+        this.isRunning = true;
+        this.killed    = false;
+        this.metrics.startedAt = new Date().toISOString();
+        this.metrics.layersActive = 6;
+
+        for (const k of [2,3,4,5]) this._layerData[k].status = 'active';
+
+        this._hb = setInterval(() => {
+            this.metrics.lastHeartbeat = new Date().toISOString();
+            this.metrics.uptime = Math.floor((Date.now() - new Date(this.metrics.startedAt).getTime()) / 1000);
+            this._emit('swarm:heartbeat', this.getStatus());
+        }, 5000);
+
+        this._emit('swarm:started', {});
+        this._log('SwarmOrchestrator: all layers online', 'success');
+        return this;
+    }
+
+    async stop() {
+        this._log('SwarmOrchestrator: stopping…', 'info');
+        this.isRunning = false;
+        if (this._hb) { clearInterval(this._hb); this._hb = null; }
+        for (const k of [2,3,4,5]) this._layerData[k].status = 'stopped';
+        this.metrics.layersActive = 2; // layers 6 & 7 stay active
+        this._emit('swarm:stopped', {});
+        this._log('SwarmOrchestrator: stopped', 'success');
+    }
+
+    kill() {
+        if (!this.config.killSwitchEnabled) return false;
+        this._log('⚠️  KILL SWITCH ACTIVATED', 'error');
+        this.killed = true;
+        this.stop();
+        this._emit('swarm:killed', {});
+        return true;
+    }
+
+    getStatus() {
+        return {
+            isRunning: this.isRunning,
+            killed:    this.killed,
+            metrics:   this.metrics,
+            layers:    this._layerData,
+            paymentRoute: this.config.paymentEmail
+        };
+    }
+
+    async execute(action, payload = {}, impactLevel = 'low') {
+        if (!this.isRunning) return { error: 'Not running' };
+        if (this.killed)    return { error: 'Kill switch active' };
+        this.metrics.totalEvents++;
+        this._log(`Execute: ${action} (impact=${impactLevel})`, 'info');
+        return { ok: true, action, timestamp: new Date().toISOString() };
+    }
+
+    async runPipeline(stages = []) {
+        this._log(`Pipeline: ${stages.filter(Boolean).join(' → ')}`, 'info');
+        const results = [];
+        for (const action of stages.filter(Boolean)) {
+            results.push(await this.execute(action));
+        }
+        this._emit('swarm:pipeline:complete', { stages: results });
+        return results;
+    }
+
+    on(evt, fn) {
+        (this.eventListeners[evt] = this.eventListeners[evt] || []).push(fn);
+        return this;
+    }
+
+    _emit(evt, data) {
+        (this.eventListeners[evt]||[]).forEach(h=>{ try{h(data);}catch(_){} });
+        (this.eventListeners['*']||[]).forEach(h=>{ try{h(evt,data);}catch(_){} });
+    }
+
+    _log(msg, level='info') {
+        const e = { timestamp: new Date().toISOString(), level, message: msg };
+        this.logs.push(e);
+        if (this.logs.length > 3000) this.logs = this.logs.slice(-3000);
+    }
+
+    exportLogs(fmt='json') {
+        if (fmt === 'csv') return 'timestamp,level,message\n' + this.logs.map(l => `${l.timestamp},${l.level},"${l.message}"`).join('\n');
+        return JSON.stringify(this.logs, null, 2);
+    }
+}
+
+// ─── Initialise ──────────────────────────────────────────────────────────────
+
+const swarm = window.swarm || new SwarmOrchestrator();
+
+// ─── DOM helpers ─────────────────────────────────────────────────────────────
+
+function appendLog(msg, level = 'info') {
+    const pane = document.getElementById('log-pane');
+    const div  = document.createElement('div');
+    div.className = `log-entry log-${level}`;
+    const ts = new Date().toLocaleTimeString();
+    div.textContent = `[${ts}] ${msg}`;
+    pane.appendChild(div);
+    pane.scrollTop = pane.scrollHeight;
+}
+
+function clearLogPane() {
+    document.getElementById('log-pane').innerHTML = '';
+}
+
+function refreshStatus() {
+    const status = swarm.getStatus();
+    updateBadge(status);
+    updateLayers(status.layers);
+    updateMetrics(status.metrics);
+    updateProducts();
+}
+
+function updateBadge(status) {
+    const badge = document.getElementById('swarm-badge');
+    if (status.killed) {
+        badge.textContent = 'KILLED';
+        badge.className = 'badge badge-red';
+    } else if (status.isRunning) {
+        badge.textContent = 'Running';
+        badge.className = 'badge badge-green';
+    } else {
+        badge.textContent = 'Stopped';
+        badge.className = 'badge badge-grey';
+    }
+}
+
+function updateLayers(layers) {
+    const list = document.getElementById('layer-list');
+    list.innerHTML = '';
+
+    for (const [num, layer] of Object.entries(layers)) {
+        const statusClass = layer.status === 'active' ? 'badge-green'
+            : layer.status === 'stopped'  ? 'badge-grey'
+            : layer.status === 'external' ? 'badge-yellow'
+            : 'badge-red';
+
+        list.innerHTML += `
+        <div class="layer-row">
+            <div class="layer-num">${num}</div>
+            <div class="layer-name">${layer.name || 'Unknown Layer'}</div>
+            <span class="badge ${statusClass}" style="font-size:.65em;">${layer.status}</span>
+        </div>`;
+    }
+}
+
+function updateMetrics(m) {
+    document.getElementById('m-layers').textContent    = m.layersActive   ?? '—';
+    document.getElementById('m-events').textContent    = m.totalEvents    ?? '—';
+    document.getElementById('m-uptime').textContent    = m.uptime         ?? '—';
+    document.getElementById('m-heartbeat').textContent = m.lastHeartbeat
+        ? new Date(m.lastHeartbeat).toLocaleTimeString() : '—';
+}
+
+function updateProducts() {
+    const products = [
+        { name: 'Automation Agency',   url: 'aFactory.html' },
+        { name: 'Vertical SaaS',       url: 'repopilot-landing.html' },
+        { name: 'Template Marketplace',url: 'template-marketplace.html' },
+        { name: 'Deal-Flow Engine',    url: 'FuturesByAgentR.html' },
+        { name: 'Bounty Harvester',    url: 'bounty-harvester.html' }
+    ];
+    const list = document.getElementById('product-list');
+    list.innerHTML = products.map(p =>
+        `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:.83em;">
+            <a href="${p.url}" style="color:var(--accent);text-decoration:none;">↗ ${p.name}</a>
+         </div>`
+    ).join('');
+}
+
+// ─── Event wiring ────────────────────────────────────────────────────────────
+
+swarm.on('swarm:started',  () => { appendLog('Swarm started', 'success'); refreshStatus(); });
+swarm.on('swarm:stopped',  () => { appendLog('Swarm stopped', 'warning'); refreshStatus(); });
+swarm.on('swarm:killed',   () => { appendLog('Kill switch activated!', 'error'); refreshStatus(); document.getElementById('kill-overlay').classList.add('visible'); });
+swarm.on('swarm:heartbeat',() => { refreshStatus(); });
+swarm.on('swarm:execute',  d  => appendLog(`Execute: ${d.action}`, 'info'));
+swarm.on('swarm:pipeline:complete', () => appendLog('Pipeline complete', 'success'));
+
+// Also mirror swarm internal logs
+const _origLog = swarm._log.bind(swarm);
+swarm._log = function(msg, lvl) {
+    _origLog(msg, lvl);
+    appendLog(msg, lvl);
+};
+
+// ─── Control functions ───────────────────────────────────────────────────────
+
+async function startSwarm() {
+    if (swarm.killed) { appendLog('Cannot restart – kill switch is active', 'error'); return; }
+    appendLog('Starting swarm…', 'info');
+    await swarm.init();
+}
+
+async function stopSwarm() {
+    appendLog('Stopping swarm…', 'warning');
+    await swarm.stop();
+}
+
+function activateKillSwitch() {
+    if (!confirm('⚠️ This will immediately stop ALL agents and cannot be reversed without a page reload. Continue?')) return;
+    swarm.kill();
+}
+
+async function runPipeline() {
+    const selects = document.querySelectorAll('#pipeline-stages select');
+    const stages  = [...selects].map(s => s.value).filter(Boolean);
+
+    if (stages.length === 0) {
+        appendLog('No pipeline stages selected', 'warning');
+        return;
+    }
+
+    appendLog(`Running pipeline: ${stages.join(' → ')}`, 'info');
+    await swarm.runPipeline(stages);
+}
+
+function clearPipeline() {
+    document.querySelectorAll('#pipeline-stages select').forEach(s => s.value = '');
+}
+
+function exportLogs(format) {
+    const content  = swarm.exportLogs(format);
+    const mimeType = format === 'csv' ? 'text/csv' : 'application/json';
+    const blob     = new Blob([content], { type: mimeType });
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = `swarm-logs.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    appendLog(`Logs exported as ${format.toUpperCase()}`, 'success');
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+(function boot() {
+    appendLog('Control Bridge loaded', 'info');
+    appendLog('Payment route: BarbrickDesign@gmail.com', 'info');
+    refreshStatus();
+})();
+</script>
+
+</body>
+</html>
