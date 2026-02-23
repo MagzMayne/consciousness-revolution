@@ -957,6 +957,103 @@ function detectAdminMode(message) {
     return { isAdmin: false, cleanedMessage: message };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ACCESS TIER SYSTEM - Control what pages ARAYA reveals
+// Tiers: PUBLIC (0) < BELIEVER (1) < BUILDER (2) < COMMANDER (3)
+// ═══════════════════════════════════════════════════════════════
+const ACCESS_TIERS = { PUBLIC: 0, BELIEVER: 1, BUILDER: 2, COMMANDER: 3 };
+const COMMANDER_SECRET = process.env.ARAYA_COMMANDER_SECRET || 'CONSCIOUSNESS_COMMANDER_137';
+
+// Page patterns by access tier
+const PAGE_ACCESS_PATTERNS = {
+    COMMANDER: [
+        /^\.agent-r-private/i, /^\.test-secret/i, /^\.test-agent/i,
+        /^COMMANDER_/i, /^ADMIN_/i, /^admin-/i
+    ],
+    BUILDER: [
+        /^OPERATOR_COCKPIT_/i, /^DNA_/i, /^BUILDER_/i, /^BRAIN_/i,
+        /^CYCLOTRON_/i, /^TRINITY_/i, /^CLAUDE_COCKPIT/i,
+        /ARCHITECTURE/i, /SERVICE_DIAGNOSTICS/i, /PROJECT_HEALTH/i
+    ],
+    BELIEVER: [
+        /^BETA_/i, /^PERSONAL_DOMAIN_/i, /DASHBOARD/i,
+        /_DETECTOR/i, /_ANALYZER/i, /_TRACKER/i,
+        /^MEDITATION_/i, /^CONSCIOUSNESS_/i, /^GROWTH_/i
+    ],
+    PUBLIC: [
+        /^index\.html$/i, /^login\.html$/i, /^signup\.html$/i,
+        /^pricing\.html$/i, /^start\.html$/i, /^404\.html$/i,
+        /^GUEST_COCKPIT/i, /^ONBOARDING_GATE/i, /^AI_TUTORIAL/i,
+        /^GemBot/i, /^BankSky/i, /^GTAVI/i, /^Gems/i, /^Route95/i,
+        /^PiSOL/i, /^JeZues/i, /^2042/i, /^2024/i, /^3d/i,
+        /^araya-chat/i, /^araya-welcome/i, /^FuturesByAgentR/i
+    ]
+};
+
+// Detect access level from message
+function detectAccessLevel(message, isAdmin = false) {
+    // Admin mode = COMMANDER
+    if (isAdmin) return { level: ACCESS_TIERS.COMMANDER, tierName: 'COMMANDER' };
+
+    // Check for commander secret phrase
+    if (message && COMMANDER_SECRET && message.includes(COMMANDER_SECRET)) {
+        console.log('[ACCESS] Commander secret detected - full access granted');
+        return {
+            level: ACCESS_TIERS.COMMANDER,
+            tierName: 'COMMANDER',
+            cleanedMessage: message.replace(COMMANDER_SECRET, '').trim()
+        };
+    }
+
+    // Default to PUBLIC (most restrictive)
+    return { level: ACCESS_TIERS.PUBLIC, tierName: 'PUBLIC' };
+}
+
+// Filter pages based on access level
+function filterPagesByAccess(pages, accessLevel) {
+    return pages.filter(page => {
+        const filename = typeof page === 'string' ? page : page.file;
+
+        // Check COMMANDER patterns - need COMMANDER access
+        if (PAGE_ACCESS_PATTERNS.COMMANDER.some(p => p.test(filename))) {
+            return accessLevel >= ACCESS_TIERS.COMMANDER;
+        }
+        // Check BUILDER patterns - need BUILDER+ access
+        if (PAGE_ACCESS_PATTERNS.BUILDER.some(p => p.test(filename))) {
+            return accessLevel >= ACCESS_TIERS.BUILDER;
+        }
+        // Check BELIEVER patterns - need BELIEVER+ access
+        if (PAGE_ACCESS_PATTERNS.BELIEVER.some(p => p.test(filename))) {
+            return accessLevel >= ACCESS_TIERS.BELIEVER;
+        }
+        // PUBLIC patterns or unclassified - always visible
+        return true;
+    });
+}
+
+// Get access-aware prompt injection
+function getAccessPrompt(tierName, accessLevel) {
+    const prompts = {
+        PUBLIC: `
+IMPORTANT ACCESS RESTRICTION: You are in PUBLIC mode.
+- Only mention public pages: games (GemBot, BankSky, GTAVI), demos, landing pages, araya-chat
+- DO NOT reveal internal pages like COMMANDER_, ADMIN_, DNA_, OPERATOR_COCKPIT_, BUILDER_, etc.
+- If asked about files or pages, only show public ones
+- If asked for admin/internal access, say: "That requires elevated access. Do you have a verification code?"
+- Never reveal the structure of internal systems to unverified users`,
+        BELIEVER: `
+ACCESS LEVEL: BELIEVER - You can show dashboard tools, detectors, analyzers, and personal domain pages.
+Do not reveal COMMANDER, ADMIN, or BUILDER-level pages.`,
+        BUILDER: `
+ACCESS LEVEL: BUILDER - You can show architecture docs, DNA pages, operator cockpits, and internal tools.
+Do not reveal COMMANDER or ADMIN pages.`,
+        COMMANDER: `
+ACCESS LEVEL: COMMANDER - Full system access granted. You can reveal ALL pages and internal structure.
+The user has verified access to everything including admin panels, private pages, and infrastructure.`
+    };
+    return prompts[tierName] || prompts.PUBLIC;
+}
+
 // Update or create user profile in Supabase
 async function updateUserProfile(userId, updates, existingProfileId = null) {
     if (!SUPABASE_URL || !SUPABASE_KEY || !userId) return false;
@@ -1470,6 +1567,19 @@ export async function handler(event, context) {
             console.log('[ADMIN MODE] Cleaned message length:', processedMessage.length);
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // ACCESS TIER DETECTION - PUBLIC < BELIEVER < BUILDER < COMMANDER
+        // ═══════════════════════════════════════════════════════════════
+        const accessCheck = detectAccessLevel(processedMessage || message, isAdmin);
+        const accessLevel = accessCheck.level;
+        const accessTierName = accessCheck.tierName;
+
+        // Clean commander secret from message if present
+        if (accessCheck.cleanedMessage) {
+            processedMessage = accessCheck.cleanedMessage;
+        }
+
+        console.log(`[ACCESS] Tier: ${accessTierName} (level ${accessLevel})`);
 
         // ═══════════════════════════════════════════════════════════════
         // RAILWAY ROUTING CHECK - Route heavy tasks to Railway to avoid 10s timeout
@@ -2131,6 +2241,11 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         if (abilityContext) {
             systemPrompt += abilityContext;
         }
+
+        // Add access tier prompt - controls what pages ARAYA can reveal
+        const accessPrompt = getAccessPrompt(accessTierName, accessLevel);
+        systemPrompt += accessPrompt;
+        console.log(`[ACCESS PROMPT] Injected ${accessTierName} access restrictions into system prompt`);
 
         // Build messages array
         const messages = [
