@@ -368,19 +368,19 @@ Thank you for having the courage to seek YOUR path, create YOUR best life, and b
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 1282 | **Interactive**: 1165
+**Total Projects**: 1258 | **Interactive**: 1145
 
 **Status Breakdown**:
-- ✅ **1004 working** (78% - fully functional)
-- ⚠️ **60 partial** (5% - core features work)
+- ✅ **988 working** (79% - fully functional)
+- ⚠️ **58 partial** (5% - core features work)
 - 🔧 **46 broken** (4% - under repair)
-- 🧪 **172 untested** (13% - awaiting validation)
+- 🧪 **166 untested** (13% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 880 | 🌐 3d-experience: 87 | 📊 dashboard: 84 | 🤖 ai-tool: 74 | 🎮 game: 63
+**Top Categories**: ✨ web-app: 856 | 🌐 3d-experience: 87 | 📊 dashboard: 83 | 🤖 ai-tool: 75 | 🎮 game: 63
 
-**Top Technologies**: PayPal (418), Web Storage (377), Solana Web3 (194), Canvas (185), Web3 (137)
+**Top Technologies**: PayPal (418), Web Storage (364), Solana Web3 (194), Canvas (185), Web3 (137)
 
-*Last scanned: Feb 23, 2026, 4:40 AM*
+*Last scanned: Feb 23, 2026, 6:43 AM*
 
 ---
 
@@ -399,7 +399,7 @@ Thank you for having the courage to seek YOUR path, create YOUR best life, and b
 9. ✨✅ **[Whodunit: Constitutional Crimes | Interactive Timeline](whodunit-timeline.html)** - Interactive web-app application *(Feb 23, 2026)*
 10. 🌐✅ **[Gem Warehouse](warehouse.html)** - Interactive 3d-experience application `Three.js`, `Web Storage` *(Feb 23, 2026)*
 
-*Last updated: Feb 23, 2026, 4:40 AM*
+*Last updated: Feb 23, 2026, 6:43 AM*
 
 **[View All 10+ Projects →](projects.json)**
 
