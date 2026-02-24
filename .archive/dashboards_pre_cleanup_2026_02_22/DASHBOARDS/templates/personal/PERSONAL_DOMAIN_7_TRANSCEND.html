@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain 7: TRANSCEND | Personal Dashboard</title>
+
+    <!-- DASHBOARD DNA -->
+    <script type="application/json" id="dashboard-dna">
+    {
+      "name": "TRANSCEND Domain Dashboard",
+      "version": "2.0.0",
+      "domain": "7_TRANSCEND",
+      "created": "2026-02-22",
+      "features": ["supabase", "service-status", "polling", "3-tier-slider", "swipe-nav", "araya-editable", "infinity-animation"],
+      "trinity": { "validated": true, "node": "TRANSCEND" }
+    }
+    </script>
+
+    <!-- SUPABASE CDN -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #161b22 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            display: flex;
+        }
+
+        /* === INFINITY ANIMATIONS === */
+        @keyframes infinityPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        @keyframes infinityGlow {
+            0%, 100% { box-shadow: 0 0 40px rgba(255,68,255,0.3), inset 0 0 60px rgba(255,68,255,0.05); }
+            50% { box-shadow: 0 0 60px rgba(255,68,255,0.5), inset 0 0 80px rgba(255,68,255,0.1); }
+        }
+
+        /* === HIDEABLE DOMAIN NAV (LEFT) === */
+        .domain-nav {
+            width: 220px;
+            background: rgba(255,68,255,0.03);
+            border-right: 1px solid rgba(255,68,255,0.2);
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.3s, width 0.3s;
+            position: relative;
+        }
+        .domain-nav.collapsed { width: 0; padding: 0; overflow: hidden; transform: translateX(-100%); }
+        .domain-nav h2 { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .domain-link {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 15px; border-radius: 10px;
+            text-decoration: none; color: #888;
+            transition: all 0.2s; font-size: 0.9rem;
+            border: 1px solid transparent;
+        }
+        .domain-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+        .domain-link.active { background: linear-gradient(135deg, #ff44ff, #cc22cc); color: #fff; border-color: #ff44ff; animation: infinityPulse 3s ease-in-out infinite; }
+        .domain-link .num { font-weight: bold; min-width: 20px; }
+        .domain-link .name { display: none; }
+        .nav-toggle {
+            position: absolute; right: -35px; top: 20px;
+            width: 30px; height: 30px; border-radius: 0 8px 8px 0;
+            background: rgba(255,68,255,0.2); border: 1px solid rgba(255,68,255,0.3);
+            border-left: none; cursor: pointer; color: #ff44ff;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-toggle:hover { background: rgba(255,68,255,0.3); }
+
+        /* === MAIN CONTENT === */
+        .main-content {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+
+        /* === HEADER === */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 25px; margin-bottom: 25px;
+            background: rgba(255,68,255,0.05);
+            border: 1px solid rgba(255,68,255,0.2);
+            border-radius: 15px;
+            animation: infinityGlow 4s ease-in-out infinite;
+        }
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #ff44ff, #ff88ff, #ff44ff);
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: infinityPulse 3s ease-in-out infinite;
+        }
+        .header-sub { color: #666; font-size: 0.9rem; margin-top: 5px; }
+
+        /* === 3-TIER SLIDER === */
+        .tier-slider {
+            display: flex; align-items: center; gap: 15px;
+            padding: 15px 20px; margin-bottom: 25px;
+            background: rgba(0,0,0,0.4); border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .tier-label { font-size: 0.85rem; color: #666; }
+        .tier-track {
+            display: flex; background: rgba(255,255,255,0.08);
+            border-radius: 25px; padding: 4px; position: relative;
+        }
+        .tier-option {
+            padding: 10px 25px; border-radius: 20px; cursor: pointer;
+            font-size: 0.85rem; color: #666; transition: all 0.3s;
+            position: relative; z-index: 1;
+        }
+        .tier-option:hover { color: #aaa; }
+        .tier-option.active { color: #fff; }
+        .tier-highlight {
+            position: absolute; top: 4px; height: calc(100% - 8px);
+            width: calc(33.33% - 4px); border-radius: 20px;
+            transition: all 0.3s ease; z-index: 0;
+        }
+        .tier-highlight.personal { left: 4px; background: linear-gradient(135deg, #ff44ff, #cc22cc); }
+        .tier-highlight.team { left: calc(33.33% + 2px); background: linear-gradient(135deg, #4ecdc4, #26a69a); }
+        .tier-highlight.public { left: calc(66.66%); background: linear-gradient(135deg, #ffd93d, #f39c12); }
+        .tier-badge { padding: 6px 14px; border-radius: 15px; font-size: 0.8rem; font-weight: 600; }
+        .tier-badge.personal { background: rgba(255,68,255,0.2); color: #ff44ff; }
+        .tier-badge.team { background: rgba(78,205,196,0.2); color: #4ecdc4; }
+        .tier-badge.public { background: rgba(255,217,61,0.2); color: #ffd93d; }
+
+        /* === VIEW CONTROLS === */
+        .personal-only, .team-only { transition: opacity 0.3s; }
+        body.view-team .personal-only { opacity: 0.3; pointer-events: none; }
+        body.view-public .personal-only, body.view-public .team-only { opacity: 0.3; pointer-events: none; }
+
+        /* === BLACK SWAN (#1) === */
+        .black-swan {
+            background: linear-gradient(135deg, #000 0%, #1a0a1a 100%);
+            border: 2px solid #ff44ff;
+            border-radius: 20px; padding: 30px;
+            margin-bottom: 25px; position: relative;
+            animation: infinityGlow 4s ease-in-out infinite;
+        }
+        .black-swan::before {
+            content: '∞'; position: absolute; top: -15px; left: 25px;
+            background: #000; padding: 5px 15px; border-radius: 20px;
+            font-size: 1.2rem; font-weight: bold; color: #ff44ff;
+            border: 1px solid #ff44ff;
+            animation: infinityPulse 2s ease-in-out infinite;
+        }
+        .black-swan-label {
+            font-size: 1.1rem; color: #ff44ff; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .black-swan-value {
+            font-size: 2.5rem; font-weight: bold; color: #fff;
+            text-shadow: 0 0 30px rgba(255,68,255,0.7);
+            animation: infinityPulse 3s ease-in-out infinite;
+        }
+        .black-swan-impact {
+            margin-top: 15px; padding-top: 15px;
+            border-top: 1px solid rgba(255,68,255,0.2);
+            font-size: 0.9rem; color: #888;
+        }
+
+        /* === READOUTS GRID (#2-7) === */
+        .readouts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px; margin-bottom: 25px;
+        }
+        .readout-card {
+            background: rgba(255,68,255,0.05);
+            border: 1px solid rgba(255,68,255,0.2);
+            border-radius: 15px; padding: 20px;
+            position: relative;
+        }
+        .readout-card::before {
+            content: attr(data-num); position: absolute; top: -10px; left: 15px;
+            background: #0d1117; padding: 3px 10px; border-radius: 10px;
+            font-size: 0.7rem; color: #ff44ff; border: 1px solid rgba(255,68,255,0.3);
+        }
+        .readout-label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .readout-value { font-size: 1.8rem; font-weight: bold; color: #ff44ff; margin: 10px 0; }
+        .readout-delta { font-size: 0.85rem; }
+        .readout-delta.up { color: #4ecdc4; }
+        .readout-delta.down { color: #ff6b6b; }
+        .readout-delta.neutral { color: #888; }
+
+        /* === THE PATTERN === */
+        .pattern-display {
+            background: linear-gradient(135deg, rgba(255,68,255,0.1) 0%, rgba(0,0,0,0.5) 100%);
+            border: 1px solid rgba(255,68,255,0.3);
+            border-radius: 20px; padding: 30px;
+            text-align: center; margin-bottom: 25px;
+        }
+        .pattern-formula {
+            font-size: 3rem; font-weight: bold;
+            background: linear-gradient(90deg, #ff44ff, #00aaff, #4ecdc4, #ffd93d, #ff44ff);
+            background-size: 400% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: infinityPulse 4s ease-in-out infinite;
+        }
+        .pattern-sub { color: #888; font-size: 0.9rem; margin-top: 15px; }
+        .trinity-formula { color: #ff44ff; font-weight: bold; margin-top: 20px; font-size: 1.2rem; }
+
+        /* === WIDGET DOCK (RIGHT) === */
+        .widget-dock {
+            width: 280px;
+            background: rgba(0,0,0,0.3);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            padding: 20px 15px;
+            display: flex; flex-direction: column; gap: 15px;
+            overflow-y: auto; max-height: 100vh;
+            transition: transform 0.3s, width 0.3s;
+            position: relative;
+        }
+        .widget-dock.collapsed { width: 0; padding: 0; overflow: hidden; transform: translateX(100%); }
+        .widget-dock h2 { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .dock-toggle {
+            position: absolute; left: -35px; top: 20px;
+            width: 30px; height: 30px; border-radius: 8px 0 0 8px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-right: none; cursor: pointer; color: #888;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dock-toggle:hover { background: rgba(255,255,255,0.15); }
+
+        .widget-mini {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 15px;
+        }
+        .widget-mini h3 { font-size: 0.85rem; color: #ff44ff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .widget-mini-value { font-size: 1.3rem; font-weight: bold; color: #fff; }
+        .widget-mini-sub { font-size: 0.75rem; color: #666; margin-top: 5px; }
+
+        .footer { text-align: center; padding: 20px; color: #444; font-size: 0.8rem; margin-top: auto; }
+
+                @media (max-width: 1200px) { .widget-dock { display: none; } }
+        /* === HORIZONTAL TOP NAV (Mobile) === */
+        @media (max-width: 900px) {
+            .domain-nav, .nav-domains-container {
+                transform: none !important;
+                position: fixed !important;
+                top: 0; left: 0; right: 0;
+                width: 100% !important;
+                height: auto !important;
+                flex-direction: row !important;
+                justify-content: center;
+                z-index: 1000;
+                padding: 6px 5px;
+                border-right: none;
+                border-bottom: 2px solid rgba(255,255,255,0.1);
+                background: rgba(10,10,20,0.98);
+                backdrop-filter: blur(10px);
+            }
+            .domain-nav.collapsed, .nav-domains-container.collapsed { 
+                width: 100% !important; padding: 6px 5px; overflow: visible; transform: none !important; 
+            }
+            .domain-nav h2, .nav-toggle, .nav-domains-container h2 { display: none !important; }
+            .nav-domains { flex-direction: row !important; gap: 2px !important; }
+            .domain-link, .nav-domains a { 
+                padding: 8px 6px !important; 
+                font-size: 0.65rem !important; 
+                border-radius: 6px !important;
+                border-left: none !important;
+                border-bottom: 2px solid transparent !important;
+                text-align: center;
+            }
+            .domain-link .num { display: none; }
+            .domain-link .name, .nav-domains a .name { display: inline !important; }
+            .main-content, .dashboard-container { margin-top: 50px !important; padding-top: 10px !important; }
+            .mobile-hamburger, .mobile-overlay { display: none !important; }
+        }
+
+        /* CONNECTION STATUS & SERVICE LIGHTS (Trinity Architecture) */
+        .connection-status { position: absolute; top: 50%; right: 80px; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(0,0,0,0.4); border-radius: 20px; font-size: 0.8rem; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4444; animation: pulse 2s infinite; }
+        .status-dot.connected { background: #00ff88; }
+        .status-dot.connecting { background: #ffdd00; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .service-status-bar { display: flex; gap: 12px; padding: 10px 15px; background: rgba(0,0,0,0.3); border-radius: 10px; margin-bottom: 20px; overflow-x: auto; }
+        .service-light { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 0.75rem; white-space: nowrap; }
+        .service-light .light { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+        .service-light .light.online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+        .service-light .light.offline { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+        .service-light .light.checking { background: #ffdd00; animation: pulse 1s infinite; }
+        .last-refresh { margin-left: auto; color: #555; font-size: 0.7rem; }
+    </style>
+</head>
+<body class="view-personal">
+    <!-- MOBILE HAMBURGER (Outside nav - always visible on mobile) -->
+    <button class="mobile-hamburger" onclick="toggleMobileNav()">☰</button>
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileNav()"></div>
+
+    <!-- HIDEABLE DOMAIN NAV -->
+    <nav class="domain-nav" id="domainNav">
+        <button class="nav-toggle" onclick="toggleNav()">◀</button>
+        <h2>Domains</h2>
+        <a href="PERSONAL_DOMAIN_1_COMMAND.html" class="domain-link"><span class="num">1</span><span class="name">CMD</span></a>
+        <a href="PERSONAL_DOMAIN_2_BUILD.html" class="domain-link"><span class="num">2</span><span class="name">BLD</span></a>
+        <a href="PERSONAL_DOMAIN_3_CONNECT.html" class="domain-link"><span class="num">3</span><span class="name">CONN</span></a>
+        <a href="PERSONAL_DOMAIN_4_PROTECT.html" class="domain-link"><span class="num">4</span><span class="name">PROT</span></a>
+        <a href="PERSONAL_DOMAIN_5_GROW.html" class="domain-link"><span class="num">5</span><span class="name">GROW</span></a>
+        <a href="PERSONAL_DOMAIN_6_LEARN.html" class="domain-link"><span class="num">6</span><span class="name">LEARN</span></a>
+        <a href="PERSONAL_DOMAIN_7_TRANSCEND.html" class="domain-link active"><span class="num">∞</span> Transcend</a>
+        <a href="PERSONAL_DOMAIN_8_BLUEPRINT.html" class="domain-link"><span class="num">8</span><span class="name">DNA</span></a>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="header" style="position:relative;">
+            <div>
+                <h1>∞ TRANSCEND</h1>
+                <p class="header-sub">Vision • Integration • Emergence</p>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-dot connecting" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:2rem; color:#ff44ff; animation: infinityPulse 2s ease-in-out infinite;">∞</div>
+                <div style="font-size:0.8rem; color:#666;">Domain 7</div>
+            </div>
+        </div>
+
+        <!-- 3-TIER SLIDER -->
+        <div class="tier-slider">
+            <span class="tier-label">View:</span>
+            <div class="tier-track">
+                <div class="tier-highlight personal" id="tierHighlight"></div>
+                <div class="tier-option active" data-tier="personal" onclick="setTier('personal')">🔐 Personal</div>
+                <div class="tier-option" data-tier="team" onclick="setTier('team')">👥 Team</div>
+                <div class="tier-option" data-tier="public" onclick="setTier('public')">🌍 Public</div>
+            </div>
+            <span class="tier-badge personal" id="tierBadge">Full Access</span>
+        </div>
+
+        <!-- SERVICE STATUS BAR (Trinity Architecture) -->
+        <div class="service-status-bar" id="serviceStatusBar">
+            <div class="service-light" id="service-supabase"><div class="light checking"></div><span>Supabase</span></div>
+            <div class="service-light" id="service-netlify"><div class="light checking"></div><span>Netlify</span></div>
+            <div class="service-light" id="service-github"><div class="light checking"></div><span>GitHub</span></div>
+            <div class="service-light" id="service-brain"><div class="light checking"></div><span>Brain</span></div>
+            <div class="last-refresh" id="lastRefresh">Last refresh: --</div>
+        </div>
+
+        <!-- BLACK SWAN - #1 (∞) -->
+        <div class="black-swan personal-only" id="blackSwan">
+            <div class="black-swan-label">🦢 #1 BLACK SWAN — THE CONSCIOUSNESS SINGULARITY</div>
+            <div class="black-swan-value" id="blackSwanValue">Pattern Recognition</div>
+            <div class="black-swan-impact"><strong>Impact:</strong> <span id="blackSwanImpact">When all 7 domains align, infinite emergence begins</span></div>
+        </div>
+
+        <!-- THE PATTERN -->
+        <div class="pattern-display personal-only">
+            <div class="pattern-formula">3 → 7 → 13 → ∞</div>
+            <div class="pattern-sub">Trinity × Domains × Expansion = Infinite Emergence</div>
+            <div class="trinity-formula">C1 × C2 × C3 = ∞</div>
+        </div>
+
+        <!-- #2-7: READOUTS GRID -->
+        <div class="readouts-grid">
+            <div class="readout-card" data-num="#2">
+                <div class="readout-label">VISION</div>
+                <div class="readout-value" id="readout2">Crystallizing</div>
+                <div class="readout-delta up" id="delta2">↑ Clarity increasing</div>
+            </div>
+            <div class="readout-card" data-num="#3">
+                <div class="readout-label">ALIGNMENT</div>
+                <div class="readout-value" id="readout3">92.2%</div>
+                <div class="readout-delta up" id="delta3">↑ Pattern Theory active</div>
+            </div>
+            <div class="readout-card team-only" data-num="#4">
+                <div class="readout-label">MEDITATION</div>
+                <div class="readout-value" id="readout4">Daily</div>
+                <div class="readout-delta up" id="delta4">↑ Consciousness expansion</div>
+            </div>
+            <div class="readout-card team-only" data-num="#5">
+                <div class="readout-label">PURPOSE</div>
+                <div class="readout-value" id="readout5">CLEAR</div>
+                <div class="readout-delta up" id="delta5">↑ Mission locked</div>
+            </div>
+            <div class="readout-card personal-only" data-num="#6">
+                <div class="readout-label">LEGACY</div>
+                <div class="readout-value" id="readout6">Building</div>
+                <div class="readout-delta up" id="delta6">↑ 100X multiplier active</div>
+            </div>
+            <div class="readout-card personal-only" data-num="#7">
+                <div class="readout-label">INFINITY</div>
+                <div class="readout-value" id="readout7" style="animation: infinityPulse 2s ease-in-out infinite;">∞</div>
+                <div class="readout-delta up" id="delta7">↑ Emergence in progress</div>
+            </div>
+        </div>
+
+        <div class="footer">Domain 7: TRANSCEND | Pattern: 3 → 7 → 13 → ∞ | conciousnessrevolution.io</div>
+    </main>
+
+    <!-- HIDEABLE WIDGET DOCK -->
+    <aside class="widget-dock" id="widgetDock">
+        <button class="dock-toggle" onclick="toggleDock()">▶</button>
+        <h2>Widgets</h2>
+
+        <div class="widget-mini">
+            <h3>🧠 Consciousness</h3>
+            <div class="widget-mini-value" style="color:#4ecdc4;">92%+</div>
+            <div class="widget-mini-sub">Alignment score</div>
+        </div>
+
+        <div class="widget-mini">
+            <h3>🌈 7 Domains</h3>
+            <div class="widget-mini-value">UNIFIED</div>
+            <div class="widget-mini-sub">All integrated</div>
+        </div>
+
+        <div class="widget-mini personal-only">
+            <h3>🔱 Trinity</h3>
+            <div class="widget-mini-value">C1×C2×C3</div>
+            <div class="widget-mini-sub">= ∞</div>
+        </div>
+
+        <div class="widget-mini">
+            <h3>✨ Emergence</h3>
+            <div class="widget-mini-value" style="animation: infinityPulse 2s ease-in-out infinite;">ACTIVE</div>
+            <div class="widget-mini-sub">Pattern manifesting</div>
+        </div>
+    </aside>
+
+    <script>
+        // TIER DATA
+        const tierData = {
+            personal: {
+                blackSwan: 'Pattern Recognition',
+                blackSwanImpact: 'When all 7 domains align, infinite emergence begins',
+                readouts: ['Crystallizing', '92.2%', 'Daily', 'CLEAR', 'Building', '∞'],
+                deltas: ['↑ Clarity increasing', '↑ Pattern Theory active', '↑ Consciousness expansion', '↑ Mission locked', '↑ 100X multiplier active', '↑ Emergence in progress']
+            },
+            team: {
+                blackSwan: 'Collective Consciousness',
+                blackSwanImpact: 'Team alignment multiplies impact exponentially',
+                readouts: ['Shared', '88%', 'Weekly', 'ALIGNED', '—', '—'],
+                deltas: ['↑ Team vision', '→ Growing', '→ Group practice', '→ United purpose', '', '']
+            },
+            public: {
+                blackSwan: 'Global Awakening',
+                blackSwanImpact: 'Consciousness evolution is the only game worth playing',
+                readouts: ['Open', 'Public', 'Community', 'Universal', '—', '—'],
+                deltas: ['→ For all', '→ Transparent', '→ Together', '→ One purpose', '', '']
+            }
+        };
+
+        function setTier(tier) {
+            document.body.classList.remove('view-personal', 'view-team', 'view-public');
+            document.body.classList.add('view-' + tier);
+            document.querySelectorAll('.tier-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.dataset.tier === tier) opt.classList.add('active');
+            });
+            document.getElementById('tierHighlight').className = 'tier-highlight ' + tier;
+            const badge = document.getElementById('tierBadge');
+            badge.className = 'tier-badge ' + tier;
+            badge.textContent = { personal: 'Full Access', team: 'Team View', public: 'Public View' }[tier];
+
+            // Update data
+            const data = tierData[tier];
+            document.getElementById('blackSwanValue').textContent = data.blackSwan;
+            document.getElementById('blackSwanImpact').textContent = data.blackSwanImpact;
+            for (let i = 2; i <= 7; i++) {
+                const el = document.getElementById('readout' + i);
+                const delta = document.getElementById('delta' + i);
+                if (el) el.textContent = data.readouts[i-2];
+                if (delta) delta.textContent = data.deltas[i-2];
+            }
+
+            localStorage.setItem('tier_domain7', tier);
+        }
+
+        // Expose to window for swipe gestures
+        window.setTier = setTier;
+
+        function toggleNav() {
+            document.getElementById('domainNav').classList.toggle('collapsed');
+            localStorage.setItem('navCollapsed', document.getElementById('domainNav').classList.contains('collapsed'));
+        }
+
+        // MOBILE NAV TOGGLE (for hamburger menu)
+        function toggleMobileNav() {
+            const nav = document.getElementById('domainNav');
+            const overlay = document.getElementById('mobileOverlay');
+            nav.classList.remove('collapsed'); // Fix: clear desktop state
+            nav.classList.toggle('open');
+            overlay.classList.toggle('show');
+        }
+
+        function toggleDock() {
+            document.getElementById('widgetDock').classList.toggle('collapsed');
+            localStorage.setItem('dockCollapsed', document.getElementById('widgetDock').classList.contains('collapsed'));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTier(localStorage.getItem('tier_domain7') || 'personal');
+            if (localStorage.getItem('navCollapsed') === 'true') document.getElementById('domainNav').classList.add('collapsed');
+            if (localStorage.getItem('dockCollapsed') === 'true') document.getElementById('widgetDock').classList.add('collapsed');
+        });
+    </script>
+
+    <!-- Trinity Architecture - Shared Supabase Module -->
+    <script src="js/domain-supabase.js"></script>
+</body>
+</html>

@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent R - Domain 1: COMMAND</title>
+
+    <!-- Dashboard DNA -->
+    <script type="application/json" id="dashboard-dna">
+    {
+      "name": "COMMAND Domain Dashboard",
+      "version": "2.0.0",
+      "purpose": "Mission Control - Navigation, Leadership, Task Management",
+      "domain": "1_COMMAND",
+      "sphere": "PERSONAL_DOMAINS",
+      "created": "2026-02-21",
+      "updated": "2026-02-22",
+      "status": "LIVE",
+      "url": "https://consciousnessrevolution.io/PERSONAL_DOMAIN_1_COMMAND.html",
+      "features": ["supabase", "service-status", "polling", "3-tier-slider", "araya-editable"],
+      "trinity": {
+        "c1_built": "2026-02-21",
+        "c2_reviewed": "2026-02-22",
+        "c3_validated": "2026-02-22"
+      },
+      "lfsme": {
+        "lighter": 9,
+        "faster": 8,
+        "stronger": 8,
+        "elegant": 9,
+        "less_expensive": 10,
+        "average": 8.8
+      }
+    }
+    </script>
+
+    <!-- Supabase Client -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e4e4e4;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,68,68,0.3);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, #ff4444, #cc3333);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .domain-badge {
+            background: linear-gradient(135deg, #ff4444, #cc2222);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        /* HIDEABLE DOMAIN NAV */
+        .nav-toggle {
+            position: fixed;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,68,68,0.3);
+            border: none;
+            color: #fff;
+            padding: 10px;
+            border-radius: 0 10px 10px 0;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+        }
+
+        .nav-domains-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 200px;
+            background: rgba(20,20,40,0.98);
+            border-right: 2px solid rgba(255,68,68,0.3);
+            transform: translateX(-100%);
+            transition: transform 0.3s;
+            z-index: 999;
+            padding: 60px 15px 20px;
+        }
+
+        .nav-domains-container.open { transform: translateX(0); }
+        .nav-domains-container.open + .nav-toggle { left: 200px; }
+
+        .nav-domains {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-domains a {
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-domains a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .nav-domains a.d1 { border-left-color: #ff4444; }
+        .nav-domains a.d2 { border-left-color: #ff8800; }
+        .nav-domains a.d3 { border-left-color: #ffdd00; }
+        .nav-domains a.d4 { border-left-color: #00ff88; }
+        .nav-domains a.d5 { border-left-color: #00aaff; }
+        .nav-domains a.d6 { border-left-color: #8844ff; }
+        .nav-domains a.d7 { border-left-color: #ff44ff; }
+        .nav-domains a.active { background: rgba(255,68,68,0.3); color: #fff; }
+
+        /* VIEW LEVEL SLIDER */
+        .view-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .view-slider-label { font-size: 0.85rem; color: #888; }
+
+        .view-slider-track {
+            flex: 1;
+            display: flex;
+            background: rgba(255,255,255,0.08);
+            border-radius: 25px;
+            padding: 4px;
+            position: relative;
+            max-width: 350px;
+        }
+
+        .view-option {
+            flex: 1;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #666;
+            z-index: 1;
+            position: relative;
+        }
+
+        .view-option:hover { color: #aaa; }
+        .view-option.active { color: #fff; }
+
+        .slider-highlight {
+            position: absolute;
+            top: 4px;
+            height: calc(100% - 8px);
+            width: calc(33.33% - 4px);
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            z-index: 0;
+        }
+
+        .slider-highlight.personal { left: 4px; background: linear-gradient(135deg, #ff4444, #cc2222); }
+        .slider-highlight.team { left: calc(33.33% + 2px); background: linear-gradient(135deg, #4ecdc4, #26a69a); }
+        .slider-highlight.public { left: calc(66.66%); background: linear-gradient(135deg, #ffd93d, #f39c12); }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* THE 7 READOUTS - This is the core of each domain dashboard      */
+        /* ═══════════════════════════════════════════════════════════════ */
+
+        .readouts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* BLACK SWAN - #1 - The one thing that changes everything */
+        .black-swan {
+            background: linear-gradient(135deg, rgba(255,68,68,0.25), rgba(255,0,0,0.15));
+            border: 2px solid #ff4444;
+            border-radius: 15px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .black-swan::before {
+            content: '1';
+            position: absolute;
+            top: -20px;
+            right: -10px;
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(255,68,68,0.1);
+            line-height: 1;
+        }
+
+        .black-swan-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ff6666;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .black-swan-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.3;
+        }
+
+        .black-swan-impact {
+            margin-top: 12px;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #ffaaaa;
+        }
+
+        .black-swan-impact strong { color: #ff4444; }
+
+        /* Readouts Grid - #2-7 */
+        .readouts-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .readouts-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 500px) {
+            .readouts-grid { grid-template-columns: 1fr; }
+        }
+
+        .readout-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 18px;
+            position: relative;
+        }
+
+        .readout-card::before {
+            content: attr(data-num);
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 0.7rem;
+            color: rgba(255,68,68,0.5);
+            font-weight: 600;
+        }
+
+        .readout-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .readout-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .readout-subtitle {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .readout-good { border-left: 3px solid #00ff88; }
+        .readout-warn { border-left: 3px solid #ffdd00; }
+        .readout-bad { border-left: 3px solid #ff4444; }
+        .readout-neutral { border-left: 3px solid #4ecdc4; }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* WIDGET DOCK - Hideable, Modular, Expandable                     */
+        /* ═══════════════════════════════════════════════════════════════ */
+
+        .widget-toggle {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(78,205,196,0.3);
+            border: none;
+            color: #fff;
+            padding: 10px;
+            border-radius: 10px 0 0 10px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 1.2rem;
+        }
+
+        .widget-dock {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 320px;
+            background: rgba(20,20,40,0.98);
+            border-left: 2px solid rgba(78,205,196,0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 999;
+            padding: 60px 15px 20px;
+            overflow-y: auto;
+        }
+
+        .widget-dock.open { transform: translateX(0); }
+        .widget-dock.open + .widget-toggle { right: 320px; }
+
+        .widget-dock h3 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .widget-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .widget-item h4 {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .widget-item-content {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        .add-widget-btn {
+            width: 100%;
+            padding: 15px;
+            background: rgba(78,205,196,0.1);
+            border: 2px dashed rgba(78,205,196,0.3);
+            border-radius: 10px;
+            color: #4ecdc4;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .add-widget-btn:hover {
+            background: rgba(78,205,196,0.2);
+            border-color: #4ecdc4;
+        }
+
+        /* Personal/Team/Public visibility */
+        .personal-only, .team-only { transition: opacity 0.3s; }
+        body.view-team .personal-only { opacity: 0.3; pointer-events: none; }
+        body.view-public .personal-only,
+        body.view-public .team-only { opacity: 0.3; pointer-events: none; }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            color: #555;
+            font-size: 0.8rem;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* CONNECTION STATUS & SERVICE LIGHTS (Trinity Architecture)      */
+        /* ═══════════════════════════════════════════════════════════════ */
+
+        .connection-status {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected { background: #00ff88; }
+        .status-dot.connecting { background: #ffdd00; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .service-status-bar {
+            display: flex;
+            gap: 12px;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .service-light {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .service-light .light {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .service-light .light.online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+        .service-light .light.offline { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+        .service-light .light.checking { background: #ffdd00; animation: pulse 1s infinite; }
+
+        .last-refresh {
+            margin-left: auto;
+            color: #555;
+            font-size: 0.7rem;
+        }
+    
+        /* === HORIZONTAL TOP NAV (Mobile) === */
+        @media (max-width: 900px) {
+            .nav-domains-container {
+                transform: none !important;
+                position: fixed !important;
+                top: 0; left: 0; right: 0;
+                width: 100% !important;
+                height: auto !important;
+                padding: 6px 5px !important;
+                border-right: none !important;
+                border-bottom: 2px solid rgba(255,255,255,0.1);
+                background: rgba(10,10,20,0.98) !important;
+                backdrop-filter: blur(10px);
+            }
+            .nav-domains-container.open { transform: none !important; }
+            .nav-toggle { display: none !important; }
+            .nav-domains { 
+                flex-direction: row !important; 
+                gap: 2px !important;
+                justify-content: center;
+            }
+            .nav-domains a { 
+                padding: 8px 6px !important; 
+                font-size: 0.65rem !important; 
+                border-radius: 6px !important;
+                border-left: none !important;
+                border-bottom: 2px solid transparent !important;
+                text-align: center;
+                white-space: nowrap;
+            }
+            .nav-domains a.d1 { border-bottom-color: #ff4444 !important; }
+            .nav-domains a.d2 { border-bottom-color: #ff8800 !important; }
+            .nav-domains a.d3 { border-bottom-color: #ffdd00 !important; }
+            .nav-domains a.d4 { border-bottom-color: #00ff88 !important; }
+            .nav-domains a.d5 { border-bottom-color: #00aaff !important; }
+            .nav-domains a.d6 { border-bottom-color: #8844ff !important; }
+            .nav-domains a.d7 { border-bottom-color: #ff44ff !important; }
+            .dashboard-container { margin-top: 50px !important; }
+        }
+
+    </style>
+</head>
+<body class="view-personal">
+
+    <!-- HIDEABLE DOMAIN NAV (LEFT) -->
+    <nav class="nav-domains-container" id="navDomains">
+        <div class="nav-domains">
+            <a href="AGENT_R_DOMAIN_1_COMMAND.html" class="d1 active">CMD</a>
+            <a href="AGENT_R_DOMAIN_2_BUILD.html" class="d2">BLD</a>
+            <a href="AGENT_R_DOMAIN_3_CONNECT.html" class="d3">CONN</a>
+            <a href="AGENT_R_DOMAIN_4_PROTECT.html" class="d4">PROT</a>
+            <a href="AGENT_R_DOMAIN_5_GROW.html" class="d5">GROW</a>
+            <a href="AGENT_R_DOMAIN_6_LEARN.html" class="d6">LEARN</a>
+            <a href="AGENT_R_DOMAIN_7_TRANSCEND.html" class="d7">TRANS</a>
+        </div>
+    </nav>
+    <button class="nav-toggle" onclick="toggleNav()">≡</button>
+
+    <!-- HEADER -->
+    <div class="header" style="position:relative;">
+        <div>
+            <h1>COMMAND</h1>
+            <p style="color:#888; font-size:0.85rem;">Mission Control • Navigation • Leadership</p>
+        </div>
+        <div class="connection-status" id="connectionStatus">
+            <div class="status-dot connecting" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+        <div class="domain-badge">DOMAIN 1</div>
+    </div>
+
+    <!-- VIEW LEVEL SLIDER -->
+    <div class="view-slider-container">
+        <span class="view-slider-label">View:</span>
+        <div class="view-slider-track">
+            <div class="slider-highlight personal" id="slider-highlight"></div>
+            <div class="view-option active" data-level="personal" onclick="setViewLevel('personal')">🔐 Personal</div>
+            <div class="view-option" data-level="team" onclick="setViewLevel('team')">👥 Team</div>
+            <div class="view-option" data-level="public" onclick="setViewLevel('public')">🌍 Public</div>
+        </div>
+    </div>
+
+    <!-- SERVICE STATUS BAR (Trinity Architecture) -->
+    <div class="service-status-bar" id="serviceStatusBar">
+        <div class="service-light" id="service-supabase">
+            <div class="light checking"></div>
+            <span>Supabase</span>
+        </div>
+        <div class="service-light" id="service-netlify">
+            <div class="light checking"></div>
+            <span>Netlify</span>
+        </div>
+        <div class="service-light" id="service-github">
+            <div class="light checking"></div>
+            <span>GitHub</span>
+        </div>
+        <div class="service-light" id="service-brain">
+            <div class="light checking"></div>
+            <span>Brain</span>
+        </div>
+        <div class="last-refresh" id="lastRefresh">Last refresh: --</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- THE 7 READOUTS - Analytics for COMMAND domain                   -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <div class="readouts-container">
+
+        <!-- #1: BLACK SWAN - The one thing that changes everything -->
+        <div class="black-swan personal-only" id="blackSwan">
+            <div class="black-swan-label">
+                <span>🦢</span> #1 BLACK SWAN — The One Thing
+            </div>
+            <div class="black-swan-value" id="blackSwanValue">
+                Loading...
+            </div>
+            <div class="black-swan-impact">
+                <strong>Impact:</strong> <span id="blackSwanImpact">Calculating...</span>
+            </div>
+        </div>
+
+        <!-- #2-7: The Six Readouts Grid -->
+        <div class="readouts-grid">
+
+            <!-- #2: INBOX -->
+            <div class="readout-card readout-neutral" data-num="#2">
+                <div class="readout-label">📥 INBOX</div>
+                <div class="readout-value" id="readoutInbox">--</div>
+                <div class="readout-subtitle">messages waiting</div>
+            </div>
+
+            <!-- #3: NEXT -->
+            <div class="readout-card readout-good" data-num="#3">
+                <div class="readout-label">➡️ NEXT</div>
+                <div class="readout-value" id="readoutNext">--</div>
+                <div class="readout-subtitle">immediate action</div>
+            </div>
+
+            <!-- #4: ENERGY -->
+            <div class="readout-card personal-only" data-num="#4" id="energyCard">
+                <div class="readout-label">⚡ ENERGY</div>
+                <div class="readout-value" id="readoutEnergy">--</div>
+                <div class="readout-subtitle">current level</div>
+            </div>
+
+            <!-- #5: MONEY -->
+            <div class="readout-card personal-only" data-num="#5" id="moneyCard">
+                <div class="readout-label">💰 MONEY</div>
+                <div class="readout-value" id="readoutMoney">--</div>
+                <div class="readout-subtitle">available today</div>
+            </div>
+
+            <!-- #6: BLOCKER -->
+            <div class="readout-card" data-num="#6" id="blockerCard">
+                <div class="readout-label">🚧 BLOCKER</div>
+                <div class="readout-value" id="readoutBlocker">--</div>
+                <div class="readout-subtitle">what's in the way</div>
+            </div>
+
+            <!-- #7: WIN -->
+            <div class="readout-card readout-good" data-num="#7">
+                <div class="readout-label">🏆 WIN</div>
+                <div class="readout-value" id="readoutWin">--</div>
+                <div class="readout-subtitle">recent victory</div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        Domain 1: COMMAND | Pattern: 3 → 7 → 13 → ∞ | conciousnessrevolution.io
+    </div>
+
+    <!-- HIDEABLE WIDGET DOCK (RIGHT) -->
+    <div class="widget-dock" id="widgetDock">
+        <h3>
+            <span>⊞ Widgets</span>
+            <span style="font-size:0.7rem;color:#666;">drag to reorder</span>
+        </h3>
+
+        <!-- Built-in widgets -->
+        <div class="widget-item" id="widget-brain">
+            <h4>🧠 Brain Query</h4>
+            <div class="widget-item-content">
+                <div id="brainStatus">166K atoms ready</div>
+            </div>
+        </div>
+
+        <div class="widget-item" id="widget-todo">
+            <h4>📋 Quick TODO</h4>
+            <div class="widget-item-content">
+                <div id="todoPreview">Loading tasks...</div>
+            </div>
+        </div>
+
+        <div class="widget-item" id="widget-trinity">
+            <h4>🌀 Trinity Status</h4>
+            <div class="widget-item-content">
+                <div id="trinityStatus">C1×C2×C3 = ∞</div>
+            </div>
+        </div>
+
+        <!-- Custom widget slots -->
+        <div class="widget-item" id="widget-custom-1" style="display:none;">
+            <h4>🔧 Custom Widget</h4>
+            <div class="widget-item-content" id="customWidget1Content"></div>
+        </div>
+
+        <button class="add-widget-btn" onclick="addWidget()">+ Add Widget</button>
+    </div>
+    <button class="widget-toggle" onclick="toggleWidgets()">⊞</button>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // SUPABASE CONFIGURATION (Trinity Architecture)
+        // ═══════════════════════════════════════════════════════════════
+
+        const SUPABASE_URL = 'https://iqjghsofnpoadwzqxmnz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxamdoc29mbnBvYWR3enF4bW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NDkxMDEsImV4cCI6MjA1MTAyNTEwMX0.WAz3cvPOIa-u7J2_JqAY8E5tPGkJQPWQYCdv7QV1QR0';
+
+        let supabase = null;
+        let isConnected = false;
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONNECTION STATUS
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            dot.classList.remove('connected', 'connecting', 'offline');
+
+            if (status === 'connected') {
+                dot.classList.add('connected');
+                text.textContent = 'Live';
+                isConnected = true;
+            } else if (status === 'connecting') {
+                dot.classList.add('connecting');
+                text.textContent = 'Connecting...';
+            } else {
+                text.textContent = 'Offline';
+                isConnected = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SERVICE STATUS LIGHTS
+        // ═══════════════════════════════════════════════════════════════
+
+        function setServiceStatus(serviceId, status) {
+            const light = document.querySelector(`#service-${serviceId} .light`);
+            if (light) {
+                light.classList.remove('online', 'offline', 'checking');
+                light.classList.add(status);
+            }
+        }
+
+        async function checkServiceStatus() {
+            // Supabase check
+            try {
+                if (supabase) {
+                    const { data, error } = await supabase.from('atoms').select('id').limit(1);
+                    setServiceStatus('supabase', error ? 'offline' : 'online');
+                }
+            } catch (e) {
+                setServiceStatus('supabase', 'offline');
+            }
+
+            // Netlify check (via site status)
+            try {
+                const response = await fetch('/.netlify/functions/trinity-status', { method: 'GET' });
+                setServiceStatus('netlify', response.ok ? 'online' : 'offline');
+            } catch (e) {
+                setServiceStatus('netlify', 'offline');
+            }
+
+            // GitHub API check
+            try {
+                const response = await fetch('https://api.github.com/repos/overkillkulture/consciousness-revolution/commits?per_page=1');
+                setServiceStatus('github', response.ok ? 'online' : 'offline');
+            } catch (e) {
+                setServiceStatus('github', 'offline');
+            }
+
+            // Brain check (local Cyclotron)
+            setServiceStatus('brain', 'online'); // Assume online if page loads
+
+            // Update refresh timestamp
+            document.getElementById('lastRefresh').textContent = 'Last: ' + new Date().toLocaleTimeString();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SUPABASE INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        async function initSupabase() {
+            try {
+                updateConnectionStatus('connecting');
+
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                    // Test connection
+                    const { data, error } = await supabase.from('atoms').select('id').limit(1);
+                    if (error) throw error;
+
+                    updateConnectionStatus('connected');
+                    loadSupabaseData();
+                } else {
+                    console.warn('Supabase client not loaded, using fallback data');
+                    updateConnectionStatus('offline');
+                    loadFallbackData();
+                }
+            } catch (error) {
+                console.error('Supabase init error:', error);
+                updateConnectionStatus('offline');
+                loadFallbackData();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // LOAD DATA FROM SUPABASE
+        // ═══════════════════════════════════════════════════════════════
+
+        async function loadSupabaseData() {
+            if (!supabase) return;
+
+            try {
+                // Load task queue for COMMAND domain
+                const { data: tasks, error: taskError } = await supabase
+                    .from('task_queue')
+                    .select('*')
+                    .eq('domain', '1_COMMAND')
+                    .order('priority', { ascending: false })
+                    .limit(10);
+
+                // Load node messages
+                const { data: messages, error: msgError } = await supabase
+                    .from('node_messages')
+                    .select('*')
+                    .eq('to_node', 'COMMAND')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                // Update readouts with real data
+                if (tasks && tasks.length > 0) {
+                    const highPriority = tasks.find(t => t.priority === 'high' || t.priority === 1);
+                    if (highPriority) {
+                        document.getElementById('blackSwanValue').textContent = highPriority.title || highPriority.content;
+                        document.getElementById('blackSwanImpact').textContent = highPriority.impact || 'High priority task';
+                    }
+                    document.getElementById('readoutNext').textContent = tasks[0]?.title || 'Check tasks';
+                }
+
+                if (messages) {
+                    document.getElementById('readoutInbox').textContent = messages.length + ' new';
+                }
+
+                // Fetch atom count for brain status
+                const { count } = await supabase.from('atoms').select('id', { count: 'exact', head: true });
+                if (count) {
+                    document.getElementById('brainStatus').textContent = count.toLocaleString() + ' atoms ready';
+                }
+
+            } catch (error) {
+                console.error('Error loading Supabase data:', error);
+            }
+        }
+
+        function loadFallbackData() {
+            // Use static demo data when offline
+            document.getElementById('blackSwanValue').textContent = 'Wiring dashboards to Trinity architecture';
+            document.getElementById('blackSwanImpact').textContent = 'Enables real-time data across all 7 domains';
+            document.getElementById('readoutInbox').textContent = '5 new';
+            document.getElementById('readoutNext').textContent = 'Deploy changes';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 30-SECOND POLLING (Trinity Pattern)
+        // ═══════════════════════════════════════════════════════════════
+
+        function startPolling() {
+            // Initial service check
+            checkServiceStatus();
+
+            // Poll every 30 seconds
+            setInterval(() => {
+                if (isConnected) {
+                    loadSupabaseData();
+                }
+                checkServiceStatus();
+            }, 30000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // NAVIGATION & WIDGET TOGGLES
+        // ═══════════════════════════════════════════════════════════════
+
+        function toggleNav() {
+            document.getElementById('navDomains').classList.toggle('open');
+        }
+
+        function toggleWidgets() {
+            document.getElementById('widgetDock').classList.toggle('open');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VIEW LEVEL SLIDER
+        // ═══════════════════════════════════════════════════════════════
+
+        function setViewLevel(level) {
+            document.body.classList.remove('view-personal', 'view-team', 'view-public');
+            document.body.classList.add('view-' + level);
+
+            document.querySelectorAll('.view-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.dataset.level === level) opt.classList.add('active');
+            });
+
+            const highlight = document.getElementById('slider-highlight');
+            highlight.className = 'slider-highlight ' + level;
+
+            localStorage.setItem('viewLevel_domain1', level);
+
+            // Load appropriate data for view level
+            loadReadouts(level);
+        }
+        // Expose to window for swipe gestures
+        window.setTier = setViewLevel;
+
+        // ═══════════════════════════════════════════════════════════════
+        // LOAD READOUTS - Fetches data and populates the 7 readouts
+        // ═══════════════════════════════════════════════════════════════
+
+        async function loadReadouts(viewLevel) {
+            // For now, use demo data. Later: fetch from APIs
+            const data = await fetchReadoutData(viewLevel);
+
+            // #1: BLACK SWAN
+            document.getElementById('blackSwanValue').textContent = data.blackSwan.value;
+            document.getElementById('blackSwanImpact').textContent = data.blackSwan.impact;
+
+            // #2-7: Grid readouts
+            document.getElementById('readoutInbox').textContent = data.inbox.value;
+            document.getElementById('readoutNext').textContent = data.next.value;
+            document.getElementById('readoutEnergy').textContent = data.energy.value;
+            document.getElementById('readoutMoney').textContent = data.money.value;
+            document.getElementById('readoutBlocker').textContent = data.blocker.value;
+            document.getElementById('readoutWin').textContent = data.win.value;
+
+            // Set card colors based on status
+            setCardStatus('energyCard', data.energy.status);
+            setCardStatus('moneyCard', data.money.status);
+            setCardStatus('blockerCard', data.blocker.status);
+        }
+
+        function setCardStatus(cardId, status) {
+            const card = document.getElementById(cardId);
+            card.classList.remove('readout-good', 'readout-warn', 'readout-bad', 'readout-neutral');
+            if (status) card.classList.add('readout-' + status);
+        }
+
+        async function fetchReadoutData(viewLevel) {
+            // Fetch from backend API - falls back to demo data if unavailable
+            try {
+                const response = await fetch(`/.netlify/functions/dashboard-readouts?domain=1_COMMAND&view=${viewLevel}`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.readouts) {
+                        console.log(`[READOUTS] Loaded ${viewLevel} data from ${result.source}`);
+                        return result.readouts;
+                    }
+                }
+            } catch (e) {
+                console.log('[READOUTS] API unavailable, using fallback data');
+            }
+
+            // Fallback to hardcoded data if API fails
+            const fallbackData = {
+                personal: {
+                    blackSwan: { value: "Call Jason about tax deadline", impact: "$47K at stake if missed — due in 3 days" },
+                    inbox: { value: "12 new", status: 'neutral' },
+                    next: { value: "Deploy dashboards", status: 'good' },
+                    energy: { value: "7/10", status: 'good' },
+                    money: { value: "$2,847", status: 'warn' },
+                    blocker: { value: "None ✓", status: 'good' },
+                    win: { value: "4 sets mapped!", status: 'good' }
+                },
+                team: {
+                    blackSwan: { value: "Sprint deadline: Ship domain dashboards", impact: "Team velocity depends on this milestone" },
+                    inbox: { value: "Team: 23", status: 'neutral' },
+                    next: { value: "Review PRs", status: 'neutral' },
+                    energy: { value: "Team: 8/10", status: 'good' },
+                    money: { value: "MRR: $0", status: 'warn' },
+                    blocker: { value: "API keys", status: 'warn' },
+                    win: { value: "ARAYA edits work!", status: 'good' }
+                },
+                public: {
+                    blackSwan: { value: "Consciousness Revolution: Join the movement", impact: "Be part of building aligned AI" },
+                    inbox: { value: "Community: 142", status: 'neutral' },
+                    next: { value: "Start here →", status: 'good' },
+                    energy: { value: "Project: Active", status: 'good' },
+                    money: { value: "Open Source", status: 'neutral' },
+                    blocker: { value: "None", status: 'good' },
+                    win: { value: "7×7×7 live!", status: 'good' }
+                }
+            };
+            return fallbackData[viewLevel] || fallbackData.personal;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WIDGET SYSTEM - Modular, extensible
+        // ═══════════════════════════════════════════════════════════════
+
+        function addWidget() {
+            const widgetName = prompt('Widget name:');
+            if (!widgetName) return;
+
+            const slot = document.getElementById('widget-custom-1');
+            slot.style.display = 'block';
+            slot.querySelector('h4').textContent = '🔧 ' + widgetName;
+            document.getElementById('customWidget1Content').innerHTML = '<em>Configure this widget...</em>';
+
+            // Save to localStorage
+            const widgets = JSON.parse(localStorage.getItem('customWidgets_domain1') || '[]');
+            widgets.push({ name: widgetName, config: {} });
+            localStorage.setItem('customWidgets_domain1', JSON.stringify(widgets));
+        }
+
+        function loadWidgets() {
+            // Load saved custom widgets
+            const widgets = JSON.parse(localStorage.getItem('customWidgets_domain1') || '[]');
+            if (widgets.length > 0) {
+                const slot = document.getElementById('widget-custom-1');
+                slot.style.display = 'block';
+                slot.querySelector('h4').textContent = '🔧 ' + widgets[0].name;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved view level
+            const savedLevel = localStorage.getItem('viewLevel_domain1') || 'personal';
+            setViewLevel(savedLevel);
+            loadWidgets();
+
+            // Initialize Supabase connection (Trinity Architecture)
+            initSupabase();
+
+            // Start 30-second polling cycle
+            startPolling();
+        });
+    </script>
+    <script src="js/domain-supabase.js"></script>
+
+    <script>
+    // Initialize Supabase connection for this domain
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof DomainSupabase !== 'undefined') {
+            DomainSupabase.init('1_COMMAND');
+            DomainSupabase.startPolling('1_COMMAND');
+            console.log('🔌 Domain 1 (COMMAND) connected to Supabase');
+        }
+    });
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ARAYA EMBEDDED - Full Interface (The Foundation for Infinity) -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div style="margin: 30px 20px 40px 20px;">
+        <div id="araya-embedded-container"></div>
+    </div>
+
+    <!-- Araya Embedded Module -->
+    <script src="/js/araya-embed.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Araya Embedded for this domain
+        new ArayaEmbedded('araya-embedded-container', {
+            domain: '1_COMMAND',
+            height: '480px',
+            showFileViewer: true,
+            showWorkWindow: true
+        });
+        console.log('🌀 Araya Infinity initialized for 1_COMMAND');
+    });
+    </script>
+
+</body>
+</html>

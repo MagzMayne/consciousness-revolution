@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Case Viewer - Pro Se Defense Hub</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --accent-green: #00ff88;
+            --accent-gold: #ffd700;
+            --accent-red: #ff4444;
+            --accent-cyan: #00ffff;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+        .hero {
+            background: linear-gradient(135deg, #0d2818 0%, #1a1a2e 50%, #0d2818 100%);
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--accent-green);
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .hero p { color: var(--text-secondary); font-size: 1.1rem; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+        /* Case Selector */
+        .case-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .case-tab {
+            padding: 15px 25px;
+            background: var(--bg-card);
+            border: 2px solid rgba(0,255,136,0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 200px;
+        }
+        .case-tab.active {
+            border-color: var(--accent-green);
+            background: rgba(0,255,136,0.1);
+        }
+        .case-tab:hover { border-color: var(--accent-green); }
+        .case-tab h3 { color: var(--accent-green); margin-bottom: 5px; }
+        .case-tab p { color: var(--text-secondary); font-size: 0.9rem; }
+        .case-tab.placeholder { opacity: 0.5; border-style: dashed; }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+        .stat .label { color: var(--text-secondary); font-size: 0.85rem; }
+        .stat.negative .value { color: var(--accent-red); }
+        .stat.highlight { border-color: var(--accent-gold); }
+        .stat.highlight .value { color: var(--accent-gold); }
+
+        /* Section */
+        .section {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(0,255,136,0.1);
+        }
+        .section h2 {
+            color: var(--accent-green);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Bullet Facts */
+        .fact-list { list-style: none; }
+        .fact-list li {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(0,255,136,0.05);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-green);
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+        .fact-list li .icon {
+            font-size: 1.5rem;
+            min-width: 35px;
+            text-align: center;
+        }
+        .fact-list li strong { color: var(--accent-gold); }
+
+        /* Timeline */
+        .timeline { position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, var(--accent-green), var(--accent-gold));
+        }
+        .timeline-item {
+            position: relative;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            border: 2px solid var(--bg-dark);
+        }
+        .timeline-item .date {
+            color: var(--accent-gold);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .timeline-item.critical { border-left: 3px solid var(--accent-red); }
+        .timeline-item.critical::before { background: var(--accent-red); }
+        .timeline-item.win { border-left: 3px solid var(--accent-green); }
+
+        /* Filings Table */
+        .filings-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .filings-table th, .filings-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .filings-table th { color: var(--accent-gold); }
+        .filings-table tr:hover { background: rgba(0,255,136,0.05); }
+        .filings-table a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+        .filings-table a:hover { text-decoration: underline; }
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .badge.motion { background: #3498db; }
+        .badge.order { background: #9b59b6; }
+        .badge.declaration { background: #e67e22; }
+        .badge.response { background: #27ae60; }
+
+        /* Math Box */
+        .math-box {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Consolas', monospace;
+            margin: 15px 0;
+            border: 1px solid var(--accent-gold);
+        }
+        .math-box .line {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        .math-box .line.total {
+            border-top: 2px solid var(--accent-gold);
+            margin-top: 10px;
+            padding-top: 10px;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+        .math-box .line.discrepancy { color: var(--accent-red); }
+
+        /* Pattern Box */
+        .pattern-box {
+            background: rgba(255,68,68,0.1);
+            border: 2px solid var(--accent-red);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .pattern-box h4 { color: var(--accent-red); margin-bottom: 10px; }
+        .pattern-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+        .pattern-flow .step {
+            background: rgba(0,0,0,0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+        .pattern-flow .arrow { color: var(--accent-red); font-weight: bold; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+        }
+        .footer a { color: var(--accent-cyan); }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.8rem; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .case-selector { flex-direction: column; }
+            .pattern-flow { flex-direction: column; }
+            .pattern-flow .arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>Pro Se Defense Hub</h1>
+        <p>Public case documentation - Truth, transparency, accountability</p>
+    </div>
+
+    <div class="container">
+        <!-- Case Selector -->
+        <div class="case-selector">
+            <div class="case-tab active" onclick="showCase('preble')">
+                <h3>Preble v. Preble</h3>
+                <p>21-3-00460-32 | Spokane County</p>
+            </div>
+            <div class="case-tab placeholder" onclick="showCase('maggie')">
+                <h3>Case #2 (Coming Soon)</h3>
+                <p>Maggie's Case | Pending Intake</p>
+            </div>
+            <div class="case-tab placeholder">
+                <h3>+ Add Your Case</h3>
+                <p>Pro Se Software (Beta)</p>
+            </div>
+        </div>
+
+        <!-- PREBLE CASE -->
+        <div id="case-preble">
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat highlight">
+                    <div class="value">$137,813</div>
+                    <div class="label">Total Paid</div>
+                </div>
+                <div class="stat">
+                    <div class="value">$129,300</div>
+                    <div class="label">Total Obligation</div>
+                </div>
+                <div class="stat" style="border-color: var(--accent-green);">
+                    <div class="value" style="color: var(--accent-green);">+$8,513</div>
+                    <div class="label">Actually AHEAD</div>
+                </div>
+                <div class="stat negative">
+                    <div class="value">$72,732</div>
+                    <div class="label">They Claim Owed</div>
+                </div>
+            </div>
+
+            <!-- THE MATH -->
+            <div class="section">
+                <h2>The Math Doesn't Lie</h2>
+                <div class="math-box">
+                    <div class="line"><span>Divorce Decree Obligation:</span><span>$129,300.00</span></div>
+                    <div class="line"><span>Pre-Decree Payment (Oct 2022):</span><span>$22,000.00</span></div>
+                    <div class="line"><span>Post-Decree Payments:</span><span>$115,813.00</span></div>
+                    <div class="line total"><span>TOTAL PAID:</span><span>$137,813.00</span></div>
+                    <div class="line" style="color: var(--accent-green);"><span>Status:</span><span>$8,513+ AHEAD</span></div>
+                    <div class="line discrepancy"><span>They Claim Owed:</span><span>$72,732.00</span></div>
+                    <div class="line discrepancy"><span>DISCREPANCY:</span><span>$144,800+</span></div>
+                </div>
+            </div>
+
+            <!-- FOUNDATIONAL TRUTHS -->
+            <div class="section">
+                <h2>Foundational Truths (Bullet Points)</h2>
+                <ul class="fact-list">
+                    <li>
+                        <span class="icon">1.</span>
+                        <div><strong>Paid More Than Owed</strong><br>$137,813 paid vs $129,300 required = $8,513+ AHEAD of obligations</div>
+                    </li>
+                    <li>
+                        <span class="icon">2.</span>
+                        <div><strong>Other Party Breached First</strong><br>Quit Claim Deed required by divorce decree (Oct 2022) - NEVER SIGNED after 2.5 years of payments</div>
+                    </li>
+                    <li>
+                        <span class="icon">3.</span>
+                        <div><strong>Perjury Contradiction</strong><br>2022 Parenting Plan: "Neither parent has problems" (signed under oath)<br>2025 Protection Order: Claims she needs protection<br>One of these statements is perjury (RCW 9A.72.020 - Class B Felony)</div>
+                    </li>
+                    <li>
+                        <span class="icon">4.</span>
+                        <div><strong>Retaliation Timeline</strong><br>Protection Order filed May 29, 2025<br>Deed request sent May 30, 2025<br>PO filed ONE DAY BEFORE the deed request = retaliation, not safety</div>
+                    </li>
+                    <li>
+                        <span class="icon">5.</span>
+                        <div><strong>$22,000 Pre-Decree Payment</strong><br>Documented ON THE DIVORCE PAPERS (Oct 6, 2022) - part of the $137,813 total</div>
+                    </li>
+                    <li>
+                        <span class="icon">6.</span>
+                        <div><strong>Destroyed Income → Claimed Non-Payment</strong><br>False allegations destroyed respondent's income, then petitioner complained about reduced payments</div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- THE PATTERN -->
+            <div class="section">
+                <h2>The Manipulation Pattern</h2>
+                <div class="pattern-box">
+                    <h4>Classic Abuse of Legal System</h4>
+                    <div class="pattern-flow">
+                        <div class="step">Signed "no problems" (2022)</div>
+                        <span class="arrow">→</span>
+                        <div class="step">Never signed deed (2022-2025)</div>
+                        <span class="arrow">→</span>
+                        <div class="step">I demanded deed (May 30, 2025)</div>
+                        <span class="arrow">→</span>
+                        <div class="step">Filed PO ONE DAY BEFORE (May 29)</div>
+                        <span class="arrow">→</span>
+                        <div class="step">Claims I owe HER money (Nov 2025)</div>
+                        <span class="arrow">→</span>
+                        <div class="step" style="background: rgba(255,68,68,0.3);">THE MATH PROVES FRAUD</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TIMELINE -->
+            <div class="section">
+                <h2>Case Timeline</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="date">October 6, 2022</div>
+                        <div>Divorce Decree finalized. $22,000 pre-decree payment documented. Quit Claim Deed required.</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="date">October 13, 2022</div>
+                        <div>Parenting Plan signed - "Neither parent has any of these problems" (DV, Assault, Abuse: NEITHER)</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="date">August 24, 2022</div>
+                        <div>Mari Luna email confirms both parties knew deed requirement</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="date">2022-2025</div>
+                        <div>Respondent makes consistent payments. Deed never signed by petitioner.</div>
+                    </div>
+                    <div class="timeline-item critical">
+                        <div class="date">May 29, 2025</div>
+                        <div><strong>Protection Order FILED</strong> - No incident between 2022-2025</div>
+                    </div>
+                    <div class="timeline-item critical">
+                        <div class="date">May 30, 2025</div>
+                        <div><strong>Deed request sent</strong> - ONE DAY AFTER PO filed = retaliation proven</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="date">November 2025</div>
+                        <div>Motion to Enforce filed claiming $72,732 owed (math shows $8,513+ AHEAD)</div>
+                    </div>
+                    <div class="timeline-item win">
+                        <div class="date">February 4, 2026</div>
+                        <div><strong>WIN:</strong> Motion to sell house DENIED - Respondent retains property</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KEY FILINGS -->
+            <div class="section">
+                <h2>Key Filings</h2>
+                <table class="filings-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Document</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Oct 2022</td>
+                            <td>Divorce Decree</td>
+                            <td><span class="badge order">Order</span></td>
+                            <td>Active</td>
+                        </tr>
+                        <tr>
+                            <td>Oct 2022</td>
+                            <td>Parenting Plan (Perjury Evidence)</td>
+                            <td><span class="badge order">Order</span></td>
+                            <td>Active</td>
+                        </tr>
+                        <tr>
+                            <td>May 2025</td>
+                            <td>Protection Order</td>
+                            <td><span class="badge order">Order</span></td>
+                            <td>Contested</td>
+                        </tr>
+                        <tr>
+                            <td>Nov 2025</td>
+                            <td>Motion to Enforce</td>
+                            <td><span class="badge motion">Motion</span></td>
+                            <td>Pending</td>
+                        </tr>
+                        <tr>
+                            <td>Dec 2025</td>
+                            <td>Declaration in Opposition</td>
+                            <td><span class="badge declaration">Declaration</span></td>
+                            <td>Filed</td>
+                        </tr>
+                        <tr>
+                            <td>Dec 2025</td>
+                            <td>Motion for Abusive Litigation (RCW 26.51)</td>
+                            <td><span class="badge motion">Motion</span></td>
+                            <td>Filed</td>
+                        </tr>
+                        <tr>
+                            <td>Feb 2026</td>
+                            <td>Order Denying House Sale</td>
+                            <td><span class="badge order">Order</span></td>
+                            <td>WIN</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- LEGAL WEAPONS -->
+            <div class="section">
+                <h2>Legal Arguments</h2>
+                <ul class="fact-list">
+                    <li>
+                        <span class="icon">RCW</span>
+                        <div><strong>RCW 4.28.180</strong> - Out-of-state service requires 60 days response (they gave 20)</div>
+                    </li>
+                    <li>
+                        <span class="icon">RCW</span>
+                        <div><strong>RCW 26.51</strong> - Abusive Litigation statute (dismissal + attorney fees + 48-72 month restriction)</div>
+                    </li>
+                    <li>
+                        <span class="icon">RCW</span>
+                        <div><strong>RCW 9A.72.020</strong> - Perjury (2022 vs 2025 contradiction = Class B Felony)</div>
+                    </li>
+                    <li>
+                        <span class="icon">CR</span>
+                        <div><strong>CR 11 Sanctions</strong> - Filing false/frivolous pleadings</div>
+                    </li>
+                    <li>
+                        <span class="icon">Fed</span>
+                        <div><strong>Fraud on the Court</strong> - Contradictory sworn statements</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- MAGGIE CASE PLACEHOLDER -->
+        <div id="case-maggie" style="display: none;">
+            <div class="section" style="text-align: center; padding: 60px;">
+                <h2 style="color: var(--accent-gold);">Case #2 - Coming Soon</h2>
+                <p style="font-size: 1.2rem; margin: 20px 0;">Maggie's case is being integrated into the system.</p>
+                <p style="color: var(--text-secondary);">The Pro Se software will combine multiple cases to build a template library.</p>
+                <br>
+                <p>Contact: <a href="mailto:darrickpreble@proton.me" style="color: var(--accent-cyan);">darrickpreble@proton.me</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>The Math Doesn't Lie. The Timeline Doesn't Lie. The Documents Don't Lie.</strong></p>
+        <p style="margin-top: 10px;">
+            <a href="LEGAL_HUB.html">Legal Hub</a> |
+            <a href="legal-arsenal.html">Legal Arsenal</a> |
+            <a href="index.html">Home</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 0.9rem;">Pattern: 3 → 7 → 13 → ∞</p>
+    </div>
+
+    <script>
+        function showCase(caseId) {
+            // Hide all cases
+            document.getElementById('case-preble').style.display = 'none';
+            document.getElementById('case-maggie').style.display = 'none';
+
+            // Remove active from all tabs
+            document.querySelectorAll('.case-tab').forEach(tab => tab.classList.remove('active'));
+
+            // Show selected case
+            document.getElementById('case-' + caseId).style.display = 'block';
+
+            // Mark tab active
+            event.currentTarget.classList.add('active');
+        }
+    </script>
+</body>
+</html>

@@ -595,7 +595,13 @@ const ARAYA_ABILITIES = {
     'onboard': {
         name: 'Onboarding Guide',
         description: 'Guide users through verification levels and show them how to help',
-        triggers: ['how can i help', 'what can i do', 'how do i contribute', 'i want to help', 'where do i start', 'how do i get started', 'what should i do', 'how can i contribute', 'i want to build', 'what are the levels', 'how do i level up', 'what is my level', 'how to join', 'become a builder', 'get verified']
+        triggers: ['how can i help', 'what can i do', 'how do i contribute', 'i want to help', 'where do i start', 'how do i get started', 'what should i do', 'how can i contribute', 'i want to build', 'what are the levels', 'how do i level up', 'what is my level', 'how to join', 'become a builder', 'get verified']    },
+    // === DASHBOARD CUSTOMIZATION ABILITY (Scalable 1000x) ===
+    'dashboard_edit': {
+        name: 'Dashboard Customizer',
+        description: 'Customize dashboard colors, text, layout - scalable personalization for 1000x distribution',
+        triggers: ['make my header', 'change my header', 'set my header', 'my header color', 'make the header', 'change the header', 'customize my', 'personalize my', 'my dashboard color', 'my background color', 'make my background', 'change my accent', 'my theme', 'set my accent', 'make it purple', 'make it blue', 'make it green', 'make it red'],
+        editableProperties: ['header', 'header color', 'accent', 'accent color', 'background', 'background color', 'text color', 'title', 'header text', 'welcome message', 'compact', 'sidebar', 'company name', 'logo']
     }
 };
 
@@ -2217,6 +2223,77 @@ ${nextSteps.map((s, i) => `${i + 1}. ${s.desc} - ${s.url}`).join('\n')}
 - ORACLE (2500 XP) - Admin powers
 
 Guide them through their next steps enthusiastically! Show them the path and what they'll unlock. Make them feel welcomed and show them how valuable their contribution can be.`;
+                    break;
+
+
+                // === DASHBOARD CUSTOMIZATION HANDLER (Scalable 1000x) ===
+                case 'dashboard_edit':
+                    // Parse the edit intent
+                    const parseResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=parse`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message })
+                    });
+
+                    let parsed = { understood: false };
+                    if (parseResponse.ok) {
+                        const parseData = await parseResponse.json();
+                        parsed = parseData.parsed || parsed;
+                    }
+
+                    if (parsed.understood && parsed.property && parsed.value) {
+                        // Apply the edit
+                        const dashboard = context?.page || context?.dashboard || 'COMMANDER_DOMAIN_1';
+                        const editResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=set`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                user_id: user_id,
+                                dashboard: dashboard,
+                                property: parsed.property,
+                                value: parsed.value
+                            })
+                        });
+
+                        if (editResponse.ok) {
+                            abilityResult = {
+                                type: 'dashboard_edit',
+                                success: true,
+                                property: parsed.propertyFriendly || parsed.property,
+                                value: parsed.value,
+                                dashboard: dashboard
+                            };
+                            abilityContext = `
+
+[DASHBOARD CUSTOMIZED]: Successfully updated ${parsed.propertyFriendly || parsed.property} to ${parsed.value}!
+
+The dashboard has been personalized. Refresh the page to see your changes.
+
+Want to change more? Try:
+- "make my accent color gold"
+- "change my welcome message to Hello"
+- "set my company name to My Company"
+
+Tell the user their change was saved!`;
+                        } else {
+                            abilityResult = { type: 'dashboard_edit', success: false };
+                            abilityContext = `
+
+[EDIT FAILED]: Could not save customization.`;
+                        }
+                    } else {
+                        abilityResult = { type: 'dashboard_edit', success: false };
+                        abilityContext = `
+
+[DASHBOARD CUSTOMIZER]: I can personalize your dashboard!
+
+Try:
+- "make my header purple"
+- "change my accent to gold"
+- "set my background to dark"
+
+What would you like to change?`;
+                    }
                     break;
 
                 case 'file_write':
