@@ -602,6 +602,15 @@ const ARAYA_ABILITIES = {
         description: 'Customize dashboard colors, text, layout - scalable personalization for 1000x distribution',
         triggers: ['make my header', 'change my header', 'set my header', 'my header color', 'make the header', 'change the header', 'customize my', 'personalize my', 'my dashboard color', 'my background color', 'make my background', 'change my accent', 'my theme', 'set my accent', 'make it purple', 'make it blue', 'make it green', 'make it red'],
         editableProperties: ['header', 'header color', 'accent', 'accent color', 'background', 'background color', 'text color', 'title', 'header text', 'welcome message', 'compact', 'sidebar', 'company name', 'logo']
+    },
+    // === CODE-LEVEL DASHBOARD EDITING via Selective Merge ===
+    'dashboard_code_edit': {
+        name: 'Dashboard Code Editor',
+        description: 'Propose code-level dashboard changes via Selective Merge (Commander approval required)',
+        triggers: ['edit dashboard code', 'improve the dashboard', 'fix the dashboard code', 'update dashboard html', 'propose dashboard change', 'dashboard code improvement', 'modify dashboard code', 'enhance the dashboard'],
+        requiresApproval: true,
+        endpoint: '/.netlify/functions/dashboard-commit',
+        goldenRuleCheck: true
     }
 };
 
@@ -1268,7 +1277,7 @@ async function storeMessage(userId, role, content) {
 }
 
 // Build personalized system prompt with memory and brain context
-function buildSystemPrompt(memory, brainContext = [], mode = 'normal') {
+function buildSystemPrompt(memory, brainContext = [], mode = 'normal', discordContext = {}) {
     // Select base prompt based on mode
     let prompt;
     if (mode === 'admin') {
@@ -1277,6 +1286,32 @@ function buildSystemPrompt(memory, brainContext = [], mode = 'normal') {
         prompt = ARAYA_LEGAL_PROMPT;
     } else {
         prompt = ARAYA_BASE_PROMPT;
+    }
+
+    // Add Discord conversation history context (so ARAYA can see what was discussed before)
+    const discordHistory = discordContext.discordHistory || [];
+    if (discordHistory.length > 0) {
+        prompt += `\n\n═══ RECENT DISCORD CONVERSATION (you can see this context) ═══`;
+        for (const msg of discordHistory.slice(-10)) {
+            const role = msg.role === 'assistant' ? 'You (ARAYA)' : msg.author || 'User';
+            prompt += `\n[${role}]: ${msg.content?.substring(0, 400) || ''}`;
+        }
+        prompt += `\n═══ END DISCORD CONTEXT ═══\n`;
+        prompt += `\nYou CAN reference previous messages from this conversation. You remember what was said above.`;
+    }
+
+    // Add web search results (from Firecrawl)
+    const searchResults = discordContext.searchResults || [];
+    if (searchResults.length > 0) {
+        prompt += `\n\n═══ WEB SEARCH RESULTS (live internet search via Firecrawl) ═══`;
+        for (const result of searchResults) {
+            prompt += `\n📎 ${result.title || 'Result'}`;
+            if (result.url) prompt += `\n   URL: ${result.url}`;
+            if (result.snippet) prompt += `\n   ${result.snippet.substring(0, 250)}`;
+            prompt += '\n';
+        }
+        prompt += `═══ END SEARCH RESULTS ═══\n`;
+        prompt += `\nUse these search results to answer the user's question with current, accurate information. Cite sources when helpful.`;
     }
 
     // Add brain knowledge context
@@ -1555,7 +1590,19 @@ export async function handler(event, context) {
     }
 
     try {
-        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [] } = JSON.parse(event.body);
+        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [], context = {} } = JSON.parse(event.body);
+
+        // Extract Discord context (conversation history & search results)
+        const discordHistory = context.conversation_history || [];
+        const webSearchResults = context.search_results || [];
+        const platform = context.platform || 'web';
+
+        if (discordHistory.length > 0) {
+            console.log(`[DISCORD CONTEXT] ${discordHistory.length} messages from Discord channel`);
+        }
+        if (webSearchResults.length > 0) {
+            console.log(`[WEB SEARCH] ${webSearchResults.length} search results from Firecrawl`);
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // ADMIN MODE DETECTION - Check for passphrase in message
@@ -2296,6 +2343,64 @@ What would you like to change?`;
                     }
                     break;
 
+                // === SELECTIVE MERGE DASHBOARD EDITING (Code-Level Changes) ===
+                case 'dashboard_code_edit':
+                    // This routes through Selective Merge for Commander approval
+                    const dashboardMatch = message.match(/(?:dashboard|cockpit|page)\s+([A-Z_]+\.html)/i) ||
+                                          message.match(/edit\s+([A-Z_]+\.html)/i);
+                    const targetDashboard = dashboardMatch ? dashboardMatch[1] : 'COMMANDER_COCKPIT.html';
+
+                    // Build proposal for Selective Merge
+                    const proposal = {
+                        dashboard: targetDashboard,
+                        operator_id: user_id || 'araya-ai',
+                        operator_name: 'ARAYA AI',
+                        change_type: 'REVIEWED',
+                        category: 'enhancement',
+                        title: `ARAYA Improvement: ${message.substring(0, 50)}...`,
+                        description: message,
+                        golden_rule_check: true
+                    };
+
+                    try {
+                        const commitResponse = await fetch(`${process.env.URL || 'https://conciousnessrevolution.io'}/.netlify/functions/dashboard-commit`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(proposal)
+                        });
+
+                        if (commitResponse.ok) {
+                            const commitData = await commitResponse.json();
+                            abilityResult = {
+                                type: 'dashboard_code_edit',
+                                success: true,
+                                proposal_id: commitData.proposal_id,
+                                dashboard: targetDashboard,
+                                status: 'pending_approval'
+                            };
+                            abilityContext = `
+[SELECTIVE MERGE]: Dashboard improvement proposal submitted!
+
+- **Proposal ID**: ${commitData.proposal_id}
+- **Dashboard**: ${targetDashboard}
+- **Status**: Pending Commander Approval
+- **Golden Rule**: ${commitData.golden_rule_passed ? '✅ PASSED' : '❌ REVIEW NEEDED'}
+
+The Commander will review this change in the Selective Merge UI. I cannot directly modify dashboards - all changes go through the approval pipeline.
+
+Tell the user their proposal has been queued for review!`;
+                        } else {
+                            abilityResult = { type: 'dashboard_code_edit', success: false };
+                            abilityContext = `
+[SELECTIVE MERGE ERROR]: Could not submit proposal. The dashboard-commit API returned an error.`;
+                        }
+                    } catch (err) {
+                        abilityResult = { type: 'dashboard_code_edit', success: false, error: err.message };
+                        abilityContext = `
+[SELECTIVE MERGE ERROR]: ${err.message}`;
+                    }
+                    break;
+
                 case 'file_write':
                     // User confirmed a write - look for file path and content in the conversation
                     // For now, acknowledge and ask for specifics
@@ -2312,7 +2417,12 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         }
 
         // Build personalized system prompt (with mode and brain context)
-        let systemPrompt = buildSystemPrompt(memory, brainContext, effectiveMode || mode);
+        // Build Discord context object for system prompt
+        const discordContextForPrompt = {
+            discordHistory: discordHistory,
+            searchResults: webSearchResults
+        };
+        let systemPrompt = buildSystemPrompt(memory, brainContext, effectiveMode || mode, discordContextForPrompt);
 
         // Add ability context if present
         if (abilityContext) {

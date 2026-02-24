@@ -75,6 +75,26 @@ const ARAYA_SKILLS = {
         lastUsed: null,
         useCount: 0
     },
+    'dashboard_edit': {
+        name: 'Dashboard Editor',
+        category: 'core',
+        description: 'Edit dashboards via Selective Merge (Commander approval required)',
+        status: 'active',
+        triggers: ['edit dashboard', 'improve dashboard', 'change dashboard', 'fix dashboard', 'update the dashboard', 'make dashboard better', 'dashboard improvement'],
+        endpoint: '/.netlify/functions/dashboard-commit',
+        goldenRuleCheck: true,
+        requiresApproval: true,
+        changeTypes: ['SAFE', 'REVIEWED', 'BREAKING'],
+        allowedDashboards: ['COMMANDER_COCKPIT.html', 'TEAM_COCKPIT.html', 'CONSCIOUSNESS_DASHBOARD.html', 'START_HERE.html', 'SEVEN_DOMAINS_DASHBOARD.html'],
+        workflow: {
+            step1: 'Propose change (POST to dashboard-commit)',
+            step2: 'Golden Rule ethical screening',
+            step3: 'Queue for Commander review',
+            step4: 'Commander selects/rejects via Selective Merge UI'
+        },
+        lastUsed: null,
+        useCount: 0
+    },
 
     // Vision & Media
     'screenshot': {
@@ -180,8 +200,31 @@ const ARAYA_SKILLS = {
         triggers: ['run diagnostics', 'test abilities', 'check abilities', 'ability test', 'diagnose yourself', 'self test', 'health check'],
         lastUsed: null,
         useCount: 0
-    }
-,
+    },
+    'web_search': {
+        name: 'Web Search',
+        category: 'intelligence',
+        description: 'Search the internet via Firecrawl API for current information',
+        status: 'active',
+        triggers: ['search for', 'look up', 'google', 'find info on', 'what is the latest', 'search the web', 'web search', 'search online', 'news about', 'current news', 'recent news'],
+        engine: 'Firecrawl',
+        platform: 'discord',
+        note: 'Available in Discord #araya-chat channel',
+        lastUsed: null,
+        useCount: 0
+    },
+    'discord_memory': {
+        name: 'Discord Conversation Memory',
+        category: 'memory',
+        description: 'Remember and reference recent Discord conversation history',
+        status: 'active',
+        triggers: ['what did I say', 'what were we talking about', 'remember when', 'earlier you said', 'scroll up'],
+        historyLimit: 15,
+        platform: 'discord',
+        note: 'ARAYA can see the last 15 messages in Discord conversations',
+        lastUsed: null,
+        useCount: 0
+    },
 
     // DNA Knowledge Library - System Blueprints Online (38 files)
     'dna_library': {
