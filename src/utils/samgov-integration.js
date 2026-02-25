@@ -107,26 +107,44 @@ class SAMGovIntegration {
     getApiKey(config) {
         // Order of precedence:
         // 1. Explicitly provided in config
-        // 2. Environment variable (for server-side)
-        // 3. SessionStorage (for single-session use)
-        // Note: localStorage removed for security (accessible to all scripts, persists indefinitely)
-        
+        // 2. Environment variable (server-side only)
+        // 3. In-memory cache (loaded via loadApiKeyFromServer())
+        // Note: localStorage/sessionStorage removed — keys must come from server relay
+
         if (config.apiKey) {
             return config.apiKey;
         }
-        
+
         if (typeof process !== 'undefined' && process.env && process.env.SAMGOV_API_KEY) {
             return process.env.SAMGOV_API_KEY;
         }
-        
-        if (typeof sessionStorage !== 'undefined') {
-            const sessionKey = sessionStorage.getItem('samgov_api_key');
-            if (sessionKey) {
-                return sessionKey;
+
+        // Return in-memory cached key (set by loadApiKeyFromServer)
+        return this.apiKey || null;
+    }
+
+    /**
+     * Fetch API key from secure server relay (browser use).
+     * Stores in memory only — never localStorage or sessionStorage.
+     * @returns {Promise<string|null>}
+     */
+    async loadApiKeyFromServer() {
+        if (typeof fetch === 'undefined') return null;
+        try {
+            const res = await fetch('/api/sam-gov-token');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (data.auth && data.token) {
+                this.apiKey = data.token;
+                this.useRealApi = true;
+                return data.token;
             }
+            console.warn('⚠️ SAM.gov server secret not configured (SAM_API_KEY). Check repository secrets.');
+            return null;
+        } catch (err) {
+            console.error('Failed to load SAM.gov key from server relay:', err.message, '— check network connection and SAM_API_KEY repository secret.');
+            return null;
         }
-        
-        return null;
     }
     
     /**
@@ -143,12 +161,9 @@ class SAMGovIntegration {
         
         this.apiKey = apiKey;
         this.useRealApi = true;
-        
-        // Optionally store in sessionStorage (not localStorage for security)
-        if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('samgov_api_key', apiKey);
-        }
-        
+
+        // Key held in memory only — never persisted to sessionStorage or localStorage
+
         return { valid: true, message: 'API key set successfully. Real API mode enabled.' };
     }
     

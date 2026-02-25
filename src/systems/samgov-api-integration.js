@@ -76,23 +76,40 @@ class SAMGovAPIIntegration {
 
     /**
      * Get or prompt for API key with validation
+     * Server-side: reads from process.env.SAMGOV_API_KEY
+     * Browser: fetches from /api/sam-gov-token (secure relay, never localStorage)
      */
     getApiKeyFromStorage() {
-        // First check environment variable (server-side)
+        // Server-side: read from environment variable
         if (typeof process !== 'undefined' && process.env && process.env.SAMGOV_API_KEY) {
             return process.env.SAMGOV_API_KEY;
         }
-        
-        // Then check sessionStorage (safer than localStorage)
-        if (typeof sessionStorage !== 'undefined') {
-            const sessionKey = sessionStorage.getItem('samgov_api_key');
-            if (sessionKey) {
-                return sessionKey;
-            }
-        }
-        
-        console.warn('⚠️ SAM.gov API key not found. Get one at: https://sam.gov/data-services');
+
+        console.warn('⚠️ SAM.gov API key not available synchronously in browser. Call loadApiKeyFromServer() first.');
         return null;
+    }
+
+    /**
+     * Fetch API key from secure server relay (browser use).
+     * Stores in memory only — never localStorage or sessionStorage.
+     * @returns {Promise<string|null>}
+     */
+    async loadApiKeyFromServer() {
+        if (typeof fetch === 'undefined') return null;
+        try {
+            const res = await fetch('/api/sam-gov-token');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (data.auth && data.token) {
+                this.apiKey = data.token;
+                return data.token;
+            }
+            console.warn('⚠️ SAM.gov server secret not configured (SAM_API_KEY). Check repository secrets.');
+            return null;
+        } catch (err) {
+            console.error('Failed to load SAM.gov key from server relay:', err.message);
+            return null;
+        }
     }
 
     /**
@@ -121,12 +138,9 @@ class SAMGovAPIIntegration {
         
         this.apiKey = apiKey;
         
-        // Store only in sessionStorage (removed localStorage for security)
-        if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('samgov_api_key', apiKey);
-        }
+        // Key held in memory only — never persisted to sessionStorage or localStorage
         
-        console.log('✅ SAM.gov API key validated and saved to session');
+        console.log('✅ SAM.gov API key validated and set in memory');
         return { success: true, message: 'API key set successfully' };
     }
 

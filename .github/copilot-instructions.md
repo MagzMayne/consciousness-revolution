@@ -584,3 +584,87 @@ If you're unsure about anything:
 4. Contact BarbrickDesign@gmail.com with specific questions
 
 Remember: This repository serves real users and generates real income. Prioritize reliability, security, and user experience in all changes.
+
+---
+
+## Agent Intelligence Upgrade (MANDATORY for All Future Tasks)
+
+### REPO-AWARE BEHAVIOR
+
+Before modifying **any** file, agents MUST:
+
+1. **Scan the entire repository** — understand existing implementations, architecture, and conventions.
+2. **Detect existing functionality** — check whether a feature already exists (whole or partial) before writing new code.
+3. **Reuse existing components** — never duplicate backends, logic, or conflicting code paths that already exist.
+4. **Produce a reasoning summary** — briefly state what exists, what is missing, and what will be changed before writing code.
+5. **Complete partial implementations** — finish what is already started rather than replacing it.
+
+Key existing infrastructure that MUST be reused (not duplicated):
+- `netlify/functions/github-token.mjs` — GitHub token server relay (do not create another one)
+- `netlify/functions/sam-gov-token.mjs` — SAM.gov API key relay (do not create another one)
+- `netlify/functions/health.js` — Health check endpoint with `auth` and `api_error` fields
+- `netlify.toml` — `/api/*` → `/.netlify/functions/:splat` redirect is already configured
+- `src/systems/samgov-api-integration.js` — SAM.gov API class with `loadApiKeyFromServer()`
+- `src/utils/samgov-integration.js` — SAM.gov utility class with `loadApiKeyFromServer()`
+
+### SECURITY-AWARE BEHAVIOR
+
+Agents MUST understand and enforce:
+
+| Rule | Detail |
+|------|--------|
+| Browser JS CANNOT access GitHub Secrets | Secrets are only available server-side (Netlify Functions, GitHub Actions, etc.) |
+| Tokens MUST NOT be committed | Never hardcode secrets, tokens, or API keys in any file |
+| Tokens MUST NOT be logged | No `console.log(token)` or equivalent |
+| Tokens MUST NOT be in static files | No secrets in HTML, JS, or config files |
+| Tokens MUST NOT be stored in localStorage | Use memory only, or sessionStorage for non-sensitive session data |
+| All sensitive data flows server-side | Use existing relay endpoints (`/api/github-token`, `/api/sam-gov-token`) |
+
+#### Correct Pattern for Browser Secret Access
+
+```javascript
+// ✅ CORRECT — fetch from server relay, store in memory only
+const res = await fetch('/api/github-token');
+const { auth, token } = await res.json();
+if (!auth) {
+    showError('Server secret missing or invalid — check repository secrets configuration.');
+    return;
+}
+// Use token in memory; never: localStorage.setItem('token', token)
+```
+
+```javascript
+// ❌ WRONG — manual input or localStorage
+const token = document.getElementById('tokenInput').value;
+localStorage.setItem('github_token', token);
+```
+
+#### Server-Side Relay Pattern (Netlify Functions)
+
+All new secret relays MUST follow the existing pattern in `netlify/functions/github-token.mjs`:
+- Read secret from `process.env.SECRET_NAME`
+- Restrict CORS to approved origins
+- Apply rate-limiting
+- Return `{ auth: Boolean(secret), token: secret | null, api_error: null }`
+- Never log the secret value
+
+### ARCHITECTURE-AWARE BEHAVIOR
+
+This repository uses Netlify for deployment. Key architecture facts:
+- **Netlify Functions** live in `netlify/functions/` and are accessible at `/api/<function-name>`
+- **`netlify.toml`** already maps `/api/*` → `/.netlify/functions/:splat`
+- **Environment variables** are configured in the Netlify dashboard or GitHub Secrets
+- **GitHub Actions** workflows live in `.github/workflows/` and use `actions/checkout@v4` (NOT v5)
+- **Backend services** in `backend/` run locally or on Railway — NOT on Netlify
+- **Static files** (HTML, JS, CSS) are served directly from the repository root
+
+### PR DELIVERY REQUIREMENTS
+
+Agents MUST deliver a **single, atomic PR** that:
+- Resolves the entire task end-to-end
+- Includes all related client, server, and config file updates
+- Does not leave partially implemented features
+- Verifies functionality end-to-end before submitting
+- Shows `auth: true` and `api_error: null` for any secret-dependent feature when the secret is configured
+- Shows a clear, actionable message (e.g., "Server secret missing — check SAM_API_KEY in repository secrets") when the secret is absent
+
