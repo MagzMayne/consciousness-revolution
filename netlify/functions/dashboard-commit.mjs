@@ -32,7 +32,7 @@ async function loadSupabase() {
     try {
         const { createClient } = await import('@supabase/supabase-js');
         const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
         if (SUPABASE_URL && SUPABASE_KEY) {
             _supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
             console.log('[DASHBOARD-COMMIT] Supabase client initialized');

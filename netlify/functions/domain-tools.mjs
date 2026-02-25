@@ -196,6 +196,15 @@ export const LEVEL_UNLOCKS = {
 // Pattern: PERSONAL (Inner) → TEAM (Middle) → PUBLIC (Outer)
 // ═══════════════════════════════════════════════════════════════
 export const BUILDER_COCKPITS = {
+    commander: {
+        name: 'Commander',
+        role: 'Mission Commander',
+        cockpit: '/COMMANDER_COCKPIT.html',
+        discord_id: null,
+        xp: 0,
+        domain: '1_COMMAND',
+        access_tier: 'PERSONAL'
+    },
     tiger: {
         name: 'Tiger',
         role: 'Technical Builder',

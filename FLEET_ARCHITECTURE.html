@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Fleet | 100X Builder Architecture</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #111118;
+            --accent: #667eea;
+            --orange: #ff6b35;
+            --gold: #f1c40f;
+            --green: #4ade80;
+            --cyan: #00d4ff;
+            --purple: #764ba2;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* STARFIELD BACKGROUND */
+        .starfield {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 230px 80px, #fff, transparent),
+                radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 350px 200px, #fff, transparent),
+                radial-gradient(2px 2px at 400px 50px, rgba(255,255,255,0.5), transparent);
+            background-size: 450px 250px;
+            animation: twinkle 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        /* HEADER */
+        .header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+        .header h1 {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        .header p {
+            color: #888;
+            font-size: 1.3rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* FLEET GRID */
+        .fleet-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-bottom: 80px;
+        }
+        @media (max-width: 900px) {
+            .fleet-grid { grid-template-columns: 1fr; }
+        }
+
+        /* SHIP CARD */
+        .ship-card {
+            background: linear-gradient(180deg, var(--card) 0%, rgba(17,17,24,0.8) 100%);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+        .ship-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 60px rgba(102,126,234,0.3);
+        }
+        .ship-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+        }
+        .ship-card.base::before { background: linear-gradient(90deg, var(--orange), var(--gold)); }
+        .ship-card.scout::before { background: linear-gradient(90deg, var(--cyan), var(--accent)); }
+        .ship-card.cruiser::before { background: linear-gradient(90deg, var(--purple), var(--green)); }
+
+        .ship-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+        .ship-class {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+        .ship-card.base .ship-class { background: rgba(255,107,53,0.2); color: var(--orange); }
+        .ship-card.scout .ship-class { background: rgba(0,212,255,0.2); color: var(--cyan); }
+        .ship-card.cruiser .ship-class { background: rgba(118,75,162,0.2); color: var(--purple); }
+
+        .ship-name {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        .ship-card.base .ship-name { color: var(--orange); }
+        .ship-card.scout .ship-name { color: var(--cyan); }
+        .ship-card.cruiser .ship-name { color: var(--purple); }
+
+        .ship-role {
+            color: #aaa;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+        }
+
+        .ship-desc {
+            color: #777;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 25px;
+        }
+
+        .ship-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* CONNECTION DIAGRAM */
+        .connection-section {
+            margin-top: 60px;
+            text-align: center;
+        }
+        .connection-section h2 {
+            font-size: 2rem;
+            margin-bottom: 40px;
+            color: #fff;
+        }
+        .connection-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .flow-node {
+            background: var(--card);
+            border: 2px solid;
+            border-radius: 16px;
+            padding: 25px 35px;
+            text-align: center;
+        }
+        .flow-node.cli { border-color: var(--orange); }
+        .flow-node.araya { border-color: var(--cyan); }
+        .flow-node.domains { border-color: var(--purple); }
+        .flow-node .icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .flow-node .name { font-weight: 700; font-size: 1.1rem; }
+        .flow-arrow {
+            font-size: 2rem;
+            color: var(--accent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* LAUNCH SECTION */
+        .launch-section {
+            margin-top: 80px;
+            text-align: center;
+            padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .launch-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .launch-section p {
+            color: #888;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        .launch-btn {
+            display: inline-block;
+            padding: 18px 50px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .launch-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 40px rgba(102,126,234,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="starfield"></div>
+
+    <div class="container">
+        <header class="header">
+            <h1>The Fleet</h1>
+            <p>Your complete consciousness operating system. Three ships. One mission. Total life mastery.</p>
+        </header>
+
+        <div class="fleet-grid">
+            <!-- BASE CAMP: OVERKORE CLI -->
+            <div class="ship-card base">
+                <span class="ship-icon">🏔️</span>
+                <span class="ship-class">Ground Station</span>
+                <h3 class="ship-name">OverKor CLI</h3>
+                <p class="ship-role">Base Camp</p>
+                <p class="ship-desc">
+                    Where every mission begins. Your local command center. Quick commands, instant access, boots in seconds. The launchpad for everything else.
+                </p>
+                <div class="ship-stats">
+                    <div class="stat">
+                        <div class="stat-value">⚡</div>
+                        <div class="stat-label">Instant</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">🔒</div>
+                        <div class="stat-label">Local</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">🛠️</div>
+                        <div class="stat-label">Build</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCOUT SHIP: ARAYA -->
+            <div class="ship-card scout">
+                <span class="ship-icon">🚀</span>
+                <span class="ship-class">Scout Ship</span>
+                <h3 class="ship-name">ARAYA</h3>
+                <p class="ship-role">Personal AI Companion</p>
+                <p class="ship-desc">
+                    Your nimble scout ship. Goes anywhere. Learns everything. An AI that actually knows YOU - your patterns, your goals, your battles. Always by your side.
+                </p>
+                <div class="ship-stats">
+                    <div class="stat">
+                        <div class="stat-value">🧠</div>
+                        <div class="stat-label">Smart</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">💬</div>
+                        <div class="stat-label">Talks</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">🎯</div>
+                        <div class="stat-label">Guides</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MOTHERSHIP: 7x7x7 DOMAINS -->
+            <div class="ship-card cruiser">
+                <span class="ship-icon">🛸</span>
+                <span class="ship-class">Galactic Cruiser</span>
+                <h3 class="ship-name">7x7x7 Domains</h3>
+                <p class="ship-role">The Mothership / Sky Base</p>
+                <p class="ship-desc">
+                    The full galactic cruiser. 7 domains × 7 levels × 7 tools = 343 total capabilities. Your entire life infrastructure. The command deck for everything.
+                </p>
+                <div class="ship-stats">
+                    <div class="stat">
+                        <div class="stat-value">7³</div>
+                        <div class="stat-label">343 Tools</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">∞</div>
+                        <div class="stat-label">Modules</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">🌐</div>
+                        <div class="stat-label">Cloud</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONNECTION DIAGRAM -->
+        <section class="connection-section">
+            <h2>How They Connect</h2>
+            <div class="connection-flow">
+                <div class="flow-node cli">
+                    <div class="icon">🏔️</div>
+                    <div class="name">OverKor CLI</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node araya">
+                    <div class="icon">🚀</div>
+                    <div class="name">ARAYA</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-node domains">
+                    <div class="icon">🛸</div>
+                    <div class="name">7x7x7</div>
+                </div>
+            </div>
+            <p style="color: #666; margin-top: 30px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Launch from Base Camp → Scout with ARAYA → Dock at the Mothership.<br>
+                Each level unlocks more capability. Each ship serves a purpose.
+            </p>
+        </section>
+
+        <!-- LAUNCH CTA -->
+        <section class="launch-section">
+            <h2>Ready to Launch?</h2>
+            <p>Start at Base Camp. Your fleet awaits.</p>
+            <a href="/signup.html" class="launch-btn">🚀 Begin Your Mission</a>
+        </section>
+    </div>
+</body>
+</html>
