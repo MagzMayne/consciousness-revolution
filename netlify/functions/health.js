@@ -62,7 +62,9 @@ exports.handler = async (event, context) => {
       timestamp: new Date().toISOString(),
       environment: process.env.CONTEXT || 'unknown',
       repository: 'barbrickdesign.github.io',
-      version: '1.0.0'
+      version: '1.0.0',
+      auth: Boolean(process.env.GITHUB_TOKEN),
+      api_error: null
     })
   };
 

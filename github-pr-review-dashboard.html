@@ -429,13 +429,9 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             <!-- Configuration Card -->
             <div class="control-card">
                 <h2>Configuration</h2>
-                <div class="warning-box">
-                    ⚠️ GitHub token required for API access
+                <div id="tokenStatusBox" class="warning-box">
+                    ⏳ Loading token from server secret…
                 </div>
-                <label>
-                    GitHub Token:
-                    <input type="password" id="githubToken" placeholder="ghp_...">
-                </label>
                 <label>
                     Repository Owner:
                     <input type="text" id="repoOwner" value="barbrickdesign">
@@ -535,6 +531,9 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 updateIndicator('loggerIndicator', 'active');
                 updateStatus('loggerStatus', 'Active');
                 
+                // Auto-load GitHub token from server secret
+                await loadServerToken();
+
                 // Initialize agent (without token initially)
                 agent = new GitHubPRReviewAgent(logger, {
                     owner: document.getElementById('repoOwner').value,
@@ -542,6 +541,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 });
                 await sleep(100);
                 
+                // Apply token to agent if already loaded
+                if (_serverToken) {
+                    agent.updateConfig({ githubToken: _serverToken });
+                }
+
                 updateIndicator('agentIndicator', 'active');
                 updateStatus('agentStatus', 'Ready');
                 
@@ -561,11 +565,42 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             }
         });
 
+        // In-memory token — never written to localStorage or the DOM
+        let _serverToken = null;
+
+        // Load GitHub token from the server-side secret relay
+        async function loadServerToken() {
+            const statusBox = document.getElementById('tokenStatusBox');
+            try {
+                const res = await fetch('/api/github-token');
+                const data = await res.json();
+                if (data.auth && data.token) {
+                    _serverToken = data.token; // memory only
+                    statusBox.style.backgroundColor = 'rgba(0,200,100,0.15)';
+                    statusBox.style.borderColor = '#00c864';
+                    statusBox.textContent = '✅ Token loaded from server secret.';
+                    updateIndicator('githubIndicator', 'active');
+                    updateStatus('githubStatus', 'Connected');
+                } else {
+                    statusBox.style.backgroundColor = 'rgba(255,100,0,0.15)';
+                    statusBox.style.borderColor = '#ff6400';
+                    statusBox.textContent = '⚠️ ' + (data.message || 'Server secret missing or invalid — check repository secrets configuration.');
+                    updateIndicator('githubIndicator', 'warning');
+                    updateStatus('githubStatus', 'No Token');
+                }
+            } catch (err) {
+                statusBox.style.backgroundColor = 'rgba(255,0,0,0.15)';
+                statusBox.style.borderColor = '#ff4444';
+                statusBox.textContent = '❌ Could not reach /api/github-token — running locally without server.';
+                console.warn('Token relay unavailable:', err.message);
+            }
+        }
+
         // Update agent configuration
         function updateAgentConfig() {
             try {
                 const config = {
-                    githubToken: document.getElementById('githubToken').value,
+                    githubToken: _serverToken,
                     owner: document.getElementById('repoOwner').value,
                     repo: document.getElementById('repoName').value,
                     autoApprove: document.getElementById('autoApprove').checked,
@@ -596,7 +631,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         async function fetchNotifications() {
             try {
                 if (!agent.config.githubToken) {
-                    alert('Please configure GitHub token first');
+                    displayLog('error', 'Agent', 'GitHub token not available — check server secret configuration', {});
                     return;
                 }
 
@@ -617,7 +652,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         async function processNotifications() {
             try {
                 if (!agent.config.githubToken) {
-                    alert('Please configure GitHub token first');
+                    displayLog('error', 'Agent', 'GitHub token not available — check server secret configuration', {});
                     return;
                 }
 

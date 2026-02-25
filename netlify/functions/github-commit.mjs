@@ -31,6 +31,20 @@ export const handler = async (event, context) => {
     };
   }
 
+  // Early exit when server secret is not configured
+  if (!GITHUB_TOKEN) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({
+        error: "GitHub token not configured",
+        auth: false,
+        api_error: 401,
+        message: "Server secret missing or invalid — check repository secrets configuration."
+      })
+    };
+  }
+
   try {
     const body = JSON.parse(event.body);
     const { path, content, message, branch = DEFAULT_BRANCH } = body;
@@ -115,6 +129,8 @@ export const handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         success: true,
+        auth: true,
+        api_error: null,
         action: currentSha ? "updated" : "created",
         path: path,
         sha: commit.content.sha,
@@ -134,6 +150,8 @@ export const handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         error: "GitHub API error",
+        auth: Boolean(GITHUB_TOKEN),
+        api_error: error.status || 500,
         message: error.message,
         status: error.status
       })
