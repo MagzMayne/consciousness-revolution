@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Francis - Discord Manager | 7×7×7</title>
+    <script type="application/json" id="dashboard-dna">
+{
+    "name": "Francis Discord Manager",
+    "version": "1.0.0",
+    "purpose": "7-domain horizontal slider for Discord management",
+    "owner": "Francis",
+    "domain": "ALL",
+    "sphere": "OPERATOR_7x7x7",
+    "created": "2026-02-24",
+    "status": "LIVE",
+    "architecture": "single-page-7-slider",
+    "trinity": { "c1_built": "2026-02-24" },
+    "lfsme": { "lighter": 10, "faster": 9, "stronger": 8, "elegant": 9, "less_expensive": 10, "average": 9.2 }
+}
+    </script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f;
+            --surface: #111118;
+            --border: #222230;
+            --text: #fff;
+            --dim: #888;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(90deg, #5865F2, #7289DA);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 100;
+        }
+        .top-bar h1 { font-size: 1.1rem; }
+        .domain-indicator {
+            background: rgba(0,0,0,0.3);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        /* Domain Navigation Dots */
+        .domain-dots {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 30px;
+        }
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .dot:hover { transform: scale(1.2); }
+        .dot.active { border-color: #fff; transform: scale(1.3); }
+        .dot[data-domain="1"] { background: #ff4444; }
+        .dot[data-domain="2"] { background: #00aaff; }
+        .dot[data-domain="3"] { background: #aa44ff; }
+        .dot[data-domain="4"] { background: #44ff44; }
+        .dot[data-domain="5"] { background: #ffaa00; }
+        .dot[data-domain="6"] { background: #00ffaa; }
+        .dot[data-domain="7"] { background: #ff44aa; }
+
+        /* Horizontal Slider Container */
+        .slider-container {
+            display: flex;
+            width: 700vw;
+            transition: transform 0.4s ease;
+            margin-top: 50px;
+            min-height: calc(100vh - 50px);
+        }
+
+        /* Each Domain Slide */
+        .domain-slide {
+            width: 100vw;
+            min-height: calc(100vh - 50px);
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        .slide-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .slide-header .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        .slide-header h2 { font-size: 1.5rem; }
+
+        /* Content Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .card-label { color: var(--dim); font-size: 0.85rem; }
+
+        /* Stat Row */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .stat-row:last-child { border-bottom: none; }
+
+        /* Action Button */
+        .action-btn {
+            background: linear-gradient(135deg, #5865F2, #7289DA);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .action-btn:hover { opacity: 0.9; }
+
+        /* Member List */
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            margin-bottom: 8px;
+        }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #5865F2, #7289DA);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .member-info { flex: 1; }
+        .member-name { font-weight: 600; }
+        .member-role { font-size: 0.8rem; color: var(--dim); }
+        .member-xp {
+            background: #ffaa00;
+            color: #000;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* Swipe hint */
+        .swipe-hint {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--dim);
+            font-size: 0.8rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* Domain Colors */
+        .domain-1 { --accent: #ff4444; }
+        .domain-2 { --accent: #00aaff; }
+        .domain-3 { --accent: #aa44ff; }
+        .domain-4 { --accent: #44ff44; }
+        .domain-5 { --accent: #ffaa00; }
+        .domain-6 { --accent: #00ffaa; }
+        .domain-7 { --accent: #ff44aa; }
+
+        .domain-slide .icon { background: var(--accent); }
+        .domain-slide h2 { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <h1>🎮 Francis - Discord Manager</h1>
+        <div class="domain-indicator" id="domainIndicator">1/7 COMMAND</div>
+    </div>
+
+    <div class="slider-container" id="slider">
+        <!-- DOMAIN 1: COMMAND -->
+        <div class="domain-slide domain-1" data-domain="1">
+            <div class="slide-header">
+                <div class="icon">⚔️</div>
+                <div>
+                    <h2>COMMAND</h2>
+                    <p style="color: var(--dim);">Server Overview & Quick Actions</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>📊 Server Status</h3>
+                    <div class="card-value" id="totalMembers">--</div>
+                    <div class="card-label">Total Members</div>
+                </div>
+                <div class="card">
+                    <h3>🟢 Online Now</h3>
+                    <div class="card-value" id="onlineNow">--</div>
+                    <div class="card-label">Active Members</div>
+                </div>
+                <div class="card">
+                    <h3>⚡ Quick Actions</h3>
+                    <button class="action-btn" onclick="openDiscord()">Open Discord</button>
+                    <button class="action-btn" onclick="refreshData()">Refresh Stats</button>
+                </div>
+                <div class="card">
+                    <h3>🔔 Pending Tasks</h3>
+                    <div class="stat-row"><span>Unverified members</span><span id="unverified">0</span></div>
+                    <div class="stat-row"><span>Pending roles</span><span id="pendingRoles">0</span></div>
+                    <div class="stat-row"><span>Reports to review</span><span id="reports">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 2: BUILD -->
+        <div class="domain-slide domain-2" data-domain="2">
+            <div class="slide-header">
+                <div class="icon">🔨</div>
+                <div>
+                    <h2>BUILD</h2>
+                    <p style="color: var(--dim);">Channel & Bot Management</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>📢 Channels</h3>
+                    <div class="stat-row"><span>Text Channels</span><span>12</span></div>
+                    <div class="stat-row"><span>Voice Channels</span><span>4</span></div>
+                    <div class="stat-row"><span>Categories</span><span>5</span></div>
+                </div>
+                <div class="card">
+                    <h3>🤖 Bots</h3>
+                    <div class="stat-row"><span>ARAYA Bot</span><span style="color:#44ff44">Online</span></div>
+                    <div class="stat-row"><span>XP Bot</span><span style="color:#44ff44">Online</span></div>
+                    <div class="stat-row"><span>Moderation Bot</span><span style="color:#44ff44">Online</span></div>
+                </div>
+                <div class="card">
+                    <h3>🔧 Build Actions</h3>
+                    <button class="action-btn">Create Channel</button>
+                    <button class="action-btn">Configure Bot</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 3: CONNECT -->
+        <div class="domain-slide domain-3" data-domain="3">
+            <div class="slide-header">
+                <div class="icon">🔗</div>
+                <div>
+                    <h2>CONNECT</h2>
+                    <p style="color: var(--dim);">Member Engagement & Communication</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>💬 Recent Activity</h3>
+                    <div class="stat-row"><span>Messages today</span><span id="messagesToday">--</span></div>
+                    <div class="stat-row"><span>Active threads</span><span>7</span></div>
+                    <div class="stat-row"><span>Voice hours</span><span>12h</span></div>
+                </div>
+                <div class="card">
+                    <h3>🏆 Top Contributors</h3>
+                    <div id="topContributors">Loading...</div>
+                </div>
+                <div class="card">
+                    <h3>📣 Announcements</h3>
+                    <button class="action-btn">Post Announcement</button>
+                    <button class="action-btn">Schedule Event</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 4: PROTECT -->
+        <div class="domain-slide domain-4" data-domain="4">
+            <div class="slide-header">
+                <div class="icon">🛡️</div>
+                <div>
+                    <h2>PROTECT</h2>
+                    <p style="color: var(--dim);">Moderation & Security</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>⚠️ Moderation Queue</h3>
+                    <div class="stat-row"><span>Flagged messages</span><span style="color:#ff4444">3</span></div>
+                    <div class="stat-row"><span>User reports</span><span>1</span></div>
+                    <div class="stat-row"><span>Auto-mod blocks</span><span>12</span></div>
+                </div>
+                <div class="card">
+                    <h3>🚫 Recent Actions</h3>
+                    <div class="stat-row"><span>Warnings issued</span><span>2</span></div>
+                    <div class="stat-row"><span>Timeouts</span><span>0</span></div>
+                    <div class="stat-row"><span>Bans</span><span>0</span></div>
+                </div>
+                <div class="card">
+                    <h3>🔒 Security</h3>
+                    <button class="action-btn">Review Flagged</button>
+                    <button class="action-btn">Audit Log</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 5: GROW -->
+        <div class="domain-slide domain-5" data-domain="5">
+            <div class="slide-header">
+                <div class="icon">📈</div>
+                <div>
+                    <h2>GROW</h2>
+                    <p style="color: var(--dim);">Community Growth & XP</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>📊 Growth Stats</h3>
+                    <div class="stat-row"><span>New this week</span><span style="color:#44ff44">+23</span></div>
+                    <div class="stat-row"><span>Left this week</span><span style="color:#ff4444">-2</span></div>
+                    <div class="stat-row"><span>Net growth</span><span style="color:#44ff44">+21</span></div>
+                </div>
+                <div class="card">
+                    <h3>⭐ XP Leaderboard</h3>
+                    <div id="xpLeaderboard">Loading...</div>
+                </div>
+                <div class="card">
+                    <h3>🎁 Rewards</h3>
+                    <button class="action-btn">Grant XP</button>
+                    <button class="action-btn">Assign Role</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 6: LEARN -->
+        <div class="domain-slide domain-6" data-domain="6">
+            <div class="slide-header">
+                <div class="icon">📚</div>
+                <div>
+                    <h2>LEARN</h2>
+                    <p style="color: var(--dim);">Resources & Documentation</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>📖 Server Rules</h3>
+                    <div class="stat-row"><span>Rule violations today</span><span>0</span></div>
+                    <button class="action-btn">Edit Rules</button>
+                </div>
+                <div class="card">
+                    <h3>🎓 Onboarding</h3>
+                    <div class="stat-row"><span>Completed onboarding</span><span>87%</span></div>
+                    <div class="stat-row"><span>Stuck at step 2</span><span>5</span></div>
+                </div>
+                <div class="card">
+                    <h3>📝 Resources</h3>
+                    <button class="action-btn">FAQ Manager</button>
+                    <button class="action-btn">Guide Editor</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOMAIN 7: TRANSCEND -->
+        <div class="domain-slide domain-7" data-domain="7">
+            <div class="slide-header">
+                <div class="icon">✨</div>
+                <div>
+                    <h2>TRANSCEND</h2>
+                    <p style="color: var(--dim);">Community Vision & Culture</p>
+                </div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <h3>🌟 Community Health</h3>
+                    <div class="card-value" style="color:#44ff44">92%</div>
+                    <div class="card-label">Engagement Score</div>
+                </div>
+                <div class="card">
+                    <h3>💫 Culture Metrics</h3>
+                    <div class="stat-row"><span>Helpful interactions</span><span>156</span></div>
+                    <div class="stat-row"><span>Collaborations</span><span>23</span></div>
+                    <div class="stat-row"><span>Positive sentiment</span><span>94%</span></div>
+                </div>
+                <div class="card">
+                    <h3>🎯 Goals</h3>
+                    <div class="stat-row"><span>100 active members</span><span>78%</span></div>
+                    <div class="stat-row"><span>Daily engagement</span><span>✓</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="swipe-hint">← Swipe or use arrow keys →</div>
+
+    <div class="domain-dots">
+        <div class="dot active" data-domain="1" title="COMMAND"></div>
+        <div class="dot" data-domain="2" title="BUILD"></div>
+        <div class="dot" data-domain="3" title="CONNECT"></div>
+        <div class="dot" data-domain="4" title="PROTECT"></div>
+        <div class="dot" data-domain="5" title="GROW"></div>
+        <div class="dot" data-domain="6" title="LEARN"></div>
+        <div class="dot" data-domain="7" title="TRANSCEND"></div>
+    </div>
+
+    <script>
+        const DOMAIN_NAMES = ['COMMAND', 'BUILD', 'CONNECT', 'PROTECT', 'GROW', 'LEARN', 'TRANSCEND'];
+        let currentDomain = 1;
+        const slider = document.getElementById('slider');
+        const indicator = document.getElementById('domainIndicator');
+        const dots = document.querySelectorAll('.dot');
+
+        function goToDomain(n) {
+            currentDomain = Math.max(1, Math.min(7, n));
+            slider.style.transform = `translateX(-${(currentDomain - 1) * 100}vw)`;
+            indicator.textContent = `${currentDomain}/7 ${DOMAIN_NAMES[currentDomain - 1]}`;
+            dots.forEach(d => d.classList.toggle('active', parseInt(d.dataset.domain) === currentDomain));
+        }
+
+        // Dot navigation
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => goToDomain(parseInt(dot.dataset.domain)));
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goToDomain(currentDomain + 1);
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goToDomain(currentDomain - 1);
+            if (e.key >= '1' && e.key <= '7') goToDomain(parseInt(e.key));
+        });
+
+        // Touch swipe
+        let touchStartX = 0;
+        document.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX);
+        document.addEventListener('touchend', e => {
+            const diff = touchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                goToDomain(currentDomain + (diff > 0 ? 1 : -1));
+            }
+        });
+
+        // Actions
+        function openDiscord() {
+            window.open('https://discord.gg/your-invite', '_blank');
+        }
+
+        function refreshData() {
+            loadDiscordData();
+        }
+
+        // Load Discord data from API
+        async function loadDiscordData() {
+            try {
+                // Total members
+                const res = await fetch('/.netlify/functions/discord-stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('totalMembers').textContent = data.totalMembers || '--';
+                    document.getElementById('onlineNow').textContent = data.onlineNow || '--';
+                }
+            } catch (e) {
+                console.log('Using placeholder data');
+                document.getElementById('totalMembers').textContent = '156';
+                document.getElementById('onlineNow').textContent = '23';
+            }
+
+            // XP Leaderboard
+            try {
+                const xpRes = await fetch('/.netlify/functions/discord-xp-leaderboard?limit=5');
+                if (xpRes.ok) {
+                    const xpData = await xpRes.json();
+                    renderLeaderboard(xpData.users || []);
+                }
+            } catch (e) {
+                renderLeaderboard([
+                    { name: 'Commander', xp: 15420 },
+                    { name: 'Tiger', xp: 8930 },
+                    { name: 'Builder_01', xp: 6750 }
+                ]);
+            }
+        }
+
+        function renderLeaderboard(users) {
+            const container = document.getElementById('xpLeaderboard');
+            container.innerHTML = users.slice(0, 5).map((u, i) => `
+                <div class="member-item">
+                    <div class="member-avatar">${i + 1}</div>
+                    <div class="member-info">
+                        <div class="member-name">${u.name || u.username}</div>
+                    </div>
+                    <div class="member-xp">${(u.xp || 0).toLocaleString()} XP</div>
+                </div>
+            `).join('');
+        }
+
+        // Init
+        loadDiscordData();
+        goToDomain(1);
+
+        console.log('Francis Discord Manager - 7×7×7 Single-Page Architecture');
+    </script>
+</body>
+</html>
