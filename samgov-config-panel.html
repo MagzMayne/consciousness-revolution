@@ -216,42 +216,30 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 <body>
     <div class="container">
         <h1>🔑 SAM.gov API Configuration</h1>
-        <p class="subtitle">Configure your SAM.gov API key for government contract data access</p>
+        <p class="subtitle">Government contract data access — key managed via server secret</p>
 
         <!-- Status Display -->
         <div id="statusDisplay" class="status warning">
-            <span>⚠️</span>
-            <span>No API key configured</span>
+            <span>⏳</span>
+            <span>Loading token from server…</span>
         </div>
-
-        <!-- API Key Form -->
-        <div class="form-group">
-            <label for="apiKeyInput">SAM.gov API Key</label>
-            <input 
-                type="text" 
-                id="apiKeyInput" 
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                autocomplete="off"
-            >
-        </div>
-
-        <button class="btn" onclick="saveApiKey()">💾 Save API Key</button>
-        <button class="btn secondary" onclick="testApiKey()">🧪 Test API Connection</button>
 
         <!-- Test Results -->
         <div id="testResults" style="display:none;">
             <div class="test-result" id="testOutput"></div>
         </div>
 
+        <button class="btn secondary" onclick="testApiKey()" style="margin-top:16px;">🧪 Test API Connection</button>
+
         <!-- Information Box -->
         <div class="info-box">
-            <h3>📋 How to Get Your API Key</h3>
+            <h3>🔒 Server-Managed API Key</h3>
             <p>
-                1. Visit <a href="https://sam.gov/data-services" target="_blank">SAM.gov Data Services</a><br>
-                2. Click "Request an API Key"<br>
-                3. Fill out the registration form<br>
-                4. Check your email for the API key<br>
-                5. Paste it above and click Save
+                The SAM.gov API key is stored as a repository secret (<code>SAM_API_KEY</code>) and
+                loaded server-side via <code>/api/sam-gov-token</code>. It is never stored in
+                localStorage or committed to the repo.<br><br>
+                To update the key: set the <strong>SAM_API_KEY</strong> secret in the Netlify
+                dashboard or GitHub repository settings.
             </p>
         </div>
 
@@ -261,92 +249,70 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 <strong>Free Tier:</strong> 1,000 requests/day<br>
                 <strong>Rate Limit:</strong> 5 requests/second<br>
                 <strong>Access:</strong> All public contract data<br>
-                <strong>Storage:</strong> Browser localStorage (client-side)
+                <strong>Storage:</strong> Memory only (server-managed, never localStorage)
             </p>
         </div>
     </div>
 
     <script src="samgov-api-integration.js"></script>
     <script>
-        // Check current status on load
-        function checkStatus() {
-            const apiKey = localStorage.getItem('samgov_api_key');
-            const statusDiv = document.getElementById('statusDisplay');
-            const input = document.getElementById('apiKeyInput');
+        // In-memory token — never persisted to localStorage
+        let _samApiKeyMemory = null;
 
-            if (apiKey) {
-                statusDiv.className = 'status success';
-                statusDiv.innerHTML = '<span>✅</span><span>API Key Configured</span>';
-                input.value = apiKey.slice(0, 8) + '...' + apiKey.slice(-4);
-            } else {
-                statusDiv.className = 'status warning';
-                statusDiv.innerHTML = '<span>⚠️</span><span>No API key configured</span>';
+        // Fetch the SAM.gov API key from the secure server relay
+        async function loadServerToken() {
+            const statusDiv = document.getElementById('statusDisplay');
+            try {
+                const res = await fetch('/api/sam-gov-token');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+
+                if (data.auth && data.token) {
+                    _samApiKeyMemory = data.token;
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = '<span>✅</span><span>Token loaded from server secret.</span>';
+                } else {
+                    _samApiKeyMemory = null;
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML =
+                        '<span>❌</span><span>Server secret missing or invalid — check repository secrets configuration (SAM_API_KEY).</span>';
+                }
+            } catch (err) {
+                _samApiKeyMemory = null;
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '<span>❌</span><span>Failed to reach token endpoint: ' + err.message + '</span>';
             }
         }
 
-        // Save API key
-        function saveApiKey() {
-            const input = document.getElementById('apiKeyInput');
-            const key = input.value.trim();
-            const statusDiv = document.getElementById('statusDisplay');
-
-            if (!key) {
-                statusDiv.className = 'status error';
-                statusDiv.innerHTML = '<span>❌</span><span>Please enter a valid API key</span>';
-                return;
-            }
-
-            // Validate format (UUID-like)
-            const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-            if (!uuidPattern.test(key)) {
-                statusDiv.className = 'status error';
-                statusDiv.innerHTML = '<span>❌</span><span>Invalid API key format</span>';
-                return;
-            }
-
-            // Save to localStorage
-            localStorage.setItem('samgov_api_key', key);
-            
-            // Update status
-            statusDiv.className = 'status success';
-            statusDiv.innerHTML = '<span>✅</span><span>API Key Saved Successfully!</span>';
-
-            // Mask the input
-            setTimeout(() => {
-                input.value = key.slice(0, 8) + '...' + key.slice(-4);
-            }, 500);
-
-            console.log('✅ SAM.gov API key saved to localStorage');
-        }
-
-        // Test API connection
+        // Test API connection using the in-memory token
         async function testApiKey() {
             const statusDiv = document.getElementById('statusDisplay');
             const resultsDiv = document.getElementById('testResults');
             const outputDiv = document.getElementById('testOutput');
 
+            if (!_samApiKeyMemory) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '<span>❌</span><span>No token available. Check server secret configuration.</span>';
+                return;
+            }
+
             statusDiv.className = 'status warning';
-            statusDiv.innerHTML = '<span>⏳</span><span>Testing API connection...</span>';
+            statusDiv.innerHTML = '<span>⏳</span><span>Testing API connection…</span>';
 
             resultsDiv.style.display = 'block';
-            outputDiv.innerHTML = 'Initializing SAM.gov API...<br>';
+            outputDiv.innerHTML = 'Initializing SAM.gov API…<br>';
 
             try {
-                const samApi = new SAMGovAPIIntegration();
-                
-                if (!samApi.apiKey) {
-                    throw new Error('No API key found. Please save your API key first.');
-                }
+                const samApi = new SAMGovAPIIntegration(_samApiKeyMemory);
 
-                outputDiv.innerHTML += 'API Key: ' + samApi.apiKey.slice(0, 8) + '...' + samApi.apiKey.slice(-4) + '<br>';
-                outputDiv.innerHTML += 'Sending test request to SAM.gov...<br>';
+                outputDiv.innerHTML += 'API Key: ' + _samApiKeyMemory.slice(0, 8) + '…' + _samApiKeyMemory.slice(-4) + '<br>';
+                outputDiv.innerHTML += 'Sending test request to SAM.gov…<br>';
 
-                // Try a simple search
                 const results = await samApi.searchOpportunities({ limit: 1 });
 
                 outputDiv.innerHTML += '<span style="color:#3be477;">✅ Connection successful!</span><br>';
                 outputDiv.innerHTML += 'Total Records Available: ' + (results.totalRecords || 0) + '<br>';
-                
+
                 if (results.length > 0) {
                     outputDiv.innerHTML += '<br>Sample Result:<br>';
                     outputDiv.innerHTML += JSON.stringify(results[0], null, 2);
@@ -357,7 +323,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
             } catch (error) {
                 outputDiv.innerHTML += '<span style="color:#ff6b6b;">❌ Error: ' + error.message + '</span><br>';
-                
+
                 statusDiv.className = 'status error';
                 statusDiv.innerHTML = '<span>❌</span><span>API Test Failed</span>';
 
@@ -366,30 +332,17 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     outputDiv.innerHTML += '- Invalid API key<br>';
                     outputDiv.innerHTML += '- Expired API key<br>';
                     outputDiv.innerHTML += '- Key not activated yet<br>';
+                    statusDiv.innerHTML = '<span>❌</span><span>' +
+                        'Server secret missing or invalid — check repository secrets configuration (SAM_API_KEY).' +
+                        '</span>';
                 } else if (error.message.includes('429')) {
                     outputDiv.innerHTML += '<br>Rate limit exceeded. Try again later.';
                 }
             }
         }
 
-        // Clear API key
-        function clearApiKey() {
-            if (confirm('Are you sure you want to remove the API key?')) {
-                localStorage.removeItem('samgov_api_key');
-                document.getElementById('apiKeyInput').value = '';
-                checkStatus();
-            }
-        }
-
-        // Initialize
-        checkStatus();
-
-        // Allow Enter key to save
-        document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                saveApiKey();
-            }
-        });
+        // Initialize — load token from server on page load
+        loadServerToken();
     </script>
 
 <!-- PayPal Integration -->
