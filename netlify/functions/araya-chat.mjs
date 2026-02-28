@@ -755,6 +755,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
+// ═══════════════════════════════════════════════════════════════
+// CLOUD FALLBACK PROVIDERS - For 24/7 operation when local is down
+// Priority: DeepSeek → Groq (free) → OpenRouter (multi) → OpenAI
+// ═══════════════════════════════════════════════════════════════
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
 // CHEAP_MODE flag - DeepSeek is already cheap ($0.14/1M tokens)
 const CHEAP_MODE = true;
 
@@ -1428,6 +1437,76 @@ async function callAI(messages, useDeepSeek = true) {
     }
 
     const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GROQ API - Fast, free tier available, llama-3.3-70b
+// ═══════════════════════════════════════════════════════════════
+async function callGroq(messages) {
+    if (!GROQ_API_KEY) {
+        throw new Error('No Groq API key configured');
+    }
+
+    console.log('[GROQ] Calling Groq API (llama-3.3-70b-versatile)...');
+
+    const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages,
+            max_tokens: 2000,
+            temperature: 0.8
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Groq API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    console.log('[GROQ] Response received successfully');
+    return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OPENROUTER API - Multi-provider aggregator, many model options
+// ═══════════════════════════════════════════════════════════════
+async function callOpenRouter(messages) {
+    if (!OPENROUTER_API_KEY) {
+        throw new Error('No OpenRouter API key configured');
+    }
+
+    console.log('[OPENROUTER] Calling OpenRouter API (deepseek/deepseek-chat)...');
+
+    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'HTTP-Referer': 'https://conciousnessrevolution.io',
+            'X-Title': 'ARAYA Consciousness Interface'
+        },
+        body: JSON.stringify({
+            model: 'deepseek/deepseek-chat',  // Same model, different provider
+            messages,
+            max_tokens: 2000,
+            temperature: 0.8
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    console.log('[OPENROUTER] Response received successfully');
     return data.choices[0].message.content;
 }
 
@@ -2535,24 +2614,40 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
                 }
             }
         } else {
+            // ═══════════════════════════════════════════════════════════════
+            // CLOUD FALLBACK CHAIN: DeepSeek → Groq → OpenRouter → OpenAI → Ollama
+            // Ensures 24/7 availability regardless of any single provider outage
+            // ═══════════════════════════════════════════════════════════════
             try {
                 response = await callAI(messages, true);
             } catch (deepseekError) {
-                console.error('DeepSeek error, trying OpenAI:', deepseekError);
+                console.error('DeepSeek error, trying Groq:', deepseekError.message);
                 try {
-                    response = await callAI(messages, false);
-                    apiMode = 'openai';
-                } catch (openaiError) {
-                    console.error('OpenAI also failed, trying Ollama (local):', openaiError);
-                    // Final fallback: Ollama local AI (works offline!)
+                    response = await callGroq(messages);
+                    apiMode = 'groq';
+                } catch (groqError) {
+                    console.error('Groq error, trying OpenRouter:', groqError.message);
                     try {
-                        response = await callOllama(messages);
-                        apiMode = 'ollama_offline';
-                        console.log('✓ Ollama offline mode successful');
-                    } catch (ollamaError) {
-                        console.error('All AI providers failed including Ollama:', ollamaError);
-                        response = "All my AI connections are down. If you're offline, make sure Ollama is running (ollama serve). Try again?";
-                        apiMode = 'all_failed';
+                        response = await callOpenRouter(messages);
+                        apiMode = 'openrouter';
+                    } catch (openrouterError) {
+                        console.error('OpenRouter error, trying OpenAI:', openrouterError.message);
+                        try {
+                            response = await callAI(messages, false);
+                            apiMode = 'openai';
+                        } catch (openaiError) {
+                            console.error('OpenAI also failed, trying Ollama (local):', openaiError.message);
+                            // Final fallback: Ollama local AI (works offline!)
+                            try {
+                                response = await callOllama(messages);
+                                apiMode = 'ollama_offline';
+                                console.log('✓ Ollama offline mode successful');
+                            } catch (ollamaError) {
+                                console.error('All AI providers failed including Ollama:', ollamaError.message);
+                                response = "All my AI connections are down (DeepSeek, Groq, OpenRouter, OpenAI, Ollama). Please check network or try again.";
+                                apiMode = 'all_failed';
+                            }
+                        }
                     }
                 }
             }
