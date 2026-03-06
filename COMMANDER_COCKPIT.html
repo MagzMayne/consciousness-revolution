@@ -523,22 +523,13 @@
             <div class="panel" style="margin-top:20px">
                 <div class="panel-header">
                     BUG REPORTS
-                    <span style="color:var(--warning)">3 open</span>
+                    <span id="bug-count" style="color:var(--warning)">loading...</span>
                 </div>
-                <div class="panel-body">
+                <div class="panel-body" id="bug-list">
                     <div class="activity-item">
-                        <span class="activity-time">2h ago</span>
-                        <span class="activity-desc">Araya chat not responding - Erica</span>
+                        <span class="activity-time">...</span>
+                        <span class="activity-desc">Loading bug reports...</span>
                     </div>
-                    <div class="activity-item">
-                        <span class="activity-time">5h ago</span>
-                        <span class="activity-desc">Dashboard metrics not loading - Tiger</span>
-                    </div>
-                    <div class="activity-item">
-                        <span class="activity-time">1d ago</span>
-                        <span class="activity-desc">Email template broken - Josh</span>
-                    </div>
-                    <a href="https://discord.com/channels/1458000070862573805" class="btn btn-secondary" style="margin-top:15px;text-align:center">View All in Discord</a>
                 </div>
             </div>
         </div>
@@ -1305,6 +1296,95 @@ HOW EXPLOITED?  → Think like enemy
         updateTrinityStatus();
         setInterval(updateTrinityStatus, 30000); // Update every 30 seconds
 
+        // =========================================
+        // WIDGET DATA WIRING - Connected to APIs
+        // =========================================
+
+        // Fetch Brain Atoms count from brain-api
+        async function fetchBrainAtoms() {
+            try {
+                const response = await fetch('/.netlify/functions/brain-api');
+                if (!response.ok) throw new Error('API error');
+                const data = await response.json();
+                const count = data.count || data.atom_count || data.total || 166111;
+                document.getElementById('brain-atoms').textContent = count.toLocaleString();
+            } catch (error) {
+                console.log('Brain API unavailable, using cached value');
+            }
+        }
+
+        // Fetch Bug Reports from GitHub via get-all-bugs
+        async function fetchBugReports() {
+            try {
+                const response = await fetch('/.netlify/functions/get-all-bugs');
+                if (!response.ok) throw new Error('API error');
+                const data = await response.json();
+
+                // API returns { bugs: [...], open: N, closed: N, total: N }
+                if (data.bugs && data.bugs.length > 0) {
+                    const openBugs = data.bugs.filter(b => b.status === 'open');
+                    document.getElementById('bug-count').textContent = `${data.open || openBugs.length} open`;
+
+                    const bugList = document.getElementById('bug-list');
+                    const bugsToShow = openBugs.slice(0, 5);
+
+                    bugList.innerHTML = bugsToShow.map(bug => {
+                        const age = getTimeAgo(new Date(bug.created));
+                        const title = bug.title.length > 50 ? bug.title.slice(0, 47) + '...' : bug.title;
+                        const priorityColor = bug.priority.includes('high') ? 'var(--danger)' :
+                                             bug.priority.includes('medium') ? 'var(--warning)' : '';
+                        return `
+                            <div class="activity-item" onclick="window.open('${bug.url}', '_blank')" style="cursor:pointer">
+                                <span class="activity-time">${age}</span>
+                                <span class="activity-desc" ${priorityColor ? `style="color:${priorityColor}"` : ''}>${title}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    bugList.innerHTML += `
+                        <a href="/bugs-live.html" class="btn btn-secondary" style="margin-top:15px;text-align:center;display:block">
+                            View All Bugs (${data.total})
+                        </a>
+                    `;
+                } else {
+                    document.getElementById('bug-count').textContent = '0 open';
+                    document.getElementById('bug-list').innerHTML = `
+                        <div class="activity-item">
+                            <span class="activity-desc" style="color:var(--success)">No open bugs!</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.log('Bug API unavailable:', error.message);
+                document.getElementById('bug-count').textContent = 'offline';
+            }
+        }
+
+        // Helper: Get human-readable time ago
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            const intervals = [
+                { label: 'y', seconds: 31536000 },
+                { label: 'mo', seconds: 2592000 },
+                { label: 'd', seconds: 86400 },
+                { label: 'h', seconds: 3600 },
+                { label: 'm', seconds: 60 }
+            ];
+            for (const interval of intervals) {
+                const count = Math.floor(seconds / interval.seconds);
+                if (count >= 1) return `${count}${interval.label} ago`;
+            }
+            return 'just now';
+        }
+
+        // Initialize all widget data
+        fetchBrainAtoms();
+        fetchBugReports();
+
+        // Polling intervals
+        setInterval(fetchBrainAtoms, 60000);  // Every 60 seconds
+        setInterval(fetchBugReports, 30000);  // Every 30 seconds
+
         // Keyboard shortcut: Ctrl+T to toggle pallet
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 't') {
@@ -1328,5 +1408,16 @@ HOW EXPLOITED?  → Think like enemy
                 <div class="note-time">2/24/2026, 2:21:16 PM</div>
                 <div class="note-content">ARAYA edit test</div>
             </div>
+
+    <!-- SELF-EDIT MODULE: Enables dashboard customization -->
+    <script src="/js/dashboard-self-edit.js"></script>
+    <script>
+      const dnaEl = document.getElementById('dashboard-dna');
+      const dna = dnaEl ? JSON.parse(dnaEl.textContent) : {};
+      DashboardEdit.init({
+        dashboardId: dna.name?.replace(/\s+/g, '_').toUpperCase() || 'COMMANDER_COCKPIT',
+        editorName: 'Commander'
+      });
+    </script>
 </body>
 </html>
