@@ -13,7 +13,7 @@ import {
 
 function getSupabaseAdmin() {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY;
+    const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY;
 
     if (!url || !key) {
         throw new Error('Supabase configuration missing');
@@ -62,29 +62,40 @@ export async function handler(event, context) {
             const { data: userData } = await supabase.auth.getUser(accessToken);
 
             if (userData?.user) {
-                // Mark all sessions for this user as inactive
-                await supabase
-                    .from('user_sessions')
-                    .update({
-                        is_active: false,
-                        ended_at: new Date().toISOString()
-                    })
-                    .eq('foundation_id', userData.user.id)
-                    .catch(() => {}); // Non-blocking
+                // Mark all sessions for this user as inactive (non-blocking)
+                try {
+                    await supabase
+                        .from('user_sessions')
+                        .update({
+                            is_active: false,
+                            ended_at: new Date().toISOString()
+                        })
+                        .eq('foundation_id', userData.user.id);
+                } catch (e) {
+                    // Non-blocking
+                }
 
-                // Log the logout event
-                await supabase.from('audit_log').insert({
-                    foundation_id: userData.user.id,
-                    event_type: 'user_logout',
-                    event_category: 'auth',
-                    action: 'logout',
-                    ip_address: clientIP,
-                    user_agent: event.headers['user-agent'],
-                    metadata: { method: 'explicit' }
-                }).catch(() => {}); // Non-blocking
+                // Log the logout event (non-blocking)
+                try {
+                    await supabase.from('audit_log').insert({
+                        foundation_id: userData.user.id,
+                        event_type: 'user_logout',
+                        event_category: 'auth',
+                        action: 'logout',
+                        ip_address: clientIP,
+                        user_agent: event.headers['user-agent'],
+                        metadata: { method: 'explicit' }
+                    });
+                } catch (e) {
+                    // Non-blocking
+                }
 
-                // Sign out from Supabase Auth
-                await supabase.auth.admin.signOut(accessToken).catch(() => {});
+                // Sign out from Supabase Auth (non-blocking)
+                try {
+                    await supabase.auth.admin.signOut(accessToken);
+                } catch (e) {
+                    // Non-blocking
+                }
 
                 secureLog('User logout', {
                     userId: userData.user.id,

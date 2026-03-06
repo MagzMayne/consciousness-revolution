@@ -33,7 +33,7 @@ import {
 
 function getSupabaseAdmin() {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY;
+    const key = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY;
 
     if (!url || !key) {
         throw new Error('Supabase configuration missing');
@@ -56,31 +56,35 @@ export async function handler(event, context) {
         return errorResponse('Method not allowed', origin, 405);
     }
 
-    // Rate limiting - 10 login attempts per hour per IP
-    const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
-    const rateLimitCheck = checkRateLimit(`login_${anonymizeIP(clientIP)}`, 10, 3600000);
-    
-    if (!rateLimitCheck.allowed) {
-        secureLog('Login rate limit exceeded', { ip: anonymizeIP(clientIP) });
-        
-        // Log security event for potential brute force
-        const supabase = getSupabaseAdmin();
-        await supabase.from('security_events').insert({
-            event_type: 'rate_limit_exceeded',
-            severity: 'medium',
-            ip_address_anonymized: anonymizeIP(clientIP),
-            description: 'Login rate limit exceeded',
-            metadata: { endpoint: 'auth-login' }
-        }).catch(() => {}); // Non-blocking
-        
-        return errorResponse(
-            'Too many login attempts. Please try again later.',
-            origin,
-            429
-        );
-    }
-
     try {
+        // Rate limiting - 10 login attempts per hour per IP
+        const clientIP = event.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
+        const rateLimitCheck = checkRateLimit(`login_${anonymizeIP(clientIP)}`, 10, 3600000);
+
+        if (!rateLimitCheck.allowed) {
+            secureLog('Login rate limit exceeded', { ip: anonymizeIP(clientIP) });
+
+            // Log security event for potential brute force (non-blocking)
+            try {
+                const supabase = getSupabaseAdmin();
+                await supabase.from('security_events').insert({
+                    event_type: 'rate_limit_exceeded',
+                    severity: 'medium',
+                    ip_address_anonymized: anonymizeIP(clientIP),
+                    description: 'Login rate limit exceeded',
+                    metadata: { endpoint: 'auth-login' }
+                });
+            } catch (e) {
+                // Non-blocking - don't fail if security logging fails
+            }
+
+            return errorResponse(
+                'Too many login attempts. Please try again later.',
+                origin,
+                429
+            );
+        }
+
         const { email, password } = JSON.parse(event.body || '{}');
 
         // Input validation using security utility
@@ -110,19 +114,23 @@ export async function handler(event, context) {
         });
 
         if (error) {
-            secureLog('Login failed', { 
+            secureLog('Login failed', {
                 email: validation.sanitized.email,
-                error: error.message 
+                error: error.message
             });
 
-            // Log failed login attempt
-            await supabase.from('security_events').insert({
-                event_type: 'failed_login',
-                severity: 'low',
-                ip_address_anonymized: anonymizeIP(clientIP),
-                description: 'Invalid credentials',
-                metadata: { email: validation.sanitized.email }
-            }).catch(() => {}); // Non-blocking
+            // Log failed login attempt (non-blocking)
+            try {
+                await supabase.from('security_events').insert({
+                    event_type: 'failed_login',
+                    severity: 'low',
+                    ip_address_anonymized: anonymizeIP(clientIP),
+                    description: 'Invalid credentials',
+                    metadata: { email: validation.sanitized.email }
+                });
+            } catch (e) {
+                // Non-blocking - don't fail if security logging fails
+            }
 
             // Return generic error to prevent user enumeration
             return errorResponse('Invalid email or password', origin, 401);
@@ -140,27 +148,36 @@ export async function handler(event, context) {
             .digest('hex')
             .substring(0, 32);
         
-        await supabase.from('user_sessions').insert({
-            foundation_id: data.user.id,
-            session_token: sessionId, // Secure session ID
-            device_type: event.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
-            ip_address: clientIP, // Will be anonymized by trigger
-            user_agent: event.headers['user-agent'],
-            is_active: true,
-            started_at: new Date().toISOString(),
-            last_activity_at: new Date().toISOString()
-        }).catch(() => {}); // Non-blocking
+        // Session insert (non-blocking)
+        try {
+            await supabase.from('user_sessions').insert({
+                foundation_id: data.user.id,
+                session_token: sessionId,
+                device_type: event.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
+                ip_address: clientIP,
+                user_agent: event.headers['user-agent'],
+                is_active: true,
+                started_at: new Date().toISOString(),
+                last_activity_at: new Date().toISOString()
+            });
+        } catch (e) {
+            // Non-blocking
+        }
 
-        // Log successful login in audit log
-        await supabase.from('audit_log').insert({
-            foundation_id: data.user.id,
-            event_type: 'user_login',
-            event_category: 'auth',
-            action: 'login',
-            ip_address: clientIP,
-            user_agent: event.headers['user-agent'],
-            metadata: { method: 'password' }
-        }).catch(() => {}); // Non-blocking
+        // Log successful login in audit log (non-blocking)
+        try {
+            await supabase.from('audit_log').insert({
+                foundation_id: data.user.id,
+                event_type: 'user_login',
+                event_category: 'auth',
+                action: 'login',
+                ip_address: clientIP,
+                user_agent: event.headers['user-agent'],
+                metadata: { method: 'password' }
+            });
+        } catch (e) {
+            // Non-blocking
+        }
 
         // Get user's foundation data
         const { data: foundation } = await supabase

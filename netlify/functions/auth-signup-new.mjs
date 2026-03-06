@@ -157,36 +157,6 @@ export async function handler(event, context) {
                 secureLog('Network status creation warning', { error: networkError.message });
             }
 
-            // Create ARAYA Energy account (Flow tier - free with 100 Energy)
-            const { error: energyError } = await supabase
-                .from('araya_accounts')
-                .insert({
-                    id: authData.user.id,
-                    foundation_id: authData.user.id,
-                    email: validation.sanitized.email,
-                    tier: 'flow',
-                    energy_balance: 100,
-                    monthly_allocation: 100,
-                    subscription_status: 'free'
-                });
-
-            if (energyError) {
-                secureLog('Energy account creation warning', { error: energyError.message });
-            } else {
-                try {
-                    await supabase.from('araya_transactions').insert({
-                        account_id: authData.user.id,
-                        transaction_type: 'signup_bonus',
-                        amount: 100,
-                        balance_after: 100,
-                        description: 'Welcome to ARAYA! 100 Energy to get started.',
-                        metadata: { source: 'signup' }
-                    });
-                } catch (e) {
-                    // Non-blocking
-                }
-            }
-
             // Log successful signup in audit log (non-blocking)
             try {
                 await supabase.from('audit_log').insert({
