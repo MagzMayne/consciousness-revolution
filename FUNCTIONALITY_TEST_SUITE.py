@@ -499,9 +499,11 @@ class FunctionalityTester:
         )
 
         # 5. Divinity scores in range 0-100
-        out_of_range = [p.get("filename", "?") for p in projects
-                        if not isinstance(p.get("divinity_score"), (int, float))
-                        or not (0 <= p["divinity_score"] <= 100)]
+        out_of_range = []
+        for p in projects:
+            score = p.get("divinity_score")
+            if not isinstance(score, (int, float)) or not (0 <= score <= 100):
+                out_of_range.append(p.get("filename", "?"))
         self._add_test_result(
             "Trinity",
             "All divinity scores are in range 0-100",
@@ -537,7 +539,7 @@ class FunctionalityTester:
                 "File not found" if not path.exists() else ""
             )
 
-        # 9. Divinity distribution check
+        # 9. Divinity distribution check (informational — projects list is non-empty at this point)
         divine_count = sum(1 for p in projects if p.get("divinity_score", 0) >= 100)
         avg_score = sum(p.get("divinity_score", 0) for p in projects) / len(projects)
         self._add_test_result(
