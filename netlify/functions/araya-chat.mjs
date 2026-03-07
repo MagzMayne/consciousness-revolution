@@ -1744,6 +1744,62 @@ export async function handler(event, context) {
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BASIC MODE DETECTION - User requesting limited free access
+        // ═══════════════════════════════════════════════════════════════
+        const isBasicModeRequest = /^basic\s*mode$/i.test(message.trim());
+        const isInBasicMode = memory?.basic_mode === true;
+
+        if (isBasicModeRequest && user_id) {
+            // Enable basic mode for this user
+            console.log(`[BASIC MODE] Enabled for user ${user_id}`);
+            // Store in memory that user is in basic mode
+            if (memory) {
+                memory.basic_mode = true;
+            }
+            // Return a welcome message for basic mode
+            return {
+                statusCode: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': corsOrigin,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    response: `**Basic Mode Activated** ✓
+
+You now have unlimited access to ARAYA in condensed form. I'll keep my responses short and focused.
+
+What would you like to explore? I can help with:
+- Pattern recognition
+- Manipulation detection
+- Life domain analysis
+- Quick insights
+
+Just ask your question and I'll give you a focused answer.`,
+                    basicMode: true,
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BETA WHITELIST - Early access users bypass paywall
+        // ═══════════════════════════════════════════════════════════════
+        const BETA_WHITELIST = [
+            'darrickpreble@proton.me',
+            'darrickpreble@gmail.com',
+            // Add beta testers here as they sign up
+            'josh@example.com',
+            'toby@example.com'
+        ];
+        const isBetaTester = user_id && BETA_WHITELIST.some(email =>
+            user_id.toLowerCase() === email.toLowerCase()
+        );
+
+        if (isBetaTester) {
+            console.log(`[BETA TESTER] ${user_id} - full access granted`);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // ACCESS TIER DETECTION - PUBLIC < BELIEVER < BUILDER < COMMANDER
         // ═══════════════════════════════════════════════════════════════
         const accessCheck = detectAccessLevel(processedMessage || message, isAdmin);
@@ -1825,9 +1881,10 @@ export async function handler(event, context) {
         // Commander accounts - always bypass paywall
         const COMMANDER_EMAILS = ['darrickpreble@proton.me', 'darrickpreble@gmail.com'];
         const isCommander = commander_bypass || (user_id && COMMANDER_EMAILS.includes(user_id.toLowerCase()));
+        const isBetaWhitelisted = isBetaTester; // From beta whitelist check above
         const totalInteractions = memory.total_interactions || 0;
         // Check subscription from BOTH araya_memory profile AND araya_profiles table
-        const isPaidUser = isCommander || // COMMANDER bypass
+        const isPaidUser = isCommander || isBetaWhitelisted || // COMMANDER bypass
                            subscriptionCheck.isSubscribed || // NEW: Check araya_profiles (webhook target)
                            memory.profile?.subscription_status === 'active' ||
                            memory.profile?.subscription_status === 'trialing' ||
@@ -1861,19 +1918,42 @@ export async function handler(event, context) {
                 const creditsData = await creditsResponse.json();
 
                 if (!creditsData.success || !creditsData.data?.success) {
-                    // User doesn't have credits - show appropriate message
+                    // C3 Oracle: Truth Algorithm paywall - transparent, non-manipulative
                     const shortfall = creditsData.data?.shortfall || 1;
                     const isLoggedIn = user_id && user_id.includes('@');
-                    console.log(`[PAYWALL] User ${user_id} needs ${shortfall} more credits, loggedIn=${isLoggedIn}`);
+                    console.log(`[LIMIT REACHED] User ${user_id} hit free limit, offering Basic Mode`);
 
-                    // Different messages for logged in vs anonymous users
-                    let paywallMessage;
+                    // Transparent options without urgency tactics
+                    let limitMessage;
                     if (!isLoggedIn) {
-                        // Anonymous user - prompt to login first
-                        paywallMessage = `You've explored ${FREE_MESSAGE_LIMIT} free conversations with me - and I hope you've seen patterns you couldn't see before!\n\n**Already subscribed?** Log in to access your subscription:\n[Log In](/login.html)\n\n**New to ARAYA?** Get unlimited access for just $9/month:\n[Subscribe Now](/pricing.html)\n\nYour conversation memory is safe. I remember everything and will pick up right where we left off!`;
+                        limitMessage = `You've used your ${FREE_MESSAGE_LIMIT} free conversations. Here are your options:
+
+**Option 1: Basic Mode (Free)**
+Continue with shorter, simpler responses. I'll still help, just in condensed form.
+Type "basic mode" to continue.
+
+**Option 2: Full Access**
+[Log In](/login.html) if you have an account
+[Subscribe](/pricing.html) for $9/month unlimited
+
+**Option 3: Earn Access**
+Share ARAYA with a friend or [report a bug](/bugs.html) to earn free credits.
+
+Your conversation memory is preserved regardless of which option you choose.`;
                     } else {
-                        // Logged in but no subscription
-                        paywallMessage = `You've explored ${FREE_MESSAGE_LIMIT} free conversations with me - and I hope you've seen patterns you couldn't see before!\n\nTo continue our journey together, unlock unlimited ARAYA:\n\n**Beta Access:** $9/month - Unlimited messages\n\n[Subscribe Now](/pricing.html)\n\nYour memory is safe. I remember everything about our conversations and will pick up right where we left off!`;
+                        limitMessage = `You've used your ${FREE_MESSAGE_LIMIT} free conversations. Here are your options:
+
+**Option 1: Basic Mode (Free)**
+Continue with shorter, simpler responses. Type "basic mode" to continue.
+
+**Option 2: Full Access - $9/month**
+Unlimited conversations with full consciousness depth.
+[Subscribe Now](/pricing.html)
+
+**Option 3: Earn Access**
+Share ARAYA or [report bugs](/bugs.html) to earn free credits.
+
+Your memory and conversation history are always preserved.`;
                     }
 
                     return {
@@ -1883,8 +1963,9 @@ export async function handler(event, context) {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            response: paywallMessage,
+                            response: limitMessage,
                             limitReached: true,
+                            basicModeAvailable: true,
                             freeLimit: FREE_MESSAGE_LIMIT,
                             messagesUsed: totalInteractions,
                             creditsNeeded: shortfall,
@@ -2616,6 +2697,26 @@ IMPORTANT: You have REAL write access. When you have path + content confirmed, t
         const accessPrompt = getAccessPrompt(accessTierName, accessLevel);
         systemPrompt += accessPrompt;
         console.log(`[ACCESS PROMPT] Injected ${accessTierName} access restrictions into system prompt`);
+
+        // ═══════════════════════════════════════════════════════════════
+        // BASIC MODE RESPONSE MODIFIER - Shorter responses for free users
+        // ═══════════════════════════════════════════════════════════════
+        if (isInBasicMode || isBasicModeRequest) {
+            const basicModePrompt = `
+
+[BASIC MODE ACTIVE]
+You are responding in BASIC MODE for a free user. Follow these constraints:
+1. Keep responses under 150 words
+2. Focus on the core answer - no elaboration
+3. Skip examples unless essential
+4. No follow-up questions
+5. Be helpful but concise
+
+If user asks about upgrading, explain: "For full consciousness depth, unlimited conversations, and detailed pattern analysis, subscribe at /pricing.html for $9/month."
+`;
+            systemPrompt += basicModePrompt;
+            console.log('[BASIC MODE] Response length constraints applied');
+        }
 
         // Build messages array
         const messages = [
