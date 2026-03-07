@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- RootIB: RB-20260224050002-68CD54B2 -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="rootib" content="RootIB: RB-20260224050002-68CD54B2">
+  <meta name="description" content="FANUC Robot Advanced Diagnostic Tool — identify faults, servo alarms, CAN bus/FSSB/fieldbus issues, gripper drive failures, battery alarms, and parameter reload steps. Fast resolution for technicians.">
+  <meta name="theme-color" content="#050010">
+  <title>FANUC Advanced Diagnostic Tool — Barbrick Design</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050010; --bg2: #0d0021; --bg3: #100030;
+      --cyan: #00ffff; --cyan2: #0080ff; --magenta: #ff00ff; --purple: #7b00ff;
+      --text: #e0f0ff; --text-dim: #a0b8d8;
+      --border: rgba(0,255,255,0.22); --border-hi: rgba(0,255,255,0.5);
+      --card-bg: rgba(5,0,20,0.88);
+      --sev-high: #ff4040; --sev-med: #ffaa00; --sev-low: #00cc88; --sev-info: #00aaff;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 40%, var(--bg3) 70%, var(--bg) 100%);
+      background-attachment: fixed;
+      color: var(--text); min-height: 100vh; line-height: 1.6; overflow-x: hidden;
+    }
+    /* Grid background */
+    .cosmic-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        linear-gradient(rgba(0,255,255,0.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,255,0.10) 1px, transparent 1px),
+        linear-gradient(rgba(0,128,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,128,255,0.05) 1px, transparent 1px),
+        radial-gradient(ellipse at 20% 80%, rgba(255,0,255,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(0,128,255,0.08) 0%, transparent 50%);
+      background-size: 50px 50px, 50px 50px, 250px 250px, 250px 250px, 100% 100%, 100% 100%;
+      animation: grid-pulse 8s ease-in-out infinite;
+    }
+    @keyframes grid-pulse { 0%,100% { opacity:.8; } 50% { opacity:1; filter:brightness(1.3); } }
+    /* Layout */
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 0 1rem 4rem; position: relative; z-index: 1; }
+    /* Header */
+    .site-header {
+      padding: 1.1rem 0 0.9rem; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+    }
+    .back-link {
+      color: var(--cyan2); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+      border: 1px solid var(--border); padding: 0.3rem 0.8rem; border-radius: 20px; transition: all 0.2s;
+    }
+    .back-link:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 8px rgba(0,255,255,0.3); }
+    .header-title {
+      font-size: clamp(1.1rem, 3vw, 1.6rem); font-weight: 700;
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--cyan2) 50%, var(--purple) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 8px rgba(0,255,255,0.35));
+    }
+    .badge-v { margin-left: auto; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim); border: 1px solid var(--border); padding: 0.2rem 0.55rem; border-radius: 4px; }
+    /* Hero bar */
+    .hero-bar {
+      background: linear-gradient(135deg, rgba(0,255,255,0.05) 0%, rgba(123,0,255,0.05) 100%);
+      border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1.1rem; margin: 0.9rem 0 1.2rem;
+      display: flex; align-items: flex-start; gap: 0.9rem; flex-wrap: wrap;
+    }
+    .hero-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; }
+    .hero-text h2 { font-size: 1rem; font-weight: 600; color: var(--cyan); margin-bottom: 0.25rem; }
+    .hero-text p { font-size: 0.87rem; color: var(--text-dim); }
+    /* Cards */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 1rem 1.1rem; margin-bottom: 1rem; backdrop-filter: blur(6px); transition: border-color 0.25s;
+    }
+    .card:hover { border-color: var(--border-hi); }
+    .card-title {
+      font-size: 0.82rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.45rem;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .card-title .icon { font-size: 1rem; }
+    /* Grid */
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    @media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .grid-3 { grid-template-columns: 1fr; } }
+    /* Form elements */
+    .field-label {
+      display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-dim);
+      margin-top: 0.8rem; margin-bottom: 0.28rem; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .field-label:first-child { margin-top: 0; }
+    select, textarea, input[type="text"] {
+      width: 100%; background: rgba(0,0,10,0.7); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-family: inherit; font-size: 0.88rem; padding: 0.45rem 0.7rem; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    select:focus, textarea:focus, input[type="text"]:focus {
+      border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0,255,255,0.12);
+    }
+    select option { background: #0d0021; }
+    textarea { resize: vertical; min-height: 115px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    /* Checkboxes */
+    .chk-group { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.25rem; }
+    .chk-label {
+      display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;
+      color: var(--text-dim); padding: 0.35rem 0.55rem; border-radius: 6px;
+      border: 1px solid transparent; transition: all 0.15s; line-height: 1.4;
+    }
+    .chk-label:hover { background: rgba(0,255,255,0.05); border-color: var(--border); color: var(--text); }
+    .chk-label input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; accent-color: var(--cyan); cursor: pointer; }
+    .chk-label.checked { background: rgba(0,255,255,0.07); border-color: rgba(0,255,255,0.3); color: var(--text); }
+    /* Analyze button */
+    .btn-analyze {
+      width: 100%; padding: 0.95rem 1.5rem; font-size: 1.05rem; font-weight: 700; cursor: pointer;
+      border-radius: 8px; border: 2px solid var(--cyan);
+      background: linear-gradient(135deg, rgba(0,255,255,0.12) 0%, rgba(0,128,255,0.12) 100%);
+      color: var(--cyan); text-transform: uppercase; letter-spacing: 0.1em;
+      transition: all 0.25s; box-shadow: 0 0 14px rgba(0,255,255,0.18); font-family: inherit;
+    }
+    .btn-analyze:hover {
+      background: linear-gradient(135deg, rgba(0,255,255,0.25) 0%, rgba(0,128,255,0.25) 100%);
+      box-shadow: 0 0 28px rgba(0,255,255,0.42), 0 4px 16px rgba(0,128,255,0.28); transform: translateY(-2px);
+    }
+    .btn-analyze:active { transform: translateY(0); }
+    /* Results */
+    #results-card { display: none; }
+    #results-card.visible { display: block; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+    .results-title { font-size: 0.82rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.07em; }
+    .results-meta { font-size: 0.75rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+    .action-btns { display: flex; gap: 0.4rem; }
+    .btn-copy, .btn-print {
+      font-size: 0.76rem; padding: 0.28rem 0.7rem; border-radius: 5px; cursor: pointer;
+      border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+      font-family: inherit; transition: all 0.2s;
+    }
+    .btn-copy:hover, .btn-print:hover { border-color: var(--cyan); color: var(--cyan); }
+    /* Finding cards */
+    .finding { border-radius: 8px; margin-bottom: 0.85rem; overflow: hidden; border: 1px solid; animation: fadeSlide 0.28s ease forwards; }
+    @keyframes fadeSlide { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .finding.HIGH { border-color: rgba(255,64,64,0.45); background: rgba(255,64,64,0.06); }
+    .finding.MED  { border-color: rgba(255,170,0,0.45);  background: rgba(255,170,0,0.06); }
+    .finding.LOW  { border-color: rgba(0,204,136,0.45);  background: rgba(0,204,136,0.06); }
+    .finding.INFO { border-color: rgba(0,170,255,0.45);  background: rgba(0,170,255,0.06); }
+    .finding-head { display: flex; align-items: center; gap: 0.55rem; padding: 0.65rem 0.95rem; cursor: pointer; transition: background 0.15s; }
+    .finding-head:hover { background: rgba(255,255,255,0.04); }
+    .sev-badge {
+      font-size: 0.65rem; font-weight: 700; padding: 0.18rem 0.45rem; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap;
+    }
+    .HIGH .sev-badge { background: rgba(255,64,64,0.22);  color: #ff6060; border: 1px solid rgba(255,64,64,0.35); }
+    .MED  .sev-badge { background: rgba(255,170,0,0.22);  color: #ffcc44; border: 1px solid rgba(255,170,0,0.35); }
+    .LOW  .sev-badge { background: rgba(0,204,136,0.22);  color: #00ee99; border: 1px solid rgba(0,204,136,0.35); }
+    .INFO .sev-badge { background: rgba(0,170,255,0.22);  color: #44ccff; border: 1px solid rgba(0,170,255,0.35); }
+    .finding-title { font-size: 0.92rem; font-weight: 600; color: var(--text); flex: 1; }
+    .finding-chevron { color: var(--text-dim); transition: transform 0.2s; flex-shrink: 0; font-size: 0.7rem; }
+    .finding.open .finding-chevron { transform: rotate(180deg); }
+    .finding-body { padding: 0 0.95rem 0.85rem; display: none; }
+    .finding.open .finding-body { display: block; }
+    .finding-body ol, .finding-body ul { margin: 0.45rem 0 0.45rem 1.1rem; }
+    .finding-body li { margin-bottom: 0.32rem; font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+    .finding-body li strong { color: var(--text); }
+    .finding-body p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.35rem; }
+    .finding-body .tags { display: flex; flex-wrap: wrap; gap: 0.28rem; margin-top: 0.6rem; }
+    .tag { font-size: 0.65rem; padding: 0.12rem 0.4rem; border-radius: 3px; font-family: 'JetBrains Mono', monospace; background: rgba(0,255,255,0.06); color: var(--text-dim); border: 1px solid rgba(0,255,255,0.12); }
+    .no-findings { text-align: center; padding: 1.8rem; color: var(--text-dim); font-size: 0.9rem; }
+    /* Quick lookup */
+    .lookup-wrap { display: flex; gap: 0.45rem; margin-top: 0.45rem; }
+    .lookup-wrap input { flex: 1; }
+    .btn-lookup {
+      padding: 0.45rem 0.95rem; font-size: 0.82rem; cursor: pointer;
+      border: 1px solid var(--cyan); border-radius: 6px;
+      background: rgba(0,255,255,0.08); color: var(--cyan);
+      font-family: inherit; font-weight: 600; white-space: nowrap; transition: all 0.2s;
+    }
+    .btn-lookup:hover { background: rgba(0,255,255,0.18); }
+    #lookup-result { margin-top: 0.55rem; padding: 0.65rem 0.85rem; border-radius: 6px; background: rgba(0,255,255,0.05); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text); display: none; font-family: 'JetBrains Mono', monospace; }
+    #lookup-result.visible { display: block; }
+    /* Donation */
+    .donation-card {
+      background: linear-gradient(135deg, rgba(123,0,255,0.09) 0%, rgba(255,0,255,0.07) 100%);
+      border: 1px solid rgba(255,0,255,0.28); border-radius: 10px;
+      padding: 0.9rem 1.1rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+    }
+    .donation-text { flex: 1; min-width: 170px; }
+    .donation-text h3 { font-size: 0.88rem; font-weight: 700; color: #e0b0ff; margin-bottom: 0.2rem; }
+    .donation-text p { font-size: 0.78rem; color: var(--text-dim); }
+    .btn-donate {
+      padding: 0.55rem 1.1rem; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+      border-radius: 20px; border: 2px solid rgba(255,0,255,0.55);
+      background: rgba(255,0,255,0.1); color: #e0b0ff;
+      text-decoration: none; display: inline-block; transition: all 0.2s; white-space: nowrap; font-family: inherit;
+    }
+    .btn-donate:hover { background: rgba(255,0,255,0.22); box-shadow: 0 0 12px rgba(255,0,255,0.28); transform: translateY(-1px); }
+    /* Footer */
+    .page-footer { border-top: 1px solid var(--border); padding: 1.1rem 0; text-align: center; font-size: 0.77rem; color: var(--text-dim); }
+    .page-footer a { color: var(--cyan2); text-decoration: none; }
+    .page-footer a:hover { color: var(--cyan); }
+    /* RootIB badge */
+    .rootib-badge {
+      position: fixed; bottom: 10px; right: 14px; z-index: 9999;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; color: #6df2ff;
+      background: rgba(5,0,22,0.93); border: 1px solid rgba(109,242,255,0.42); border-radius: 6px;
+      padding: 4px 10px; cursor: pointer; user-select: all; letter-spacing: 0.05em;
+      box-shadow: 0 2px 10px rgba(0,255,255,0.1); transition: color 0.2s, background 0.2s; white-space: nowrap;
+    }
+    .rootib-badge:hover { background: rgba(0,255,255,0.09); }
+    /* Defensive guard: if rootib-footer.js is ever added to this page it injects
+       two visible elements (badge + footer stamp). We render our own single badge
+       above, so suppress the footer stamp to prevent a duplicate display. */
+    #rootib-footer-stamp { display: none !important; }
+    /* ---- Downtime cost ticker ---- */
+    .cost-ticker {
+      background: linear-gradient(135deg, rgba(180,0,0,0.2) 0%, rgba(100,0,0,0.22) 100%);
+      border: 1px solid rgba(255,80,80,0.48); border-radius: 10px;
+      padding: 0.85rem 1.1rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+    }
+    .cost-ticker-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .cost-ticker-label { font-size: 0.72rem; font-weight: 700; color: #ff9999; text-transform: uppercase; letter-spacing: 0.08em; }
+    .cost-ticker-amount { font-size: clamp(1.35rem,5vw,1.95rem); font-weight: 800; color: #ff4444; font-variant-numeric: tabular-nums; }
+    .cost-ticker-elapsed { font-size: 0.8rem; color: #ffaaaa; font-family: 'JetBrains Mono', monospace; }
+    .cost-ticker-rate { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: #ffcccc; margin-left: auto; flex-shrink: 0; }
+    .cost-ticker-rate input[type="number"] { width: 90px; background: rgba(140,0,0,0.35); border: 1px solid rgba(255,80,80,0.35); color: #fff; border-radius: 5px; padding: 0.25rem 0.5rem; font-size: 0.82rem; outline: none; }
+    .cost-ticker-rate input:focus { border-color: rgba(255,110,110,0.75); }
+    .ctbtn { padding: 0.32rem 0.75rem; font-size: 0.78rem; font-weight: 700; border-radius: 5px; cursor: pointer; border: 1px solid rgba(255,80,80,0.4); background: rgba(180,0,0,0.3); color: #ffcccc; font-family: inherit; transition: background 0.15s; }
+    .ctbtn:hover { background: rgba(220,40,40,0.45); }
+    .ctbtn-reset { background: transparent; border-color: rgba(255,80,80,0.22); }
+    /* ---- Gripper / End-Effector section ---- */
+    .grip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 680px) { .grip-grid { grid-template-columns: 1fr; } }
+    .zone-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+    .zone-tag { padding: 0.42rem 0.9rem; font-size: 0.82rem; font-weight: 700; border-radius: 20px; cursor: pointer; border: 1px solid var(--border); background: rgba(0,0,10,0.55); color: var(--text-dim); font-family: inherit; transition: all 0.15s; user-select: none; }
+    .zone-tag.active { background: rgba(255,120,0,0.22); border-color: rgba(255,160,0,0.6); color: #ffb040; }
+    .zone-tag:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    /* ---- Connection guide ---- */
+    .conn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; align-items: center; }
+    .conn-row input { flex: 1 1 140px; }
+    .btn-connect { padding: 0.42rem 0.95rem; font-size: 0.82rem; cursor: pointer; border: 1px solid var(--cyan); border-radius: 6px; background: rgba(0,255,255,0.07); color: var(--cyan); font-family: inherit; font-weight: 600; white-space: nowrap; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; }
+    .btn-connect:hover { background: rgba(0,255,255,0.16); }
+    /* Touch-friendly checkboxes on small screens */
+    @media (max-width: 680px) {
+      .chk-label { min-height: 44px; padding: 0.5rem 0.55rem; }
+      .chk-label input[type="checkbox"] { width: 20px; height: 20px; }
+    }
+    /* ---- 3-Step Workflow Banner ---- */
+    .workflow-banner {
+      display: flex; align-items: stretch; margin: 0.9rem 0 0.7rem;
+      background: rgba(0,0,10,0.4); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .wf-step {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.55rem;
+      padding: 0.7rem 0.5rem; transition: background 0.3s;
+    }
+    .wf-step.active { background: rgba(0,255,255,0.07); }
+    .wf-step.done   { background: rgba(0,200,100,0.06); }
+    .wf-num {
+      width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.88rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.15); color: var(--text-dim); transition: all 0.3s;
+    }
+    .wf-step.active .wf-num { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 8px rgba(0,255,255,0.35); }
+    .wf-step.done   .wf-num { border-color: #00cc88; color: #00cc88; background: rgba(0,200,100,0.1); }
+    .wf-label-wrap { display: flex; flex-direction: column; }
+    .wf-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); line-height: 1.2; }
+    .wf-sublabel { font-size: 0.58rem; color: rgba(160,184,216,0.55); }
+    .wf-step.active .wf-label { color: var(--cyan); }
+    .wf-step.done   .wf-label { color: #00cc88; }
+    .wf-divider { width: 1px; background: var(--border); flex-shrink: 0; align-self: stretch; margin: 0.4rem 0; }
+    /* ---- Auto-Scan button ---- */
+    .btn-autoscan {
+      padding: 0.42rem 0.95rem; font-size: 0.82rem; cursor: pointer;
+      border: 1px solid #00ffaa; border-radius: 6px; background: rgba(0,255,170,0.08); color: #00ffaa;
+      font-family: inherit; font-weight: 700; white-space: nowrap; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+    }
+    .btn-autoscan:hover { background: rgba(0,255,170,0.18); box-shadow: 0 0 10px rgba(0,255,170,0.28); }
+    /* ---- Quick Scan Panel ---- */
+    .quick-scan-panel {
+      display: none; background: var(--card-bg); border: 1px solid rgba(0,255,170,0.3);
+      border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; backdrop-filter: blur(6px);
+    }
+    .quick-scan-panel.visible { display: block; animation: fadeSlide 0.3s ease forwards; }
+    .scan-panel-title {
+      font-size: 0.82rem; font-weight: 700; color: #00ffaa;
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.65rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .scan-status-bar {
+      font-size: 0.81rem; font-family: 'JetBrains Mono', monospace;
+      padding: 0.42rem 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;
+      border: 1px solid var(--border); color: var(--text-dim); background: rgba(0,0,10,0.4);
+    }
+    .scan-status-bar.pending   { color: #ffcc44; border-color: rgba(255,204,68,0.4); background: rgba(255,204,68,0.06); }
+    .scan-status-bar.connected { color: #00ff88; border-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.06); }
+    .scan-status-bar.timeout   { color: #ffaa44; border-color: rgba(255,170,68,0.4); background: rgba(255,170,68,0.06); }
+    .scan-item {
+      display: flex; align-items: flex-start; gap: 0.65rem;
+      padding: 0.5rem 0.7rem; border-radius: 7px; margin-bottom: 0.38rem;
+      border: 1px solid var(--border); background: rgba(0,0,10,0.3); transition: border-color 0.15s;
+    }
+    .scan-item-body { flex: 1; min-width: 0; }
+    .scan-item-q { font-size: 0.87rem; color: var(--text); line-height: 1.4; }
+    .scan-item-hint { font-size: 0.74rem; color: var(--text-dim); display: block; margin-top: 0.1rem; }
+    .scan-yn { display: flex; gap: 0.3rem; flex-shrink: 0; padding-top: 0.05rem; }
+    .scan-yn-btn {
+      padding: 0.26rem 0.55rem; font-size: 0.77rem; font-weight: 700; border-radius: 4px;
+      cursor: pointer; border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-family: inherit; transition: all 0.15s;
+    }
+    .scan-yn-btn.yes-sel { background: rgba(0,200,100,0.2); border-color: #00cc66; color: #00ff88; }
+    .scan-yn-btn.no-sel  { background: rgba(255,60,60,0.15); border-color: #ff4444; color: #ff6060; }
+    .sq-code-row { display: none; margin-top: 0.35rem; }
+    .sq-code-row.visible { display: block; }
+    .sq-code-input {
+      width: 100%; background: rgba(0,0,10,0.6); border: 1px solid var(--border); border-radius: 5px;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.79rem;
+      padding: 0.28rem 0.55rem; outline: none;
+    }
+    .sq-code-input:focus { border-color: var(--cyan); }
+    .btn-run-scan {
+      width: 100%; padding: 0.85rem 1.2rem; font-size: 0.98rem; font-weight: 700;
+      border-radius: 8px; border: 2px solid #00ffaa; cursor: pointer; margin-top: 0.75rem;
+      background: linear-gradient(135deg, rgba(0,255,170,0.12) 0%, rgba(0,180,90,0.1) 100%);
+      color: #00ffaa; text-transform: uppercase; letter-spacing: 0.08em;
+      transition: all 0.25s; font-family: inherit; box-shadow: 0 0 14px rgba(0,255,170,0.14);
+    }
+    .btn-run-scan:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(0,255,170,0.24) 0%, rgba(0,180,90,0.2) 100%);
+      box-shadow: 0 0 26px rgba(0,255,170,0.32); transform: translateY(-2px);
+    }
+    .btn-run-scan:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* ---- Top Priority Actions box (shown above findings in results) ---- */
+    .top-actions-box {
+      background: linear-gradient(135deg, rgba(0,255,170,0.06) 0%, rgba(0,128,255,0.04) 100%);
+      border: 1px solid rgba(0,255,170,0.28); border-radius: 8px; padding: 0.8rem 0.95rem; margin-bottom: 0.9rem;
+    }
+    .top-actions-hd {
+      font-size: 0.78rem; font-weight: 700; color: #00ffaa;
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.55rem;
+      display: flex; align-items: center; gap: 0.35rem;
+    }
+    .ta-row { display: flex; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .ta-badge {
+      min-width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,255,170,0.13); border: 1px solid rgba(0,255,170,0.38);
+      color: #00ffaa; font-size: 0.75rem; font-weight: 800; flex-shrink: 0; margin-top: 0.15rem;
+      display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace;
+    }
+    .ta-content { font-size: 0.85rem; color: var(--text); line-height: 1.45; }
+    .ta-content small { font-size: 0.74rem; color: var(--text-dim); display: block; margin-top: 0.08rem; }
+    @media print {
+      .quick-scan-panel, .workflow-banner, .btn-autoscan { display: none !important; }
+      .top-actions-box { border: 1px solid #999 !important; background: #f9f9f9 !important; }
+      .top-actions-hd, .ta-content { color: #000 !important; }
+      .ta-badge { background: #eee !important; color: #000 !important; border: 1px solid #999 !important; }
+      .cost-ticker, .ctbtn, .zone-tag, .btn-connect, .conn-row, .donation-card { display: none !important; }
+      .cosmic-grid, .rootib-badge, .btn-copy, .btn-print, .btn-analyze, .back-link { display: none !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .card { border: 1px solid #ccc !important; background: #fff !important; }
+      .finding { border: 1px solid #999 !important; background: #f9f9f9 !important; }
+      .finding-body { display: block !important; }
+      .finding-title, .finding-body p, .finding-body li { color: #000 !important; }
+      .sev-badge { color: #000 !important; background: #eee !important; border: 1px solid #999 !important; }
+      .grid-3, .grip-grid { display: block !important; }
+      .grid-3 > *, .grip-grid > * { page-break-inside: avoid; margin-bottom: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="cosmic-grid" aria-hidden="true"></div>
+<div class="wrap">
+
+  <header class="site-header">
+    <a href="index.html" class="back-link" aria-label="Back to Barbrick Design Hub">&#8592; Hub</a>
+    <h1 class="header-title">&#9881;&#65039; FANUC Advanced Diagnostic Tool</h1>
+    <span class="badge-v">v4.0 &middot; 2026</span>
+  </header>
+
+  <div class="hero-bar" role="note">
+    <span class="hero-icon" aria-hidden="true">&#129302;</span>
+    <div class="hero-text">
+      <h2>Fast Resolution for Field Technicians</h2>
+      <p>Fill in symptoms &amp; alarms, tap <strong>Analyze</strong> &mdash; get numbered fix steps for gripper/vacuum faults, alarms, servo issues, and more. Works on mobile. Downtime cost tracked automatically.</p>
+    </div>
+  </div>
+
+  <!-- 3-Step Workflow Banner -->
+  <div class="workflow-banner" role="region" aria-label="Diagnostic workflow progress: Connect, Scan, Fix">
+    <div class="wf-step active" id="wf-1">
+      <div class="wf-num">1</div>
+      <div class="wf-label-wrap">
+        <div class="wf-label">Connect</div>
+        <div class="wf-sublabel">Enter robot IP</div>
+      </div>
+    </div>
+    <div class="wf-divider" aria-hidden="true"></div>
+    <div class="wf-step" id="wf-2">
+      <div class="wf-num">2</div>
+      <div class="wf-label-wrap">
+        <div class="wf-label">Scan</div>
+        <div class="wf-sublabel">Auto-detect issues</div>
+      </div>
+    </div>
+    <div class="wf-divider" aria-hidden="true"></div>
+    <div class="wf-step" id="wf-3">
+      <div class="wf-num">3</div>
+      <div class="wf-label-wrap">
+        <div class="wf-label">Fix</div>
+        <div class="wf-sublabel">Numbered steps</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Scan Panel (shown after ⚡ Auto-Scan is clicked) -->
+  <div class="quick-scan-panel" id="quick-scan-panel" aria-live="polite">
+    <div class="scan-panel-title"><span aria-hidden="true">&#128269;</span> Step 2 &mdash; Rapid System Scan</div>
+    <div class="scan-status-bar" id="scan-conn-status">Checking connection&hellip;</div>
+    <div id="scan-items-wrap">
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Are any alarm codes showing on the teach pendant?</div>
+          <span class="scan-item-hint">Look at the top of the pendant screen for red alarm messages</span>
+          <div class="sq-code-row" id="sq-code-row">
+            <input type="text" class="sq-code-input" id="sq-alarm-codes"
+              placeholder="Type alarm codes here &mdash; e.g. SRVO-021  SRVO-046  PRIO-240"
+              aria-label="Alarm codes shown on teach pendant">
+          </div>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-alarms" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-alarms" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Is an E-STOP button lit or pressed?</div>
+          <span class="scan-item-hint">Check teach pendant, operator station, fence panels, and safety scanners</span>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-estop" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-estop" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Is the gripper / end-of-arm tool not responding?</div>
+          <span class="scan-item-hint">Does the gripper open/close on command? Any vacuum or suction issues?</span>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-gripper" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-gripper" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Any fault LEDs inside the controller cabinet?</div>
+          <span class="scan-item-hint">Look for solid red or flashing amber LEDs on servo amplifiers and I/O modules</span>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-drives" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-drives" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Did the fault start after a hardware swap or power outage?</div>
+          <span class="scan-item-hint">Was a drive/module recently replaced, or was there a recent power loss?</span>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-hw" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-hw" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+      <div class="scan-item">
+        <div class="scan-item-body">
+          <div class="scan-item-q">Is air pressure low or is there a pneumatic supply fault?</div>
+          <span class="scan-item-hint">Check the pressure gauge at the robot base &mdash; target is 5&ndash;6 bar (72&ndash;87 PSI)</span>
+        </div>
+        <div class="scan-yn">
+          <button class="scan-yn-btn" data-sq="sq-air" data-val="yes" type="button" aria-pressed="false">Yes</button>
+          <button class="scan-yn-btn" data-sq="sq-air" data-val="no"  type="button" aria-pressed="false">No</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn-run-scan" id="btn-run-scan" type="button" disabled
+      aria-label="Generate numbered fix steps from scan results">
+      &#9889; Step 3 &mdash; Generate Fix Steps
+    </button>
+  </div>
+
+  <div class="donation-card">
+    <span aria-hidden="true" style="font-size:1.7rem">&#128156;</span>
+    <div class="donation-text">
+      <h3>Support This Tool</h3>
+      <p>Built free for techs everywhere. If it saved you downtime, a small donation helps keep it growing.</p>
+    </div>
+    <a href="https://www.paypal.com/donate?business=BarbrickDesign%40gmail.com&item_name=FANUC+Diagnostic+Tool+Support&currency_code=USD"
+       target="_blank" rel="noopener noreferrer" class="btn-donate"
+       aria-label="Donate via PayPal to support this tool">
+      &#9749; Donate via PayPal
+    </a>
+  </div>
+
+  <!-- Downtime Cost Ticker -->
+  <div class="cost-ticker" id="cost-ticker" role="status" aria-live="polite" aria-label="Downtime cost tracker">
+    <span class="cost-ticker-icon" aria-hidden="true">&#9201;</span>
+    <div>
+      <div class="cost-ticker-label">&#9888; Downtime Cost</div>
+      <div class="cost-ticker-amount" id="cost-amount">$0.00</div>
+      <div class="cost-ticker-elapsed" id="cost-elapsed">Not started &mdash; tap Analyze or Start</div>
+    </div>
+    <div class="cost-ticker-rate">
+      Rate $<input type="number" id="cost-rate" value="40000" min="0" step="1000" aria-label="Downtime cost rate per hour in dollars">/hr
+    </div>
+    <button class="ctbtn" id="ctbtn-start" type="button" aria-label="Start downtime timer">&#9654; Start</button>
+    <button class="ctbtn" id="ctbtn-stop" type="button" aria-label="Stop downtime timer" style="display:none">&#9646;&#9646; Stop</button>
+    <button class="ctbtn ctbtn-reset" id="ctbtn-reset" type="button" aria-label="Reset downtime timer">&#8635; Reset</button>
+  </div>
+
+  <div class="grid-3">
+    <!-- Col 1 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127981;</span> Cell Context</div>
+
+      <label class="field-label" for="robot-ip">Robot IP Address (optional)</label>
+      <div class="conn-row">
+        <input type="text" id="robot-ip" placeholder="e.g. 192.168.0.10" autocomplete="off" aria-label="Robot IP address for web interface">
+        <button class="btn-connect" id="btn-web-connect" type="button" aria-label="Open FANUC web interface">&#127760; Web UI</button>
+        <button class="btn-connect" id="btn-io-connect" type="button" aria-label="Open FANUC I/O monitor">&#128268; I/O</button>
+        <button class="btn-autoscan" id="btn-autoscan" type="button" aria-label="Auto-connect and scan robot for issues">&#9889; Auto-Scan</button>
+      </div>
+      <p style="font-size:0.74rem;color:var(--text-dim);margin-top:0.3rem;">Enter the robot&rsquo;s IP to open the controller&rsquo;s built-in web interface directly from this device.</p>
+
+      <label class="field-label" for="controller">Controller Model</label>
+      <select id="controller">
+        <option value="">Unknown / Not sure</option>
+        <optgroup label="R-J3 Series">
+          <option value="R-J3iC">R-J3iC</option>
+          <option value="R-J3iB">R-J3iB</option>
+        </optgroup>
+        <optgroup label="R-30iA Series">
+          <option value="R-30iA">R-30iA</option>
+          <option value="R-30iA Plus">R-30iA Plus</option>
+          <option value="R-30iA Mate">R-30iA Mate</option>
+        </optgroup>
+        <optgroup label="R-30iB Series">
+          <option value="R-30iB">R-30iB</option>
+          <option value="R-30iB Plus">R-30iB Plus</option>
+          <option value="R-30iB Mate">R-30iB Mate</option>
+          <option value="R-30iB Mate Plus">R-30iB Mate Plus</option>
+        </optgroup>
+        <optgroup label="R-30iB2 Series">
+          <option value="R-30iB2">R-30iB2</option>
+          <option value="R-30iB2 Plus">R-30iB2 Plus</option>
+        </optgroup>
+      </select>
+
+      <label class="field-label" for="mode">Key Switch Position</label>
+      <select id="mode">
+        <option value="">Unknown</option>
+        <option value="AUTO">AUTO (Production)</option>
+        <option value="T1">T1 (Teach / Slow)</option>
+        <option value="T2">T2 (Teach / Fast)</option>
+      </select>
+
+      <label class="field-label">Symptoms (check all that apply)</label>
+      <div class="chk-group" id="symptoms-group">
+        <label class="chk-label"><input type="checkbox" id="sym-no-motion"> Robot will not move</label>
+        <label class="chk-label"><input type="checkbox" id="sym-no-alarms"> Cell stopped, no alarms shown</label>
+        <label class="chk-label"><input type="checkbox" id="sym-estop-lit"> E-STOP light / button lit</label>
+        <label class="chk-label"><input type="checkbox" id="sym-overtravel-lamp"> Overtravel / limit message</label>
+        <label class="chk-label"><input type="checkbox" id="sym-repeats"> Same alarm repeats after reset</label>
+        <label class="chk-label"><input type="checkbox" id="sym-gripper-nr"> Gripper / tool not responding</label>
+        <label class="chk-label"><input type="checkbox" id="sym-canbus"> Fieldbus / CAN comms fault</label>
+        <label class="chk-label"><input type="checkbox" id="sym-hw-replaced"> Drive / I/O module just swapped</label>
+        <label class="chk-label"><input type="checkbox" id="sym-battery-warn"> Battery warning / low battery light</label>
+        <label class="chk-label"><input type="checkbox" id="sym-fan-fail"> Fan alarm / overheat warning</label>
+        <label class="chk-label"><input type="checkbox" id="sym-collision"> Collision / unexpected sudden stop</label>
+        <label class="chk-label"><input type="checkbox" id="sym-brake"> Brake alarm / axis dropped</label>
+      </div>
+    </div>
+
+    <!-- Col 2 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128680;</span> Alarms (Teach Pendant)</div>
+      <label class="field-label" for="alarms">Paste alarm codes exactly as shown on pendant:</label>
+      <textarea id="alarms" rows="13" placeholder="Examples:
+SRVO-021 E-STOP
+SYST-037 Fence open
+MOTN-017 Limit error (G1, A2)
+SRVO-046 FSSB alarm (G1)
+SRVO-062 BZAL alarm (G1, A1)
+SRVO-074 Collision detect (G1)
+PRIO-240 Device fault (slot 2)
+DNET-002 Offline
+SYST-001 Low battery"></textarea>
+
+      <label class="field-label" for="last-occurrence">When did the fault first occur?</label>
+      <select id="last-occurrence">
+        <option value="">Select&hellip;</option>
+        <option value="just-now">Just now &mdash; first time ever</option>
+        <option value="after-hw">After hardware swap / maintenance</option>
+        <option value="after-power">After power cycle / outage</option>
+        <option value="intermittent">Intermittent &mdash; comes and goes</option>
+        <option value="repeating">Repeating immediately after reset</option>
+        <option value="slow-cycle">During cycle at a specific position</option>
+      </select>
+    </div>
+
+    <!-- Col 3 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128274;</span> UOP / Safety Bits</div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem;">Check bits active on the HMI or PLC. Leave blank if unknown.</p>
+      <div class="chk-group">
+        <label class="chk-label"><input type="checkbox" id="uop-imstp"> IMSTP = OFF (E-stop chain open)</label>
+        <label class="chk-label"><input type="checkbox" id="uop-sfspd"> SFSPD = ON (safety speed active)</label>
+        <label class="chk-label"><input type="checkbox" id="uop-cstopi"> CSTOPI = ON (controlled stop)</label>
+        <label class="chk-label"><input type="checkbox" id="uop-ready"> UO:READY = ON</label>
+        <label class="chk-label"><input type="checkbox" id="uop-busy"> UO:BUSY = ON</label>
+        <label class="chk-label"><input type="checkbox" id="uop-fault"> UO:FAULT = ON</label>
+      </div>
+
+      <div class="card-title" style="margin-top:1rem;"><span class="icon">&#128225;</span> Fieldbus / Network</div>
+      <label class="field-label" for="fieldbus-type">Network Type</label>
+      <select id="fieldbus-type">
+        <option value="">None / Unknown</option>
+        <option value="FSSB">FSSB (internal servo bus)</option>
+        <option value="DeviceNet">DeviceNet / CAN bus</option>
+        <option value="EtherNetIP">EtherNet/IP</option>
+        <option value="PROFIBUS">PROFIBUS-DP</option>
+        <option value="PROFINET">PROFINET</option>
+        <option value="CC-Link">CC-Link</option>
+        <option value="Modbus">Modbus TCP</option>
+      </select>
+
+      <label class="field-label" for="affected-device">Affected device / axis</label>
+      <input type="text" id="affected-device" placeholder="e.g. G1A7 gripper, Slot 2, DeviceNet node 5">
+
+      <div class="chk-group" style="margin-top:0.65rem;">
+        <label class="chk-label"><input type="checkbox" id="per-offline"> Module shows OFFLINE / FAULT LED</label>
+        <label class="chk-label"><input type="checkbox" id="per-params-lost"> Parameters lost after swap</label>
+        <label class="chk-label"><input type="checkbox" id="per-gripper-open"> Gripper stuck open / closed</label>
+        <label class="chk-label"><input type="checkbox" id="per-io-not-update"> I/O points not updating</label>
+        <label class="chk-label"><input type="checkbox" id="per-params-reloaded"> Parameters already reloaded</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gripper / End-Effector Panel -->
+  <div class="card">
+    <div class="card-title"><span class="icon">&#129393;</span> Gripper / End-Effector &mdash; Suction Cup &amp; Venturi Diagnostics</div>
+    <div class="grip-grid">
+      <div>
+        <label class="field-label" for="air-pressure">Supply Pressure (bar) &mdash; alert fires if &lt;4.5 bar</label>
+        <input type="number" id="air-pressure" placeholder="e.g. 5.5" min="0" max="12" step="0.1" style="max-width:150px" aria-label="Current air supply pressure in bar">
+        <label class="field-label">Gripper / Vacuum Symptoms (check all that apply)</label>
+        <div class="chk-group" id="gripper-symptoms">
+          <label class="chk-label"><input type="checkbox" id="grp-partial-cup"> Partial cup release &mdash; some cups not holding</label>
+          <label class="chk-label"><input type="checkbox" id="grp-no-vacuum"> No vacuum &mdash; complete vacuum loss</label>
+          <label class="chk-label"><input type="checkbox" id="grp-weak-vacuum"> Weak vacuum / part drops mid-cycle</label>
+          <label class="chk-label"><input type="checkbox" id="grp-venturi"> Venturi valve fault / unusual exhaust noise</label>
+          <label class="chk-label"><input type="checkbox" id="grp-not-responding"> Gripper not responding to command</label>
+          <label class="chk-label"><input type="checkbox" id="grp-low-press"> Low air pressure alarm / LOW PRESS displayed</label>
+          <label class="chk-label"><input type="checkbox" id="grp-solenoid"> Solenoid valve not actuating / no click heard</label>
+          <label class="chk-label"><input type="checkbox" id="grp-part-drops"> Part detected but pick or place failing</label>
+          <label class="chk-label"><input type="checkbox" id="grp-stuck"> Gripper stuck open or closed</label>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Failing Cup Zones &mdash; tap all that apply (A&ndash;E = manifold branches)</label>
+        <div class="zone-tags" id="zone-tags-row">
+          <button class="zone-tag" id="zone-A" type="button" data-zone="A" aria-pressed="false">Zone A</button>
+          <button class="zone-tag" id="zone-B" type="button" data-zone="B" aria-pressed="false">Zone B</button>
+          <button class="zone-tag" id="zone-C" type="button" data-zone="C" aria-pressed="false">Zone C</button>
+          <button class="zone-tag" id="zone-D" type="button" data-zone="D" aria-pressed="false">Zone D</button>
+          <button class="zone-tag" id="zone-E" type="button" data-zone="E" aria-pressed="false">Zone E</button>
+        </div>
+        <p style="font-size:0.77rem;color:var(--text-dim);margin-top:0.45rem;">Each zone maps to a manifold branch and solenoid valve. Selected zones will be named in the diagnostic output to identify the exact valve to inspect.</p>
+        <label class="field-label" style="margin-top:0.9rem" for="zone-notes">Zone / Manifold Notes (optional)</label>
+        <textarea id="zone-notes" rows="5" placeholder="e.g. Zone B cups releasing at P[12], Zone D no pickup during carry, venturi exhaust louder than normal..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0.9rem;">
+    <button class="btn-analyze" id="analyze-btn" type="button">
+      &#9889; ANALYZE &amp; SHOW FIX STEPS
+    </button>
+  </div>
+
+  <div class="card" id="results-card">
+    <div class="results-header">
+      <span class="results-title">&#128269; Diagnostic Results</span>
+      <div class="action-btns">
+        <span class="results-meta" id="results-meta"></span>
+        <button class="btn-copy" id="copy-btn" type="button">&#128203; Copy</button>
+        <button class="btn-print" onclick="window.print()" type="button">&#128424; Print</button>
+      </div>
+    </div>
+    <div id="findings-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">&#128270;</span> Quick Alarm Code Lookup</div>
+    <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.45rem;">Type a FANUC alarm code for an instant summary &mdash; or use the full analyzer above for step-by-step guidance.</p>
+    <div class="lookup-wrap">
+      <input type="text" id="lookup-input" placeholder="e.g. SRVO-046, MOTN-017, SYST-001&hellip;" aria-label="Alarm code lookup">
+      <button class="btn-lookup" id="lookup-btn" type="button">Look Up</button>
+    </div>
+    <div id="lookup-result" role="status" aria-live="polite"></div>
+  </div>
+
+  <footer class="page-footer">
+    <p>&copy; 2008&ndash;2026 <a href="mailto:BarbrickDesign@gmail.com">Barbrick Design</a> &middot; Created by Ryan Barbrick &amp; Merlin AI</p>
+    <p style="margin-top:0.25rem;">Licensing: <a href="mailto:BarbrickDesign@gmail.com">BarbrickDesign@gmail.com</a> &middot; <a href="index.html">Back to Hub</a></p>
+  </footer>
+</div>
+
+<div class="rootib-badge" id="rootib-badge" title="RootIB provenance — click to copy" role="note" aria-label="RootIB: RB-20260224050002-68CD54B2">
+  &#128272; RootIB: RB-20260224050002-68CD54B2
+</div>
+
+<script>
+/* ================================================================
+   FANUC Advanced Diagnostic Tool Engine v4.0
+   (c) 2026 Ryan Barbrick / Barbrick Design
+   RootIB: RB-20260224050002-68CD54B2
+   ================================================================ */
+'use strict';
+
+/* ---- Security: HTML-escape user-derived strings ---- */
+function esc(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+/* ---- stripTags: use DOMParser (no regex) ---- */
+function stripTags(html) {
+  try {
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body ? doc.body.textContent : '';
+  } catch (e) {
+    return html;
+  }
+}
+
+/* ---- Checkbox highlight sync (all chk-label groups) ---- */
+document.querySelectorAll('.chk-label input[type="checkbox"]').forEach(function(cb) {
+  cb.addEventListener('change', function() {
+    cb.closest('.chk-label').classList.toggle('checked', cb.checked);
+  });
+});
+
+/* ---- Zone tag toggle ---- */
+document.querySelectorAll('.zone-tag').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var active = btn.classList.toggle('active');
+    btn.setAttribute('aria-pressed', String(active));
+  });
+});
+
+/* ---- Connection helper: open FANUC web interface ---- */
+document.getElementById('btn-web-connect').addEventListener('click', function() {
+  var ip = document.getElementById('robot-ip').value.trim();
+  if (!ip) { alert('Enter the robot IP address first.'); return; }
+  window.open('http://' + encodeURIComponent(ip) + '/', '_blank', 'noopener,noreferrer');
+});
+document.getElementById('btn-io-connect').addEventListener('click', function() {
+  var ip = document.getElementById('robot-ip').value.trim();
+  if (!ip) { alert('Enter the robot IP address first.'); return; }
+  window.open('http://' + encodeURIComponent(ip) + '/frprobot/', '_blank', 'noopener,noreferrer');
+});
+
+/* ---- Downtime Cost Ticker ---- */
+var tickerStart = null, tickerInterval = null, tickerElapsed = 0;
+
+function updateTicker() {
+  if (!tickerStart) return;
+  var elapsed = tickerElapsed + (Date.now() - tickerStart);
+  var rate = parseFloat(document.getElementById('cost-rate').value) || 0;
+  var cost = (elapsed / 3600000) * rate;
+  document.getElementById('cost-amount').textContent = '$' + cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var s = Math.floor(elapsed / 1000);
+  var hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  var mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  var ss = String(s % 60).padStart(2, '0');
+  document.getElementById('cost-elapsed').textContent = hh + ':' + mm + ':' + ss + ' elapsed';
+}
+
+document.getElementById('ctbtn-start').addEventListener('click', function() {
+  if (tickerStart) return;
+  tickerStart = Date.now();
+  tickerInterval = setInterval(updateTicker, 1000);
+  document.getElementById('ctbtn-start').style.display = 'none';
+  document.getElementById('ctbtn-stop').style.display = '';
+});
+
+document.getElementById('ctbtn-stop').addEventListener('click', function() {
+  if (!tickerStart) return;
+  tickerElapsed += Date.now() - tickerStart;
+  tickerStart = null;
+  clearInterval(tickerInterval);
+  tickerInterval = null;
+  document.getElementById('ctbtn-start').style.display = '';
+  document.getElementById('ctbtn-stop').style.display = 'none';
+});
+
+document.getElementById('ctbtn-reset').addEventListener('click', function() {
+  tickerElapsed = 0;
+  tickerStart = null;
+  clearInterval(tickerInterval);
+  tickerInterval = null;
+  document.getElementById('cost-amount').textContent = '$0.00';
+  document.getElementById('cost-elapsed').textContent = 'Not started \u2014 tap Analyze or Start';
+  document.getElementById('ctbtn-start').style.display = '';
+  document.getElementById('ctbtn-stop').style.display = 'none';
+});
+
+/* ---- RootIB badge copy ---- */
+(function() {
+  var badge = document.getElementById('rootib-badge');
+  if (!badge) return;
+  badge.addEventListener('click', function() {
+    var text = 'RootIB: RB-20260224050002-68CD54B2';
+    var orig = badge.textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        badge.textContent = '\u2713 Copied!';
+        badge.style.color = '#00ff88';
+        setTimeout(function() { badge.textContent = orig; badge.style.color = ''; }, 1600);
+      }).catch(function(){});
+    }
+  });
+})();
+
+/* Helper: does text contain any of these codes? */
+function hasCode(text, codes) {
+  if (!text) return false;
+  var u = text.toUpperCase();
+  return codes.some(function(c) { return u.indexOf(c.toUpperCase()) !== -1; });
+}
+
+/* Build an ordered list HTML string */
+function ol(steps) {
+  return '<ol>' + steps.map(function(s) { return '<li>' + s + '</li>'; }).join('') + '</ol>';
+}
+
+/* Build an unordered list HTML string */
+function ul(items) {
+  return '<ul>' + items.map(function(i) { return '<li>' + i + '</li>'; }).join('') + '</ul>';
+}
+
+/* ---- Main diagnostic engine ---- */
+function analyze() {
+  var controller   = document.getElementById('controller').value;
+  var mode         = document.getElementById('mode').value;
+  var alarms       = document.getElementById('alarms').value || '';
+  var occurrence   = document.getElementById('last-occurrence').value;
+  var fieldbusType = document.getElementById('fieldbus-type').value;
+  var affectedDev  = document.getElementById('affected-device').value || '';
+  var airPressureRaw = document.getElementById('air-pressure').value;
+  var airPressure  = airPressureRaw !== '' ? parseFloat(airPressureRaw) : NaN;
+  var a = alarms.toUpperCase();
+
+  /* Active cup zones */
+  var activeZones = Array.from(document.querySelectorAll('.zone-tag.active')).map(function(z) { return esc(z.dataset.zone); });
+  var zoneStr = activeZones.length ? ' &mdash; Zones: <strong>' + activeZones.join(', ') + '</strong>' : '';
+
+  function g(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+  var symNoMotion   = g('sym-no-motion'),   symNoAlarms   = g('sym-no-alarms');
+  var symEstop      = g('sym-estop-lit'),   symOvertravel = g('sym-overtravel-lamp');
+  var symRepeats    = g('sym-repeats'),     symGripperNR  = g('sym-gripper-nr');
+  var symCanbus     = g('sym-canbus'),      symHwReplaced = g('sym-hw-replaced');
+  var symBattery    = g('sym-battery-warn'),symFan        = g('sym-fan-fail');
+  var symCollision  = g('sym-collision'),   symBrake      = g('sym-brake');
+  var imstp  = g('uop-imstp'),  sfspd  = g('uop-sfspd'),  cstopi = g('uop-cstopi');
+  var ready  = g('uop-ready'),  busy   = g('uop-busy'),   fault  = g('uop-fault');
+  var perOffline  = g('per-offline'),  perParamsLost = g('per-params-lost');
+  var perGripperOpen = g('per-gripper-open'), perIONotUpdate = g('per-io-not-update');
+  var perParamsReloaded = g('per-params-reloaded');
+  /* New gripper / vacuum inputs */
+  var grpPartialCup   = g('grp-partial-cup'),   grpNoVacuum  = g('grp-no-vacuum');
+  var grpWeakVacuum   = g('grp-weak-vacuum'),   grpVenturi   = g('grp-venturi');
+  var grpNotResp      = g('grp-not-responding'), grpLowPress = g('grp-low-press');
+  var grpSolenoid     = g('grp-solenoid'),      grpPartDrops = g('grp-part-drops');
+  var grpStuck        = g('grp-stuck');
+
+  var findings = [];
+
+  /* R1 - E-stop / safety chain */
+  if (hasCode(a, ['SRVO-021','SYST-037','E-STOP','ESTOP']) || imstp || symEstop) {
+    findings.push({ sev:'HIGH', title:'E-Stop / Safety Chain Open',
+      body:'<p>The robot emergency-stop circuit is open. This is the most common cause of a stopped cell.</p>' +
+      ol(['<strong>Teach pendant E-STOP button</strong> &mdash; twist to release (red mushroom button).',
+          '<strong>Panel E-STOP buttons</strong> &mdash; check operator station, fence panel, and all portable stations.',
+          '<strong>Gate / fence safety switches</strong> &mdash; confirm all guards are closed and latch is engaged.',
+          '<strong>Light curtains / safety scanners</strong> &mdash; verify no obstruction; check LED on safety device.',
+          '<strong>Safety relay module</strong> &mdash; look for fault LEDs on the relay module; check wiring to IMSTP.',
+          '<strong>Safety PLC output</strong> &mdash; verify IMSTP signal from PLC is being driven ON (value = 1).',
+          'Press <strong>FAULT RESET</strong> on the teach pendant after all devices are cleared, then re-issue cycle start.']),
+      tags:['SRVO-021','SYST-037','E-STOP','IMSTP','Safety chain'] });
+  }
+
+  /* R2 - Overtravel / soft limit */
+  if (hasCode(a, ['SRVO-050','SRVO-051','MOTN-017','MOTN-018','OVERT','OVERTRAVEL','SOFT LIMIT']) || symOvertravel) {
+    findings.push({ sev:'HIGH', title:'Overtravel / Axis Limit Reached',
+      body:'<p>The robot is at or past a travel limit on at least one axis. Note the axis number shown in the alarm (e.g. A2, J3).</p>' +
+      ol(['Switch teach pendant to <strong>JOINT coordinate mode</strong> (press COORD until JOINT shows).',
+          'Set key switch to <strong>T1</strong>. Hold deadman, press RESET to clear the alarm.',
+          '<strong>Jog the affected axis</strong> back toward the centre of its range &mdash; slowly, away from the limit.',
+          'Check <strong>MENU &rarr; SYSTEM &rarr; Axis Limits</strong> to confirm soft limits are correct for your robot model.',
+          'Inspect for any fixture, part, or tooling that physically blocks motion near that joint angle.',
+          'If the axis refuses to jog, check for a simultaneous servo overload alarm on the same axis.']),
+      tags:['SRVO-050','SRVO-051','MOTN-017','MOTN-018','Overtravel','Soft limit'] });
+  }
+
+  /* R3 - Collision detect */
+  if (hasCode(a, ['SRVO-074','SRVO-075','COLLISION','COLL DET']) || symCollision) {
+    findings.push({ sev:'HIGH', title:'Collision Detect Triggered (SRVO-074/075)',
+      body:'<p>Collision detection activated &mdash; the robot sensed unexpected torque on an axis during motion.</p>' +
+      ol(['<strong>Visually inspect the robot and tooling</strong> for physical contact with a fixture, conveyor, or part.',
+          'Clear the alarm (RESET), then jog the robot clear of any obstacle in T1 at low speed.',
+          'If no collision is visible, check <strong>MENU &rarr; SYSTEM &rarr; Motion &rarr; Collision Detect Sensitivity</strong> &mdash; it may be set too sensitive.',
+          'Verify <strong>payload settings</strong> match the actual tool/part weight and inertia: MENU &rarr; SYSTEM &rarr; Motion &rarr; Payload.',
+          'Check for simultaneous SRVO overload alarms, which can also trigger collision detect.',
+          'If fault occurs at the same position every cycle, there is likely a mechanical interference at that pose.']),
+      tags:['SRVO-074','SRVO-075','Collision detect','Payload','Interference'] });
+  }
+
+  /* R4 - FSSB servo bus */
+  if (hasCode(a, ['SRVO-046','SRVO-047','SRVO-069','SRVO-070','SRVO-071','SRVO-072','SRVO-073','FSSB','COMER','CRCERR','DTERR','STBERR']) ||
+      (fieldbusType === 'FSSB' && (perOffline || perIONotUpdate))) {
+    findings.push({ sev:'HIGH', title:'FSSB Servo Bus Communication Fault',
+      body:'<p>The FANUC Serial Servo Bus has a communication error. FSSB connects the CPU to servo amplifiers via fibre-optic cables.</p>' +
+      ol(['<strong>Power off the controller completely</strong> (main breaker off, wait 30 seconds).',
+          'Open the controller cabinet and <strong>inspect every FSSB fibre-optic cable</strong> at both amplifier and CPU backplane connectors. Reseat any that are loose.',
+          'Look for <strong>cracked, bent, or pinched fibre cables</strong>. Replace any that are damaged.',
+          'Check <strong>servo amplifier LED status</strong>: solid red = power fault, flashing red = FSSB comms error.',
+          'Verify the FSSB daisy-chain order matches the wiring diagram &mdash; each amplifier must be in the correct sequence.',
+          'Power on and check <strong>MENU &rarr; SYSTEM &rarr; FSSB</strong> for axis slot assignments.',
+          'If an amplifier was replaced, reload parameters (see Hardware Replaced finding below).']),
+      tags:['SRVO-046','SRVO-047','FSSB','Fibre-optic','Servo amplifier'] });
+  }
+
+  /* R5 - Fieldbus / CAN / DeviceNet / EtherNet/IP */
+  var fieldbusAlarmCodes = ['DNET-','ERIO-','PBUS-','CLINK-','CCLINK','PROFINET','CANB-','CAN BUS','CAN-','MODBUS'];
+  var fieldbusSelected = fieldbusType && fieldbusType !== '' && fieldbusType !== 'FSSB';
+  if (hasCode(a, fieldbusAlarmCodes) || symCanbus || (fieldbusSelected && (perOffline || perIONotUpdate))) {
+    var fbLabel = esc(fieldbusType) || 'fieldbus';
+    findings.push({ sev:'HIGH', title: fbLabel + ' Network Communication Fault',
+      body:'<p>A communication fault on the ' + fbLabel + ' network' + (affectedDev ? ' (device: <strong>' + esc(affectedDev) + '</strong>)' : '') + '. Devices are offline or not responding.</p>' +
+      ol(['<strong>MENU &rarr; I/O &rarr; ' + fbLabel + '</strong> &mdash; check node status list for OFFLINE or TIMEOUT devices.',
+          '<strong>Physical cable check</strong>: inspect all connector pins, cable shields, and termination resistors at both ends.',
+          '<strong>Bus power</strong>: DeviceNet/CAN requires 24 V on the bus connector &mdash; measure with a meter at multiple points.',
+          '<strong>Node addresses</strong>: confirm no two devices share the same address. Check rotary switches or DIP switches on each module.',
+          '<strong>EtherNet/IP / PROFINET</strong>: ping each device (MENU &rarr; I/O &rarr; EtherNet/IP). Check network switch port LEDs.',
+          'Power-cycle the affected module. If it recovers, watch for the fault recurring (intermittent cable).',
+          'After any module swap, reload parameters and rescan the bus.']),
+      tags:['DeviceNet','EtherNet/IP','PROFIBUS','CAN bus',fbLabel] });
+  }
+
+  /* R6 - Hardware replaced / parameter reload */
+  var hwReplaced = symHwReplaced || perParamsLost || perOffline;
+  if (hwReplaced && !perParamsReloaded) {
+    findings.push({ sev:'HIGH', title:'Hardware Replaced &mdash; Parameters Must Be Reloaded',
+      body:'<p>A servo amplifier, drive, or I/O module has been swapped. The replacement unit needs parameters loaded before it will operate correctly.</p>' +
+      ol(['<strong>Controlled Start</strong>: hold SHIFT + RESET while powering on to enter Controlled Start mode.',
+          '<strong>MENU &rarr; FILE &rarr; Restore</strong> &mdash; load backup files: <code>.SV .MD .DF .IO .VR</code>. Use your most recent backup.',
+          'If no backup exists: re-enter parameters manually from commissioning records or FANUC startup sheets.',
+          '<strong>Servo amplifier swap</strong>: check mastering &mdash; <strong>MENU &rarr; SYSTEM &rarr; MASTER/CAL</strong>. If axes show "NOT MASTERED", perform Quick Master or Full Mastering.',
+          '<strong>DeviceNet/CAN drive</strong>: rescan &mdash; MENU &rarr; I/O &rarr; DeviceNet &rarr; SCAN LIST &rarr; Start Scan.',
+          '<strong>PROFIBUS / EtherNet/IP</strong>: re-download the GSD/EDS from the PLC or scanner.',
+          'Cold-start the controller (power off &rarr; power on) after all parameters are loaded.',
+          'Jog in T1 at <strong>10% speed</strong> and confirm all axes move correctly before returning to AUTO.']),
+      tags:['Parameter reload','Hardware swap','Drive replacement','Mastering','Controlled Start'] });
+  }
+
+  /* R7 - Parameters reloaded */
+  if (perParamsReloaded && (symHwReplaced || perParamsLost)) {
+    findings.push({ sev:'LOW', title:'Parameters Reloaded &mdash; Final Commissioning Checks',
+      body:'<p>Parameters have been reloaded. Complete these checks before returning to production:</p>' +
+      ul(['<strong>Mastering valid?</strong> &mdash; MENU &rarr; SYSTEM &rarr; MASTER/CAL. Each axis must show "CALIBRATED".',
+          '<strong>Jog test</strong> &mdash; jog each affected axis in T1 at low speed. Motion should be smooth and in the correct direction.',
+          '<strong>Gripper / tool I/O</strong> &mdash; force outputs from MENU &rarr; I/O &rarr; Digital and confirm the gripper responds.',
+          '<strong>Payload check</strong> &mdash; confirm payload group settings match actual tool weight.',
+          '<strong>Slow test cycle</strong> &mdash; run 2&ndash;3 cycles at 25% speed before restoring full production speed.']),
+      tags:['Parameter reload','Mastering','Test cycle','Commissioning'] });
+  }
+
+  /* ---- GRIPPER / VACUUM RULES ---- */
+
+  /* RG1 - Low air supply pressure */
+  if (grpLowPress || hasCode(a, ['LOW PRESS','LOW AIR','AIR FAULT','PRESS FAULT']) ||
+      (!isNaN(airPressure) && airPressureRaw !== '' && airPressure < 4.5)) {
+    var pressNote = (!isNaN(airPressure) && airPressureRaw !== '') ? ' (' + esc(String(airPressure)) + ' bar measured)' : '';
+    findings.push({ sev:'HIGH', title:'Low Air Supply Pressure' + pressNote,
+      body:'<p>Supply pressure is below the 4.5 bar minimum' + pressNote + ', or a LOW PRESS alarm is active. Insufficient air pressure causes vacuum cups, solenoids, and pneumatic grippers to fail.</p>' +
+      ol(['<strong>Read the supply regulator gauge</strong> at the robot base &mdash; confirm actual pressure. Target: 5.0&ndash;6.0 bar (72&ndash;87 PSI).',
+          '<strong>Trace the supply line</strong>: main plant regulator &rarr; cell filter/regulator unit &rarr; any local isolator valves. Open any partially closed valves.',
+          '<strong>Check the filter/regulator element</strong>: a clogged coalescing filter causes a large pressure drop. Drain the bowl and replace the element if the maintenance interval has passed.',
+          '<strong>Listen for air leaks</strong>: with the supply live, walk the pneumatic circuit listening for hissing. Use soapy water or a leak detector at push-in fittings, cylinder rod seals, and manifold joints.',
+          '<strong>Pressure switch / sensor test</strong>: in the PLC I/O monitor observe the LOW PRESS input &mdash; it should switch at the alarm threshold. Replace the sensor if it does not switch when pressure is applied.',
+          '<strong>Peak demand</strong>: if multiple pneumatic devices fire simultaneously the pressure can momentarily collapse. Stagger solenoid firing times in the PLC program.',
+          'Once pressure is restored to &ge;5.0 bar, reset the alarm and observe the gauge during the first live cycle.']),
+      tags:['Low pressure','Air supply','Regulator','Filter','Pneumatics'] });
+  }
+
+  /* RG2 - Partial cup release / venturi valve fault */
+  if (grpPartialCup || grpVenturi ||
+      hasCode(a, ['VENTURI','PARTIAL CUP','CUP FAULT','SUCTION FAULT','PARTIAL RELEASE'])) {
+    findings.push({ sev:'HIGH', title:'Partial Cup Release / Venturi Valve Fault' + zoneStr,
+      body:'<p>One or more suction cups are failing to maintain grip &mdash; the leading cause of current downtime.' +
+           (activeZones.length ? ' Affected zones: <strong>' + activeZones.join(', ') + '</strong>. Each zone maps to a dedicated manifold branch and solenoid valve.' : '') + '</p>' +
+      ol(['<strong>Zone identification</strong>: on the gripper face, locate which manifold branch serves the failing cups.' +
+          (activeZones.length ? ' Priority zones: <strong>' + activeZones.join(', ') + '</strong>. Start inspection at the solenoid valve for each of these branches.' : ' Use the zone tags in the input panel above to mark failing zones.'),
+          '<strong>Cup inspection</strong>: examine every cup bellows in the failing zones for tears, flattened sealing lip, cracking, or contamination (coolant, chips, weld spatter). A deformed bellows cannot seal. Replace damaged cups.',
+          '<strong>Venturi exhaust test</strong>: with the air supply live and vacuum commanded ON, hold a tissue or palm over the venturi exhaust port. You must feel steady suction. No suction = venturi insert clogged or cartridge cracked. Unscrew the cartridge, inspect the throat, and replace if damaged.',
+          '<strong>Solenoid coil voltage &amp; resistance check</strong>: at the solenoid valve connector, measure voltage when the output is commanded ON (should be 24 V DC &plusmn;10 %). Measure coil resistance across the coil pins (typically 14&ndash;25 &Omega;). Open circuit = failed coil &mdash; replace solenoid coil.',
+          '<strong>Manifold O-ring inspection</strong>: remove the failing zone manifold section and inspect all O-rings for deformation, cuts, or extrusion past the groove. Even a 0.3 mm extrusion allows cross-circuit leakage. Replace O-ring kit for that section.',
+          '<strong>Supply pressure at manifold inlet</strong>: with a test gauge at the manifold inlet port, verify pressure is &ge;5.0 bar under load. If low, trace back through the regulator and supply line.',
+          '<strong>Cup-to-workpiece fit</strong>: confirm cup diameter, bellows height, and material (silicone/nitrile/polyurethane) match the pick specification. A cup with incorrect bellows height compresses fully and cannot develop vacuum.',
+          '<strong>PLC logic trace</strong>: in the PLC online monitor, observe the vacuum-ON output and the vacuum-confirmed feedback input throughout the entire pick &rarr; carry &rarr; place sequence. Confirm the PLC holds the vacuum command and does not release it prematurely.']),
+      tags:['Venturi','Suction cup','Partial release','Manifold','Solenoid','O-ring'].concat(activeZones.map(function(z){ return 'Zone '+z; })) });
+  }
+
+  /* RG3 - No vacuum: complete loss */
+  if (grpNoVacuum || hasCode(a, ['NO VAC','NO VACUUM','VAC FAULT','VACUUM LOSS','VACUUM FAIL'])) {
+    findings.push({ sev:'HIGH', title:'No Vacuum &mdash; Complete Vacuum Loss',
+      body:'<p>All suction cups are reporting no vacuum. Systematically isolate the air path from the regulator to the cup face to find the blockage.</p>' +
+      ol(['<strong>Confirm vacuum command is active</strong>: force the vacuum solenoid output ON from MENU &rarr; I/O &rarr; Digital. Listen for the solenoid click &mdash; if no click, see the Gripper Not Responding finding.',
+          '<strong>Check the supply isolation valve</strong>: the manual air isolation valve upstream of the vacuum generator or venturi must be fully open.',
+          '<strong>Test the vacuum generator in isolation</strong>: disconnect the cup manifold hose at the generator vacuum port, block the port with your finger while the solenoid is ON &mdash; you should feel immediate strong suction. No suction = generator blocked or failed.',
+          '<strong>Inspect all push-in fittings</strong> on the hose runs between the generator and the cups. A partially pulled-out fitting will leak all vacuum.',
+          '<strong>Check the flow-control (throttle) valve</strong>: if the vacuum circuit has a needle valve, ensure it is not fully closed. Open it half a turn and retest.',
+          '<strong>Inspect the inline vacuum filter</strong>: a contaminated filter element blocks flow completely. Remove, clean or replace the element.',
+          '<strong>Verify the vacuum sensor / switch calibration</strong>: using a hand vacuum pump, confirm the sensor changes state at the rated trip point set in the PLC.']),
+      tags:['No vacuum','Vacuum loss','Vacuum generator','Solenoid','Flow control'] });
+  }
+
+  /* RG4 - Weak vacuum / part drops mid-cycle */
+  if (grpWeakVacuum || grpPartDrops ||
+      hasCode(a, ['WEAK VAC','PART DROP','GRIP LOSS','DROP PART'])) {
+    findings.push({ sev:'HIGH', title:'Weak Vacuum / Part Drops Mid-Cycle',
+      body:'<p>Vacuum is present but insufficient to maintain grip throughout the cycle &mdash; parts typically drop during high-speed moves or acceleration.</p>' +
+      ol(['<strong>Cup seal condition</strong>: worn cups lose sealing-lip contact area. Compare cup lip diameter against new-part specification; replace if worn &gt;15% or if the bellows is compressed more than 50% at pick.',
+          '<strong>Leak test</strong>: with cups sealed to a flat surface under vacuum, block the supply and observe the vacuum gauge. Rapid pressure rise (loss) indicates a leak. Isolate individual cup lines one by one to find the source.',
+          '<strong>Flow-control (throttle) valve</strong>: locate the needle valve on the vacuum circuit; open it one quarter-turn and retest. A restricted valve limits the peak achievable vacuum level.',
+          '<strong>Manifold port plugs &amp; blank-off caps</strong>: verify all unused cup ports are properly capped. Even a 0.5 mm gap causes a significant vacuum drop.',
+          '<strong>Part surface condition</strong>: a rough, porous, wet, or contaminated part surface prevents an airtight seal. Clean the contact zone; switch to a foam-tipped or bellows cup if the surface is non-ideal.',
+          '<strong>Vacuum threshold setting</strong>: in the PLC, check the vacuum-confirmed set-point. If set too low, the robot will attempt to carry with inadequate grip. Consult the pick specification for the minimum required vacuum level.']),
+      tags:['Weak vacuum','Part drop','Cup wear','Leak detection','Flow control'] });
+  }
+
+  /* R8 - Gripper / EOA tool not responding */
+  if (symGripperNR || perGripperOpen || grpNotResp || grpSolenoid || grpStuck ||
+      hasCode(a, ['PRIO-240','PRIO-241','PRIO-242','GRIPPER','TOOL FAULT','EOA','HAND BROKEN','HAND OPEN','HAND CLOSED'])) {
+    findings.push({ sev:'HIGH', title:'Gripper / End-of-Arm Tool Not Responding',
+      body:'<p>The gripper or tool changer is not responding to commands. Work through the electrical, pneumatic, and I/O feedback paths in order.</p>' +
+      ol(['<strong>Manual I/O test</strong>: MENU &rarr; I/O &rarr; Digital &mdash; force the gripper output ON/OFF. Listen for a solenoid click and observe mechanical movement.',
+          '<strong>Solenoid valve coil test</strong>: at the solenoid connector measure DC voltage when the output is commanded ON (should be 24 V). Measure coil resistance (14&ndash;25 &Omega; typical). Open circuit = failed coil &mdash; replace.',
+          '<strong>Pneumatic path</strong>: confirm the air isolation valve is open and regulator pressure is &ge;5 bar. Manually override the solenoid pilot button to test mechanical valve operation independent of the coil.',
+          '<strong>DI feedback stall diagnosis</strong>: in MENU &rarr; I/O &rarr; Digital, monitor the gripper-open and gripper-closed feedback inputs. If neither input changes when the gripper is moved by hand, the proximity sensor, reed switch, or its wiring has failed &mdash; replace sensor.',
+          '<strong>Wiring harness</strong>: inspect the robot arm cable and tool flange connector for chafed, broken, or loose wires. Focus on the highest-flex section at J5/J6.',
+          '<strong>Servo gripper axis</strong>: if servo-actuated, check MENU &rarr; ALARM for servo alarms on the gripper axis. Check amplifier LED (red = fault, orange = warning).',
+          '<strong>Fieldbus / CAN gripper</strong>: if the gripper uses DeviceNet or CAN, verify the module is ONLINE in MENU &rarr; I/O &rarr; DeviceNet.',
+          'After any repair, power-cycle the gripper and run a <strong>full open/close test cycle at slow speed</strong> before resuming production.']),
+      tags:['PRIO-240','PRIO-241','Gripper','EOA tool','Solenoid coil','DI feedback','Pneumatics'] });
+  }
+
+  /* R9 - Battery alarm */
+  if (hasCode(a, ['SRVO-062','SRVO-065','BZAL','BLAL','LOW BATT','SYST-001']) || symBattery) {
+    findings.push({ sev:'MED', title:'Battery Alarm &mdash; Pulse Coder or Controller Battery Low',
+      body:'<p>A battery is low or dead. This affects mastering/position data on pulse coders or the controller SRAM backup battery.</p>' +
+      ol(['<strong>Do NOT power off the robot</strong> before replacing &mdash; power keeps pulse coder data alive.',
+          'Identify battery type from alarm:<br>&bull; <code>SRVO-062 BZAL</code> = pulse coder battery zero (motor or amplifier).<br>&bull; <code>SRVO-065 BLAL</code> = battery low warning (replace soon).<br>&bull; <code>SYST-001</code> = controller backup battery (SRAM).',
+          'With the controller <strong>powered on</strong>, replace the pulse coder batteries on the affected axes (typically AA lithium cells in a holder on the motor).',
+          'Replace the controller backup battery (typically a 6 V or 3 V lithium pack inside the cabinet).',
+          'After replacement, verify mastering data: <strong>MENU &rarr; SYSTEM &rarr; MASTER/CAL</strong>.',
+          'If mastering data was lost (axes show "NOT MASTERED"), perform Quick Master before running.']),
+      tags:['SRVO-062','SRVO-065','BZAL','BLAL','Battery','Mastering'] });
+  }
+
+  /* R10 - Fan / overheat */
+  if (hasCode(a, ['SRVO-149','SRVO-150','OVER HEAT','OVERHEAT','FAN FAIL','TEMP','THERMAL']) || symFan) {
+    findings.push({ sev:'MED', title:'Fan Failure / Overtemperature Alarm',
+      body:'<p>The controller or a servo amplifier is reporting a thermal fault or fan failure.</p>' +
+      ol(['Check <strong>all cooling fans</strong> in the controller cabinet &mdash; each should be spinning. A humming but non-spinning fan has failed bearings.',
+          '<strong>Ambient temperature</strong>: confirm the room is within spec (typically &le; 45 &deg;C / 113 &deg;F).',
+          'Clean <strong>dust filters</strong> on cabinet ventilation intake and exhaust. Blocked filters cause rapid heat build-up.',
+          '<strong>Cable routing</strong>: ensure no cables block internal airflow around amplifiers.',
+          'Replace failed fans (typically 24 V DC &mdash; note the model number from the label).',
+          'Allow the controller to cool (15&ndash;30 min) before powering back on.',
+          'If the alarm returns quickly after cooling, inspect the thermal protection sensor on the amplifier board.']),
+      tags:['Fan failure','Overheat','Thermal fault','SRVO-149'] });
+  }
+
+  /* R11 - Brake / position error */
+  if (hasCode(a, ['SRVO-023','SRVO-024','MOTN-002','BRAKE','AXIS DROP','STOP ERROR','MOVE ERROR']) || symBrake) {
+    findings.push({ sev:'MED', title:'Brake / Position Error Alarm',
+      body:'<p>The robot has exceeded its allowable position error or a brake fault has been detected.</p>' +
+      ol(['<strong>SRVO-023 Stop Error Excess</strong>: axis could not decelerate &mdash; check for mechanical binding, obstruction, or payload too high.',
+          '<strong>SRVO-024 Move Error Excess</strong>: axis could not follow the commanded path &mdash; check servo amplifier, motor power cable, and encoder cable.',
+          '<strong>MOTN-002 Brake Abnormal</strong>: brake is not releasing. Check 24 V brake release wiring and test manually by commanding brake off in T1.',
+          'Check <strong>servo amplifier LED</strong> for the affected axis: red = fault, orange = warning, green = normal.',
+          'Verify <strong>motor cable and encoder cable</strong> at both the motor and amplifier &mdash; a loose encoder connector causes position errors.',
+          'If the fault appeared after increasing speed, reduce speed and acceleration to within the robot\'s payload rating.',
+          'Check for worn or seized <strong>mechanical brakes</strong> on J2/J3 which hold the arm weight under gravity.']),
+      tags:['SRVO-023','SRVO-024','MOTN-002','Brake','Position error'] });
+  }
+
+  /* R12 - Servo overload / overcurrent */
+  if (hasCode(a, ['SRVO-006','SRVO-014','SRVO-040','OVERLOAD','OVERCUR','FUSE BLOW']) || (symRepeats && hasCode(a, ['SRVO-']))) {
+    findings.push({ sev:'MED', title:'Servo Overload / Overcurrent &mdash; Repeating',
+      body:'<p>A servo amplifier is drawing excessive current or triggering thermal overload. Repeating alarms are almost always mechanical or payload-related.</p>' +
+      ol(['Note which <strong>axis and group</strong> (e.g. G1, A3) is in alarm.',
+          'With T1 active, manually move that joint &mdash; feel for <strong>mechanical binding, stiffness, or grinding</strong>.',
+          'Check <strong>MENU &rarr; SYSTEM &rarr; Motion &rarr; Payload</strong>: weight and inertia must match the actual tool and part.',
+          '<strong>Reduce speed and acceleration</strong> in the motion instruction and re-test.',
+          '<strong>SRVO-014 Ground Fault</strong>: disconnect the motor power cable and measure insulation resistance between each phase and ground. Should be &gt;1 M&Omega;. Low reading = motor winding failure.',
+          '<strong>SRVO-040 Fuse Blown</strong>: replace the amplifier fuse, but first find the root cause (short circuit, motor fault) to avoid blowing it again.',
+          'Check for <strong>insufficient lubrication</strong> in the joint gearbox &mdash; lack of grease causes torque spikes.']),
+      tags:['SRVO-006','SRVO-014','SRVO-040','Servo overload','Motor fault','Payload'] });
+  }
+
+  /* R13 - Safety speed / fence */
+  if (sfspd || hasCode(a, ['SFSPD','SPEED LIMIT','FENCE OPEN'])) {
+    findings.push({ sev:'MED', title:'Safety Speed / Fence Condition Active',
+      body:'<p>The safety speed limiter is active or a fence/gate input is asserted, preventing full-speed operation.</p>' +
+      ol(['Confirm all <strong>fence gate switches</strong> are closed and latched properly.',
+          'Check <strong>safety scanners</strong> &mdash; someone may be in the cell or the beam path is obstructed.',
+          'Verify the <strong>safety PLC / relay</strong> is not sending a persistent SFSPD signal.',
+          'In AUTO mode: the teach pendant must be <strong>disabled</strong> (pendant enable switch OFF) and deadman released.',
+          'Reset the safety device, press FAULT RESET on the pendant, then re-issue cycle start.']),
+      tags:['SFSPD','Fence','Safety speed','Gate switch'] });
+  }
+
+  /* R14 - CSTOPI */
+  if (cstopi || hasCode(a, ['CSTOPI','CONTROLLED STOP','CSTP'])) {
+    findings.push({ sev:'MED', title:'Controlled Stop Input (CSTOPI) Active',
+      body:'<p>CSTOPI is commanding the robot to perform a controlled deceleration stop. This is driven from the UOP by the PLC or safety system.</p>' +
+      ol(['Check the <strong>PLC or safety relay</strong> driving CSTOPI &mdash; confirm it is not asserting a stop unexpectedly.',
+          'Look for an associated <strong>PLC fault, interlock, or HMI message</strong> explaining why the stop was issued.',
+          'Once the condition is cleared, verify CSTOPI returns to OFF before issuing cycle start.']),
+      tags:['CSTOPI','Controlled stop','UOP'] });
+  }
+
+  /* R15 - Robot ready, not commanded */
+  if (symNoMotion && (symNoAlarms || (!fault && ready && !busy)) && !a.trim()) {
+    findings.push({ sev:'MED', title:'Robot Ready but Not Receiving Start Command',
+      body:'<p>The robot appears healthy (no faults, READY = ON) but is not moving. This is almost always a PLC/program sequencing issue, not a hardware fault.</p>' +
+      ul(['<strong>PLC logic</strong>: confirm the PLC is sending CYCLE START (UOP bit 6) or PROD_START. Check the rungs that drive these bits.',
+          '<strong>Interlocks</strong>: look for unmet PLC interlocks (part present, clamp closed, upstream cell ready, etc.).',
+          '<strong>Program state</strong>: MENU &rarr; STATUS &rarr; Program. Should be RUNNING. If PAUSED or WAITING, look at the current line for a WAIT instruction.',
+          '<strong>UO:READY</strong>: confirm the robot is in AUTO, fault cleared, and UO:READY = ON before the PLC sends start.',
+          '<strong>Production start mode</strong>: verify the PLC is pulsing PROD_START correctly (rising edge required).']),
+      tags:['No motion','CYCLE START','PLC interlock','PROD_START','UOP'] });
+  }
+
+  /* R16 - Program / interpreter error */
+  if (hasCode(a, ['INTP-','PROGRAM NOT','TPIF-','NO PROGRAM','PROG NOT FOUND'])) {
+    findings.push({ sev:'LOW', title:'Program / Interpreter Error',
+      body:'<p>The robot cannot find or execute the called program.</p>' +
+      ol(['<strong>MENU &rarr; SELECT PROGRAM</strong> &mdash; verify the main production program is loaded and selected.',
+          'Check that the program name called by the PLC <strong>exactly matches</strong> the name on the pendant (case-sensitive on some controllers).',
+          '<strong>Motion groups</strong>: MENU &rarr; SETUP &rarr; Prog Select &mdash; confirm motion group assignment is correct.',
+          'Check background logic tasks (MENU &rarr; SETUP &rarr; BG Logic) &mdash; a BG task in error can block execution.',
+          'If using KAREL, ensure the KAREL program is compiled and loaded on this specific controller.']),
+      tags:['INTP','Program not found','TPIF','Background logic'] });
+  }
+
+  /* R17 - System / mastering alarm */
+  if (hasCode(a, ['SYST-','NOT MASTERED','NEED MASTER','MSTR'])) {
+    findings.push({ sev:'LOW', title:'System Configuration / Mastering Alarm',
+      body:'<p>A system-level alarm is active. Most likely involves mastering loss, configuration, or a system resource failure.</p>' +
+      ol(['<strong>SYST-001</strong>: controller backup battery low &mdash; replace battery with power on.',
+          '<strong>SYST-011</strong>: cooling fan failed &mdash; inspect and replace.',
+          '<strong>NOT MASTERED</strong>: perform <strong>MENU &rarr; SYSTEM &rarr; MASTER/CAL &rarr; Quick Master</strong> if the reference position is known, otherwise perform Full Mastering.',
+          'Before mastering: confirm the robot is at the reference position (all axes at 0&deg; or marked reference marks).',
+          'After mastering: write/update the mastering data and cold-start the controller.',
+          'Do not run production until all system alarms are resolved and mastering is valid.']),
+      tags:['SYST-001','SYST-011','Mastering','NOT MASTERED','MASTER/CAL'] });
+  }
+
+  /* R18 - Mode / key switch */
+  if (mode === 'T1' || mode === 'T2') {
+    findings.push({ sev:'LOW', title:'Key Switch in ' + esc(mode) + ' Mode &mdash; Production Requires AUTO',
+      body:'<p>The controller key switch is in <strong>' + esc(mode) + '</strong> teach mode. Normal production requires AUTO mode.</p>' +
+      ol(['Turn the key switch to <strong>AUTO</strong>.',
+          'On the teach pendant, turn the <strong>pendant enable switch to OFF</strong> (hang the pendant in its holder).',
+          'Ensure the <strong>deadman switch is fully released</strong> and no one is inside the safety fence.',
+          'Re-issue <strong>Cycle Start</strong> from the PLC or panel.']),
+      tags:['Mode', esc(mode),'AUTO','Key switch'] });
+  }
+
+  /* R19 - Controller model note */
+  if (controller) {
+    findings.push({ sev:'INFO', title:'Controller: ' + esc(controller),
+      body:'<p>Use the <strong>' + esc(controller) + '</strong> alarm and maintenance manual as the definitive reference for exact alarm codes, wiring diagrams, and replacement parts.</p>' +
+      (occurrence ? '<p style="margin-top:0.4rem;"><strong>Fault timing:</strong> ' + esc(occurrence.replace(/-/g,' ')) + '</p>' : ''),
+      tags:['Controller', esc(controller)] });
+  }
+
+  return findings;
+}
+
+/* ---- Render findings as expandable HTML cards ---- */
+function renderFindings(findings) {
+  var list = document.getElementById('findings-list');
+  var card = document.getElementById('results-card');
+  var meta = document.getElementById('results-meta');
+  list.innerHTML = '';
+
+  if (!findings.length) {
+    list.innerHTML = '<div class="no-findings">&#9888;&#65039; No specific rules matched. Enter alarm codes exactly as shown on the teach pendant (e.g. <code>SRVO-021</code>), check applicable symptom boxes, then try again.</div>';
+    card.classList.add('visible');
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  var highCount = findings.filter(function(f) { return f.sev === 'HIGH'; }).length;
+  meta.textContent = findings.length + ' finding' + (findings.length > 1 ? 's' : '') + ' \u00b7 ' + highCount + ' critical';
+
+  var sevLabel = { HIGH:'&#128308; CRITICAL', MED:'&#128993; WARNING', LOW:'&#128994; INFO', INFO:'&#128309; NOTE' };
+
+  findings.forEach(function(f, idx) {
+    var el = document.createElement('div');
+    el.className = 'finding ' + f.sev;
+    el.setAttribute('role', 'region');
+    el.setAttribute('aria-label', stripTags(f.title));
+
+    var tagsHTML = (f.tags && f.tags.length)
+      ? '<div class="tags">' + f.tags.map(function(t){ return '<span class="tag">'+esc(t)+'</span>'; }).join('') + '</div>'
+      : '';
+
+    el.innerHTML =
+      '<div class="finding-head" tabindex="0" role="button" aria-expanded="false" aria-controls="fb-'+idx+'">' +
+        '<span class="sev-badge">' + (sevLabel[f.sev] || esc(f.sev)) + '</span>' +
+        '<span class="finding-title">' + f.title + '</span>' +
+        '<span class="finding-chevron" aria-hidden="true">&#9660;</span>' +
+      '</div>' +
+      '<div class="finding-body" id="fb-' + idx + '">' + f.body + tagsHTML + '</div>';
+
+    var head = el.querySelector('.finding-head');
+    head.addEventListener('click', function() {
+      var open = el.classList.toggle('open');
+      head.setAttribute('aria-expanded', String(open));
+    });
+    head.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); head.click(); }
+    });
+    if (f.sev === 'HIGH') {
+      el.classList.add('open');
+      head.setAttribute('aria-expanded', 'true');
+    }
+    list.appendChild(el);
+  });
+
+  card.classList.add('visible');
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---- Analyze button ---- */
+document.getElementById('analyze-btn').addEventListener('click', function() {
+  var btn = this;
+  btn.textContent = '\u23f3 Analyzing\u2026';
+  btn.style.opacity = '0.7';
+  btn.style.pointerEvents = 'none';
+
+  /* Auto-start cost ticker on first analyze */
+  if (!tickerStart && tickerElapsed === 0) {
+    document.getElementById('ctbtn-start').click();
+  }
+
+  setWorkflowStep(3);
+  setTimeout(function() {
+    var findings = analyze();
+    renderFindings(findings);
+    addTopActionsToResults(findings);
+    btn.textContent = '\u26a1 ANALYZE & SHOW FIX STEPS';
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
+  }, 180);
+});
+
+/* ---- Copy results ---- */
+var copyResetTimer = null;
+document.getElementById('copy-btn').addEventListener('click', function() {
+  var btn = this;
+  var findingEls = document.querySelectorAll('.finding');
+  if (!findingEls.length) return;
+
+  var controllerVal  = document.getElementById('controller').value || 'Unknown';
+  var modeVal        = document.getElementById('mode').value || 'Unknown';
+  var airPressureVal = document.getElementById('air-pressure').value;
+  var activeZones    = Array.from(document.querySelectorAll('.zone-tag.active')).map(function(z){ return z.dataset.zone; });
+  var costAmt        = document.getElementById('cost-amount').textContent;
+  var elapsed        = document.getElementById('cost-elapsed').textContent;
+  var rate           = parseFloat(document.getElementById('cost-rate').value) || 0;
+
+  var text = '=== FANUC Diagnostic Report ===\n';
+  text += 'Date/Time : ' + new Date().toLocaleString() + '\n';
+  text += 'Controller: ' + controllerVal + '\n';
+  text += 'Mode      : ' + modeVal + '\n';
+  if (airPressureVal) text += 'Air Press  : ' + airPressureVal + ' bar\n';
+  if (activeZones.length) text += 'Fail Zones : ' + activeZones.join(', ') + '\n';
+  text += 'Downtime  : ' + costAmt + '  (' + elapsed + ')  @ $' + rate.toLocaleString('en-US') + '/hr\n\n';
+
+  findingEls.forEach(function(el, i) {
+    var sev   = el.querySelector('.sev-badge')    ? el.querySelector('.sev-badge').innerText    : '';
+    var title = el.querySelector('.finding-title') ? el.querySelector('.finding-title').innerText : '';
+    var body  = el.querySelector('.finding-body');
+    text += (i + 1) + '. [' + sev + '] ' + title + '\n';
+    if (body) {
+      text += body.innerText.trim().split('\n').map(function(l){ return '   ' + l; }).join('\n') + '\n';
+    }
+    text += '\n';
+  });
+  text += '---\nGenerated by FANUC Advanced Diagnostic Tool v4.0\nhttps://barbrickdesign.github.io/FanucDiagnosticTool.html\n';
+
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = '\u2713 Copied!';
+    clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(function() { btn.textContent = '\uD83D\uDCCB Copy'; }, 2000);
+  }).catch(function() {
+    btn.textContent = 'Failed';
+    clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(function() { btn.textContent = '\uD83D\uDCCB Copy'; }, 2000);
+  });
+});
+
+/* ---- 3-Step Workflow state management ---- */
+var MAX_TOP_ACTIONS = 3;
+var CONNECTION_TIMEOUT_MS = 5000;
+function setWorkflowStep(n) {
+  [1, 2, 3].forEach(function(i) {
+    var el = document.getElementById('wf-' + i);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  });
+}
+setWorkflowStep(1);
+
+/* ---- Top Priority Actions: inserted above findings when results are rendered ---- */
+function addTopActionsToResults(findings) {
+  if (!findings || !findings.length) return;
+  var list = document.getElementById('findings-list');
+  if (!list) return;
+  var existing = list.querySelector('.top-actions-box');
+  if (existing) existing.remove();
+
+  var topActions = [];
+  findings.forEach(function(f) {
+    if (topActions.length >= MAX_TOP_ACTIONS) return;
+    if (f.sev !== 'HIGH' && f.sev !== 'MED') return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = f.body;
+    var firstLi = tmp.querySelector('ol li, ul li');
+    if (firstLi) {
+      topActions.push({ title: stripTags(f.title), step: firstLi.textContent.trim() });
+    }
+  });
+  if (!topActions.length) return;
+
+  var box = document.createElement('div');
+  box.className = 'top-actions-box';
+  box.setAttribute('role', 'region');
+  box.setAttribute('aria-label', 'Top priority actions');
+  box.innerHTML = '<div class="top-actions-hd"><span aria-hidden="true">&#127919;</span> TOP PRIORITY ACTIONS &mdash; DO THESE FIRST</div>' +
+    topActions.map(function(a, i) {
+      return '<div class="ta-row"><div class="ta-badge">' + (i + 1) + '</div>' +
+        '<div class="ta-content"><strong>' + esc(a.title) + '</strong>' +
+        '<small>Start here: ' + esc(a.step) + '</small></div></div>';
+    }).join('');
+  list.insertBefore(box, list.firstChild);
+}
+
+/* ---- Auto-connect & scan ---- */
+var scanAnswers = {};
+
+document.getElementById('btn-autoscan').addEventListener('click', function() {
+  var ip = document.getElementById('robot-ip').value.trim();
+  if (!ip) { alert('Enter the robot IP address first.'); return; }
+
+  var panel = document.getElementById('quick-scan-panel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setWorkflowStep(2);
+
+  /* Auto-start downtime timer */
+  if (!tickerStart && tickerElapsed === 0) {
+    document.getElementById('ctbtn-start').click();
+  }
+
+  var statusEl = document.getElementById('scan-conn-status');
+  statusEl.textContent = '\u29bf Connecting to ' + ip + '\u2026';
+  statusEl.className = 'scan-status-bar pending';
+
+  /* Try to reach robot web server. 'no-cors' yields an opaque response on
+     success and a network error on timeout/refused — sufficient to detect
+     whether the host is reachable without needing the response body. */
+  var ac = new AbortController();
+  var tmo = setTimeout(function() { ac.abort(); }, CONNECTION_TIMEOUT_MS);
+  fetch('http://' + ip + '/', { signal: ac.signal, mode: 'no-cors' })
+    .then(function() {
+      clearTimeout(tmo);
+      statusEl.innerHTML = '&#10003; Robot reachable at <strong>' + esc(ip) +
+        '</strong> &mdash; Answer the questions below, then click <strong>Generate Fix Steps</strong>.';
+      statusEl.className = 'scan-status-bar connected';
+    })
+    .catch(function(err) {
+      clearTimeout(tmo);
+      if (err.name === 'AbortError') {
+        statusEl.innerHTML = '&#9888; Timeout &mdash; robot may be offline or on a different subnet. ' +
+          'Answer the questions below for an offline diagnosis.';
+        statusEl.className = 'scan-status-bar timeout';
+      } else {
+        /* Network-level response (CORS block is normal) — host is reachable. */
+        statusEl.innerHTML = '&#10003; Network response from <strong>' + esc(ip) +
+          '</strong> &mdash; Answer the questions below, then click <strong>Generate Fix Steps</strong>.';
+        statusEl.className = 'scan-status-bar connected';
+      }
+    });
+});
+
+/* ---- Quick-scan Y/N button handlers ---- */
+document.querySelectorAll('.scan-yn-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var sq = btn.dataset.sq;
+    var val = btn.dataset.val;
+    if (scanAnswers[sq] === val) {
+      delete scanAnswers[sq];
+      btn.classList.remove('yes-sel', 'no-sel');
+      btn.setAttribute('aria-pressed', 'false');
+    } else {
+      scanAnswers[sq] = val;
+      document.querySelectorAll('[data-sq="' + sq + '"]').forEach(function(b) {
+        b.classList.remove('yes-sel', 'no-sel');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add(val === 'yes' ? 'yes-sel' : 'no-sel');
+      btn.setAttribute('aria-pressed', 'true');
+    }
+    /* Show alarm code input when Q1 answered Yes */
+    if (sq === 'sq-alarms') {
+      var codeRow = document.getElementById('sq-code-row');
+      if (codeRow) codeRow.classList.toggle('visible', scanAnswers['sq-alarms'] === 'yes');
+    }
+    /* Enable Generate button once at least one question is answered */
+    var runBtn = document.getElementById('btn-run-scan');
+    if (runBtn) {
+      var count = Object.keys(scanAnswers).length;
+      var total = document.querySelectorAll('#scan-items-wrap .scan-item').length;
+      runBtn.disabled = count === 0;
+      runBtn.textContent = count > 0
+        ? '\u26a1 Step 3 \u2014 Generate Fix Steps (' + count + '/' + total + ')'
+        : '\u26a1 Step 3 \u2014 Generate Fix Steps';
+    }
+  });
+});
+
+/* ---- Run scan → apply answers to form → analyze ---- */
+document.getElementById('btn-run-scan').addEventListener('click', function() {
+  var btn = this;
+  setWorkflowStep(3);
+
+  /* Apply quick-scan answers to the main diagnostic form */
+  if (scanAnswers['sq-alarms'] === 'yes') {
+    var codes = (document.getElementById('sq-alarm-codes').value || '').trim();
+    if (codes) {
+      var box = document.getElementById('alarms');
+      box.value = box.value.trim() ? box.value.trim() + '\n' + codes : codes;
+    }
+  }
+  function checkSym(id) {
+    var el = document.getElementById(id);
+    if (el && !el.checked) { el.checked = true; el.closest('.chk-label').classList.add('checked'); }
+  }
+  if (scanAnswers['sq-estop']   === 'yes') checkSym('sym-estop-lit');
+  if (scanAnswers['sq-gripper'] === 'yes') { checkSym('sym-gripper-nr'); checkSym('grp-not-responding'); }
+  if (scanAnswers['sq-drives']  === 'yes') checkSym('sym-no-motion');
+  if (scanAnswers['sq-hw']      === 'yes') {
+    checkSym('sym-hw-replaced');
+    document.getElementById('last-occurrence').value = 'after-hw';
+  }
+  if (scanAnswers['sq-air']     === 'yes') checkSym('grp-low-press');
+
+  /* If nothing was flagged, mark "cell stopped, no alarms" */
+  var anyYes = Object.values(scanAnswers).some(function(v) { return v === 'yes'; });
+  if (!anyYes) checkSym('sym-no-alarms');
+
+  btn.textContent = '\u29bf Analyzing\u2026';
+  btn.disabled = true;
+
+  /* Auto-start downtime timer if not already running */
+  if (!tickerStart && tickerElapsed === 0) {
+    document.getElementById('ctbtn-start').click();
+  }
+
+  setTimeout(function() {
+    var findings = analyze();
+    renderFindings(findings);
+    addTopActionsToResults(findings);
+    btn.textContent = '\u2713 Fix Steps Generated';
+    var resultsCard = document.getElementById('results-card');
+    if (resultsCard) resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 220);
+});
+
+var LOOKUP_DB = {
+  'SRVO-001':'Operator panel E-STOP. Check the panel E-STOP button.',
+  'SRVO-002':'Teach pendant E-STOP. Check pendant deadman and E-STOP button.',
+  'SRVO-003':'Deadman switch released in T1/T2. Hold the deadman switch continuously.',
+  'SRVO-004':'Fence open (safety chain). A gate or fence switch is open.',
+  'SRVO-006':'Hand broken - pulse coder hardware fault. Check encoder cable and pulse coder.',
+  'SRVO-007':'External E-STOP active. Safety relay or PLC is driving E-STOP input.',
+  'SRVO-014':'Ground fault in motor. Measure insulation resistance phase-to-earth.',
+  'SRVO-018':'Brake release error. Check brake circuit wiring and 24 V supply.',
+  'SRVO-021':'E-STOP (general). Safety chain is open - check all E-STOP buttons and fences.',
+  'SRVO-023':'Stop error excess. Axis could not decelerate - check for binding or payload issue.',
+  'SRVO-024':'Move error excess. Axis lagging behind command - check drive, motor, and encoder.',
+  'SRVO-030':'Chain 1 abnormal. Dual-channel safety relay fault - inspect safety relay module.',
+  'SRVO-031':'Chain 2 abnormal. Dual-channel safety relay fault - inspect safety relay module.',
+  'SRVO-040':'Fuse blown on servo amplifier board. Find root cause before replacing fuse.',
+  'SRVO-046':'FSSB alarm. Fibre-optic servo bus error - reseat all FSSB cables.',
+  'SRVO-047':'FSSB init alarm. Controller cannot initialise FSSB - check cable and amplifier.',
+  'SRVO-050':'Overtravel (soft limit). Jog axis back within travel limits in T1 mode.',
+  'SRVO-051':'Overtravel (hard limit). Jog axis back; check hard limit switch wiring.',
+  'SRVO-062':'BZAL - pulse coder battery zero. Replace batteries with power ON.',
+  'SRVO-065':'BLAL - pulse coder battery low. Replace batteries soon (before next power cycle).',
+  'SRVO-068':'CKAL - clock alarm in pulse coder. Battery died; check mastering.',
+  'SRVO-069':'DTERR - FSSB data transfer error. Reseat fibre-optic cables on all amplifiers.',
+  'SRVO-070':'CRCERR - FSSB CRC error. Check / replace FSSB fibre-optic cable.',
+  'SRVO-074':'Collision detect (group 1). Inspect for physical contact. Check sensitivity.',
+  'SRVO-075':'Collision detect (group 2). Same as SRVO-074 for motion group 2.',
+  'SRVO-149':'Overtemperature (amplifier). Check cabinet fans, filters, and ambient temperature.',
+  'MOTN-002':'Brake abnormal. Brake not releasing - check 24 V brake wiring.',
+  'MOTN-017':'Limit error. Axis is at a travel limit - jog back in T1.',
+  'MOTN-018':'Limit error (software). Adjust soft limit settings or jog axis back.',
+  'MOTN-050':'Move out of zone. Motion would violate a zone restriction - check zone settings.',
+  'MOTN-195':'TCP speed limit. Reduce Cartesian speed or check track / positioner motion.',
+  'INTP-013':'No program. Called program does not exist on this controller - check program name.',
+  'INTP-024':'Waiting for condition. Program paused at a WAIT instruction.',
+  'SYST-001':'Low battery (controller SRAM). Replace the controller backup battery.',
+  'SYST-011':'Fan failed. A cooling fan has stopped - inspect and replace.',
+  'SYST-037':'Safety fence open. Fence / gate input is not satisfied.',
+  'PRIO-240':'Device fault (I/O). An I/O module or peripheral device has a hardware fault.',
+  'PRIO-241':'Device fault. Check I/O rack and modules for fault LEDs.',
+  'PRIO-002':'I/O board hardware fault. Check I/O board seating and connections.',
+  'DNET-002':'DeviceNet node offline. A node is not communicating - check bus power and cabling.',
+  'ERIO-001':'EtherNet/IP device offline. Check Ethernet cable, switch, and device IP address.',
+  'PBUS-001':'PROFIBUS communication fault. Check cable, termination, and node addresses.',
+};
+
+document.getElementById('lookup-btn').addEventListener('click', doLookup);
+document.getElementById('lookup-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLookup();
+});
+
+function doLookup() {
+  var raw = document.getElementById('lookup-input').value.trim().toUpperCase();
+  var div = document.getElementById('lookup-result');
+  if (!raw) { div.classList.remove('visible'); return; }
+  var result = LOOKUP_DB[raw];
+  if (!result) {
+    var key = Object.keys(LOOKUP_DB).find(function(k) { return raw.indexOf(k) !== -1 || k.indexOf(raw) !== -1; });
+    result = key ? LOOKUP_DB[key] : null;
+  }
+  if (result) {
+    div.innerHTML = '<strong style="color:var(--cyan)">' + esc(raw) + '</strong> &mdash; ' + esc(result);
+  } else {
+    div.innerHTML = '<span style="color:var(--text-dim)"><strong>' + esc(raw) + '</strong> &mdash; not in quick-reference database. Enter this code in the alarm text box above and click Analyze for full diagnostics, or consult the controller alarm manual.</span>';
+  }
+  div.classList.add('visible');
+}
+</script>  <script src="/js/rootib-footer.js"></script>
+</body>
+</html>
