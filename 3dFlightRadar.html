@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+© 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+════════════════════════════════════════════════════════════════════════════════
+
+PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
+
+This file contains proprietary intellectual property of Ryan Barbrick.
+All concepts, designs, implementations, and innovations are protected by
+copyright law and are considered trade secrets.
+
+PROVISIONAL PATENT NOTICE:
+The ideas, methods, systems, and implementations contained in this file are
+subject to provisional patent protection. Unauthorized use, reproduction,
+modification, or distribution is strictly prohibited.
+
+LEGAL WARNING:
+Unauthorized use of this intellectual property may result in:
+- Civil litigation for copyright infringement
+- Claims for actual and statutory damages ($750-$150,000 per work)
+- Injunctive relief and cease & desist orders
+- Criminal prosecution for willful infringement
+- Recovery of attorney fees and legal costs
+
+CREATOR INFORMATION:
+Author: Ryan Barbrick
+Business: Barbrick Design
+Contact: BarbrickDesign@gmail.com
+AI Assistant: Merlin AI
+Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+PATENT DECLARATION:
+File: 3dFlightRadar.html
+Declaration ID: IP-3DFR0302-MLL28ZWP
+Date: 2026-03-02
+Innovation Type: Web Application, User Interface, System Design, 3D Visualization
+
+For licensing inquiries, contact: BarbrickDesign@gmail.com
+════════════════════════════════════════════════════════════════════════════════
+-->
+
+<html lang="en">
+<!--
+  3D Flight Radar — Real-time map-based flight tracker
+
+  Features:
+  - CARTO Dark Matter basemap via MapLibre GL JS
+  - Real flight data from OpenSky Network (demo fallback)
+  - Aircraft altitude-coloured icons (cyan / blue / gold)
+  - Flight path trails per aircraft
+  - 55° perspective tilt — true 3D look
+  - City-selector panel with smooth flyTo animation
+  - ?city=IATA URL deep-link support
+  - Click-to-inspect flight detail card
+  - Glassmorphism UI panels
+
+  Created by: Ryan Barbrick / Barbrick Design
+  Repository: https://github.com/barbrickdesign/barbrickdesign.github.io
+-->
+<head>
+  <!-- Mobile Enhanced CSS -->
+  <link rel="stylesheet" href="/css/mobile-enhanced.css">
+  <meta charset="UTF-8" />
+  <!-- RootIB: RB-20260302063411-B3C15555 -->
+  <meta name="rootib" content="RootIB: RB-20260302063411-B3C15555">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Flight Radar – Barbrick Design</title>
+  <meta name="description" content="Real-time 3D flight radar on a dark world map. Altitude-aware aircraft tracking with city selector. Built by Barbrick Design.">
+
+  <!-- Update Notification System Meta Information -->
+  <meta name="git-commit-hash" content="d293e5f">
+  <meta name="git-commit-date" content="2026-01-06T04:08:39-05:00">
+  <meta name="git-commit-author" content="Ryan Barbrick">
+  <meta name="git-commit-message" content="Merge pull request #254 from barbrickdesign/copilot/fix-security-popup-api-key-implementation">
+
+  <!-- MapLibre GL JS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+
+  <!-- Update Notification System -->
+  <script src="js/update-notification-system.js"></script>
+  <script src="js/update-helper.js"></script>
+  <!-- Anti-Nuclear Safety System Active -->
+  <script src="/anti-nuke-safety.js"></script>
+
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #0a0a12;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      color: #e8eaf0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Map ── */
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ── Glassmorphism base ── */
+    .glass {
+      background: rgba(10, 12, 24, 0.72);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+    }
+
+    /* ── Back button ── */
+    #back-btn {
+      position: fixed;
+      top: 14px; left: 14px;
+      z-index: 100;
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: rgba(10, 12, 24, 0.72);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      transition: color 0.2s, background 0.2s;
+    }
+    #back-btn:hover {
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+    }
+
+    /* ── City selector panel ── */
+    #city-panel {
+      position: fixed;
+      top: 14px; left: 120px;
+      z-index: 100;
+      width: 190px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    #city-panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 4px;
+    }
+
+    .city-btn {
+      width: 100%;
+      padding: 7px 10px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.65);
+      font-size: 13px;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, border-color 0.18s;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .city-btn:hover {
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+      border-color: rgba(255,255,255,0.15);
+    }
+    .city-btn.active {
+      background: rgba(99, 179, 237, 0.15);
+      border-color: rgba(99, 179, 237, 0.4);
+      color: #63b3ed;
+    }
+    .city-btn .city-iata {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      opacity: 0.6;
+    }
+    .city-btn.active .city-iata { opacity: 1; }
+
+    /* ── Status bar (top right) ── */
+    #status-bar {
+      position: fixed;
+      top: 14px; right: 14px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 9px 16px;
+    }
+
+    #status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #48bb78;
+      box-shadow: 0 0 8px #48bb78;
+      flex-shrink: 0;
+      transition: background 0.4s, box-shadow 0.4s;
+    }
+    #status-dot.loading { background: #ecc94b; box-shadow: 0 0 8px #ecc94b; }
+    #status-dot.error   { background: #fc8181; box-shadow: 0 0 8px #fc8181; }
+
+    #aircraft-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+    }
+
+    #utc-time {
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.06em;
+    }
+
+    #data-source {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Flight detail card ── */
+    #flight-card {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      z-index: 100;
+      width: 340px;
+      padding: 18px 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+    #flight-card.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    #card-close {
+      position: absolute;
+      top: 10px; right: 12px;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    #card-close:hover { color: #fff; }
+
+    #card-callsign {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    #card-country {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 14px;
+    }
+
+    .card-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .card-stat-label {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 3px;
+    }
+
+    .card-stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #card-alt-val   { color: #63b3ed; }
+    #card-spd-val   { color: #68d391; }
+    #card-hdg-val   { color: #fbd38d; }
+    #card-vrate     { margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.45); }
+
+    /* ── Altitude legend ── */
+    #alt-legend {
+      position: fixed;
+      bottom: 24px; right: 14px;
+      z-index: 100;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #alt-legend-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 2px;
+    }
+
+    .leg-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .leg-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── AUL badge (keep existing style) ── */
+    .aul-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 160px;
+      background: rgba(255, 215, 0, 0.1);
+      border: 2px solid #ffd700;
+      color: #ffd700;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 9999;
+      font-weight: 600;
+    }
+    .aul-badge:hover {
+      background: rgba(255, 215, 0, 0.2);
+      box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* ── MapLibre attribution override ── */
+    .maplibregl-ctrl-attrib { font-size: 10px !important; }
+    .maplibregl-ctrl-bottom-right { bottom: 0; right: 0; }
+
+    /* ── Filter panel ── */
+    #filter-panel {
+      position: fixed;
+      top: 14px; left: 330px;
+      z-index: 100;
+      display: flex;
+      gap: 4px;
+      padding: 6px 10px;
+    }
+    .filter-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.5);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .filter-btn:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .filter-btn.active { background: rgba(99,179,237,0.18); border-color: rgba(99,179,237,0.45); color: #63b3ed; }
+    .filter-btn.mil-active { background: rgba(255,60,80,0.18); border-color: rgba(255,60,80,0.45); color: #ff3c50; }
+
+    /* ── FR24 link ── */
+    #fr24-link {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      color: #fbd38d; text-decoration: none;
+      padding: 3px 8px; border-radius: 6px;
+      border: 1px solid rgba(251,211,141,0.3);
+      transition: background 0.15s;
+    }
+    #fr24-link:hover { background: rgba(251,211,141,0.12); }
+
+    /* ── Military count ── */
+    #military-count {
+      font-size: 12px; font-weight: 700;
+      color: #ff3c50;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Zones panel ── */
+    #zones-panel {
+      position: fixed;
+      top: 60px; right: 14px;
+      z-index: 100;
+      width: 210px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: calc(100vh - 140px);
+      overflow: hidden;
+    }
+    #zones-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: rgba(255,255,255,0.45);
+    }
+    .zone-actions { display: flex; gap: 6px; }
+    .zone-mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      border-radius: 8px;
+      border: none;
+      font-size: 11px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    }
+    .zone-mode-btn.safe-btn  { background: rgba(0,200,100,0.25); color: #00c864; border: 1px solid rgba(0,200,100,0.4); }
+    .zone-mode-btn.danger-btn{ background: rgba(255,60,80,0.25);  color: #ff3c50; border: 1px solid rgba(255,60,80,0.4); }
+    .zone-mode-btn.active { opacity: 1; transform: scale(1.04); box-shadow: 0 0 8px rgba(255,255,255,0.2); }
+    .zone-hint {
+      font-size: 11px; color: rgba(255,255,255,0.35); font-style: italic;
+    }
+    #zone-list { overflow-y: auto; max-height: 260px; display: flex; flex-direction: column; gap: 5px; }
+    .zone-item {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(255,255,255,0.04); border-radius: 8px;
+      padding: 6px 8px; font-size: 12px;
+    }
+    .zone-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .zone-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,0.75); }
+    .zone-del {
+      background: transparent; border: none; color: rgba(255,255,255,0.3);
+      font-size: 15px; cursor: pointer; line-height: 1; padding: 0 2px; flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .zone-del:hover { color: #fc8181; }
+
+    /* ── Zones toggle button ── */
+    #zones-toggle {
+      position: fixed;
+      top: 14px; right: 240px;
+      z-index: 101;
+      padding: 8px 12px;
+      background: rgba(10,12,24,0.72);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.65);
+      font-size: 12px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #zones-toggle:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    #zones-toggle.active { color: #68d391; border-color: rgba(104,211,145,0.4); }
+
+    /* ── Evacuation alert banner ── */
+    #evac-banner {
+      position: fixed;
+      top: 60px; left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      z-index: 200;
+      width: 520px; max-width: calc(100vw - 28px);
+      padding: 14px 18px;
+      background: rgba(180, 20, 20, 0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 80, 80, 0.5);
+      border-radius: 12px;
+      font-size: 13px;
+      color: #fff;
+      line-height: 1.5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #evac-banner.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ── Placing-zone cursor ── */
+    body.zone-placing #map { cursor: crosshair !important; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      #city-panel { display: none; }
+      #filter-panel { display: none; }
+      #flight-card { width: calc(100vw - 28px); }
+      #alt-legend { bottom: 70px; }
+      #zones-panel { display: none; }
+      #zones-toggle { display: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="/css/universal-styles.css">
+</head>
+<body>
+
+<!-- Back navigation -->
+<a href="index.html" id="back-btn" aria-label="Back to Hub">← Hub</a>
+
+<!-- Map container -->
+<div id="map" role="application" aria-label="3D Flight Radar Map"></div>
+
+<!-- City selector panel -->
+<div id="city-panel" class="glass">
+  <div id="city-panel-title">Airspace</div>
+  <div id="city-list"><!-- populated by JS --></div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" class="glass">
+  <div id="status-dot" class="loading"></div>
+  <span id="aircraft-count">-- AC</span>
+  <span id="military-count">0 MIL</span>
+  <span id="utc-time">00:00:00Z</span>
+  <span id="data-source">DEMO</span>
+  <a href="https://www.flightradar24.com" target="_blank" rel="noopener noreferrer" id="fr24-link" aria-label="Open FlightRadar24">FR24 ↗</a>
+</div>
+
+<!-- Filter panel -->
+<div id="filter-panel" class="glass">
+  <button class="filter-btn active" data-filter="all" aria-label="Show all aircraft">ALL</button>
+  <button class="filter-btn" data-filter="commercial" aria-label="Show commercial only">CIVIL</button>
+  <button class="filter-btn mil-btn" data-filter="military" aria-label="Show military only">MIL</button>
+</div>
+
+<!-- Zones toggle button -->
+<button id="zones-toggle" aria-label="Toggle safety zones panel">🛡 Zones</button>
+
+<!-- Safety zones panel -->
+<div id="zones-panel" class="glass" style="display:none;" aria-label="Safety zones">
+  <div id="zones-title">Safety Zones</div>
+  <div class="zone-actions">
+    <button class="zone-mode-btn safe-btn" data-mode="safe" aria-label="Add safe zone">＋ Safe</button>
+    <button class="zone-mode-btn danger-btn" data-mode="danger" aria-label="Add danger zone">＋ Danger</button>
+  </div>
+  <div id="zone-hint" class="zone-hint" style="display:none;">Right-click map to place zone</div>
+  <div id="zone-list" aria-live="polite"></div>
+</div>
+
+<!-- Evacuation alert banner -->
+<div id="evac-banner" role="alert" aria-live="assertive"></div>
+
+<!-- Flight detail card -->
+<div id="flight-card" class="glass" role="region" aria-label="Selected flight details">
+  <button id="card-close" aria-label="Close">×</button>
+  <div id="card-callsign">---</div>
+  <div id="card-country">---</div>
+  <div class="card-stats">
+    <div>
+      <div class="card-stat-label">Altitude</div>
+      <div class="card-stat-value" id="card-alt-val">---</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35)">ft</div>
+    </div>
+    <div>
+      <div class="card-stat-label">Speed</div>
+      <div class="card-stat-value" id="card-spd-val">---</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35)">kts</div>
+    </div>
+    <div>
+      <div class="card-stat-label">Heading</div>
+      <div class="card-stat-value" id="card-hdg-val">---</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.35)">°</div>
+    </div>
+  </div>
+  <div id="card-vrate"></div>
+</div>
+
+<!-- Altitude legend -->
+<div id="alt-legend" class="glass">
+  <div id="alt-legend-title">Aircraft Type</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#48bb78;"></div>Commercial</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#9f7aea;"></div>Private Jet</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff3c50;box-shadow:0 0 6px #ff3c50;"></div>Military ✈</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#00c864;border:1px solid #00c864;opacity:0.8;"></div>Safe Zone</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#ff3c50;border:1px solid #ff3c50;opacity:0.8;"></div>Danger Zone</div>
+</div>
+
+<!-- MapLibre GL JS -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<!-- Deck.gl — true 3D altitude z-displacement, smooth animation -->
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9/dist.min.js"></script>
+
+<!-- ─── Main Application ─── -->
+<script>
+'use strict';
+// RootIB: RB-20260302063411-B3C15555
+
+/* ════════════════════════════════════════════════════════
+   CITIES  (47 major hubs + Global view)
+════════════════════════════════════════════════════════ */
+const CITIES = {
+  // ── North America ──────────────────────────────────
+  SFO:   { name: 'San Francisco', lat:  37.619, lon: -122.375, zoom: 9  },
+  JFK:   { name: 'New York',      lat:  40.641, lon:  -73.778, zoom: 9  },
+  LAX:   { name: 'Los Angeles',   lat:  33.942, lon: -118.408, zoom: 9  },
+  ORD:   { name: 'Chicago',       lat:  41.975, lon:  -87.908, zoom: 9  },
+  ATL:   { name: 'Atlanta',       lat:  33.641, lon:  -84.427, zoom: 9  },
+  DFW:   { name: 'Dallas',        lat:  32.897, lon:  -97.041, zoom: 9  },
+  DEN:   { name: 'Denver',        lat:  39.858, lon: -104.667, zoom: 9  },
+  SEA:   { name: 'Seattle',       lat:  47.449, lon: -122.309, zoom: 9  },
+  MIA:   { name: 'Miami',         lat:  25.796, lon:  -80.287, zoom: 9  },
+  YYZ:   { name: 'Toronto',       lat:  43.677, lon:  -79.632, zoom: 9  },
+  MEX:   { name: 'Mexico City',   lat:  19.436, lon:  -99.072, zoom: 9  },
+  // ── South America ──────────────────────────────────
+  GRU:   { name: 'São Paulo',     lat: -23.432, lon:  -46.474, zoom: 9  },
+  EZE:   { name: 'Buenos Aires',  lat: -34.822, lon:  -58.536, zoom: 9  },
+  BOG:   { name: 'Bogotá',        lat:   4.701, lon:  -74.147, zoom: 9  },
+  // ── Europe ─────────────────────────────────────────
+  LHR:   { name: 'London',        lat:  51.477, lon:   -0.461, zoom: 9  },
+  CDG:   { name: 'Paris',         lat:  48.859, lon:    2.547, zoom: 9  },
+  AMS:   { name: 'Amsterdam',     lat:  52.308, lon:    4.764, zoom: 9  },
+  FRA:   { name: 'Frankfurt',     lat:  50.033, lon:    8.571, zoom: 9  },
+  MAD:   { name: 'Madrid',        lat:  40.472, lon:   -3.560, zoom: 9  },
+  FCO:   { name: 'Rome',          lat:  41.804, lon:   12.251, zoom: 9  },
+  MUC:   { name: 'Munich',        lat:  48.354, lon:   11.786, zoom: 9  },
+  IST:   { name: 'Istanbul',      lat:  41.275, lon:   28.752, zoom: 9  },
+  WAW:   { name: 'Warsaw',        lat:  52.165, lon:   20.967, zoom: 9  },
+  KBP:   { name: 'Kyiv',          lat:  50.345, lon:   30.894, zoom: 9  },
+  HRK:   { name: 'Kharkiv',       lat:  49.924, lon:   36.290, zoom: 9  },
+  LWO:   { name: 'Lviv',          lat:  49.813, lon:   23.956, zoom: 9  },
+  // ── Middle East & Africa ───────────────────────────
+  DXB:   { name: 'Dubai',         lat:  25.253, lon:   55.365, zoom: 9  },
+  AUH:   { name: 'Abu Dhabi',     lat:  24.443, lon:   54.651, zoom: 9  },
+  DOH:   { name: 'Doha',          lat:  25.273, lon:   51.608, zoom: 9  },
+  RUH:   { name: 'Riyadh',        lat:  24.958, lon:   46.699, zoom: 9  },
+  KWI:   { name: 'Kuwait City',   lat:  29.225, lon:   47.969, zoom: 9  },
+  MCT:   { name: 'Muscat',        lat:  23.593, lon:   58.285, zoom: 9  },
+  TLV:   { name: 'Tel Aviv',      lat:  32.011, lon:   34.886, zoom: 9  },
+  AMM:   { name: 'Amman',         lat:  31.723, lon:   35.993, zoom: 9  },
+  BEY:   { name: 'Beirut',        lat:  33.821, lon:   35.491, zoom: 9  },
+  BGW:   { name: 'Baghdad',       lat:  33.263, lon:   44.234, zoom: 9  },
+  IKA:   { name: 'Tehran',        lat:  35.416, lon:   51.152, zoom: 9  },
+  JNB:   { name: 'Johannesburg',  lat: -26.134, lon:   28.246, zoom: 9  },
+  CAI:   { name: 'Cairo',         lat:  30.122, lon:   31.406, zoom: 9  },
+  // ── Asia Pacific ───────────────────────────────────
+  HND:   { name: 'Tokyo',         lat:  35.553, lon:  139.781, zoom: 9  },
+  PEK:   { name: 'Beijing',       lat:  40.080, lon:  116.585, zoom: 9  },
+  PVG:   { name: 'Shanghai',      lat:  31.143, lon:  121.805, zoom: 9  },
+  HKG:   { name: 'Hong Kong',     lat:  22.308, lon:  113.918, zoom: 9  },
+  ICN:   { name: 'Seoul',         lat:  37.463, lon:  126.441, zoom: 9  },
+  SIN:   { name: 'Singapore',     lat:   1.350, lon:  103.994, zoom: 9  },
+  BOM:   { name: 'Mumbai',        lat:  19.088, lon:   72.868, zoom: 9  },
+  SYD:   { name: 'Sydney',        lat: -33.946, lon:  151.177, zoom: 9  },
+  // ── Global ─────────────────────────────────────────
+  WORLD: { name: '🌍 Global View', lat: 30,      lon:    0,    zoom: 3  },
+};
+
+/* ════════════════════════════════════════════════════════
+   DEMO FLIGHT DATA (OpenSky fallback)
+════════════════════════════════════════════════════════ */
+const DEMO_CALLSIGNS = [
+  'UAL123','DAL456','AAL789','SWA321','FDX001','UPS002',
+  'BAW103','DLH204','AFR305','KLM406','QFA007','SIA308',
+  'EZY509','RYR610','THY711','ANA812','JAL913','ICE014',
+  'TAM115','GOL216','SKW991','ASA422','FFT801','WJA344',
+  'N450PX','N888KM','G-JVBP','M-YJET','VP-BGA','HB-JKX',
+  'RCH701','SAM001','JAKE11','REACH4','BISON12','NATO01',
+  'GAF001','BAF101','SVF201','NAF301','PLF401','AMI501',
+  'ASCOT11','UAF101','TFF201','RAAF01',
+  // ── Middle East ──────────────────────────────────────
+  'EK001','EK215','EK521','EK762','EK203','EK449',
+  'EY101','EY203','EY455','EY013',
+  'QR007','QR572','QR303','QR841',
+  'SV103','SV321','SV567','SV012',
+  'FZ101','FZ305','FZ820',
+  'RJ115','RJ201','GF101','GF304',
+  'WY101','WY233','KU101','KU445'
+];
+
+const DEMO_COUNTRIES = [
+  'United States','United Kingdom','France','Germany','Netherlands',
+  'Australia','Singapore','Japan','UAE','Canada',
+  'Israel','Ukraine','Poland','Sweden','Norway','Italy','Turkey',
+  'Saudi Arabia','Qatar','Jordan','Oman','Kuwait','Bahrain','Lebanon','Iran'
+];
+
+function generateDemoFlights(cityKey) {
+  const { lat, lon } = CITIES[cityKey] || CITIES.SFO;
+  const isWorld = cityKey === 'WORLD';
+  return Array.from({ length: isWorld ? WORLD_PLANE_COUNT : CITY_PLANE_COUNT }, (_, i) => {
+    const heading = Math.random() * 360;
+    const altFt   = Math.round((2000 + Math.random() * 42000) / 500) * 500;
+    const spdKts  = Math.round(180 + Math.random() * 360);
+    const flight = {
+      icao24:   Math.random().toString(16).slice(2, 8),
+      callsign: DEMO_CALLSIGNS[i % DEMO_CALLSIGNS.length],
+      country:  DEMO_COUNTRIES[Math.floor(Math.random() * DEMO_COUNTRIES.length)],
+      // WORLD: distribute uniformly across the full globe; city: tight bbox
+      lon:      isWorld ? (Math.random() * 360 - 180) : lon + (Math.random() - 0.5) * CITY_SPREAD_DEG,
+      lat:      isWorld ? (Math.random() * 140 - 60)  : lat + (Math.random() - 0.5) * CITY_SPREAD_DEG,
+      altFt,
+      onGround: false,
+      spdKts,
+      heading,
+      vertRate: (Math.random() - 0.5) * 15,
+      military: false,
+    };
+    flight.military    = isMilitary(flight);
+    flight.flightType  = classifyFlight(flight);
+    return flight;
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   OPENSKY FETCH  (city bbox OR full-global for WORLD)
+════════════════════════════════════════════════════════ */
+const BBOX_DEG = 4.0;
+
+async function fetchOpenSky(cityKey) {
+  let url;
+  if (cityKey === 'WORLD') {
+    url = 'https://opensky-network.org/api/states/all';
+  } else {
+    const { lat, lon } = CITIES[cityKey];
+    url = `https://opensky-network.org/api/states/all?lamin=${(lat-BBOX_DEG).toFixed(4)}&lomin=${(lon-BBOX_DEG).toFixed(4)}&lamax=${(lat+BBOX_DEG).toFixed(4)}&lomax=${(lon+BBOX_DEG).toFixed(4)}`;
+  }
+  const ctrl    = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const resp = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data || !Array.isArray(data.states)) return null;
+    let states = data.states.filter(s => s[5] != null && s[6] != null);
+    // Limit global view to 800 aircraft to maintain performance
+    if (cityKey === 'WORLD' && states.length > 800) {
+      states = states.filter((_, i) => i % Math.ceil(states.length / 800) === 0);
+    }
+    return states.map(s => {
+      const icao24   = s[0] || '';
+      const callsign = (s[1] || s[0] || '???').trim();
+      const flight = {
+        icao24,
+        callsign,
+        country:  s[2]  || '',
+        lon:      s[5],
+        lat:      s[6],
+        altFt:    s[7]  != null ? Math.round(s[7]  * 3.28084) : 5000,
+        onGround: !!s[8],
+        spdKts:   s[9]  != null ? Math.round(s[9]  * 1.94384) : 0,
+        heading:  s[10] != null ? s[10] : 0,
+        vertRate: s[11] != null ? s[11] : 0,
+      };
+      flight.military   = isMilitary(flight);
+      flight.flightType = classifyFlight(flight);
+      return flight;
+    });
+  } catch (_) { clearTimeout(timeout); return null; }
+}
+
+/* ════════════════════════════════════════════════════════
+   ALTITUDE → COLOUR  (legacy helpers, kept for potential future use)
+════════════════════════════════════════════════════════ */
+const MILITARY_COLOR_RGB  = [255, 60, 80];
+const COMMERCIAL_COLOR_RGB = [72, 187, 120];   // #48bb78 green
+const PRIVATE_COLOR_RGB    = [159, 122, 234];  // #9f7aea purple
+
+function altColor(altFt, military = false) {
+  if (military) return '#ff3c50';
+  if (altFt < 10000) return '#00e5ff';
+  if (altFt < 30000) return '#63b3ed';
+  return '#f6ad55';
+}
+
+function altRGBA(altFt, a = 255, military = false) {
+  if (military) return [255, 60, 80, a];
+  if (altFt < 10000) return [0, 229, 255, a];
+  if (altFt < 30000) return [99, 179, 237, a];
+  return [246, 173, 85, a];
+}
+
+/* Type-based colour — commercial=green, private=purple, military=red */
+function typeRGBA(flight, a = 255) {
+  if (flight.military) return [...MILITARY_COLOR_RGB, a];
+  if (flight.flightType === 'private') return [...PRIVATE_COLOR_RGB, a];
+  return [...COMMERCIAL_COLOR_RGB, a];
+}
+
+/* ════════════════════════════════════════════════════════
+   MILITARY AIRCRAFT DETECTION
+   Sources: callsign patterns + ICAO Mode-S hex ranges
+════════════════════════════════════════════════════════ */
+const MIL_CALLSIGN_RE = [
+  /^RCH\d+/,   // USAF Air Mobility Command (Reach)
+  /^DUKE\d*/,  // USAF
+  /^VENUS\d*/, // USAF
+  /^BLADE\d*/, // USAF
+  /^RAGE\d*/,  // USAF
+  /^SPAR\d+/,  // USAF VIP transport
+  /^SAM\d+/,   // Special Air Mission
+  /^PAT\d+/,   // US Presidential / VIP
+  /^IRON\d*/,  // RAF
+  /^NATO\d*/,  // NATO
+  /^USAF\d*/,  // US Air Force generic
+  /^USMC\d*/,  // US Marines
+  /^USCG\d*/,  // US Coast Guard
+  /^ARMY\d*/,  // US Army
+  /^NAVY\d*/,  // US Navy
+  /^GAF\d+/,   // German Air Force (Luftwaffe)
+  /^BAF\d+/,   // Belgian Air Force
+  /^FAF\d+/,   // French Air Force
+  /^RFR\d+/,   // Armée de l'Air (France)
+  /^SHF\d*/,   // Swiss Air Force
+  /^NOAA\d*/,  // NOAA aircraft
+  /^NASA\d*/,  // NASA
+  /^EXEC\d+/,  // US Executive flights
+  /^ASCOT\d*/, // RAF Air Transport (UK)
+  /^ATLAS\d*/, // NATO heavy transport
+  /^SVF\d+/,   // Swedish Air Force
+  /^NAF\d+/,   // Norwegian Air Force
+  /^FNF\d+/,   // Finnish Air Force
+  /^PLF\d+/,   // Polish Air Force
+  /^AMI\d+/,   // Italian Aeronautica Militare
+  /^IAM\d+/,   // Italian Air Force variant
+  /^TFF\d+/,   // Turkish Air Force
+  /^UAF\d+/,   // Ukrainian Air Force
+  /^UKF\d+/,   // Ukrainian Air Force variant
+  /^RAAF\d*/,  // Royal Australian Air Force
+  /^RNZAF\d*/, // Royal New Zealand Air Force
+  /^RNAF\d*/,  // Royal Netherlands Air Force / Royal Norwegian
+  /^CAF\d+/,   // Canadian Air Force
+  /^SPARTA\d*/, // Various military transport
+  /^JAKE\d*/,  // USAF training
+  /^BISON\d*/, // USAF / NATO
+  /^RFF\d*/,   // Russian Air Force (state)
+  /^RSD\d*/,   // Russian state transport
+  /^IAF\d*/,   // Israeli Air Force
+  /^ISAF\d*/,  // Israeli Air Force variant
+  /^RSAF\d*/,  // Royal Saudi Air Force
+  /^UAEAF\d*/, // UAE Air Force
+  /^QEAF\d*/,  // Qatar Emiri Air Force
+];
+
+function isMilitary(flight) {
+  const cs   = (flight.callsign || '').trim().toUpperCase();
+  const icao = (flight.icao24   || '').toLowerCase();
+  if (MIL_CALLSIGN_RE.some(re => re.test(cs))) return true;
+  // US military ICAO hex: AE0000–AEFFFF
+  if (icao >= 'ae0000' && icao <= 'aeffff') return true;
+  // UK military: 43C000–43CFFF
+  if (icao >= '43c000' && icao <= '43cfff') return true;
+  // French military: 3A8000–3A8FFF
+  if (icao >= '3a8000' && icao <= '3a8fff') return true;
+  // German Luftwaffe: 3DC000–3DFFFF
+  if (icao >= '3dc000' && icao <= '3dffff') return true;
+  // Italian Aeronautica Militare: 3E8000–3EFFFF
+  if (icao >= '3e8000' && icao <= '3effff') return true;
+  // Swedish Air Force: 4A8000–4A9FFF
+  if (icao >= '4a8000' && icao <= '4a9fff') return true;
+  // Norwegian Air Force: 47C000–47FFFF
+  if (icao >= '47c000' && icao <= '47ffff') return true;
+  // NATO AWACS / joint: 45C000–45CFFF
+  if (icao >= '45c000' && icao <= '45cfff') return true;
+  // Israeli Air Force: 738000–73BFFF
+  if (icao >= '738000' && icao <= '73bfff') return true;
+  // Saudi Air Force: 710000–717FFF
+  if (icao >= '710000' && icao <= '717fff') return true;
+  // UAE Air Force: 896000–899FFF
+  if (icao >= '896000' && icao <= '899fff') return true;
+  return false;
+}
+
+/* ════════════════════════════════════════════════════════
+   FLIGHT TYPE CLASSIFICATION  (commercial / private / military)
+   Commercial: ICAO airline designator (2–3 letters) + flight number
+   Private:    registration-style callsign or unknown format
+════════════════════════════════════════════════════════ */
+function classifyFlight(flight) {
+  if (flight.military) return 'military';
+  const cs = (flight.callsign || '').trim().toUpperCase();
+  // 2–3 uppercase letters (ICAO airline code) + 1–4 digits + optional suffix letter.
+  // Note: best-effort heuristic; edge-case registrations matching this pattern are rare.
+  if (cs.length >= 4 && /^[A-Z]{2,3}\d{1,4}[A-Z]?$/.test(cs)) return 'commercial';
+  return 'private';
+}
+
+/* ════════════════════════════════════════════════════════
+   SAFETY ZONES  (persisted to localStorage)
+════════════════════════════════════════════════════════ */
+const ZONES_KEY = 'flightRadar_zones_v1';
+let zones = [];
+try { zones = JSON.parse(localStorage.getItem(ZONES_KEY) || '[]'); } catch (err) {
+  console.error('[FlightRadar] Failed to load zones from localStorage:', err);
+}
+
+// Use a simple counter for zone IDs to avoid Date.now() collision risk
+let _zoneIdCounter = zones.length ? Math.max(...zones.map(z => z.id)) + 1 : 1;
+
+function saveZones() {
+  try { localStorage.setItem(ZONES_KEY, JSON.stringify(zones)); } catch (_) {}
+}
+
+function addZone(lat, lon, type, name) {
+  zones.push({ id: _zoneIdCounter++, lat, lon, type, name, radiusM: 50000 });
+  saveZones();
+  renderZonePanel();
+}
+
+function removeZone(id) {
+  zones = zones.filter(z => z.id !== id);
+  saveZones();
+  renderZonePanel();
+}
+
+function renderZonePanel() {
+  const list = document.getElementById('zone-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (zones.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:4px 0">No zones defined</div>';
+    return;
+  }
+  zones.forEach(z => {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    const color = z.type === 'safe' ? '#00c864' : '#ff3c50';
+    item.innerHTML = `
+      <div class="zone-dot" style="background:${color};box-shadow:0 0 4px ${color};"></div>
+      <span class="zone-item-name" title="${z.name}">${z.name}</span>
+      <button class="zone-del" aria-label="Remove zone ${z.name}" data-id="${z.id}">×</button>`;
+    list.appendChild(item);
+  });
+  list.querySelectorAll('.zone-del').forEach(btn => {
+    btn.addEventListener('click', () => removeZone(Number(btn.dataset.id)));
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   EVACUATION ALERTS
+════════════════════════════════════════════════════════ */
+const alertedZones = new Set();
+
+/**
+ * Returns the great-circle distance in metres between two WGS-84 coordinates.
+ * Uses the Haversine formula with Earth radius R = 6 371 000 m.
+ */
+function haversineDistM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function checkEvacuationAlerts(flights) {
+  zones.filter(z => z.type === 'danger').forEach(zone => {
+    const nearby = flights.filter(f =>
+      !f.onGround && haversineDistM(zone.lat, zone.lon, f.lat, f.lon) < zone.radiusM
+    );
+    if (nearby.length > 0 && !alertedZones.has(zone.id)) {
+      alertedZones.add(zone.id);
+      triggerEvacAlert(zone, nearby);
+    } else if (nearby.length === 0) {
+      alertedZones.delete(zone.id);
+    }
+  });
+}
+
+function triggerEvacAlert(zone, flights) {
+  const banner = document.getElementById('evac-banner');
+  if (!banner) return;
+  const mil = flights.filter(f => f.military);
+  banner.innerHTML =
+    `⚠️ <strong>AREA ALERT</strong>: ${flights.length} aircraft` +
+    (mil.length ? ` (${mil.length} military)` : '') +
+    ` approaching danger zone "<strong>${zone.name}</strong>". ` +
+    `<span style="opacity:0.8">Consider evacuating nearby areas.</span>` +
+    ` <button id="evac-dismiss-btn" style="margin-left:10px;background:rgba(255,255,255,0.2);` +
+    `border:none;color:#fff;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:12px">Dismiss</button>`;
+  banner.classList.add('visible');
+  const dismissBtn = document.getElementById('evac-dismiss-btn');
+  if (dismissBtn) dismissBtn.addEventListener('click', dismissEvacAlert);
+  setTimeout(() => banner.classList.remove('visible'), EVAC_ALERT_TIMEOUT_MS);
+}
+
+function dismissEvacAlert() {
+  document.getElementById('evac-banner').classList.remove('visible');
+}
+
+/* ════════════════════════════════════════════════════════
+   CONSTANTS
+════════════════════════════════════════════════════════ */
+const FEET_TO_METERS         = 0.3048;  // ft → m
+const KTS_TO_MS              = 0.514444; // knots → m/s
+const M_PER_DEG_LAT          = 111320;  // metres per degree of latitude
+const TRAIL_UPDATE_INTERVAL  = 2000;    // ms between demo trail waypoints
+const TRAIL_ALPHA            = 115;     // opacity (0-255) for trail lines
+const DEMO_TIME_SCALE        = 20;      // speed multiplier for demo playback (makes motion visible)
+const EVAC_ALERT_TIMEOUT_MS  = 30000;  // ms before evacuation alert auto-dismisses
+const REFRESH_INTERVAL_MS    = 30000;  // ms between live data refreshes
+const WORLD_PLANE_COUNT      = 150;    // demo aircraft count in global view
+const CITY_PLANE_COUNT       = 32;     // demo aircraft count for city view
+const CITY_SPREAD_DEG        = 6;      // ±° bounding box for city demo flights
+
+/* ════════════════════════════════════════════════════════
+   DECK.GL ICON ATLAS — three distinct plane shapes (white mask)
+   Slot 0 (x=0):   Commercial airliner — wide wingspan, moderate sweep
+   Slot 1 (x=64):  Private jet         — swept wings, narrow fuselage
+   Slot 2 (x=128): Military            — original generic fighter shape
+════════════════════════════════════════════════════════ */
+function buildIconAtlas() {
+  const SZ = 64;
+  const c = document.createElement('canvas');
+  c.width = SZ * 3; c.height = SZ;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+
+  // ── Slot 0: Commercial airliner (wide wings, noticeable fuselage width) ──
+  {
+    const cx = SZ / 2, sc = SZ / 24;
+    ctx.beginPath();
+    ctx.moveTo(cx,             1   * sc);  // nose tip
+    ctx.lineTo(cx + 1.5 * sc,  7.5 * sc);  // forward fuselage right
+    ctx.lineTo(cx + 12  * sc,  9.5 * sc);  // right wing tip (wide span)
+    ctx.lineTo(cx + 11  * sc, 12   * sc);  // right wing trailing edge
+    ctx.lineTo(cx + 2.5 * sc, 11   * sc);  // right wing/body junction
+    ctx.lineTo(cx + 3   * sc, 19   * sc);  // right tail root
+    ctx.lineTo(cx + 7.5 * sc, 21   * sc);  // right stabiliser tip
+    ctx.lineTo(cx + 6.5 * sc, 22.5 * sc);  // right stabiliser trailing
+    ctx.lineTo(cx,            21   * sc);  // tail centre
+    ctx.lineTo(cx - 6.5 * sc, 22.5 * sc);
+    ctx.lineTo(cx - 7.5 * sc, 21   * sc);
+    ctx.lineTo(cx - 3   * sc, 19   * sc);
+    ctx.lineTo(cx - 2.5 * sc, 11   * sc);
+    ctx.lineTo(cx - 11  * sc, 12   * sc);
+    ctx.lineTo(cx - 12  * sc,  9.5 * sc);
+    ctx.lineTo(cx - 1.5 * sc,  7.5 * sc);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ── Slot 1: Private jet (swept wings further back, narrow fuselage) ──
+  {
+    const cx = SZ + SZ / 2, sc = SZ / 24;
+    ctx.beginPath();
+    ctx.moveTo(cx,             0.5 * sc);  // sharper nose
+    ctx.lineTo(cx + 1   * sc, 10   * sc);  // narrow forward fuselage right
+    ctx.lineTo(cx + 9   * sc, 14   * sc);  // right wing tip (swept back)
+    ctx.lineTo(cx + 8   * sc, 16   * sc);  // right wing trailing
+    ctx.lineTo(cx + 2   * sc, 13.5 * sc);  // right wing/body junction
+    ctx.lineTo(cx + 2   * sc, 20   * sc);  // right tail root
+    ctx.lineTo(cx + 5   * sc, 21.5 * sc);  // right stabiliser tip (narrow)
+    ctx.lineTo(cx + 4   * sc, 23   * sc);  // right stabiliser trailing
+    ctx.lineTo(cx,            22   * sc);  // tail centre
+    ctx.lineTo(cx - 4   * sc, 23   * sc);
+    ctx.lineTo(cx - 5   * sc, 21.5 * sc);
+    ctx.lineTo(cx - 2   * sc, 20   * sc);
+    ctx.lineTo(cx - 2   * sc, 13.5 * sc);
+    ctx.lineTo(cx - 8   * sc, 16   * sc);
+    ctx.lineTo(cx - 9   * sc, 14   * sc);
+    ctx.lineTo(cx - 1   * sc, 10   * sc);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ── Slot 2: Military (original generic shape) ──
+  {
+    const cx = 2 * SZ + SZ / 2, sc = SZ / 24;
+    ctx.beginPath();
+    ctx.moveTo(cx,              1   * sc);
+    ctx.lineTo(cx + 1.2 * sc,   7   * sc);
+    ctx.lineTo(cx + 11  * sc,   9   * sc);
+    ctx.lineTo(cx + 10  * sc,  11   * sc);
+    ctx.lineTo(cx + 2   * sc,  10   * sc);
+    ctx.lineTo(cx + 2.5 * sc,  18   * sc);
+    ctx.lineTo(cx + 6   * sc,  20   * sc);
+    ctx.lineTo(cx + 5   * sc,  21.5 * sc);
+    ctx.lineTo(cx,             20   * sc);
+    ctx.lineTo(cx - 5   * sc,  21.5 * sc);
+    ctx.lineTo(cx - 6   * sc,  20   * sc);
+    ctx.lineTo(cx - 2.5 * sc,  18   * sc);
+    ctx.lineTo(cx - 2   * sc,  10   * sc);
+    ctx.lineTo(cx - 10  * sc,  11   * sc);
+    ctx.lineTo(cx - 11  * sc,   9   * sc);
+    ctx.lineTo(cx - 1.2 * sc,   7   * sc);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  return c.toDataURL();
+}
+
+const ICON_ATLAS   = buildIconAtlas();
+const ICON_MAPPING = {
+  commercial: { x:   0, y: 0, width: 64, height: 64, anchorY: 32, mask: true },
+  private:    { x:  64, y: 0, width: 64, height: 64, anchorY: 32, mask: true },
+  military:   { x: 128, y: 0, width: 64, height: 64, anchorY: 32, mask: true },
+};
+
+/* ════════════════════════════════════════════════════════
+   TRAIL HISTORY
+════════════════════════════════════════════════════════ */
+const trailHistory = new Map();
+const MAX_TRAIL = 8;
+
+function updateTrails(flights) {
+  const active = new Set(flights.map(f => f.icao24));
+  flights.forEach(f => {
+    const h = trailHistory.get(f.icao24) || [];
+    h.push([f.lon, f.lat]);
+    if (h.length > MAX_TRAIL) h.shift();
+    trailHistory.set(f.icao24, h);
+  });
+  for (const k of trailHistory.keys()) if (!active.has(k)) trailHistory.delete(k);
+}
+
+/* ════════════════════════════════════════════════════════
+   MAP INIT
+════════════════════════════════════════════════════════ */
+const urlParams  = new URLSearchParams(window.location.search);
+const paramCity  = (urlParams.get('city') || 'SFO').toUpperCase();
+const activeCity = CITIES[paramCity] ? paramCity : 'SFO';
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center:    [CITIES[activeCity].lon, CITIES[activeCity].lat],
+  zoom:      CITIES[activeCity].zoom,
+  pitch:     55,
+  bearing:   -12,
+  antialias: true
+});
+
+map.getCanvas().addEventListener('contextmenu', e => e.preventDefault());
+
+/* ════════════════════════════════════════════════════════
+   CITY PANEL
+════════════════════════════════════════════════════════ */
+let currentCity = activeCity;
+
+function buildCityPanel() {
+  const list = document.getElementById('city-list');
+  list.innerHTML = '';
+  Object.entries(CITIES).forEach(([iata, info]) => {
+    const btn = document.createElement('button');
+    btn.className = 'city-btn' + (iata === currentCity ? ' active' : '');
+    btn.innerHTML = `<span>${info.name}</span><span class="city-iata">${iata}</span>`;
+    btn.addEventListener('click', () => selectCity(iata));
+    list.appendChild(btn);
+  });
+}
+
+function selectCity(iata) {
+  currentCity = iata;
+  buildCityPanel();
+  const { lat, lon, zoom } = CITIES[iata];
+  map.flyTo({ center: [lon, lat], zoom, pitch: 55, bearing: -12, duration: 1800, essential: true });
+  loadFlights(iata);
+}
+
+buildCityPanel();
+
+/* ════════════════════════════════════════════════════════
+   FLIGHT CARD
+════════════════════════════════════════════════════════ */
+const flightCard   = document.getElementById('flight-card');
+const cardCallsign = document.getElementById('card-callsign');
+const cardCountry  = document.getElementById('card-country');
+const cardAlt      = document.getElementById('card-alt-val');
+const cardSpd      = document.getElementById('card-spd-val');
+const cardHdg      = document.getElementById('card-hdg-val');
+const cardVrate    = document.getElementById('card-vrate');
+
+document.getElementById('card-close').addEventListener('click', () => {
+  flightCard.classList.remove('visible');
+  if (selectedMarker) { selectedMarker.remove(); selectedMarker = null; }
+});
+
+function showFlightCard(props) {
+  cardCallsign.textContent = props.callsign || props.icao24 || '---';
+  let typeLabel, typeColor;
+  if (props.military) {
+    typeLabel = '⚔ MILITARY';
+    typeColor = '#ff3c50';
+  } else if (props.flightType === 'private') {
+    typeLabel = '🛩 PRIVATE JET';
+    typeColor = '#9f7aea';
+  } else {
+    typeLabel = '✈ COMMERCIAL';
+    typeColor = '#48bb78';
+  }
+  cardCountry.textContent = typeLabel + (props.country ? ' — ' + props.country : '');
+  cardCountry.style.color = typeColor;
+  cardAlt.textContent      = props.altFt  != null ? props.altFt.toLocaleString()  : '---';
+  cardSpd.textContent      = props.spdKts != null ? props.spdKts : '---';
+  cardHdg.textContent      = props.heading != null ? Math.round(props.heading) : '---';
+  const vr = props.vertRate;
+  if (vr != null && Math.abs(vr) > 0.5) {
+    const fpm = Math.round(vr * 196.85);
+    cardVrate.textContent = (vr > 0 ? '▲ Climbing ' : '▼ Descending ') + Math.abs(fpm).toLocaleString() + ' fpm';
+    cardVrate.style.color = vr > 0 ? '#68d391' : '#fc8181';
+  } else {
+    cardVrate.textContent = '— Cruising';
+    cardVrate.style.color = 'rgba(255,255,255,0.35)';
+  }
+  flightCard.classList.add('visible');
+}
+
+/* ════════════════════════════════════════════════════════
+   STATUS BAR
+════════════════════════════════════════════════════════ */
+const statusDot     = document.getElementById('status-dot');
+const aircraftCount = document.getElementById('aircraft-count');
+const militaryCount = document.getElementById('military-count');
+const utcTime       = document.getElementById('utc-time');
+const dataSource    = document.getElementById('data-source');
+
+function updateClock() {
+  const n = new Date();
+  utcTime.textContent = [n.getUTCHours(), n.getUTCMinutes(), n.getUTCSeconds()]
+    .map(v => String(v).padStart(2, '0')).join(':') + 'Z';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ════════════════════════════════════════════════════════
+   FLIGHT FILTER (All / Commercial / Military)
+════════════════════════════════════════════════════════ */
+let flightFilter = 'all';
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    flightFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('active', 'mil-active');
+    });
+    btn.classList.add(flightFilter === 'military' ? 'mil-active' : 'active');
+  });
+});
+
+/* ════════════════════════════════════════════════════════
+   DECK.GL OVERLAY + ANIMATION ENGINE
+════════════════════════════════════════════════════════ */
+let selectedMarker = null;
+let deckOverlay    = null;
+
+// Smooth lerp state for live-data transitions
+let aniPrev  = [], aniNext = [], aniT = 1, aniStart = 0;
+const ANI_DUR = 2500;
+
+// Demo continuous fly-through state
+let isDemoMode = false, lastFrameMs = 0, demoCityKey = null;
+
+// Flag to prevent map-click from closing card when deck handled the click
+let deckHandledClick = false;
+
+requestAnimationFrame(function loop(ts) {
+  requestAnimationFrame(loop);
+  if (!deckOverlay) return;
+
+  let display;
+
+  if (isDemoMode) {
+    // Move demo aircraft along their heading each frame
+    const realDt = Math.min((ts - lastFrameMs) / 1000, 0.05);
+    const dt = realDt * DEMO_TIME_SCALE;  // accelerated demo time
+    lastFrameMs = ts;
+    aniNext = aniNext.map(f => {
+      if (f.onGround) return f;
+      const rad  = f.heading * Math.PI / 180;
+      const spd  = f.spdKts * KTS_TO_MS;
+      const dlat = Math.cos(rad) * spd * dt / M_PER_DEG_LAT;
+      const dlon = Math.sin(rad) * spd * dt / (M_PER_DEG_LAT * Math.cos(f.lat * Math.PI / 180));
+      return { ...f, lat: f.lat + dlat, lon: f.lon + dlon };
+    });
+    // Periodically append trail waypoints (every TRAIL_UPDATE_INTERVAL ms, real time)
+    if (Math.floor(ts / TRAIL_UPDATE_INTERVAL) !== Math.floor((ts - realDt * 1000) / TRAIL_UPDATE_INTERVAL)) {
+      updateTrails(aniNext);
+    }
+    display = aniNext;
+  } else {
+    // Lerp between previous and latest position snapshot
+    aniT = Math.min(1, (ts - aniStart) / ANI_DUR);
+    if (aniT >= 1) {
+      display = aniNext;
+    } else {
+      const pm = new Map(aniPrev.map(f => [f.icao24, f]));
+      display = aniNext.map(f => {
+        const p = pm.get(f.icao24);
+        if (!p) return f;
+        // Shortest-path heading lerp: +540%360−180 converts to signed difference in [−180, +180]
+        const dh = ((f.heading - p.heading + 540) % 360) - 180;
+        return {
+          ...f,
+          lon:     p.lon     + (f.lon     - p.lon)     * aniT,
+          lat:     p.lat     + (f.lat     - p.lat)     * aniT,
+          heading: p.heading + dh                      * aniT,
+        };
+      });
+    }
+  }
+
+  // Apply active filter
+  const filtered = flightFilter === 'commercial' ? display.filter(f => !f.military)
+                 : flightFilter === 'military'   ? display.filter(f =>  f.military)
+                 : display;
+
+  // Update counts
+  const milTotal = display.filter(f => f.military).length;
+  aircraftCount.textContent = filtered.length + ' AC';
+  if (militaryCount) {
+    militaryCount.textContent = milTotal + ' MIL';
+    militaryCount.style.display = milTotal > 0 ? '' : 'none';
+  }
+
+  // Build trail geometry with altitude z-offset
+  const trailData = [];
+  filtered.forEach(f => {
+    const h = trailHistory.get(f.icao24);
+    if (h && h.length >= 2) {
+      trailData.push({
+        path:       h.map(([lo, la]) => [lo, la, f.altFt * FEET_TO_METERS]),
+        altFt:      f.altFt,
+        military:   f.military,
+        flightType: f.flightType,
+      });
+    }
+  });
+
+  deckOverlay.setProps({ layers: [
+
+    // Safe zones (green circles)
+    new deck.ScatterplotLayer({
+      id: 'safe-zones',
+      data: zones.filter(z => z.type === 'safe'),
+      getPosition: d => [d.lon, d.lat, 0],
+      getRadius:   d => d.radiusM,
+      radiusUnits: 'meters',
+      getFillColor: [0, 200, 100, 22],
+      getLineColor: [0, 200, 100, 180],
+      stroked: true, filled: true,
+      lineWidthUnits: 'pixels', getLineWidth: 2,
+    }),
+
+    // Danger zones (red circles)
+    new deck.ScatterplotLayer({
+      id: 'danger-zones',
+      data: zones.filter(z => z.type === 'danger'),
+      getPosition: d => [d.lon, d.lat, 0],
+      getRadius:   d => d.radiusM,
+      radiusUnits: 'meters',
+      getFillColor: [255, 50, 50, 22],
+      getLineColor: [255, 80, 80, 200],
+      stroked: true, filled: true,
+      lineWidthUnits: 'pixels', getLineWidth: 2,
+    }),
+
+    // Ground-shadow dots beneath each airborne aircraft
+    new deck.ScatterplotLayer({
+      id: 'shadows',
+      data: filtered.filter(f => !f.onGround),
+      getPosition: d => [d.lon, d.lat, 0],
+      getRadius:   2500,
+      radiusUnits: 'meters',
+      getFillColor: [0, 0, 0, 45],
+      stroked: false,
+    }),
+
+    // Flight-path trails with altitude colour, z-offset
+    new deck.PathLayer({
+      id: 'trails',
+      data: trailData,
+      getPath:  d => d.path,
+      getColor: d => typeRGBA(d, TRAIL_ALPHA),
+      getWidth: 1.5,
+      widthUnits: 'pixels',
+    }),
+
+    // Military aircraft glow rings (red pulsing halo)
+    new deck.ScatterplotLayer({
+      id: 'military-glow',
+      data: display.filter(f => f.military),
+      getPosition: d => [d.lon, d.lat, d.altFt * FEET_TO_METERS],
+      getRadius: 38,
+      radiusUnits: 'pixels',
+      getFillColor: [...MILITARY_COLOR_RGB, 55],
+      stroked: true,
+      getLineColor: [...MILITARY_COLOR_RGB, 200],
+      getLineWidth: 3,
+      lineWidthUnits: 'pixels',
+    }),
+
+    // Aircraft icons at true altitude (ft → metres for z)
+    new deck.IconLayer({
+      id: 'aircraft',
+      data: filtered,
+      iconAtlas:   ICON_ATLAS,
+      iconMapping: ICON_MAPPING,
+      getIcon:     d => d.military ? 'military' : (d.flightType === 'private' ? 'private' : 'commercial'),
+      getPosition: d => [d.lon, d.lat, d.altFt * FEET_TO_METERS],
+      getAngle:    d => -d.heading,
+      getSize:     d => d.military ? 32 : (d.flightType === 'private' ? 22 : 30),
+      getColor:    d => typeRGBA(d, d.onGround ? 80 : 255),
+      pickable: true,
+      onHover: info => {
+        map.getCanvas().style.cursor = info.object ? 'pointer' : '';
+        if (info.object) showFlightCard(info.object);
+      },
+      onClick: info => {
+        if (!info.object) return;
+        deckHandledClick = true;
+        Promise.resolve().then(() => { deckHandledClick = false; });
+        if (selectedMarker) selectedMarker.remove();
+        const el = document.createElement('div');
+        el.style.cssText = 'width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.7);pointer-events:none;';
+        selectedMarker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([info.object.lon, info.object.lat]).addTo(map);
+        showFlightCard(info.object);
+      }
+    }),
+
+  ]});
+});
+
+/* ════════════════════════════════════════════════════════
+   MAP LOAD
+════════════════════════════════════════════════════════ */
+map.on('load', () => {
+  // ── Lat/lon graticule (military standard) ──────────────────────────────
+  (function addGraticuleLines() {
+    var feats = [];
+    for (var lat = -80; lat <= 80; lat += 10) {
+      feats.push({ type:'Feature', geometry:{ type:'LineString', coordinates:[[-180,lat],[180,lat]] }, properties:{} });
+    }
+    for (var lon = -180; lon <= 180; lon += 10) {
+      feats.push({ type:'Feature', geometry:{ type:'LineString', coordinates:[[lon,-80],[lon,80]] }, properties:{} });
+    }
+    map.addSource('graticule', { type:'geojson', data:{ type:'FeatureCollection', features:feats } });
+    map.addLayer({ id:'graticule-lines', type:'line', source:'graticule', paint:{ 'line-color':'rgba(255,255,255,0.2)', 'line-width':0.5, 'line-dasharray':[4,4] } });
+  }());
+  // ── End graticule ───────────────────────────────────────────────────────
+
+  deckOverlay = new deck.MapboxOverlay({ interleaved: false, layers: [] });
+  map.addControl(deckOverlay);
+
+  // Close card when clicking empty map (deck.gl click fires first)
+  map.on('click', () => {
+    if (!deckHandledClick) {
+      flightCard.classList.remove('visible');
+      if (selectedMarker) { selectedMarker.remove(); selectedMarker = null; }
+    }
+  });
+
+  // Right-click to place a zone when in zone-adding mode
+  map.on('contextmenu', e => {
+    if (!addZoneMode) return;
+    e.preventDefault();
+    const { lng, lat } = e.lngLat;
+    const name = prompt(
+      `Name this ${addZoneMode === 'safe' ? '✅ safe zone' : '⚠️ danger zone'}:`,
+      `Zone ${zones.length + 1}`
+    );
+    if (name && name.trim()) {
+      addZone(lat, lng, addZoneMode, name.trim());
+    }
+    setZoneMode(null);
+  });
+
+  // Zones toggle button
+  document.getElementById('zones-toggle').addEventListener('click', () => {
+    const panel = document.getElementById('zones-panel');
+    const btn   = document.getElementById('zones-toggle');
+    const shown = panel.style.display !== 'none';
+    panel.style.display = shown ? 'none' : '';
+    btn.classList.toggle('active', !shown);
+    if (!shown) renderZonePanel();
+  });
+
+  // Zone mode buttons
+  document.querySelectorAll('.zone-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode;
+      setZoneMode(addZoneMode === mode ? null : mode);
+    });
+  });
+
+  loadFlights(activeCity);
+});
+
+/* ════════════════════════════════════════════════════════
+   LOAD / REFRESH FLIGHTS
+════════════════════════════════════════════════════════ */
+let refreshTimer   = null;
+let currentFlights = [];
+// Zone placement mode state
+let addZoneMode = null;
+
+function setZoneMode(mode) {
+  addZoneMode = mode;
+  document.querySelectorAll('.zone-mode-btn').forEach(b => b.classList.remove('active'));
+  if (mode) {
+    const btn = document.querySelector(`.zone-mode-btn[data-mode="${mode}"]`);
+    if (btn) btn.classList.add('active');
+  }
+  document.getElementById('zone-hint').style.display = mode ? '' : 'none';
+  document.body.classList.toggle('zone-placing', !!mode);
+}
+
+async function loadFlights(cityKey) {
+  statusDot.className    = 'loading';
+  dataSource.textContent = 'LOADING…';
+
+  let flights = await fetchOpenSky(cityKey);
+  const isLive = !!(flights && flights.length > 0);
+
+  if (!isLive) {
+    if (!isDemoMode || demoCityKey !== cityKey || aniNext.length === 0) {
+      // Generate demo planes on first load or when the city changes
+      flights      = generateDemoFlights(cityKey);
+      aniPrev      = aniNext.length ? [...aniNext] : [...flights];
+      aniNext      = flights;
+      aniT         = 0;
+      aniStart     = performance.now();
+      lastFrameMs  = performance.now();
+      updateTrails(flights);
+      currentFlights = flights;
+      demoCityKey  = cityKey;
+    }
+    // else: already animating demo for this city – keep current positions
+    isDemoMode = true;
+  } else {
+    isDemoMode = false;
+    // Set up smooth position lerp for live data
+    aniPrev  = aniNext.length ? [...aniNext] : [...flights];
+    aniNext  = flights;
+    aniT     = 0;
+    aniStart = performance.now();
+    updateTrails(flights);
+    currentFlights = flights;
+  }
+
+  statusDot.className    = isLive ? '' : 'error';
+  dataSource.textContent = isLive ? 'LIVE · OpenSky' : 'DEMO';
+
+  // Check evacuation alerts whenever flight data refreshes
+  checkEvacuationAlerts(currentFlights);
+
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => loadFlights(currentCity), REFRESH_INTERVAL_MS);
+}
+</script>
+
+<!-- PayPal Integration -->
+<script src="/src/utils/paypal-integration.js"></script>
+<script>
+  // PayPal integration is available via PayPalIntegration object
+  // Example: PayPalIntegration.renderButton('paypal-button-container', {
+  //   amount: 100.00,
+  //   description: 'Product purchase',
+  //   onSuccess: (data) => console.log('Success', data),
+  //   onError: (err) => console.error('Error', err)
+  // });
+</script>
+<!-- Angel Investment Hub -->
+<script src="/src/utils/angel-investment-hub.js"></script>
+<!-- PayPal Donation Link: https://www.paypal.com/donate?business=BarbrickDesign@gmail.com -->
+  <!-- Self-Healing Script -->
+  <script src="/self-healing.js"></script>
+    <!-- AI Universal Language (AUL) Support Badge -->
+    <div class="aul-badge" onclick="window.open('/ai-universal-language.html', '_blank')" title="This page supports AI Universal Language - Click to learn more">
+        🤖 AUL-enabled
+    </div>
+    <script src="/js/universal-utilities.js"></script>
+
+    <!-- Universal Navigation - Added by Project Fixer -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof BarbrickUniversal !== 'undefined') {
+                // Only add navigation if not already present
+                if (!document.querySelector('.universal-header')) {
+                    BarbrickUniversal.createBackButton();
+                }
+
+                // Add footer if not present
+                if (!document.querySelector('.universal-footer')) {
+                    BarbrickUniversal.createFooter();
+                }
+            }
+        });
+    </script>
+  <script src="src/utils/universal-project-enhancer.js"></script>  <script src="/js/rootib-footer.js"></script>
+</body>
+</html>
