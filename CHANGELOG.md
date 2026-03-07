@@ -31,8 +31,19 @@ All notable changes to this project will be documented in this file.
 #### Agent Compatibility Folder
 - **`agent/AGENT_INSTRUCTIONS.md`** — Comprehensive instructions for AI agents: architecture rules, secret relay pattern, coding conventions, PR requirements
 - **`agent/REPO_MAP.md`** — Human and machine-readable repository map with quick-lookup table
-- **`agent/TASK_TEMPLATES.md`** — Reusable task templates for: adding HTML tools, creating Netlify functions, building agents, fixing security issues, and updating CI/CD. Includes the recommended evolution roadmap
+- **`agent/TASK_TEMPLATES.md`** — Reusable task templates for: adding HTML tools, creating Netlify functions, building agents, fixing security issues, and updating CI/CD
 - **`agent/SAFE_MODIFICATION_RULES.md`** — Critical file protection list, high-caution areas, change request process, and rollback procedures
+- **`agent/SEMANTIC_BREADCRUMBS.md`** — Semantic entry points and navigation trails for AI agents; 8 task-oriented breadcrumb paths; anti-pattern table; agent affordances summary
+
+#### Maintenance & Self-Healing
+- **`maintenance/README.md`** — Self-healing protocol document
+- **`maintenance/update-dependencies.sh`** — Dependency audit and update script
+- **`maintenance/lint-and-format.sh`** — Linting, secret scan, and format check script
+- **`maintenance/detect-dead-code.sh`** — Unreferenced file detection script
+- **`maintenance/detect-semantic-drift.sh`** — Manifest vs filesystem sync checker
+
+#### Documentation
+- **`ROADMAP.md`** — 5-phase future evolution roadmap
 
 #### CI/CD Pipelines
 - **`.github/workflows/ci-lint-test.yml`** — New CI pipeline that runs on every PR and push to main: npm security audit, secret pattern detection, semantic-index JSON validation, test suite, and build verification
@@ -41,6 +52,12 @@ All notable changes to this project will be documented in this file.
 ### 🔒 Security
 - CI pipeline now scans committed files for live API key patterns (`sk_live_*`, `BEGIN PRIVATE KEY`) and blocks the PR if found
 - CI pipeline detects accidentally committed `.env` files
+- `maintenance/lint-and-format.sh` performs local secret pattern scanning before commits
+
+### 🔧 Changed
+- `semantic-index/subsystems/backend-services.json` — Corrected keyFile from non-existent `backend/server.js` to `backend/start-local.js`
+- `semantic-index/subsystems/ui-layer.json` — Corrected keyFile from non-existent `css/main.css` to `style.css`
+- `semantic-index/subsystems/seven-domains.json` — Corrected dependency path from `css/main.css` to `style.css`
 
 ### 📝 Notes
 - Existing functionality is **unchanged** — all new files are additive
