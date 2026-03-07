@@ -9,7 +9,7 @@
 #   is unavailable (e.g. payment pending), GitHub Pages at the github.io URL
 #   serves as an automatic backup.
 #
-# Three problems this workflow solves:
+# Two problems this workflow solves:
 #   1. CNAME redirect: If the CNAME file is included in the deployment, GitHub
 #      Pages redirects the github.io URL to the custom domain, which defeats the
 #      purpose of the backup.  We therefore exclude CNAME from the deployment.
@@ -17,13 +17,12 @@
 #      src="/js/foo.js") that work fine at a domain root but break when the site
 #      is served at the /consciousness-revolution/ subpath on GitHub Pages.
 #      A path-fixing script rewrites those paths before publishing.
-#   3. Pages source configuration: Using the official actions/configure-pages +
-#      actions/deploy-pages mechanism (instead of a gh-pages branch) automatically
-#      switches the GitHub Pages source to "GitHub Actions" via the API, so no
-#      manual repository settings change is needed to get the site live.
 #
 # Triggers: Every push to main/master, plus manual dispatch
 # Critical: YES - Provides site availability when Netlify is down
+#
+# Note: In GitHub repository Settings → Pages, set the source to
+#       "Deploy from a branch" → gh-pages / root.
 
 name: Deploy to GitHub Pages
 
@@ -33,9 +32,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -45,15 +42,9 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
 
       - name: Prepare deploy directory
         run: |
@@ -72,18 +63,19 @@ jobs:
           # correctly when served from the /consciousness-revolution/ subpath.
           python3 .github/scripts/fix-gh-pages-paths.py /tmp/gh-pages-deploy
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: /tmp/gh-pages-deploy
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          branch: gh-pages
+          folder: /tmp/gh-pages-deploy
+          # Remove stale files from the gh-pages branch so deleted source
+          # files don't linger in the deployment.
+          clean: true
 
       - name: Report deployment
         run: |
           echo "## GitHub Pages Deployment Complete 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://overkor-tek.github.io/consciousness-revolution/" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "CNAME excluded – github.io URL is served directly (no Netlify redirect)." >> $GITHUB_STEP_SUMMARY
+          echo "Ensure GitHub Pages source is set to: **gh-pages branch / root**" >> $GITHUB_STEP_SUMMARY
