@@ -1,0 +1,43 @@
+{
+  "id": "backend-services",
+  "name": "Backend Services",
+  "version": "0.1.0",
+  "description": "Node.js backend services including REST APIs, email delivery, KAS (Key Authentication Service), and Netlify serverless functions that relay secrets securely to the browser.",
+  "purpose": "Handle server-side logic, secret relay, stateful operations, and external API proxying that cannot be performed safely in the browser.",
+  "inputs": [
+    "HTTP requests from the UI layer (/api/*)",
+    "Scheduled triggers (GitHub Actions cron)",
+    "Environment variables (GitHub Secrets / Netlify env)"
+  ],
+  "outputs": [
+    "JSON API responses",
+    "Outbound HTTP requests to external services (PayPal, SAM.gov, GitHub)",
+    "Email delivery via SMTP",
+    "Health status reports"
+  ],
+  "keyFiles": [
+    { "path": "backend/server.js", "role": "Main Express.js server" },
+    { "path": "backend/services/email-service.js", "role": "Email delivery service" },
+    { "path": "backend/services/kas-service.js", "role": "Key Authentication Service" },
+    { "path": "netlify/functions/github-token.mjs", "role": "GitHub token relay — MUST be the only GitHub token relay" },
+    { "path": "netlify/functions/sam-gov-token.mjs", "role": "SAM.gov API key relay — MUST be the only SAM.gov relay" },
+    { "path": "netlify/functions/health.js", "role": "Health check endpoint" },
+    { "path": "netlify.toml", "role": "Netlify routing config: /api/* → /.netlify/functions/:splat" }
+  ],
+  "dependencies": [
+    { "name": "express", "type": "npm", "version": ">=4.18.0" },
+    { "name": "@supabase/supabase-js", "type": "npm", "version": ">=2.0.0" },
+    { "name": "nodemailer", "type": "npm", "version": ">=6.0.0" }
+  ],
+  "apiSurfaces": [
+    { "route": "/api/github-token", "handler": "netlify/functions/github-token.mjs", "secret": "GITHUB_TOKEN" },
+    { "route": "/api/sam-gov-token", "handler": "netlify/functions/sam-gov-token.mjs", "secret": "SAM_API_KEY" },
+    { "route": "/api/health", "handler": "netlify/functions/health.js", "secret": null }
+  ],
+  "securityRules": [
+    "Never log secret values",
+    "All relay endpoints apply per-IP rate limiting",
+    "CORS restricted to approved origins in production",
+    "Return { auth: boolean, token: string|null, api_error: string|null } shape from all relay endpoints"
+  ]
+}
