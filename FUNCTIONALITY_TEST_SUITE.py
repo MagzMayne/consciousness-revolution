@@ -53,6 +53,7 @@ class FunctionalityTester:
         self._test_data_integrity()
         self._test_file_permissions()
         self._test_critical_paths()
+        self._test_trinity_organization()
         
         # Print results
         self._print_results()
@@ -418,6 +419,135 @@ class FunctionalityTester:
         
         print()
     
+    def _test_trinity_organization(self):
+        """Test trinity loop organization structure and divinity catalog."""
+        print("✦ Testing Trinity Loop Organization...")
+
+        SEVEN_DOMAINS = {"COMMAND", "BUILD", "CONNECT", "PROTECT", "GROW", "LEARN", "TRANSCEND"}
+        VALID_TIERS = {"DIVINE", "TRANSCENDENT", "ENLIGHTENED", "AWAKENED", "CONSCIOUS", "AWARE", "SEEKER"}
+        VALID_STATUSES = {"complete", "needs_polish", "in_progress", "needs_work"}
+
+        # 1. projects.json exists and is valid JSON
+        projects_path = self.repo_root / "projects.json"
+        if not projects_path.exists():
+            self._add_test_result("Trinity", "projects.json exists", False, "File not found")
+            return
+        try:
+            with open(projects_path, encoding="utf-8") as f:
+                catalog = json.load(f)
+            self._add_test_result("Trinity", "projects.json is valid JSON", True)
+        except json.JSONDecodeError as e:
+            self._add_test_result("Trinity", "projects.json is valid JSON", False, str(e)[:100])
+            return
+
+        # 2. Meta contains 7-domain definitions
+        meta = catalog.get("meta", {})
+        has_seven_domains = "seven_domains" in meta and len(meta["seven_domains"]) == 7
+        self._add_test_result(
+            "Trinity",
+            "projects.json meta has 7-domain definitions",
+            has_seven_domains,
+            "" if has_seven_domains else "Missing or incomplete seven_domains in meta"
+        )
+
+        # 3. Meta contains divinity schema
+        has_divinity_schema = "divinity_schema" in meta
+        self._add_test_result(
+            "Trinity",
+            "projects.json meta has divinity_schema",
+            has_divinity_schema,
+            "" if has_divinity_schema else "Missing divinity_schema in meta"
+        )
+
+        # 4. Every project has domain, divinity_score, divinity_tier, trinity_status
+        projects = catalog.get("projects", [])
+        if not projects:
+            self._add_test_result("Trinity", "projects.json has projects", False, "Empty projects list")
+            return
+        self._add_test_result("Trinity", f"projects.json has {len(projects)} projects", True)
+
+        missing_domain = [p.get("filename", "?") for p in projects if p.get("domain") not in SEVEN_DOMAINS]
+        self._add_test_result(
+            "Trinity",
+            "All projects have valid 7-domain classification",
+            len(missing_domain) == 0,
+            f"{len(missing_domain)} projects missing domain: {missing_domain[:3]}" if missing_domain else ""
+        )
+
+        missing_score = [p.get("filename", "?") for p in projects if "divinity_score" not in p]
+        self._add_test_result(
+            "Trinity",
+            "All projects have divinity_score",
+            len(missing_score) == 0,
+            f"{len(missing_score)} projects missing divinity_score" if missing_score else ""
+        )
+
+        invalid_tier = [p.get("filename", "?") for p in projects if p.get("divinity_tier") not in VALID_TIERS]
+        self._add_test_result(
+            "Trinity",
+            "All projects have valid divinity_tier",
+            len(invalid_tier) == 0,
+            f"{len(invalid_tier)} projects have invalid tier: {invalid_tier[:3]}" if invalid_tier else ""
+        )
+
+        invalid_status = [p.get("filename", "?") for p in projects if p.get("trinity_status") not in VALID_STATUSES]
+        self._add_test_result(
+            "Trinity",
+            "All projects have valid trinity_status",
+            len(invalid_status) == 0,
+            f"{len(invalid_status)} projects have invalid status" if invalid_status else ""
+        )
+
+        # 5. Divinity scores in range 0-100
+        out_of_range = [p.get("filename", "?") for p in projects
+                        if not isinstance(p.get("divinity_score"), (int, float))
+                        or not (0 <= p["divinity_score"] <= 100)]
+        self._add_test_result(
+            "Trinity",
+            "All divinity scores are in range 0-100",
+            len(out_of_range) == 0,
+            f"{len(out_of_range)} scores out of range: {out_of_range[:3]}" if out_of_range else ""
+        )
+
+        # 6. All 7 domains are represented
+        used_domains = set(p.get("domain") for p in projects)
+        domains_covered = SEVEN_DOMAINS.issubset(used_domains)
+        self._add_test_result(
+            "Trinity",
+            "All 7 domains are represented in projects",
+            domains_covered,
+            f"Missing domains: {SEVEN_DOMAINS - used_domains}" if not domains_covered else ""
+        )
+
+        # 7. Trinity loop organizer HTML exists
+        organizer_path = self.repo_root / "TRINITY_LOOP_ORGANIZER.html"
+        self._add_test_result(
+            "Trinity",
+            "TRINITY_LOOP_ORGANIZER.html exists",
+            organizer_path.exists()
+        )
+
+        # 8. Core trinity files exist
+        for trinity_file in ["trinityLoop.html", "trinityLooper.html"]:
+            path = self.repo_root / trinity_file
+            self._add_test_result(
+                "Trinity",
+                f"Core trinity file: {trinity_file}",
+                path.exists(),
+                "File not found" if not path.exists() else ""
+            )
+
+        # 9. Divinity distribution check
+        divine_count = sum(1 for p in projects if p.get("divinity_score", 0) >= 100)
+        avg_score = sum(p.get("divinity_score", 0) for p in projects) / len(projects)
+        self._add_test_result(
+            "Trinity",
+            f"Divinity distribution: {divine_count} DIVINE, avg={avg_score:.1f}",
+            True  # Informational — always passes
+        )
+
+        print()
+
     def _test_critical_paths(self):
         """Test critical system paths."""
         print("📂 Testing Critical Paths...")
