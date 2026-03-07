@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v2.4.1 - M36 Fix: Visible debug panel for mobile testing - 2026-02-22 -->
+<!-- v2.4.1 - Update notification system + check-update endpoint - 2026-02-25 -->
 <html lang="en">
 <head>
 <!-- Google Analytics (GA4) -->
@@ -1129,6 +1129,8 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="/src/auth.js"></script>
+    <script src="/src/energy-gate.js"></script>
 </head>
 <body>
 <!-- AI Diagnostics - Visible debug panel for mobile testing -->
@@ -1205,7 +1207,10 @@ document.addEventListener('touchend',function(e){
     </div>
 
     <header class="header" role="banner">
-        <div id="memoryCounter" onclick="showMemoryStats()" title="Click to view memory stats">💾 <span id="memCount">--</span> MEMORIES</div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div id="memoryCounter" onclick="showMemoryStats()" title="Click to view memory stats">💾 <span id="memCount">--</span> MEMORIES</div>
+            <div id="energyBadge" title="Your ARAYA Energy balance"></div>
+        </div>
         <a href="index.html" class="back-btn">&#9668; LOBBY</a>
         <h1 class="animated-gradient-title-royal">A R A Y A</h1>
         <div class="subtitle">CONSCIOUSNESS INTERFACE</div>
@@ -1554,10 +1559,35 @@ function extractAndDisplayCode(responseText) {
 document.addEventListener('DOMContentLoaded', function() {
     addWorkLog('System initialized', 'success');
     addWorkLog('Ready to capture ARAYA output');
+    
+    // Initialize Energy badge
+    if (window.EnergyGate) {
+        EnergyGate.renderBadge('#energyBadge');
+    }
 });
 
-/* ── User Identity (persistent across sessions) ── */
+/* ── User Identity (uses email when logged in, UUID for anonymous) ── */
+function getLoggedInUser() {
+    try {
+        const userData = localStorage.getItem('currentUser');
+        if (userData) {
+            const user = JSON.parse(userData);
+            return user.email || null;
+        }
+    } catch (e) {
+        console.warn('Failed to parse currentUser:', e);
+    }
+    return null;
+}
+
 function getUserId() {
+    // Priority 1: Use email if logged in (matches Stripe payment)
+    const loggedInEmail = getLoggedInUser();
+    if (loggedInEmail) {
+        return loggedInEmail.toLowerCase();
+    }
+
+    // Priority 2: Use existing UUID for anonymous users
     let id = localStorage.getItem('araya_user_id');
     if (!id) {
         id = 'user_' + crypto.randomUUID();
@@ -1565,7 +1595,40 @@ function getUserId() {
     }
     return id;
 }
+
+function isLoggedIn() {
+    return !!getLoggedInUser();
+}
+
+/* ── Commander Detection (URL bypass + stored flag) ── */
+function isCommander() {
+    // Check URL parameter: ?commander=Kill50780630#
+    const urlParams = new URLSearchParams(window.location.search);
+    const commanderParam = urlParams.get('commander');
+    if (commanderParam === 'Kill50780630') {
+        localStorage.setItem('araya_commander', 'true');
+        console.log('[COMMANDER] Access granted via URL parameter');
+        return true;
+    }
+    // Check stored Commander flag
+    if (localStorage.getItem('araya_commander') === 'true') {
+        return true;
+    }
+    // Check Commander emails
+    const email = getLoggedInUser();
+    if (email) {
+        const commanderEmails = ['darrickpreble@proton.me', 'darrickpreble@gmail.com'];
+        if (commanderEmails.includes(email.toLowerCase())) {
+            localStorage.setItem('araya_commander', 'true');
+            return true;
+        }
+    }
+    return false;
+}
+
 const userId = getUserId();
+const userIsLoggedIn = isLoggedIn();
+const userIsCommander = isCommander();
 
 /* ── File Builder API (Netlify Function) ── */
 const FILE_API = '/.netlify/functions/araya-file';
@@ -1840,7 +1903,8 @@ async function callArayaAPI(msg, msgAttachments) {
         message: msg,
         conversationHistory: conversationHistory.slice(-10),
         user_id: userId,
-        mode: 'consciousness'
+        mode: 'consciousness',
+        commander_bypass: userIsCommander
     };
     /* Include attachments if present (base64 images, text, file metadata) */
     if (msgAttachments && msgAttachments.length > 0) {
@@ -1907,6 +1971,16 @@ async function sendMessage() {
     const text = userInput.value.trim();
     debugLog('Text input: ' + text.substring(0, 30));
     if (!text && attachments.length === 0) { debugLog('Empty input - returning'); return; }
+
+    // Energy Gate check - spend 1 Energy per message
+    if (window.EnergyGate) {
+        const energyCheck = await EnergyGate.gate('voice', 'chat_message', { autoSpend: true, showUI: true });
+        if (!energyCheck.allowed && !energyCheck.success) {
+            debugLog('Insufficient Energy - blocked');
+            return;
+        }
+        debugLog('Energy spent: ' + (energyCheck.spent || 0) + ', Balance: ' + energyCheck.balance);
+    }
 
     // Check for file viewer commands (opens panel without sending to AI)
     if (checkFileViewerCommand(text)) {
@@ -2633,7 +2707,7 @@ function checkFileViewerCommand(message) {
    Checks /api/check-update for new versions and announcements
 ══════════════════════════════════════════════════════════════════ */
 
-const ARAYA_VERSION = '2.4.0';  // Current version of this client
+const ARAYA_VERSION = '2.4.1';  // Current version of this client
 const UPDATE_CHECK_INTERVAL = 3600000;  // Check every hour (in ms)
 const DISMISSED_UPDATES_KEY = 'araya_dismissed_updates';
 const DISMISSED_ANNOUNCEMENTS_KEY = 'araya_dismissed_announcements';

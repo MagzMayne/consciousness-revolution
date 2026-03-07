@@ -44,7 +44,7 @@ async function loadSupabase() {
     try {
         const { createClient } = await import('@supabase/supabase-js');
         const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+        const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
         if (SUPABASE_URL && SUPABASE_KEY) {
             _supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
             console.log('[ARAYA] Supabase client initialized');
@@ -1259,6 +1259,50 @@ async function fetchMemory(userId) {
     }
 }
 
+// Check subscription status from araya_memory (where webhook stores it with type='profile')
+async function checkSubscriptionStatus(userId) {
+    if (!SUPABASE_URL || !SUPABASE_KEY || !userId) {
+        return { isSubscribed: false, status: null };
+    }
+
+    // Only check if userId looks like an email (has @)
+    const isEmail = userId.includes('@');
+    if (!isEmail) {
+        return { isSubscribed: false, status: null };
+    }
+
+    try {
+        // Query araya_memory where webhook stores subscription with type='profile'
+        const profileRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/araya_memory?user_id=eq.${encodeURIComponent(userId.toLowerCase())}&type=eq.profile&limit=1`,
+            {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            }
+        );
+        const profiles = await profileRes.json();
+
+        if (profiles && profiles.length > 0) {
+            // Parse content JSON to get subscription_status
+            let profileContent = profiles[0].content;
+            if (typeof profileContent === 'string') {
+                try { profileContent = JSON.parse(profileContent); } catch(e) { profileContent = {}; }
+            }
+            const status = profileContent?.subscription_status;
+            const isSubscribed = status === 'active' || status === 'trialing';
+            console.log(`[SUBSCRIPTION] User ${userId}: status=${status}, isSubscribed=${isSubscribed}`);
+            return { isSubscribed, status };
+        }
+
+        return { isSubscribed: false, status: null };
+    } catch (error) {
+        console.error('Subscription check error:', error);
+        return { isSubscribed: false, status: null };
+    }
+}
+
 // Store message to memory
 async function storeMessage(userId, role, content) {
     if (!SUPABASE_URL || !SUPABASE_KEY || !userId) return;
@@ -1669,7 +1713,7 @@ export async function handler(event, context) {
     }
 
     try {
-        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [], context = {} } = JSON.parse(event.body);
+        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [], context = {}, commander_bypass = false } = JSON.parse(event.body);
 
         // Extract Discord context (conversation history & search results)
         const discordHistory = context.conversation_history || [];
@@ -1764,39 +1808,99 @@ export async function handler(event, context) {
         const isComplex = complexTopicWords.some(w => msgLower.includes(w)) || message.length > 200;
         const brainLimit = isComplex ? 5 : 3;
 
-        // Fetch memory AND brain context in parallel
-        const [memory, brainContext] = await Promise.all([
+        // Fetch memory, brain context, AND subscription status in parallel
+        const [memory, brainContext, subscriptionCheck] = await Promise.all([
             fetchMemory(user_id),
-            fetchBrainContext(processedMessage || message, brainLimit)
+            fetchBrainContext(processedMessage || message, brainLimit),
+            checkSubscriptionStatus(user_id) // Checks araya_profiles by email
         ]);
 
-        // ═══════════════════════════════════════════════════════════════
-        // USAGE LIMITS - Free users get 20 messages/day, paid users unlimited
-        // ═══════════════════════════════════════════════════════════════
-        const FREE_DAILY_LIMIT = 20;
-        const dailyInteractions = memory.daily_interactions || 0;
-        const isPaidUser = memory.profile?.subscription_status === 'active' ||
-                           memory.profile?.subscription_status === 'trialing' ||
-                           memory.profile?.is_beta_tester === true;
 
-        if (dailyInteractions >= FREE_DAILY_LIMIT && !isPaidUser) {
-            console.log(`[USAGE LIMIT] User ${user_id} hit daily limit: ${dailyInteractions}/${FREE_DAILY_LIMIT}`);
-            return {
-                statusCode: 200,
-                headers: {
-                    'Access-Control-Allow-Origin': corsOrigin,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    response: `You've reached your free daily limit of ${FREE_DAILY_LIMIT} messages! 🌟\n\nI'd love to keep talking with you. Unlock unlimited ARAYA conversations for just $20/month.\n\n[✨ Upgrade to Unlimited](https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf)\n\nYour conversations and memory are safe - I'll remember everything when you return tomorrow or upgrade!`,
-                    limitReached: true,
-                    dailyLimit: FREE_DAILY_LIMIT,
-                    currentUsage: dailyInteractions,
-                    upgradeUrl: 'https://buy.stripe.com/test_eVqbKvcX6ek07VC3cf',
-                    resetsAt: getNextResetTime(),
-                    timestamp: new Date().toISOString()
-                })
-            };
+        // ═══════════════════════════════════════════════════════════════
+        // USAGE LIMITS - 7 FREE MESSAGES, then credits required
+        // Pattern: 7 domains = 7 free messages to explore ARAYA
+        // ═══════════════════════════════════════════════════════════════
+        const FREE_MESSAGE_LIMIT = 7;
+
+        // Commander accounts - always bypass paywall
+        const COMMANDER_EMAILS = ['darrickpreble@proton.me', 'darrickpreble@gmail.com'];
+        const isCommander = commander_bypass || (user_id && COMMANDER_EMAILS.includes(user_id.toLowerCase()));
+        const totalInteractions = memory.total_interactions || 0;
+        // Check subscription from BOTH araya_memory profile AND araya_profiles table
+        const isPaidUser = isCommander || // COMMANDER bypass
+                           subscriptionCheck.isSubscribed || // NEW: Check araya_profiles (webhook target)
+                           memory.profile?.subscription_status === 'active' ||
+                           memory.profile?.subscription_status === 'trialing' ||
+                           memory.profile?.is_beta_tester === true ||
+                           accessLevel >= 2; // BELIEVER or higher
+
+        if (isCommander) {
+            console.log(`[COMMANDER BYPASS] ${user_id} - paywall bypassed`);
+        }
+
+        // After 7 free messages, check credits
+        if (totalInteractions >= FREE_MESSAGE_LIMIT && !isPaidUser && user_id) {
+            console.log(`[CREDITS CHECK] User ${user_id} used ${totalInteractions} messages, checking credits...`);
+
+            // Call araya-credits to check and spend 1 credit
+            try {
+                const creditsResponse = await fetch(
+                    `${process.env.URL || 'https://conciousnessrevolution.io'}/.netlify/functions/araya-credits`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'check_and_spend',
+                            userId: user_id,
+                            amount: 1,
+                            product: 'araya_chat',
+                            metadata: { message_count: totalInteractions + 1 }
+                        })
+                    }
+                );
+                const creditsData = await creditsResponse.json();
+
+                if (!creditsData.success || !creditsData.data?.success) {
+                    // User doesn't have credits - show appropriate message
+                    const shortfall = creditsData.data?.shortfall || 1;
+                    const isLoggedIn = user_id && user_id.includes('@');
+                    console.log(`[PAYWALL] User ${user_id} needs ${shortfall} more credits, loggedIn=${isLoggedIn}`);
+
+                    // Different messages for logged in vs anonymous users
+                    let paywallMessage;
+                    if (!isLoggedIn) {
+                        // Anonymous user - prompt to login first
+                        paywallMessage = `You've explored ${FREE_MESSAGE_LIMIT} free conversations with me - and I hope you've seen patterns you couldn't see before!\n\n**Already subscribed?** Log in to access your subscription:\n[Log In](/login.html)\n\n**New to ARAYA?** Get unlimited access for just $9/month:\n[Subscribe Now](/pricing.html)\n\nYour conversation memory is safe. I remember everything and will pick up right where we left off!`;
+                    } else {
+                        // Logged in but no subscription
+                        paywallMessage = `You've explored ${FREE_MESSAGE_LIMIT} free conversations with me - and I hope you've seen patterns you couldn't see before!\n\nTo continue our journey together, unlock unlimited ARAYA:\n\n**Beta Access:** $9/month - Unlimited messages\n\n[Subscribe Now](/pricing.html)\n\nYour memory is safe. I remember everything about our conversations and will pick up right where we left off!`;
+                    }
+
+                    return {
+                        statusCode: 200,
+                        headers: {
+                            'Access-Control-Allow-Origin': corsOrigin,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            response: paywallMessage,
+                            limitReached: true,
+                            freeLimit: FREE_MESSAGE_LIMIT,
+                            messagesUsed: totalInteractions,
+                            creditsNeeded: shortfall,
+                            upgradeUrl: isLoggedIn ? '/pricing.html' : '/login.html',
+                            needsLogin: !isLoggedIn,
+                            timestamp: new Date().toISOString()
+                        })
+                    };
+                }
+
+                console.log(`[CREDITS] Spent 1 credit for ${user_id}, remaining: ${creditsData.data.credits}`);
+            } catch (creditsError) {
+                // Credits check failed - allow message but log error
+                console.error(`[CREDITS ERROR] Failed to check credits: ${creditsError.message}`);
+                // Graceful degradation - continue with the message
+            }
         }
 
         // NAME EXTRACTION - Check if user is telling us their name
