@@ -130,6 +130,9 @@ function updateConnectionStatus() {
         dot.title = 'Disconnected - cloud mode only';
         status.textContent = 'BRAIN: OFFLINE';
     }
+
+    // Also update the settings panel brain status
+    updateBrainDetailStatus();
 }
 
 // Click on connection dot shows status
@@ -386,13 +389,47 @@ function detectDomain(url) {
 }
 
 function openDomain(domain) {
-    // For now, show items in a toast
-    getItems(domain, 5).then(items => {
+    const domainNames = {
+        '1_COMMAND': '⭐ COMMAND',
+        '2_BUILD': '🔧 BUILD',
+        '3_CONNECT': '👥 CONNECT',
+        '4_PROTECT': '🛡 PROTECT',
+        '5_GROW': '🌱 GROW',
+        '6_LEARN': '📚 LEARN',
+        '7_TRANSCEND': '✨ TRANSCEND'
+    };
+
+    const modal = document.getElementById('domainModal');
+    const modalTitle = document.getElementById('domainModalTitle');
+    const modalItems = document.getElementById('domainModalItems');
+
+    modalTitle.textContent = domainNames[domain] || domain;
+    modalItems.innerHTML = '<div style="text-align:center;padding:20px;color:var(--chrome);font-size:12px;">Loading...</div>';
+    modal.classList.add('active');
+
+    getItems(domain, 50).then(items => {
         if (items.length === 0) {
-            showToast(`${domain} is empty. Capture content to fill it!`, 'info');
+            modalItems.innerHTML = `
+                <div class="domain-empty">
+                    <div class="empty-icon">📭</div>
+                    <div>No items in this domain yet.</div>
+                    <div style="font-size:11px;margin-top:6px;">Browse websites and use the context menu or capture button to add content here.</div>
+                </div>
+            `;
         } else {
-            showToast(`${domain}: ${items.length} items. Latest: ${items[items.length-1]?.title || 'Untitled'}`, 'success');
+            modalItems.innerHTML = items.map(item => `
+                <div class="domain-item">
+                    <div class="item-title">${escapeHtml(item.title || item.url || 'Untitled')}</div>
+                    <div class="item-meta">
+                        <span class="item-type">${escapeHtml(item.type || 'item')}</span>
+                        <span>${item.created ? new Date(item.created).toLocaleDateString() : ''}</span>
+                        ${item.size ? `<span>${formatFileSize(item.size)}</span>` : ''}
+                    </div>
+                </div>
+            `).reverse().join('');
         }
+    }).catch(() => {
+        modalItems.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;font-size:12px;">Failed to load items.</div>';
     });
 }
 
@@ -745,6 +782,91 @@ document.getElementById('userInput').addEventListener('input', function() {
 });
 
 // ===========================================
+// Settings Management
+// ===========================================
+
+async function initSettings() {
+    try {
+        const stored = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, resolve);
+        });
+
+        const settings = stored || {};
+
+        const autoCaptureEl = document.getElementById('setting-autoCapture');
+        const notificationsEl = document.getElementById('setting-notifications');
+        const defaultDomainEl = document.getElementById('setting-defaultDomain');
+
+        if (autoCaptureEl) autoCaptureEl.checked = settings.autoCapture !== false;
+        if (notificationsEl) notificationsEl.checked = settings.showNotifications !== false;
+        if (defaultDomainEl && settings.defaultDomain) {
+            defaultDomainEl.value = settings.defaultDomain;
+        }
+
+        updateBrainDetailStatus();
+    } catch (err) {
+        console.log('Could not load settings:', err);
+    }
+}
+
+function saveSettingValue(key, value) {
+    chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', data: { [key]: value } });
+}
+
+function updateBrainDetailStatus() {
+    const dot = document.getElementById('brainStatusDot');
+    const text = document.getElementById('brainStatusText');
+    if (!dot || !text) return;
+
+    if (nativeConnected) {
+        dot.classList.add('connected');
+        text.textContent = 'Connected to local brain (163K+ atoms)';
+    } else {
+        dot.classList.remove('connected');
+        text.textContent = 'Offline — cloud mode only';
+    }
+}
+
+async function exportAllData() {
+    const domains = ['1_COMMAND', '2_BUILD', '3_CONNECT', '4_PROTECT', '5_GROW', '6_LEARN', '7_TRANSCEND'];
+    const exportData = { exportedAt: new Date().toISOString(), domains: {} };
+
+    for (const domain of domains) {
+        try {
+            exportData.domains[domain] = await getItems(domain, 1000);
+        } catch (e) {
+            exportData.domains[domain] = [];
+        }
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `araya-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Data exported successfully', 'success');
+}
+
+async function clearAllData() {
+    const domains = ['1_COMMAND', '2_BUILD', '3_CONNECT', '4_PROTECT', '5_GROW', '6_LEARN', '7_TRANSCEND'];
+
+    for (const domain of domains) {
+        await new Promise((resolve, reject) => {
+            const transaction = db.transaction(domain, 'readwrite');
+            const store = transaction.objectStore(domain);
+            store.clear();
+            transaction.oncomplete = resolve;
+            transaction.onerror = () => reject(transaction.error);
+        });
+    }
+
+    // Also clear from chrome.storage
+    chrome.runtime.sendMessage({ type: 'CLEAR_CAPTURED' });
+}
+
+// ===========================================
 // Message Listeners
 // ===========================================
 
@@ -860,6 +982,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     const transferZone = document.getElementById('transferZone');
     if (transferZone) {
         transferZone.addEventListener('click', triggerLargeFileUpload);
+    }
+
+    // Domain modal close button
+    const domainModalClose = document.getElementById('domainModalClose');
+    if (domainModalClose) {
+        domainModalClose.addEventListener('click', () => {
+            document.getElementById('domainModal').classList.remove('active');
+        });
+    }
+
+    // Settings: load current settings and wire up controls
+    await initSettings();
+
+    // Settings: auto-capture toggle
+    const autoCaptureToggle = document.getElementById('setting-autoCapture');
+    if (autoCaptureToggle) {
+        autoCaptureToggle.addEventListener('change', () => saveSettingValue('autoCapture', autoCaptureToggle.checked));
+    }
+
+    // Settings: notifications toggle
+    const notificationsToggle = document.getElementById('setting-notifications');
+    if (notificationsToggle) {
+        notificationsToggle.addEventListener('change', () => saveSettingValue('showNotifications', notificationsToggle.checked));
+    }
+
+    // Settings: default domain select
+    const defaultDomainSelect = document.getElementById('setting-defaultDomain');
+    if (defaultDomainSelect) {
+        defaultDomainSelect.addEventListener('change', () => saveSettingValue('defaultDomain', defaultDomainSelect.value));
+    }
+
+    // Settings: retry brain connection
+    const retryBrainBtn = document.getElementById('retryBrainBtn');
+    if (retryBrainBtn) {
+        retryBrainBtn.addEventListener('click', () => {
+            showToast('Retrying brain connection...', 'info');
+            checkNativeStatus();
+        });
+    }
+
+    // Settings: export data
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', exportAllData);
+    }
+
+    // Settings: clear data
+    const clearDataBtn = document.getElementById('clearDataBtn');
+    if (clearDataBtn) {
+        clearDataBtn.addEventListener('click', async () => {
+            if (confirm('Clear ALL captured data from all 7 domains? This cannot be undone.')) {
+                await clearAllData();
+                showToast('All data cleared', 'success');
+                await updateAllCounts();
+            }
+        });
     }
 
     console.log('ARAYA Sidebar initialized');

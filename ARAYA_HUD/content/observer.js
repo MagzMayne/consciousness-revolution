@@ -61,8 +61,10 @@
 
     // Listen for commands from extension
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.type === 'EXTRACT_PAGE') {
-            sendResponse(extractPageData());
+        // Support both EXTRACT_PAGE and GET_PAGE_CONTENT for compatibility
+        if (message.type === 'EXTRACT_PAGE' || message.type === 'GET_PAGE_CONTENT') {
+            const data = extractPageData();
+            sendResponse({ content: data.text, ...data });
         }
 
         if (message.type === 'CAPTURE_SELECTION') {
