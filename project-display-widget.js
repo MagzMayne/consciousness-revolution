@@ -575,7 +575,8 @@ class ProjectDisplayWidget {
                 btn.addEventListener('click', () => {
                     this.currentPage = page;
                     this.updateGrid();
-                    this.container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    this.container.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
                 });
             }
             return btn;
@@ -617,9 +618,8 @@ class ProjectDisplayWidget {
         
         // Page info
         const pageInfo = document.createElement('div');
-        const pageSize2 = this.options.pageSize || 48;
-        const shownStart = (this.currentPage - 1) * pageSize2 + 1;
-        const shownEnd = Math.min(this.currentPage * pageSize2, this.filteredProjects.length);
+        const shownStart = (this.currentPage - 1) * pageSize + 1;
+        const shownEnd = Math.min(this.currentPage * pageSize, this.filteredProjects.length);
         pageInfo.style.cssText = 'width:100%;text-align:center;color:rgba(255,255,255,0.5);font-size:0.8rem;margin-top:0.5rem;';
         pageInfo.textContent = `Showing ${shownStart}–${shownEnd} of ${this.filteredProjects.length} projects`;
         pagDiv.appendChild(pageInfo);
