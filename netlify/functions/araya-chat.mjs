@@ -757,12 +757,15 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
 // ═══════════════════════════════════════════════════════════════
 // CLOUD FALLBACK PROVIDERS - For 24/7 operation when local is down
-// Priority: DeepSeek → Groq (free) → OpenRouter (multi) → OpenAI
+// Priority: DeepSeek → Groq (free) → OpenRouter (multi) → OpenAI → Grok (xAI)
 // ═══════════════════════════════════════════════════════════════
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+// xAI Grok — enhanced reasoning and broad knowledge
+const GROK_API_KEY = process.env.GROK_API_KEY;
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const GROK_BASE_URL = 'https://api.x.ai/v1';
 
 // CHEAP_MODE flag - DeepSeek is already cheap ($0.14/1M tokens)
 const CHEAP_MODE = true;
@@ -1519,6 +1522,42 @@ async function callGroq(messages) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// xAI GROK API — Enhanced reasoning, broad world knowledge
+// Supports user-supplied key (passed as userApiKey in request body)
+// ═══════════════════════════════════════════════════════════════
+async function callGrok(messages, userApiKey = null) {
+    const apiKey = userApiKey || GROK_API_KEY;
+    if (!apiKey) {
+        throw new Error('No Grok API key configured. Add GROK_API_KEY to environment or supply your own key.');
+    }
+
+    console.log('[GROK] Calling xAI Grok API (grok-3-latest)...');
+
+    const response = await fetch(`${GROK_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: 'grok-3-latest',
+            messages,
+            max_tokens: 2000,
+            temperature: 0.8
+        })
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Grok API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('[GROK] Response received successfully');
+    return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // OPENROUTER API - Multi-provider aggregator, many model options
 // ═══════════════════════════════════════════════════════════════
 async function callOpenRouter(messages) {
@@ -1713,7 +1752,7 @@ export async function handler(event, context) {
     }
 
     try {
-        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [], context = {}, commander_bypass = false } = JSON.parse(event.body);
+        const { message = '', conversationHistory = [], user_id, mode = 'normal', attachments = [], context = {}, commander_bypass = false, userApiKey = null, userProvider = null } = JSON.parse(event.body);
 
         // Extract Discord context (conversation history & search results)
         const discordHistory = context.conversation_history || [];
@@ -2820,37 +2859,88 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
             }
         } else {
             // ═══════════════════════════════════════════════════════════════
-            // CLOUD FALLBACK CHAIN: DeepSeek → Groq → OpenRouter → OpenAI → Ollama
+            // CLOUD FALLBACK CHAIN: User Key → Grok → DeepSeek → Groq → OpenRouter → OpenAI → Ollama
             // Ensures 24/7 availability regardless of any single provider outage
+            // If userProvider + userApiKey supplied, try that first.
             // ═══════════════════════════════════════════════════════════════
-            try {
-                response = await callAI(messages, true);
-            } catch (deepseekError) {
-                console.error('DeepSeek error, trying Groq:', deepseekError.message);
+
+            // User-supplied API key shortcut (any supported provider)
+            if (userProvider && userApiKey) {
                 try {
-                    response = await callGroq(messages);
-                    apiMode = 'groq';
-                } catch (groqError) {
-                    console.error('Groq error, trying OpenRouter:', groqError.message);
+                    if (userProvider === 'grok') {
+                        response = await callGrok(messages, userApiKey);
+                        apiMode = 'grok_user_key';
+                    } else if (userProvider === 'groq') {
+                        // Groq with user key — re-call with key override
+                        const groqResponse = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userApiKey}` },
+                            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, max_tokens: 2000, temperature: 0.8 })
+                        });
+                        if (!groqResponse.ok) throw new Error(`Groq user key error: ${groqResponse.status}`);
+                        const groqData = await groqResponse.json();
+                        response = groqData.choices[0].message.content;
+                        apiMode = 'groq_user_key';
+                    } else if (userProvider === 'openai') {
+                        const oaiResponse = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userApiKey}` },
+                            body: JSON.stringify({ model: 'gpt-4o-mini', messages, max_tokens: 2000, temperature: 0.8 })
+                        });
+                        if (!oaiResponse.ok) throw new Error(`OpenAI user key error: ${oaiResponse.status}`);
+                        const oaiData = await oaiResponse.json();
+                        response = oaiData.choices[0].message.content;
+                        apiMode = 'openai_user_key';
+                    }
+                    console.log(`[ARAYA] Responded via user-supplied ${userProvider} key`);
+                } catch (userKeyError) {
+                    console.error(`User-supplied ${userProvider} key failed, falling back:`, userKeyError.message);
+                    // Fall through to standard chain below
+                }
+            }
+
+            if (!response) {
+                // Grok (xAI) first if configured (enhanced knowledge)
+                if (GROK_API_KEY && !response) {
                     try {
-                        response = await callOpenRouter(messages);
-                        apiMode = 'openrouter';
-                    } catch (openrouterError) {
-                        console.error('OpenRouter error, trying OpenAI:', openrouterError.message);
+                        response = await callGrok(messages);
+                        apiMode = 'grok';
+                    } catch (grokError) {
+                        console.error('Grok error, falling to DeepSeek:', grokError.message);
+                    }
+                }
+            }
+
+            if (!response) {
+                try {
+                    response = await callAI(messages, true);
+                } catch (deepseekError) {
+                    console.error('DeepSeek error, trying Groq:', deepseekError.message);
+                    try {
+                        response = await callGroq(messages);
+                        apiMode = 'groq';
+                    } catch (groqError) {
+                        console.error('Groq error, trying OpenRouter:', groqError.message);
                         try {
-                            response = await callAI(messages, false);
-                            apiMode = 'openai';
-                        } catch (openaiError) {
-                            console.error('OpenAI also failed, trying Ollama (local):', openaiError.message);
-                            // Final fallback: Ollama local AI (works offline!)
+                            response = await callOpenRouter(messages);
+                            apiMode = 'openrouter';
+                        } catch (openrouterError) {
+                            console.error('OpenRouter error, trying OpenAI:', openrouterError.message);
                             try {
-                                response = await callOllama(messages);
-                                apiMode = 'ollama_offline';
-                                console.log('✓ Ollama offline mode successful');
-                            } catch (ollamaError) {
-                                console.error('All AI providers failed including Ollama:', ollamaError.message);
-                                response = "All my AI connections are down (DeepSeek, Groq, OpenRouter, OpenAI, Ollama). Please check network or try again.";
-                                apiMode = 'all_failed';
+                                response = await callAI(messages, false);
+                                apiMode = 'openai';
+                            } catch (openaiError) {
+                                console.error('OpenAI also failed, trying Ollama (local):', openaiError.message);
+                                // Final fallback: Ollama local AI (works offline!)
+                                try {
+                                    response = await callOllama(messages);
+                                    apiMode = 'ollama_offline';
+                                    console.log('✓ Ollama offline mode successful');
+                                } catch (ollamaError) {
+                                    console.error('All AI providers failed including Ollama:', ollamaError.message);
+                                    response = "All my AI connections are down (Grok, DeepSeek, Groq, OpenRouter, OpenAI, Ollama). Please check network or try again.";
+                                    apiMode = 'all_failed';
+                                }
                             }
                         }
                     }
