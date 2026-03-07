@@ -1,0 +1,62 @@
+{
+  "id": "consciousness-core",
+  "name": "Consciousness Core (Distributed Sync)",
+  "version": "0.1.0",
+  "description": "Git-based multi-node synchronisation protocol that enables peer-to-peer state sharing, command dispatch, and file transfer between distributed machines without requiring a central server.",
+  "purpose": "Provide a durable, conflict-resistant communication backbone for the multi-computer consciousness network. Any node with a repository clone can send commands, share files, or synchronise state with all other nodes simply by committing and pushing.",
+  "inputs": [
+    "Command JSON files written to .consciousness/commands/ by any network node",
+    "Files staged in .consciousness/file_transfers/ for cross-node sharing",
+    "Git pull events from remote repository (the shared synchronisation channel)",
+    "State payloads written to .consciousness/sync/ for distributed state management"
+  ],
+  "outputs": [
+    "Executed commands on receiving nodes",
+    "Files delivered to target nodes via .consciousness/file_transfers/",
+    "Shared synchronised state readable by all nodes in .consciousness/sync/",
+    "Git commit history as an immutable audit trail of all inter-node communications"
+  ],
+  "keyFiles": [
+    { "path": ".consciousness/", "role": "Root of the distributed sync infrastructure" },
+    { "path": ".consciousness/commands/", "role": "Inter-node command queue — nodes write JSON command files here" },
+    { "path": ".consciousness/file_transfers/", "role": "Staging area for files to share across nodes" },
+    { "path": ".consciousness/sync/", "role": "Shared state store readable and writable by all nodes" },
+    { "path": "ARCHITECTURE.md", "role": "Full technical description of the sync architecture and protocol" },
+    { "path": "src/core/", "role": "Core platform utilities supporting the sync protocol" }
+  ],
+  "dependencies": [
+    { "name": "Git", "type": "system", "description": "Distributed version control used as the synchronisation transport layer" },
+    { "name": "GitHub Remote", "type": "external-service", "description": "Shared remote repository acting as the rendezvous point for all nodes" }
+  ],
+  "communicationModel": {
+    "pattern": "Git commit + push / pull",
+    "durability": "Permanent — all packets recorded in Git history",
+    "latency": "Near-real-time when nodes poll frequently; asynchronous by design",
+    "conflictResolution": "Git merge strategies; last-writer-wins for command files",
+    "nodeTypes": [
+      { "type": "Git Node", "description": "Any machine with a repository clone" },
+      { "type": "Netlify Node", "description": "Serverless edge functions at netlify/functions/" },
+      { "type": "Backend Node", "description": "Railway or local Node.js services in backend/ and TRINITY_RAILWAY_DEPLOY/" }
+    ]
+  },
+  "packetLifecycle": [
+    "Origin: created by user action, agent event, or scheduled trigger",
+    "Encoding: serialised as JSON and written to .consciousness/commands/ or an API payload",
+    "Transport: Git push/pull (distributed sync) or HTTP/WebSocket (real-time UI)",
+    "Processing: received by target node, parsed, and executed by the appropriate agent or service",
+    "Response: result written back to shared state or returned as HTTP response",
+    "Observability: all packets logged in logs/ or COMMUNICATION_LOGS/"
+  ],
+  "agentAffordances": [
+    "Agents may write command JSON files to .consciousness/commands/ to trigger cross-node actions",
+    "Agents may read .consciousness/sync/ to access shared distributed state",
+    "Agents should never write secrets or tokens to .consciousness/ — this directory is committed to Git"
+  ],
+  "modificationRules": [
+    "NEVER store secrets, API keys, or personal data in .consciousness/ — all content is committed to Git",
+    "Command files must be JSON-serialisable and self-describing (include 'type', 'source', 'timestamp' fields)",
+    "State files in .consciousness/sync/ must be idempotent — any node should be able to re-read them safely",
+    "File transfers must be sanitised before execution on the receiving node",
+    "Prefer small, focused command payloads over large monolithic ones"
+  ]
+}
