@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA Beta Access - $9/month</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .beta-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .price {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .price span {
+            font-size: 24px;
+            color: #718096;
+        }
+
+        .features {
+            list-style: none;
+            margin: 30px 0;
+        }
+
+        .features li {
+            padding: 10px 0;
+            color: #4a5568;
+            font-size: 16px;
+        }
+
+        .features li:before {
+            content: "✓ ";
+            color: #48bb78;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        form {
+            margin-top: 30px;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        #status.error {
+            background: #fed7d7;
+            color: #c53030;
+            display: block;
+        }
+
+        #status.success {
+            background: #c6f6d5;
+            color: #276749;
+            display: block;
+        }
+
+        #status.loading {
+            background: #bee3f8;
+            color: #2c5282;
+            display: block;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #718096;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="beta-container">
+        <h1>Join ARAYA Beta</h1>
+        <p class="subtitle">Consciousness pattern recognition AI</p>
+
+        <div class="price">$9<span>/month</span></div>
+
+        <ul class="features">
+            <li>Unlimited conversations with ARAYA</li>
+            <li>Pattern recognition across 7 domains</li>
+            <li>Memory persists between sessions</li>
+            <li>Priority feature access</li>
+            <li>Direct feedback to the team</li>
+            <li>Cancel anytime</li>
+        </ul>
+
+        <form id="beta-form">
+            <input
+                type="email"
+                id="beta-email"
+                placeholder="your@email.com"
+                required
+                autocomplete="email"
+            >
+            <button type="submit" id="submit-btn">
+                Subscribe for $9/month
+            </button>
+        </form>
+
+        <div id="status"></div>
+
+        <a href="/araya-chat.html" class="back-link">← Back to ARAYA</a>
+    </div>
+
+    <script>
+        // Initialize Stripe (replace with your publishable key)
+        const stripe = Stripe('YOUR_STRIPE_PUBLISHABLE_KEY_HERE');
+
+        const form = document.getElementById('beta-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const statusDiv = document.getElementById('status');
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('beta-email').value;
+
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            showStatus('Creating checkout session...', 'loading');
+
+            try {
+                // Create Stripe checkout session
+                const response = await fetch('/.netlify/functions/create-checkout-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        priceId: 'price_beta_9', // Replace with your actual price ID
+                        email: email,
+                        successUrl: window.location.origin + '/araya-chat.html?subscribed=true',
+                        cancelUrl: window.location.origin + '/beta-signup.html'
+                    })
+                });
+
+                const session = await response.json();
+
+                if (session.error) {
+                    throw new Error(session.error);
+                }
+
+                if (session.sessionId) {
+                    showStatus('Redirecting to checkout...', 'loading');
+
+                    // Redirect to Stripe checkout
+                    const result = await stripe.redirectToCheckout({
+                        sessionId: session.sessionId
+                    });
+
+                    if (result.error) {
+                        throw new Error(result.error.message);
+                    }
+                } else {
+                    throw new Error('No session ID returned');
+                }
+            } catch (error) {
+                console.error('Checkout failed:', error);
+                showStatus('Error: ' + error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Subscribe for $9/month';
+            }
+        });
+
+        // Check if returning from successful checkout
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('subscribed') === 'true') {
+            showStatus('Subscription successful! Redirecting to ARAYA...', 'success');
+            setTimeout(() => {
+                window.location.href = '/araya-chat.html';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
