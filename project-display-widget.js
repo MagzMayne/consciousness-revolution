@@ -3,7 +3,7 @@
  * Based on organized-projects-hub.html patterns
  * 
  * @author Ryan Barbrick (BarbrickDesign)
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 class ProjectDisplayWidget {
@@ -20,6 +20,7 @@ class ProjectDisplayWidget {
             showXP: options.showXP !== false,
             maxProjects: options.maxProjects || null,
             categories: options.categories || null,
+            pageSize: options.pageSize || 48,
             theme: options.theme || 'dark',
             onProjectClick: options.onProjectClick || this.defaultProjectClick,
             ...options
@@ -29,7 +30,9 @@ class ProjectDisplayWidget {
         this.filteredProjects = [];
         this.currentFilter = 'all';
         this.currentStatusFilter = 'all';
+        this.currentCategoryFilter = 'all';
         this.searchQuery = '';
+        this.currentPage = 1;
         
         this.categoryIcons = {
             '3D Graphics': '🎨',
@@ -391,6 +394,9 @@ class ProjectDisplayWidget {
         
         // Projects grid
         this.container.appendChild(this.renderProjects());
+        
+        // Pagination
+        this.container.appendChild(this.renderPagination());
     }
     
     /**
@@ -444,9 +450,42 @@ class ProjectDisplayWidget {
             searchInput.placeholder = '🔍 Search projects...';
             searchInput.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
+                this.currentPage = 1;
                 this.filterProjects();
             });
             controlsDiv.appendChild(searchInput);
+        }
+        
+        // Category filter dropdown
+        if (this.options.showFilters) {
+            const categories = ['all', ...new Set(this.projects.map(p => p.category).filter(Boolean).sort())];
+            const catWrapper = document.createElement('div');
+            catWrapper.style.cssText = 'display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;';
+            
+            const catLabel = document.createElement('span');
+            catLabel.textContent = '📂 Category:';
+            catLabel.style.cssText = 'color:rgba(255,255,255,0.7);font-size:0.85rem;white-space:nowrap;';
+            catWrapper.appendChild(catLabel);
+            
+            const catSelect = document.createElement('select');
+            catSelect.className = 'project-widget-cat-select';
+            catSelect.style.cssText = 'background:rgba(26,26,46,0.9);color:#fff;border:1px solid rgba(138,43,226,0.5);border-radius:8px;padding:0.4rem 0.8rem;font-size:0.85rem;cursor:pointer;';
+            
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                const icon = cat === 'all' ? '🌐' : (this.categoryIcons[cat] || '📁');
+                opt.textContent = cat === 'all' ? `${icon} All Categories` : `${icon} ${cat}`;
+                catSelect.appendChild(opt);
+            });
+            
+            catSelect.addEventListener('change', (e) => {
+                this.currentCategoryFilter = e.target.value;
+                this.currentPage = 1;
+                this.filterProjects();
+            });
+            catWrapper.appendChild(catSelect);
+            controlsDiv.appendChild(catWrapper);
         }
         
         // Status filters
@@ -473,6 +512,7 @@ class ProjectDisplayWidget {
                     );
                     btn.classList.add('active');
                     this.currentStatusFilter = status.value;
+                    this.currentPage = 1;
                     this.filterProjects();
                 });
                 filtersDiv.appendChild(btn);
@@ -485,7 +525,7 @@ class ProjectDisplayWidget {
     }
     
     /**
-     * Render projects grid
+     * Render projects grid (paginated)
      */
     renderProjects() {
         const gridDiv = document.createElement('div');
@@ -499,11 +539,103 @@ class ProjectDisplayWidget {
             return gridDiv;
         }
         
-        this.filteredProjects.forEach(project => {
+        const pageSize = this.options.pageSize || 48;
+        const start = (this.currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        const pageProjects = this.filteredProjects.slice(start, end);
+        
+        pageProjects.forEach(project => {
             gridDiv.appendChild(this.renderProjectCard(project));
         });
         
         return gridDiv;
+    }
+    
+    /**
+     * Render pagination controls
+     */
+    renderPagination() {
+        const pageSize = this.options.pageSize || 48;
+        const totalPages = Math.ceil(this.filteredProjects.length / pageSize);
+        
+        const pagDiv = document.createElement('div');
+        pagDiv.className = 'project-widget-pagination';
+        
+        if (totalPages <= 1) return pagDiv;
+        
+        pagDiv.style.cssText = 'display:flex;justify-content:center;align-items:center;gap:0.5rem;margin-top:2rem;flex-wrap:wrap;';
+        
+        const makeBtn = (label, page, active = false, disabled = false) => {
+            const btn = document.createElement('button');
+            btn.textContent = label;
+            btn.style.cssText = `padding:0.5rem 0.9rem;border-radius:8px;border:1px solid rgba(138,43,226,${active ? '0.9' : '0.4'});
+                background:${active ? 'rgba(138,43,226,0.5)' : 'rgba(26,26,46,0.8)'};
+                color:${disabled ? 'rgba(255,255,255,0.3)' : '#fff'};cursor:${disabled ? 'default' : 'pointer'};font-size:0.85rem;`;
+            if (!disabled) {
+                btn.addEventListener('click', () => {
+                    this.currentPage = page;
+                    this.updateGrid();
+                    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    this.container.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
+                });
+            }
+            return btn;
+        };
+        
+        // Previous
+        pagDiv.appendChild(makeBtn('← Prev', this.currentPage - 1, false, this.currentPage === 1));
+        
+        // Page numbers (show up to 7 pages around current)
+        const start = Math.max(1, this.currentPage - 3);
+        const end = Math.min(totalPages, start + 6);
+        
+        if (start > 1) {
+            pagDiv.appendChild(makeBtn('1', 1));
+            if (start > 2) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.color = 'rgba(255,255,255,0.5)';
+                pagDiv.appendChild(dots);
+            }
+        }
+        
+        for (let p = start; p <= end; p++) {
+            pagDiv.appendChild(makeBtn(String(p), p, p === this.currentPage));
+        }
+        
+        if (end < totalPages) {
+            if (end < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.color = 'rgba(255,255,255,0.5)';
+                pagDiv.appendChild(dots);
+            }
+            pagDiv.appendChild(makeBtn(String(totalPages), totalPages));
+        }
+        
+        // Next
+        pagDiv.appendChild(makeBtn('Next →', this.currentPage + 1, false, this.currentPage === totalPages));
+        
+        // Page info
+        const pageInfo = document.createElement('div');
+        const shownStart = (this.currentPage - 1) * pageSize + 1;
+        const shownEnd = Math.min(this.currentPage * pageSize, this.filteredProjects.length);
+        pageInfo.style.cssText = 'width:100%;text-align:center;color:rgba(255,255,255,0.5);font-size:0.8rem;margin-top:0.5rem;';
+        pageInfo.textContent = `Showing ${shownStart}–${shownEnd} of ${this.filteredProjects.length} projects`;
+        pagDiv.appendChild(pageInfo);
+        
+        return pagDiv;
+    }
+    
+    /**
+     * Update grid and pagination in place (after filter/page change)
+     */
+    updateGrid() {
+        const existingGrid = this.container.querySelector('.project-widget-grid');
+        if (existingGrid) existingGrid.replaceWith(this.renderProjects());
+        
+        const existingPag = this.container.querySelector('.project-widget-pagination');
+        if (existingPag) existingPag.replaceWith(this.renderPagination());
     }
     
     /**
@@ -547,7 +679,7 @@ class ProjectDisplayWidget {
     }
     
     /**
-     * Filter projects based on search and status
+     * Filter projects based on search, status, and category
      */
     filterProjects() {
         this.filteredProjects = this.projects.filter(project => {
@@ -556,9 +688,14 @@ class ProjectDisplayWidget {
                 return false;
             }
             
+            // Category filter
+            if (this.currentCategoryFilter !== 'all' && project.category !== this.currentCategoryFilter) {
+                return false;
+            }
+            
             // Search filter
             if (this.searchQuery) {
-                const searchText = `${project.title} ${project.description} ${(project.tags || []).join(' ')}`.toLowerCase();
+                const searchText = `${project.title} ${project.description} ${(project.tags || []).join(' ')} ${project.category || ''}`.toLowerCase();
                 if (!searchText.includes(this.searchQuery)) {
                     return false;
                 }
@@ -567,11 +704,12 @@ class ProjectDisplayWidget {
             return true;
         });
         
-        // Re-render projects
-        const existingGrid = this.container.querySelector('.project-widget-grid');
-        if (existingGrid) {
-            existingGrid.replaceWith(this.renderProjects());
+        // Update stats, grid, and pagination
+        if (this.options.showStats) {
+            const existingStats = this.container.querySelector('.project-widget-stats');
+            if (existingStats) existingStats.replaceWith(this.renderStats());
         }
+        this.updateGrid();
     }
     
     /**
@@ -590,15 +728,9 @@ class ProjectDisplayWidget {
      */
     updateProjects(projects) {
         this.projects = projects;
+        this.filteredProjects = [...projects];
+        this.currentPage = 1;
         this.filterProjects();
-        
-        // Update stats
-        if (this.options.showStats) {
-            const existingStats = this.container.querySelector('.project-widget-stats');
-            if (existingStats) {
-                existingStats.replaceWith(this.renderStats());
-            }
-        }
     }
 }
 
