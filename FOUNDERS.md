@@ -14,6 +14,8 @@
 
 ## 👑 Original Founders
 
+> **Original Founders** are the primary creators who built this platform from the ground up.
+
 ### Ryan Barbrick
 - **Role**: Primary Creator & Founder
 - **Title**: Creator & Chief Architect
@@ -48,6 +50,24 @@
   - Architected system integration frameworks
   - Created AI-powered tools and utilities
   - Developed machine learning implementations
+
+---
+
+## 🎖️ Founding Members
+
+> **Founding Members** are the early contributors and commanders who helped shape, build, and grow this ecosystem alongside the original founders.
+
+### Darrick Preble
+- **Role**: Commander & Founding Member
+- **Title**: Commander — Mission Control
+- **Status**: 🎖️ **FOUNDING MEMBER** 🎖️
+- **Contact**: darrickpreble@proton.me
+- **Contributions**:
+  - Co-founded and helped shape the vision of the consciousness ecosystem
+  - Served as Commander overseeing mission control operations
+  - Contributed to the strategy and direction of the platform
+  - Supported system architecture and operational coordination
+  - Helped establish the team structure and community foundations
 
 ---
 
