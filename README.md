@@ -828,19 +828,19 @@ npm start
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 1302 | **Interactive**: 1293
+**Total Projects**: 1948 | **Interactive**: 1804
 
 **Status Breakdown**:
-- ✅ **1243 working** (95% - fully functional)
-- ⚠️ **19 partial** (1% - core features work)
-- 🔧 **25 broken** (2% - under repair)
-- 🧪 **15 untested** (1% - awaiting validation)
+- ✅ **1603 working** (82% - fully functional)
+- ⚠️ **74 partial** (4% - core features work)
+- 🔧 **60 broken** (3% - under repair)
+- 🧪 **211 untested** (11% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 990 | 🤖 ai-tool: 88 | 🌐 3d-experience: 78 | 🎮 game: 46 | 📊 dashboard: 41
+**Top Categories**: ✨ web-app: 1409 | 🤖 ai-tool: 131 | 📊 dashboard: 109 | 🌐 3d-experience: 102 | 🛠️ utility: 73
 
-**Top Technologies**: PayPal (1029), Web Storage (221), Solana Web3 (138), Canvas (128), React (105)
+**Top Technologies**: PayPal (883), Web Storage (486), Solana Web3 (197), Canvas (187), React (157)
 
-*Last scanned: Mar 9, 2026, 8:06 PM*
+*Last scanned: Mar 9, 2026, 9:42 PM*
 
 ---
 
@@ -848,18 +848,18 @@ npm start
 
 **Live Feed** - Automatically updated when new projects are pushed! 🔴
 
-1. ✨✅ **[Autonomous Agent Hub — zMerlin Hive (Enhanced)](zMerlinHive.html)** - Interactive web-app application `React`, `PayPal`, `Web Storage` *(Mar 9, 2026)*
+1. ✨✅ **[Autonomous Agent Hub — zMerlin Hive (Enhanced)](zMerlinHive.html)** - Interactive web-app application `React`, `PayPal` *(Mar 9, 2026)*
 2. ✨✅ **[User-Owned AI Voice Tool](yourVoice.html)** - Interactive web-app application `PayPal` *(Mar 9, 2026)*
 3. 🤖✅ **[Worm Agent 3D Visualization](worm-agent-visualization.html)** - Interactive ai-tool application `Three.js`, `Canvas`, `WebGL` *(Mar 9, 2026)*
 4. 🤖✅ **[Worm Agent System Dashboard](worm-agent-dashboard.html)** - Interactive ai-tool application `Canvas` *(Mar 9, 2026)*
-5. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Mar 9, 2026)*
-6. ✨✅ **[World Monitor — Live Global Intelligence | Barbrick Design](world-monitor.html)** - World Monitor embedded live: real-time conflicts, hotspots, sanctions, weather, outages, natural disasters, and Iran attacks on an interactive 3D globe. Enhanced by Agent R. `WebGL` *(Mar 9, 2026)*
-7. ✨✅ **[Magical Wishing Well](wishingWell.html)** - Interactive web-app application `Three.js`, `PayPal`, `WebGL` *(Mar 9, 2026)*
-8. 🌐✅ **[Gem Warehouse](warehouse.html)** - Interactive 3d-experience application `Three.js`, `Web Storage` *(Mar 9, 2026)*
-9. 🛠️✅ **[Warehouse Scanner - Visual Demo](warehouse-scanner-visual-demo.html)** - Interactive utility application *(Mar 9, 2026)*
-10. 🛠️✅ **[🏭 AI Warehouse Inventory Scanner - Barbrick Design](warehouse-inventory-scanner.html)** - AI-powered inventory scanner for computer recycling warehouses with auto-identification and valuation `TensorFlow.js`, `PayPal`, `Canvas` *(Mar 9, 2026)*
+5. ✨✅ **[WORKSPACE - Dashboard Hub](workspace.html)** - Interactive web-app application *(Mar 9, 2026)*
+6. ✨⚠️ **[Workshop - Build Things](workshop.html)** - Interactive web-app application *(Mar 9, 2026)*
+7. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Mar 9, 2026)*
+8. ✨✅ **[Magical Wishing Well](wishingWell.html)** - Interactive web-app application `Three.js`, `PayPal`, `WebGL` *(Mar 9, 2026)*
+9. 💰✅ **[Widget Marketplace | Consciousness Revolution](widget-marketplace.html)** - Interactive marketplace application `Web Storage` *(Mar 9, 2026)*
+10. ✨✅ **[Whodunit: Constitutional Crimes | Interactive Timeline](whodunit-timeline.html)** - Interactive web-app application *(Mar 9, 2026)*
 
-*Last updated: Mar 9, 2026, 8:06 PM*
+*Last updated: Mar 9, 2026, 9:42 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
