@@ -19,12 +19,20 @@ async function loadSupabase() {
     try {
         const { createClient } = await import('@supabase/supabase-js');
         const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+        // Use SERVICE_ROLE key for RLS bypass (required for dashboard edits)
+        const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
         if (SUPABASE_URL && SUPABASE_KEY) {
-            _supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+            const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+            // Test connection with a simple query
+            const { error } = await client.from('dashboard_customizations').select('id').limit(1);
+            if (error) {
+                console.log('[DASHBOARD-EDIT] Supabase connection test failed:', error.message);
+                return null; // Fall back to local-only mode
+            }
+            _supabaseClient = client;
         }
     } catch (e) {
-        console.log('[DASHBOARD-EDIT] Supabase not available');
+        console.log('[DASHBOARD-EDIT] Supabase not available:', e.message);
     }
     return _supabaseClient;
 }
@@ -69,13 +77,9 @@ export async function handler(event, context) {
     }
 
     const supabase = await loadSupabase();
-    if (!supabase) {
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Database not configured' })
-        };
-    }
+
+    // If no Supabase, use local-only mode (edits persist in localStorage on client)
+    const localOnlyMode = !supabase;
 
     try {
         // ═══════════════════════════════════════════════════════════════
@@ -90,6 +94,20 @@ export async function handler(event, context) {
                     statusCode: 400,
                     headers,
                     body: JSON.stringify({ error: 'dashboard_id required' })
+                };
+            }
+
+            // Local-only mode: return empty (client uses localStorage)
+            if (localOnlyMode) {
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        dashboard_id: dashboardId,
+                        customizations: [],
+                        mode: 'local-only',
+                        note: 'Using localStorage for persistence'
+                    })
                 };
             }
 
@@ -137,9 +155,33 @@ export async function handler(event, context) {
                 };
             }
 
+            // Local-only mode: acknowledge edit (client stores in localStorage)
+            if (localOnlyMode) {
+                console.log(`[DASHBOARD-EDIT] Local mode - ${edit_type} edit for ${dashboard_id} by ${editor_name}`);
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        mode: 'local-only',
+                        message: `Edit saved locally to ${dashboard_id}`,
+                        note: 'Changes stored in browser localStorage. Backend database not configured.'
+                    })
+                };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // COMMANDER BYPASS: Commander gets instant edits on ALL dashboards
+            // ═══════════════════════════════════════════════════════════════
+            const COMMANDER_EMAILS = ['darrickpreble@proton.me', 'darrickpreble@gmail.com'];
+            const COMMANDER_NAMES = ['commander', 'commander dwrek', 'dwrek'];
+            const isCommander = body.commander_bypass === true ||
+                COMMANDER_EMAILS.includes((body.editor_email || '').toLowerCase()) ||
+                COMMANDER_NAMES.includes((editor_name || '').toLowerCase());
+
             // Determine if this is an instant edit or needs approval
             const ownerCheck = editor_id ? await isOwner(supabase, dashboard_id, editor_id) : false;
-            const isInstant = ownerCheck && !force_proposal;
+            const isInstant = (ownerCheck || isCommander) && !force_proposal;
 
             if (isInstant) {
                 // ═══════════════════════════════════════════════════════
@@ -165,12 +207,19 @@ export async function handler(event, context) {
                 }
 
                 // Check if customization record exists
-                const { data: existing } = await supabase
+                // For Commander bypass without editor_id, look up by dashboard_id and owner_name
+                let existingQuery = supabase
                     .from('dashboard_customizations')
                     .select('id, ' + updateField)
-                    .eq('dashboard_id', dashboard_id)
-                    .eq('owner_id', editor_id)
-                    .single();
+                    .eq('dashboard_id', dashboard_id);
+
+                if (editor_id) {
+                    existingQuery = existingQuery.eq('owner_id', editor_id);
+                } else if (isCommander) {
+                    existingQuery = existingQuery.eq('owner_name', 'Commander');
+                }
+
+                const { data: existing } = await existingQuery.single();
 
                 let result;
                 if (existing) {
@@ -198,15 +247,21 @@ export async function handler(event, context) {
                     result = data;
                 } else {
                     // Create new customization record
+                    const insertData = {
+                        dashboard_id,
+                        owner_name: isCommander ? 'Commander' : editor_name,
+                        [updateField]: content,
+                        is_active: true
+                    };
+
+                    // Only set owner_id if we have one (Commander bypass may not have one)
+                    if (editor_id) {
+                        insertData.owner_id = editor_id;
+                    }
+
                     const { data, error } = await supabase
                         .from('dashboard_customizations')
-                        .insert({
-                            dashboard_id,
-                            owner_id: editor_id,
-                            owner_name: editor_name,
-                            [updateField]: content,
-                            is_active: true
-                        })
+                        .insert(insertData)
                         .select()
                         .single();
 
@@ -295,6 +350,19 @@ export async function handler(event, context) {
                     statusCode: 400,
                     headers,
                     body: JSON.stringify({ error: 'id required' })
+                };
+            }
+
+            // Local-only mode
+            if (localOnlyMode) {
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        mode: 'local-only',
+                        message: 'Delete acknowledged (clear localStorage manually)'
+                    })
                 };
             }
 
