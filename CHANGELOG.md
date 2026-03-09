@@ -3,66 +3,12 @@ layout: default
 title: CHANGELOG
 ---
 
-# 📋 CHANGELOG — Consciousness Revolution Platform
+# 📋 CHANGELOG - GemBot AI Web Control System
 
 All notable changes to this project will be documented in this file.
 
 **Format:** Based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)  
 **Versioning:** This project uses semantic versioning (MAJOR.MINOR.PATCH)
-
----
-
-## [0.1.0] - 2026-03-07 — Full-Stack Enhancement Protocol (Architecture Upgrade) 🚀
-
-### 🆕 Added
-
-#### Architecture & Documentation
-- **`PLATFORM_OVERVIEW.md`** — Top-level architecture document covering system purpose, subsystem roles, data flow diagram, consciousness packet lifecycle, multi-node communication model, and agent integration model
-- **`CHANGELOG.md` update** — Standardised to cover the whole platform (not just GemBot); added this v0.1.0 post-upgrade baseline entry
-
-#### Semantic Index (machine-ingestible)
-- **`semantic-index/manifest.json`** — Root semantic manifest: platform metadata, subsystem registry, API surfaces, environment variable catalogue, CI/CD configuration
-- **`semantic-index/subsystems/ui-layer.json`** — UI layer subsystem manifest (inputs, outputs, key files, conventions)
-- **`semantic-index/subsystems/backend-services.json`** — Backend services manifest (API surfaces, security rules, key files)
-- **`semantic-index/subsystems/ai-agents.json`** — AI agent network manifest (agent contract, key agents, dependencies)
-- **`semantic-index/subsystems/blockchain.json`** — Blockchain/Web3 manifest (supported chains, wallet providers, security rules)
-- **`semantic-index/subsystems/government-contracts.json`** — Grants/SAM.gov manifest (revenue model, API dependencies, security rules)
-
-#### Agent Compatibility Folder
-- **`agent/AGENT_INSTRUCTIONS.md`** — Comprehensive instructions for AI agents: architecture rules, secret relay pattern, coding conventions, PR requirements
-- **`agent/REPO_MAP.md`** — Human and machine-readable repository map with quick-lookup table
-- **`agent/TASK_TEMPLATES.md`** — Reusable task templates for: adding HTML tools, creating Netlify functions, building agents, fixing security issues, and updating CI/CD
-- **`agent/SAFE_MODIFICATION_RULES.md`** — Critical file protection list, high-caution areas, change request process, and rollback procedures
-- **`agent/SEMANTIC_BREADCRUMBS.md`** — Semantic entry points and navigation trails for AI agents; 8 task-oriented breadcrumb paths; anti-pattern table; agent affordances summary
-
-#### Maintenance & Self-Healing
-- **`maintenance/README.md`** — Self-healing protocol document
-- **`maintenance/update-dependencies.sh`** — Dependency audit and update script
-- **`maintenance/lint-and-format.sh`** — Linting, secret scan, and format check script
-- **`maintenance/detect-dead-code.sh`** — Unreferenced file detection script
-- **`maintenance/detect-semantic-drift.sh`** — Manifest vs filesystem sync checker
-
-#### Documentation
-- **`ROADMAP.md`** — 5-phase future evolution roadmap
-
-#### CI/CD Pipelines
-- **`.github/workflows/ci-lint-test.yml`** — New CI pipeline that runs on every PR and push to main: npm security audit, secret pattern detection, semantic-index JSON validation, test suite, and build verification
-- **`.github/workflows/release.yml`** — New release engineering pipeline: packages `consciousness-core`, `static-ui-bundle`, and `backend-services` into versioned `.tar.gz` archives and creates a GitHub Release with changenotes
-
-### 🔒 Security
-- CI pipeline now scans committed files for live API key patterns (`sk_live_*`, `BEGIN PRIVATE KEY`) and blocks the PR if found
-- CI pipeline detects accidentally committed `.env` files
-- `maintenance/lint-and-format.sh` performs local secret pattern scanning before commits
-
-### 🔧 Changed
-- `semantic-index/subsystems/backend-services.json` — Corrected keyFile from non-existent `backend/server.js` to `backend/start-local.js`
-- `semantic-index/subsystems/ui-layer.json` — Corrected keyFile from non-existent `css/main.css` to `style.css`
-- `semantic-index/subsystems/seven-domains.json` — Corrected dependency path from `css/main.css` to `style.css`
-
-### 📝 Notes
-- Existing functionality is **unchanged** — all new files are additive
-- No dependencies were added or modified
-- Existing workflows remain in place; `ci-lint-test.yml` and `release.yml` are new additions
 
 ---
 
@@ -307,4 +253,4 @@ All notable changes to this project will be documented in this file.
 **Project:** GemBot AI Web Control System  
 **Creator:** Ryan Barbrick / Barbrick Design  
 **Contact:** BarbrickDesign@gmail.com  
-**Copyright:** © 2024-2025 Ryan Barbrick. All Rights Reserved.
+**Copyright:** © 2008-2026 Ryan Barbrick. All Rights Reserved.

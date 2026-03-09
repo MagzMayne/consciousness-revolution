@@ -2,7 +2,7 @@
 
 **Complete guide to integrating all Barbrick Design projects with https://www.moltbook.com while protecting intellectual property**
 
-© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+© 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.
 
 ---
 
@@ -25,7 +25,7 @@ Enable all 300+ Barbrick Design projects to seamlessly integrate with moltbook.c
 Every piece of content shared through the Universal Moltbook Connector receives:
 
 1. **Unique Watermark ID** - Format: `WM-BBD-{timestamp}-{random}`
-2. **Copyright Notice** - © 2024-2025 Ryan Barbrick. All Rights Reserved.
+2. **Copyright Notice** - © 2008-2026 Ryan Barbrick. All Rights Reserved.
 3. **Owner Information** - Name, email, project details
 4. **License Terms** - Specific usage permissions
 5. **Content Fingerprint** - Cryptographic hash for verification
@@ -43,7 +43,7 @@ Every piece of content shared through the Universal Moltbook Connector receives:
     "watermarkId": "WM-BBD-1738612345-A8F2C9",
     "owner": "Ryan Barbrick (Barbrick Design)",
     "ownerEmail": "BarbrickDesign@gmail.com",
-    "copyright": "© 2024-2025 Ryan Barbrick. All Rights Reserved.",
+    "copyright": "© 2008-2026 Ryan Barbrick. All Rights Reserved.",
     "projectName": "Coding Tutorial Hub",
     "projectUrl": "https://barbrickdesign.github.io/tutorial.html",
     "projectId": "BBD-3F8A9C21",
@@ -57,7 +57,7 @@ Every piece of content shared through the Universal Moltbook Connector receives:
     "copyright": {
       "owner": "Ryan Barbrick (Barbrick Design)",
       "email": "BarbrickDesign@gmail.com",
-      "notice": "© 2024-2025 Ryan Barbrick. All Rights Reserved.",
+      "notice": "© 2008-2026 Ryan Barbrick. All Rights Reserved.",
       "license": "Proprietary - All Rights Reserved",
       "repository": "https://github.com/barbrickdesign/barbrickdesign.github.io",
       "intellectualPropertyNotice": "https://barbrickdesign.github.io/INTELLECTUAL_PROPERTY_NOTICE.md"
@@ -82,7 +82,7 @@ Text content also receives a visible footer:
 
 ```
 ---
-© 2025 Barbrick Design | Coding Tutorial Hub
+© 2008-2026 Barbrick Design | Coding Tutorial Hub
 Content ID: WM-BBD-1738612345-A8F2C9
 Unauthorized use prohibited. Contact: BarbrickDesign@gmail.com
 ---
@@ -207,7 +207,7 @@ Check the IP protection notice appears in bottom-right corner:
 
 ```
 🔒 IP Protected
-© 2024-2025 Ryan Barbrick. All Rights Reserved.
+© 2008-2026 Ryan Barbrick. All Rights Reserved.
 Moltbook Integration Active
 Learn More →
 ```
@@ -623,7 +623,7 @@ The Universal Moltbook Connector provides:
 
 ---
 
-**© 2024-2025 Barbrick Design | Created by Ryan Barbrick**  
+**© 2008-2026 Barbrick Design | Created by Ryan Barbrick**  
 **AI Assistant: Merlin AI**
 
 **Mission: Enable integration • Protect IP • Prevent theft**

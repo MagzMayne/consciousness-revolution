@@ -1,5 +1,18 @@
 # Firebase Setup & Configuration Guide
 
+## 🔒 Security Update Notice (2026-02-16)
+
+**IMPORTANT**: As of February 16, 2026, all Firebase API keys have been removed from source code for security. You now need to provide your own Firebase configuration to use Firebase-dependent applications.
+
+**Quick Setup**:
+1. Copy `firebase-config.template.js` to `firebase-config.js`
+2. Add your Firebase config from [Firebase Console](https://console.firebase.google.com/)
+3. Include the config file before your application scripts
+
+See the template file and examples below for details.
+
+---
+
 ## Overview
 
 This guide walks you through setting up Firebase for the BarbrickDesign applications. Firebase provides authentication, real-time database, cloud storage, and hosting services that power several applications in this repository.

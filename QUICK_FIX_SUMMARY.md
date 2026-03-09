@@ -14,8 +14,8 @@ This meant the AI was creating **fake data** instead of providing **real value**
 ## What Was Fixed
 
 ### 1. ✅ API Key Updated
-- **Old:** `gsk_YOUR_API_KEY_HEREWEJn`
-- **New:** `gsk_YOUR_API_KEY_HEREbHpX`
+- **Old:** `gsk_your-groq-api-key-here`
+- **New:** `gsk_your-groq-api-key-here`
 
 ### 2. ✅ All Simulation Removed
 Every agent now provides **REAL, ACTIONABLE** output:

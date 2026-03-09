@@ -1,7 +1,7 @@
 # eBay Swarm Functionality Fix - Verification Report
 
 ## Issue Summary
-User reported that `ebaySwarm.html` was using simulated/mock functionality instead of real operations after a config change. API key `gsk_YOUR_API_KEY_HEREbHpX` was mentioned as working initially but then stopped.
+User reported that `ebaySwarm.html` was using simulated/mock functionality instead of real operations after a config change. API key `gsk_your-groq-api-key-here` was mentioned as working initially but then stopped.
 
 ## Problems Identified
 
@@ -12,7 +12,7 @@ User reported that `ebaySwarm.html` was using simulated/mock functionality inste
 
 ### 2. **Incorrect API Key**
 **Location:** Lines 286 and 320
-**Issue:** Code had `gsk_YOUR_API_KEY_HEREWEJn` instead of working key
+**Issue:** Code had `gsk_your-groq-api-key-here` instead of working key
 **Impact:** API calls would fail with incorrect credentials
 
 ### 3. **All Agent Functions Were Simulating**
@@ -22,7 +22,7 @@ User reported that `ebaySwarm.html` was using simulated/mock functionality inste
 ## Changes Made
 
 ### ✅ API Key Updates
-- **Line 286:** Updated input field default value to `gsk_YOUR_API_KEY_HEREbHpX`
+- **Line 286:** Updated input field default value to `gsk_your-groq-api-key-here`
 - **Line 320:** Updated CONFIG object with correct API key
 
 ### ✅ Scraper Agent (Lines 486-520)
@@ -223,7 +223,7 @@ DO NOT create templates or examples. Provide REAL messages that can be sent imme
 ### API Configuration
 - **Endpoint:** `https://api.groq.com/openai/v1/chat/completions`
 - **Model:** `llama-3.1-8b-instant` (fast, reliable)
-- **API Key:** `gsk_YOUR_API_KEY_HEREbHpX`
+- **API Key:** `gsk_your-groq-api-key-here`
 - **Rate Limit:** 14,400 free requests/day
 
 ### Error Handling Improvements

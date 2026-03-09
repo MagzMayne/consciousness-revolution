@@ -96,7 +96,7 @@ The repo-wide key is configured in:
 - `groq-orchestrator-config.json` (committed)
 - `.env` (not committed, for local override)
 
-**Key**: `gsk_YOUR_API_KEY_HEREWEJn`
+**Key**: `gsk_your-groq-api-key-here`
 
 ---
 

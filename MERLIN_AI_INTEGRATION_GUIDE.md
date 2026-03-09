@@ -363,7 +363,7 @@ Run **MERLIN_AI_TEST_DEMO.html** and verify:
 Your Merlin AI uses your existing Firebase project:
 
 **Project:** gem-bot-57068  
-**API Key:** AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc  
+**API Key:** [REDACTED - KEY ROTATED]  
 **Endpoint:** https://generativelanguage.googleapis.com/v1beta  
 
 ### New Firebase Collection:
@@ -525,7 +525,7 @@ cutting-edge and positions this project as a market leader.
 ### Issue: "Merlin AI initialization failed"
 
 **Solution:**
-- Check API key is correct (AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc)
+- Check API key is configured correctly — verify it matches the key in your Google Cloud Console or the `GEMINI_API_KEY` environment variable
 - Verify internet connection
 - Check browser console for CORS errors
 - Ensure Gemini API is enabled in Google Cloud Console
