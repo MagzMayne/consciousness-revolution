@@ -1,0 +1,474 @@
+#!/usr/bin/env python3
+"""
+VOICE DNA BROWSER - DNA Builder Game
+Voice-controlled interface for browsing and creating from DNA Library
+
+COMMANDS:
+- "list DNAs" → Show all available DNAs
+- "show [DNA_NAME]" → Display DNA documentation
+- "create from [DNA_NAME]" → Generate starter files
+- "save creation" → Save current work
+- "exit" → Quit browser
+
+USAGE:
+    python VOICE_DNA_BROWSER.py
+
+REQUIREMENTS:
+    - Voice system installed (see ../voice-system/requirements.txt)
+    - DNA Library at Desktop/1_COMMAND/DNA_LIBRARY/
+    - Microphone connected (Shokz headset recommended)
+"""
+
+import os
+import sys
+import json
+from datetime import datetime
+from pathlib import Path
+
+# Add voice system to path
+sys.path.append(str(Path(__file__).parent.parent / 'voice-system'))
+
+try:
+    import speech_recognition as sr
+    import pyttsx3
+except ImportError:
+    print("❌ Voice dependencies not installed!")
+    print("Run: pip install SpeechRecognition pyttsx3 PyAudio")
+    sys.exit(1)
+
+# Configuration
+HOME = Path.home()
+DNA_PATH = HOME / "Desktop" / "1_COMMAND" / "DNA_LIBRARY"
+CREATIONS_PATH = HOME / "Desktop" / "2_BUILD" / "CREATIONS"
+DARRICK_PATH = CREATIONS_PATH / "DARRICK"
+
+# Voice engine
+engine = pyttsx3.init()
+engine.setProperty('rate', 175)
+engine.setProperty('volume', 1.0)
+
+recognizer = sr.Recognizer()
+
+
+def speak(text):
+    """Text to speech"""
+    print(f"🔊 {text}")
+    engine.say(text)
+    engine.runAndWait()
+
+
+def listen():
+    """Speech to text"""
+    with sr.Microphone() as source:
+        print("🎤 Listening...")
+        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+        try:
+            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+            command = recognizer.recognize_google(audio).lower()
+            print(f"📝 You said: {command}")
+            return command
+        except sr.WaitTimeoutError:
+            return ""
+        except sr.UnknownValueError:
+            speak("Sorry, I didn't catch that")
+            return ""
+        except Exception as e:
+            speak("Voice recognition error")
+            print(f"Error: {e}")
+            return ""
+
+
+def list_dnas():
+    """Get all DNA files"""
+    dnas = []
+
+    # Scan folder 1 (Foundation)
+    folder1 = DNA_PATH / "1"
+    if folder1.exists():
+        for file in folder1.glob("*.md"):
+            if file.name != "README.md":
+                dnas.append({
+                    'name': file.stem.replace('_DNA', ''),
+                    'file': file.name,
+                    'category': 'FOUNDATION',
+                    'path': file
+                })
+
+    # Scan folder 2 (Products)
+    folder2 = DNA_PATH / "2"
+    if folder2.exists():
+        for file in folder2.glob("*.md"):
+            if file.name != "README.md":
+                dnas.append({
+                    'name': file.stem.replace('_DNA', ''),
+                    'file': file.name,
+                    'category': 'PRODUCTS',
+                    'path': file
+                })
+
+    return dnas
+
+
+def show_dna(dna_name):
+    """Read and display DNA content"""
+    dna_name = dna_name.upper().replace(' ', '_')
+
+    # Try both folders
+    for folder in ['1', '2']:
+        path = DNA_PATH / folder / f"{dna_name}_DNA.md"
+        if path.exists():
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return content, path
+
+    return None, None
+
+
+def extract_dna_name(command):
+    """Extract DNA name from voice command"""
+    # Remove common words
+    words = command.replace('show', '').replace('dna', '').replace('create from', '').strip()
+    return words.replace(' ', '_').upper()
+
+
+def generate_creation_id(dna_name, desc="TEST"):
+    """Generate unique creation ID using DNA naming system"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"CREATION_{dna_name}_DARRICK_{desc}_{timestamp}"
+
+
+def create_from_dna(dna_name):
+    """Generate starter files from DNA"""
+    content, path = show_dna(dna_name)
+
+    if not content:
+        speak(f"DNA {dna_name} not found")
+        return None
+
+    # Extract tech stack from DNA
+    tech_stack = extract_tech_stack(content)
+
+    # Generate creation ID
+    creation_id = generate_creation_id(dna_name)
+    creation_dir = DARRICK_PATH / creation_id
+    creation_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate starter files based on tech stack
+    files_created = []
+
+    # Always create README
+    readme = creation_dir / "README.md"
+    readme.write_text(f"""# {creation_id}
+
+**DNA Used:** {dna_name}
+**Created:** {datetime.now().isoformat()}
+**Owner:** DARRICK
+**Status:** In Development
+
+## What This Is
+
+Starter project generated from {dna_name} DNA.
+
+## Tech Stack
+
+{', '.join(tech_stack)}
+
+## How to Run
+
+(Add instructions here)
+
+## How to Build
+
+(Add instructions here)
+
+---
+
+*Generated by Voice DNA Browser*
+*Pattern: 3 → 7 → 13 → ∞*
+""")
+    files_created.append(readme)
+
+    # Generate based on tech stack
+    if 'html' in tech_stack or 'HTML' in content:
+        html_file = creation_dir / f"{creation_id}.html"
+        html_file.write_text(generate_html_starter(creation_id, dna_name))
+        files_created.append(html_file)
+
+    if 'python' in tech_stack or 'Python' in content:
+        py_file = creation_dir / f"{creation_id}.py"
+        py_file.write_text(generate_python_starter(creation_id, dna_name))
+        files_created.append(py_file)
+
+    if 'javascript' in tech_stack or 'JavaScript' in content:
+        js_file = creation_dir / f"{creation_id}.js"
+        js_file.write_text(generate_js_starter(creation_id, dna_name))
+        files_created.append(js_file)
+
+    # Save metadata
+    metadata = {
+        'creation_id': creation_id,
+        'dna_used': dna_name,
+        'owner': 'DARRICK',
+        'created': datetime.now().isoformat(),
+        'files': [str(f.relative_to(DARRICK_PATH)) for f in files_created],
+        'status': 'starter',
+        'tech_stack': tech_stack
+    }
+
+    metadata_file = creation_dir / "metadata.json"
+    metadata_file.write_text(json.dumps(metadata, indent=2))
+    files_created.append(metadata_file)
+
+    return creation_dir, files_created
+
+
+def extract_tech_stack(dna_content):
+    """Extract technologies from DNA"""
+    tech_stack = []
+
+    # Common patterns
+    if 'HTML' in dna_content or '.html' in dna_content:
+        tech_stack.append('html')
+    if 'Python' in dna_content or '.py' in dna_content:
+        tech_stack.append('python')
+    if 'JavaScript' in dna_content or '.js' in dna_content:
+        tech_stack.append('javascript')
+    if 'Supabase' in dna_content:
+        tech_stack.append('supabase')
+    if 'Netlify' in dna_content:
+        tech_stack.append('netlify')
+
+    return tech_stack if tech_stack else ['html']
+
+
+def generate_html_starter(creation_id, dna_name):
+    """Generate HTML starter file"""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{creation_id}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }}
+        .container {{
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }}
+        h1 {{
+            color: #667eea;
+            margin-top: 0;
+        }}
+        .info {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }}
+        .btn {{
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }}
+        .btn:hover {{
+            background: #5568d3;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{creation_id}</h1>
+        <div class="info">
+            <p><strong>DNA Used:</strong> {dna_name}</p>
+            <p><strong>Created:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>Owner:</strong> DARRICK</p>
+            <p><strong>Status:</strong> Starter Template</p>
+        </div>
+
+        <h2>Quick Start</h2>
+        <p>This is a starter template generated from the {dna_name} DNA.</p>
+        <p>Build your creation here!</p>
+
+        <button class="btn" onclick="alert('Add your functionality here!')">Test Button</button>
+    </div>
+
+    <script>
+        // Add your JavaScript here
+        console.log('Creation loaded:', '{creation_id}');
+    </script>
+</body>
+</html>
+"""
+
+
+def generate_python_starter(creation_id, dna_name):
+    """Generate Python starter file"""
+    return f"""#!/usr/bin/env python3
+\"\"\"
+{creation_id}
+
+DNA Used: {dna_name}
+Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Owner: DARRICK
+Status: Starter Template
+\"\"\"
+
+def main():
+    print("=== {creation_id} ===")
+    print("DNA Used: {dna_name}")
+    print("Status: Starter Template")
+    print()
+    print("Add your code here!")
+
+if __name__ == "__main__":
+    main()
+"""
+
+
+def generate_js_starter(creation_id, dna_name):
+    """Generate JavaScript starter file"""
+    return f"""/**
+ * {creation_id}
+ *
+ * DNA Used: {dna_name}
+ * Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+ * Owner: DARRICK
+ * Status: Starter Template
+ */
+
+console.log('=== {creation_id} ===');
+console.log('DNA Used: {dna_name}');
+console.log('Status: Starter Template');
+
+// Add your code here!
+
+function main() {{
+    console.log('Add your functionality here!');
+}}
+
+main();
+"""
+
+
+def main():
+    """Main voice browser loop"""
+    print("=" * 60)
+    print("🎤 VOICE DNA BROWSER - DNA Builder Game")
+    print("=" * 60)
+    print()
+    print("Available commands:")
+    print("- 'list DNAs' → Show all DNAs")
+    print("- 'show [DNA_NAME]' → Display DNA")
+    print("- 'create from [DNA_NAME]' → Generate starter")
+    print("- 'exit' → Quit")
+    print()
+
+    speak("Voice DNA Browser ready. Say 'list DNAs' to begin.")
+
+    while True:
+        command = listen()
+
+        if not command:
+            continue
+
+        # Exit
+        if 'exit' in command or 'quit' in command:
+            speak("Goodbye Commander")
+            break
+
+        # List DNAs
+        elif 'list' in command and 'dna' in command:
+            dnas = list_dnas()
+            speak(f"Found {len(dnas)} DNAs")
+
+            print("\n📚 DNA LIBRARY")
+            print("=" * 60)
+
+            foundation = [d for d in dnas if d['category'] == 'FOUNDATION']
+            products = [d for d in dnas if d['category'] == 'PRODUCTS']
+
+            print("\n🏗️ FOUNDATION (7):")
+            for dna in foundation:
+                print(f"  - {dna['name']}")
+
+            print("\n🎮 PRODUCTS (10):")
+            for dna in products:
+                print(f"  - {dna['name']}")
+
+            print("\n" + "=" * 60)
+            speak("Say 'show' followed by a DNA name to view it")
+
+        # Show DNA
+        elif 'show' in command:
+            dna_name = extract_dna_name(command)
+            content, path = show_dna(dna_name)
+
+            if content:
+                speak(f"Showing {dna_name} DNA")
+                print("\n" + "=" * 60)
+                print(f"📄 {dna_name} DNA")
+                print("=" * 60)
+                print()
+
+                # Show first 50 lines
+                lines = content.split('\n')[:50]
+                print('\n'.join(lines))
+
+                if len(content.split('\n')) > 50:
+                    print("\n... (truncated, see full file)")
+                    print(f"Full path: {path}")
+
+                print("\n" + "=" * 60)
+                speak("Say 'create from this DNA' to generate starter files")
+            else:
+                speak(f"DNA {dna_name} not found. Say 'list DNAs' to see available options")
+
+        # Create from DNA
+        elif 'create' in command:
+            dna_name = extract_dna_name(command)
+
+            speak(f"Creating from {dna_name} DNA")
+            result = create_from_dna(dna_name)
+
+            if result:
+                creation_dir, files = result
+                speak(f"Created {len(files)} files")
+
+                print("\n" + "=" * 60)
+                print("✅ CREATION GENERATED")
+                print("=" * 60)
+                print(f"Location: {creation_dir}")
+                print()
+                print("Files created:")
+                for f in files:
+                    print(f"  - {f.name}")
+                print("\n" + "=" * 60)
+
+                speak("Files saved to your creations folder")
+
+        else:
+            speak("Unknown command. Say 'list DNAs', 'show DNA name', or 'create from DNA name'")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n👋 Voice DNA Browser stopped")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()

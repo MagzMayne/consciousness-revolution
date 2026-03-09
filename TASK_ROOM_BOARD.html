@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Room Board - Consciousness Revolution</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --accent: #00ffaa;
+            --accent-dim: rgba(0, 255, 170, 0.2);
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            /* Domain Colors */
+            --command: #ff6b6b;
+            --build: #ffa500;
+            --connect: #00d4ff;
+            --protect: #9b59b6;
+            --grow: #2ecc71;
+            --learn: #f1c40f;
+            --transcend: #e91e63;
+            /* Difficulty Colors */
+            --easy: #2ecc71;
+            --medium: #f1c40f;
+            --hard: #e74c3c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--card), #1a1a2e);
+            padding: 20px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            color: var(--accent);
+            font-size: 1.8rem;
+        }
+        .header-stats {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-box {
+            background: var(--bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number { font-size: 1.5rem; color: var(--accent); font-weight: bold; }
+        .stat-label { font-size: 0.8rem; color: var(--text-dim); }
+
+        /* Filters */
+        .filters {
+            background: var(--card);
+            padding: 15px 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .filter-group { display: flex; gap: 8px; align-items: center; }
+        .filter-label { color: var(--text-dim); font-size: 0.9rem; }
+        .filter-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+        .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+        /* Domain filter buttons */
+        .filter-btn[data-domain="command"] { --domain-color: var(--command); }
+        .filter-btn[data-domain="build"] { --domain-color: var(--build); }
+        .filter-btn[data-domain="connect"] { --domain-color: var(--connect); }
+        .filter-btn[data-domain="protect"] { --domain-color: var(--protect); }
+        .filter-btn[data-domain="grow"] { --domain-color: var(--grow); }
+        .filter-btn[data-domain="learn"] { --domain-color: var(--learn); }
+        .filter-btn[data-domain="transcend"] { --domain-color: var(--transcend); }
+        .filter-btn[data-domain]:hover { border-color: var(--domain-color); color: var(--domain-color); }
+        .filter-btn[data-domain].active { background: var(--domain-color); color: var(--bg); border-color: var(--domain-color); }
+
+        /* Kanban Board */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 20px;
+            min-height: calc(100vh - 200px);
+        }
+        @media (max-width: 1200px) { .board { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .board { grid-template-columns: 1fr; } }
+
+        .column {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 220px);
+        }
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+        .column-title { font-weight: bold; font-size: 1rem; }
+        .column-count {
+            background: var(--bg);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: var(--accent);
+        }
+        .column-tasks {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Task Cards */
+        .task-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .task-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+        .task-title {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .task-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .task-tag {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .task-tag.domain { background: var(--accent-dim); color: var(--accent); }
+        .task-tag.role { background: rgba(0, 212, 255, 0.2); color: #00d4ff; }
+        .task-tag.difficulty-easy { background: rgba(46, 204, 113, 0.2); color: var(--easy); }
+        .task-tag.difficulty-medium { background: rgba(241, 196, 15, 0.2); color: var(--medium); }
+        .task-tag.difficulty-hard { background: rgba(231, 76, 60, 0.2); color: var(--hard); }
+        .task-tag.self-assign { background: rgba(46, 204, 113, 0.3); color: var(--easy); border: 1px solid var(--easy); }
+
+        /* Domain-specific colors */
+        .task-card[data-domain="command"] { border-left: 3px solid var(--command); }
+        .task-card[data-domain="build"] { border-left: 3px solid var(--build); }
+        .task-card[data-domain="connect"] { border-left: 3px solid var(--connect); }
+        .task-card[data-domain="protect"] { border-left: 3px solid var(--protect); }
+        .task-card[data-domain="grow"] { border-left: 3px solid var(--grow); }
+        .task-card[data-domain="learn"] { border-left: 3px solid var(--learn); }
+        .task-card[data-domain="transcend"] { border-left: 3px solid var(--transcend); }
+
+        /* Empty State */
+        .empty-column {
+            text-align: center;
+            color: var(--text-dim);
+            padding: 30px 15px;
+            font-style: italic;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--accent);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Task Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .modal-title { font-size: 1.2rem; flex: 1; margin-right: 15px; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: var(--accent); }
+        .modal-body { padding: 20px; }
+        .modal-description { color: var(--text-dim); line-height: 1.6; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: var(--bg); }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+        .btn-secondary:hover { background: var(--accent-dim); }
+
+        /* Refresh Button */
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .refresh-btn:hover { background: var(--accent-dim); }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 15px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <!-- DNA Block for Dashboard Factory -->
+    <script id="dashboard-dna" type="application/json">
+    {
+        "id": "TASK_ROOM_BOARD",
+        "version": "1.0.0",
+        "created": "2026-02-27",
+        "author": "C1 Mechanic",
+        "domain": "command",
+        "type": "dashboard",
+        "features": ["kanban-board", "github-integration", "domain-filtering", "role-filtering"],
+        "changelog": [
+            {"version": "1.0.0", "date": "2026-02-27", "changes": "Initial build - M26 machine task"}
+        ]
+    }
+    </script>
+
+    <header class="header">
+        <div>
+            <h1>TASK ROOM BOARD</h1>
+            <span style="color: var(--text-dim);">Consciousness Revolution - Join the Build</span>
+        </div>
+        <div class="header-stats">
+            <div class="stat-box">
+                <div class="stat-number" id="total-tasks">0</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="available-tasks">0</div>
+                <div class="stat-label">Available</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="in-progress">0</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+        </div>
+        <button class="refresh-btn" onclick="loadTasks()">
+            <span>↻</span> Refresh
+        </button>
+    </header>
+
+    <div class="filters">
+        <div class="filter-group">
+            <span class="filter-label">Domain:</span>
+            <button class="filter-btn active" data-filter="domain" data-value="all">All</button>
+            <button class="filter-btn" data-filter="domain" data-value="command" data-domain="command">Command</button>
+            <button class="filter-btn" data-filter="domain" data-value="build" data-domain="build">Build</button>
+            <button class="filter-btn" data-filter="domain" data-value="connect" data-domain="connect">Connect</button>
+            <button class="filter-btn" data-filter="domain" data-value="protect" data-domain="protect">Protect</button>
+            <button class="filter-btn" data-filter="domain" data-value="grow" data-domain="grow">Grow</button>
+            <button class="filter-btn" data-filter="domain" data-value="learn" data-domain="learn">Learn</button>
+            <button class="filter-btn" data-filter="domain" data-value="transcend" data-domain="transcend">Transcend</button>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Role:</span>
+            <button class="filter-btn active" data-filter="role" data-value="all">All</button>
+            <button class="filter-btn" data-filter="role" data-value="writer">Writer</button>
+            <button class="filter-btn" data-filter="role" data-value="designer">Designer</button>
+            <button class="filter-btn" data-filter="role" data-value="tester">Tester</button>
+            <button class="filter-btn" data-filter="role" data-value="community">Community</button>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Difficulty:</span>
+            <button class="filter-btn active" data-filter="difficulty" data-value="all">All</button>
+            <button class="filter-btn" data-filter="difficulty" data-value="easy">Easy</button>
+            <button class="filter-btn" data-filter="difficulty" data-value="medium">Medium</button>
+            <button class="filter-btn" data-filter="difficulty" data-value="hard">Hard</button>
+        </div>
+    </div>
+
+    <div class="board">
+        <div class="column" data-status="backlog">
+            <div class="column-header">
+                <span class="column-title">📋 Backlog</span>
+                <span class="column-count" id="count-backlog">0</span>
+            </div>
+            <div class="column-tasks" id="tasks-backlog">
+                <div class="loading">Loading tasks...</div>
+            </div>
+        </div>
+
+        <div class="column" data-status="available">
+            <div class="column-header">
+                <span class="column-title">✋ Available</span>
+                <span class="column-count" id="count-available">0</span>
+            </div>
+            <div class="column-tasks" id="tasks-available">
+                <div class="loading">Loading tasks...</div>
+            </div>
+        </div>
+
+        <div class="column" data-status="in-progress">
+            <div class="column-header">
+                <span class="column-title">🔨 In Progress</span>
+                <span class="column-count" id="count-in-progress">0</span>
+            </div>
+            <div class="column-tasks" id="tasks-in-progress">
+                <div class="loading">Loading tasks...</div>
+            </div>
+        </div>
+
+        <div class="column" data-status="done">
+            <div class="column-header">
+                <span class="column-title">✅ Done</span>
+                <span class="column-count" id="count-done">0</span>
+            </div>
+            <div class="column-tasks" id="tasks-done">
+                <div class="loading">Loading tasks...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="task-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Task Title</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="task-meta" id="modal-meta" style="margin-bottom: 15px;"></div>
+                <div class="modal-description" id="modal-description">Task description...</div>
+                <div class="modal-actions">
+                    <a id="modal-github-link" href="#" target="_blank" class="btn btn-primary">View on GitHub</a>
+                    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Pattern: 3 → 7 → 13 → ∞ | <a href="SOFTWARE_ENGINEERING_101.html">Learn How This Works</a> |
+        <a href="https://github.com/overkillkulture/consciousness-dashboards/issues" target="_blank">View All Issues</a>
+    </footer>
+
+    <script>
+        // State
+        let allTasks = [];
+        let activeFilters = { domain: 'all', role: 'all', difficulty: 'all' };
+
+        // Domain label mapping
+        const DOMAIN_LABELS = {
+            'domain: command': 'command',
+            'domain: build': 'build',
+            'domain: connect': 'connect',
+            'domain: protect': 'protect',
+            'domain: grow': 'grow',
+            'domain: learn': 'learn',
+            'domain: transcend': 'transcend'
+        };
+
+        // Role labels
+        const ROLE_LABELS = ['role: writer', 'role: designer', 'role: tester', 'role: community'];
+
+        // Difficulty labels
+        const DIFFICULTY_LABELS = {
+            'difficulty: easy': 'easy',
+            'difficulty: medium': 'medium',
+            'difficulty: hard': 'hard'
+        };
+
+        // Status labels for kanban columns
+        const STATUS_LABELS = {
+            'status: backlog': 'backlog',
+            'status: available': 'available',
+            'status: in-progress': 'in-progress',
+            'status: done': 'done'
+        };
+
+        // Parse labels from GitHub issue
+        function parseLabels(labels) {
+            const result = { domain: null, role: null, difficulty: null, status: 'available', selfAssign: false };
+
+            labels.forEach(label => {
+                const name = label.name.toLowerCase();
+
+                // Check domain
+                for (const [key, value] of Object.entries(DOMAIN_LABELS)) {
+                    if (name === key) result.domain = value;
+                }
+
+                // Check role
+                ROLE_LABELS.forEach(role => {
+                    if (name === role) result.role = role.replace('role: ', '');
+                });
+
+                // Check difficulty
+                for (const [key, value] of Object.entries(DIFFICULTY_LABELS)) {
+                    if (name === key) result.difficulty = value;
+                }
+
+                // Check status
+                for (const [key, value] of Object.entries(STATUS_LABELS)) {
+                    if (name === key) result.status = value;
+                }
+
+                // Check self-assign
+                if (name === 'self-assign') result.selfAssign = true;
+            });
+
+            return result;
+        }
+
+        // Fetch tasks from GitHub API (public endpoint, no auth needed for public repos)
+        async function loadTasks() {
+            try {
+                // Try Netlify function first (has auth for private repos)
+                let response;
+                try {
+                    response = await fetch('/.netlify/functions/get-github-issues');
+                    if (!response.ok) throw new Error('Function not available');
+                } catch {
+                    // Fallback to direct GitHub API (works for public repos)
+                    response = await fetch('https://api.github.com/repos/overkillkulture/consciousness-dashboards/issues?state=all&per_page=100');
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch: ${response.status}`);
+                }
+
+                const issues = await response.json();
+
+                // Transform to task format
+                allTasks = issues.map(issue => ({
+                    id: issue.number,
+                    title: issue.title,
+                    description: issue.body || 'No description provided.',
+                    url: issue.html_url,
+                    labels: issue.labels,
+                    ...parseLabels(issue.labels),
+                    assignee: issue.assignee?.login || null,
+                    createdAt: issue.created_at,
+                    closedAt: issue.closed_at
+                }));
+
+                // Override status for closed issues
+                allTasks.forEach(task => {
+                    if (task.closedAt) task.status = 'done';
+                    if (task.assignee && task.status === 'available') task.status = 'in-progress';
+                });
+
+                renderTasks();
+                updateStats();
+
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                // Show sample data for demo
+                loadSampleData();
+            }
+        }
+
+        // Sample data for demo/fallback
+        function loadSampleData() {
+            allTasks = [
+                {
+                    id: 1,
+                    title: 'Example Task: Write documentation for Dashboard Factory',
+                    description: 'Create user-friendly documentation explaining how the Dashboard Factory system works.',
+                    url: 'https://github.com/overkillkulture/consciousness-dashboards/issues/1',
+                    domain: 'learn',
+                    role: 'writer',
+                    difficulty: 'easy',
+                    status: 'available',
+                    selfAssign: true
+                },
+                {
+                    id: 2,
+                    title: 'Design new icons for 7 domains',
+                    description: 'Create a consistent icon set representing each of the 7 domains.',
+                    url: '#',
+                    domain: 'build',
+                    role: 'designer',
+                    difficulty: 'medium',
+                    status: 'backlog',
+                    selfAssign: true
+                },
+                {
+                    id: 3,
+                    title: 'Test ARAYA chat on mobile devices',
+                    description: 'Verify ARAYA chat works correctly on iOS and Android browsers.',
+                    url: '#',
+                    domain: 'connect',
+                    role: 'tester',
+                    difficulty: 'easy',
+                    status: 'available',
+                    selfAssign: true
+                },
+                {
+                    id: 4,
+                    title: 'Build community onboarding guide',
+                    description: 'Create a step-by-step guide for new community members.',
+                    url: '#',
+                    domain: 'grow',
+                    role: 'community',
+                    difficulty: 'medium',
+                    status: 'in-progress',
+                    selfAssign: false
+                }
+            ];
+            renderTasks();
+            updateStats();
+        }
+
+        // Render tasks to columns
+        function renderTasks() {
+            const columns = ['backlog', 'available', 'in-progress', 'done'];
+
+            columns.forEach(status => {
+                const container = document.getElementById(`tasks-${status}`);
+                const filteredTasks = allTasks.filter(task => {
+                    if (task.status !== status) return false;
+                    if (activeFilters.domain !== 'all' && task.domain !== activeFilters.domain) return false;
+                    if (activeFilters.role !== 'all' && task.role !== activeFilters.role) return false;
+                    if (activeFilters.difficulty !== 'all' && task.difficulty !== activeFilters.difficulty) return false;
+                    return true;
+                });
+
+                if (filteredTasks.length === 0) {
+                    container.innerHTML = '<div class="empty-column">No tasks</div>';
+                } else {
+                    container.innerHTML = filteredTasks.map(task => createTaskCard(task)).join('');
+                }
+
+                document.getElementById(`count-${status}`).textContent = filteredTasks.length;
+            });
+        }
+
+        // Create task card HTML
+        function createTaskCard(task) {
+            const tags = [];
+            if (task.domain) tags.push(`<span class="task-tag domain">${task.domain}</span>`);
+            if (task.role) tags.push(`<span class="task-tag role">${task.role}</span>`);
+            if (task.difficulty) tags.push(`<span class="task-tag difficulty-${task.difficulty}">${task.difficulty}</span>`);
+            if (task.selfAssign) tags.push(`<span class="task-tag self-assign">grab it!</span>`);
+
+            return `
+                <div class="task-card" data-domain="${task.domain || ''}" onclick="openModal(${task.id})">
+                    <div class="task-title">${escapeHtml(task.title)}</div>
+                    <div class="task-meta">${tags.join('')}</div>
+                </div>
+            `;
+        }
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('total-tasks').textContent = allTasks.length;
+            document.getElementById('available-tasks').textContent = allTasks.filter(t => t.status === 'available').length;
+            document.getElementById('in-progress').textContent = allTasks.filter(t => t.status === 'in-progress').length;
+        }
+
+        // Modal functions
+        function openModal(taskId) {
+            const task = allTasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            document.getElementById('modal-title').textContent = task.title;
+            document.getElementById('modal-description').textContent = task.description;
+            document.getElementById('modal-github-link').href = task.url;
+
+            const tags = [];
+            if (task.domain) tags.push(`<span class="task-tag domain">${task.domain}</span>`);
+            if (task.role) tags.push(`<span class="task-tag role">${task.role}</span>`);
+            if (task.difficulty) tags.push(`<span class="task-tag difficulty-${task.difficulty}">${task.difficulty}</span>`);
+            document.getElementById('modal-meta').innerHTML = tags.join('');
+
+            document.getElementById('task-modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('task-modal').classList.remove('active');
+        }
+
+        // Filter handling
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filterType = btn.dataset.filter;
+                const filterValue = btn.dataset.value;
+
+                // Update active state
+                document.querySelectorAll(`.filter-btn[data-filter="${filterType}"]`).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update filter
+                activeFilters[filterType] = filterValue;
+                renderTasks();
+            });
+        });
+
+        // Utility
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modal on overlay click
+        document.getElementById('task-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'task-modal') closeModal();
+        });
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Initial load
+        loadTasks();
+    </script>
+</body>
+</html>

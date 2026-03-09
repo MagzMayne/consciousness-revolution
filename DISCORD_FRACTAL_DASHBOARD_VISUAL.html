@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord-Fractal Dashboard Architecture | OVERKILL KULTURE</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 100%);
+            color: #e2e8f0;
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #00f0ff;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+
+        .subtitle {
+            color: #8b5cf6;
+            font-size: 1.2em;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid #8b5cf6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            background: rgba(139, 92, 246, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: rgba(0, 240, 255, 0.3);
+            border-color: #00f0ff;
+            color: #00f0ff;
+        }
+
+        .content-panel {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .content-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #00f0ff;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .card h3 {
+            color: #8b5cf6;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .mapping-card {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid #8b5cf6;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .mapping-card .label {
+            color: #00f0ff;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .mapping-card .value {
+            color: #e2e8f0;
+        }
+
+        .fractal-viz {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+
+        .fractal-viz pre {
+            color: #00f0ff;
+            line-height: 1.8;
+        }
+
+        .flow-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 30px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .flow-step {
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px solid #8b5cf6;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .flow-step::after {
+            content: '↓';
+            display: block;
+            text-align: center;
+            font-size: 2em;
+            color: #00f0ff;
+            margin-top: 10px;
+        }
+
+        .flow-step:last-child::after {
+            content: '✓';
+            color: #10b981;
+        }
+
+        .scale-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .scale-table th,
+        .scale-table td {
+            padding: 15px;
+            text-align: left;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .scale-table th {
+            background: rgba(0, 240, 255, 0.2);
+            color: #00f0ff;
+        }
+
+        .scale-table tr:nth-child(even) {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background: rgba(0, 240, 255, 0.2);
+            border: 1px solid #00f0ff;
+            border-radius: 5px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .cost-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .cost-card {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(0, 240, 255, 0.1) 100%);
+            border: 1px solid #8b5cf6;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .cost-card .phase {
+            color: #00f0ff;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .cost-card .amount {
+            color: #10b981;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .cost-card .users {
+            color: #8b5cf6;
+            font-size: 1.2em;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #00f0ff;
+        }
+
+        .merge-gui-demo {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00f0ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .merge-header {
+            background: rgba(0, 240, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .merge-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .merge-side {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid #8b5cf6;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .merge-preview {
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: rgba(0, 240, 255, 0.3);
+            border: 1px solid #00f0ff;
+            border-radius: 8px;
+            color: #00f0ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: rgba(0, 240, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .alert {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #fca5a5;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .mapping-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .merge-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-container {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 DISCORD-FRACTAL DASHBOARD ARCHITECTURE</h1>
+            <div class="subtitle">C2 Architect Blueprint: Scale 5 → 500 Users</div>
+            <div style="margin-top: 20px; color: #00f0ff;">
+                Pattern Theory Applied to Collaborative Interfaces
+            </div>
+        </header>
+
+        <div class="tab-container">
+            <div class="tab active" onclick="switchTab('overview')">Overview</div>
+            <div class="tab" onclick="switchTab('mapping')">Discord Mapping</div>
+            <div class="tab" onclick="switchTab('database')">Database Schema</div>
+            <div class="tab" onclick="switchTab('merge')">Merge System</div>
+            <div class="tab" onclick="switchTab('scale')">Scale Path</div>
+            <div class="tab" onclick="switchTab('costs')">Cost Model</div>
+        </div>
+
+        <div id="overview" class="content-panel active">
+            <div class="card">
+                <h2>🎨 The Pattern: Discord's Genius Applied</h2>
+                <p>Discord successfully manages 150M+ users collaborating in real-time. We're copying their fractal architecture for dashboards.</p>
+
+                <div class="fractal-viz">
+                    <pre>
+DISCORD PATTERN:
+Server (Community)
+  ├─ Category (Department)
+  │    ├─ Channel (Topic)
+  │    │    ├─ Thread (Focus)
+  │    │    │    └─ Message (Unit)
+  │    │    └─ Pinned Messages (Gold)
+  │    └─ Permissions (Access Gates)
+  └─ Roles (Identity + Authority)
+
+<span style="color: #8b5cf6;">FRACTAL PROPERTY:</span> Same pattern at every level
+• Server behaves like Category
+• Category behaves like Channel
+• Channel behaves like Thread
+<span style="color: #00f0ff;">→ Infinite scalability</span>
+                    </pre>
+                </div>
+
+                <h3>Why This Works</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-card">
+                        <div class="label">Proven at Scale</div>
+                        <div class="value">150M+ Discord users already understand this model</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Low Learning Curve</div>
+                        <div class="value">Familiar mental model = faster onboarding</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Fractal Structure</div>
+                        <div class="value">Same interface at every level = simple code</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Git-Like Versioning</div>
+                        <div class="value">Developers already know merge/branch/commit</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🏗️ Architecture Layers</h2>
+                <div class="flow-diagram">
+                    <div class="flow-step">
+                        <strong>Layer 1: Foundation (Supabase)</strong><br>
+                        Single source of truth, PostgreSQL + RLS
+                    </div>
+                    <div class="flow-step">
+                        <strong>Layer 2: Personal Files (.overkore/)</strong><br>
+                        Local customizations, offline cache
+                    </div>
+                    <div class="flow-step">
+                        <strong>Layer 3: Team Dashboards (100X_DEPLOYMENT/)</strong><br>
+                        Shared HTML files, git-tracked versions
+                    </div>
+                    <div class="flow-step">
+                        <strong>Layer 4: Merge GUI (Discord-Style)</strong><br>
+                        Visual conflict resolution, AI suggestions
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mapping" class="content-panel">
+            <div class="card">
+                <h2>🔗 Discord → Dashboard Mapping</h2>
+                <table class="scale-table">
+                    <thead>
+                        <tr>
+                            <th>Discord Concept</th>
+                            <th>Dashboard Equivalent</th>
+                            <th>Technical Implementation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Server</strong></td>
+                            <td>Organization/Team</td>
+                            <td>Root namespace (e.g., "OVERKILL_HQ")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Category</strong></td>
+                            <td>Domain (7 Domains)</td>
+                            <td><code>domain_id</code> (1_COMMAND through 7_TRANSCEND)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Channel</strong></td>
+                            <td>Feature/Tool/Project</td>
+                            <td>Dashboard HTML file + metadata record</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Thread</strong></td>
+                            <td>Session/Version</td>
+                            <td>Git branch + timestamp + user_id</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Message</strong></td>
+                            <td>Component/Widget</td>
+                            <td>JSON blocks within dashboard</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Reaction</strong></td>
+                            <td>Vote/Preference</td>
+                            <td>User interaction log</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pin</strong></td>
+                            <td>Gold Standard</td>
+                            <td>Status flag (GOLD/SHIP/DRAFT)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Role</strong></td>
+                            <td>Access Tier</td>
+                            <td>GHOST/SEEDLING/SAPLING/TREE/FOREST</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Permissions</strong></td>
+                            <td>Feature Gates</td>
+                            <td>Supabase RLS policies</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>🔄 Fractal Property Example</h2>
+                <div class="fractal-viz">
+                    <pre>
+<span style="color: #00f0ff;">// Organization Level (Server)</span>
+{
+    org_id: "uuid",
+    name: "OVERKILL HQ",
+    domains: [...],
+    members: [...],
+    permissions: {...}
+}
+
+<span style="color: #8b5cf6;">// Domain Level (Category)</span>
+{
+    domain_id: "2_BUILD",
+    name: "BUILD",
+    dashboards: [...],
+    permissions: {...}
+}
+
+<span style="color: #10b981;">// Dashboard Level (Channel)</span>
+{
+    dashboard_id: "uuid",
+    name: "Builder Cockpit",
+    versions: [...],
+    components: [...],
+    permissions: {...}
+}
+
+<span style="color: #f59e0b;">// Component Level (Message)</span>
+{
+    component_id: "uuid",
+    type: "system_health_widget",
+    versions: [...],
+    position: {x: 0, y: 0},
+    config: {...}
+}
+
+<span style="color: #00f0ff;">→ Same interface at every level!</span>
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+        <div id="database" class="content-panel">
+            <div class="card">
+                <h2>🗄️ Database Schema (Supabase)</h2>
+                <h3>Core Tables</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-card">
+                        <div class="label">organizations</div>
+                        <div class="value">Root namespace, settings</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">users</div>
+                        <div class="value">Email, auth provider, preferences</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">org_members</div>
+                        <div class="value">User-org relationship, roles</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">dashboards</div>
+                        <div class="value">Name, domain, owner, status</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">dashboard_versions</div>
+                        <div class="value">Full snapshots, git commits</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">dashboard_components</div>
+                        <div class="value">Widgets, position, config</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">component_changes</div>
+                        <div class="value">ADD/MODIFY/DELETE logs</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">merge_conflicts</div>
+                        <div class="value">Left/right state, resolution</div>
+                    </div>
+                </div>
+
+                <h3>Row Level Security (RLS)</h3>
+                <div class="fractal-viz">
+                    <pre>
+<span style="color: #00f0ff;">-- Users can read dashboards in their orgs</span>
+CREATE POLICY "Users can read org dashboards"
+    ON dashboards FOR SELECT
+    USING (
+        org_id IN (
+            SELECT org_id FROM org_members WHERE user_id = auth.uid()
+        )
+        OR visibility = 'PUBLIC'
+    );
+
+<span style="color: #8b5cf6;">-- Users can edit their own dashboards</span>
+CREATE POLICY "Users can edit own dashboards"
+    ON dashboards FOR UPDATE
+    USING (owner_id = auth.uid());
+                    </pre>
+                </div>
+
+                <div class="alert">
+                    <strong>Security Note:</strong> RLS policies enforce access control at the database level. No custom auth layer needed!
+                </div>
+            </div>
+        </div>
+
+        <div id="merge" class="content-panel">
+            <div class="card">
+                <h2>🔀 Merge System (Discord-Style GUI)</h2>
+
+                <div class="merge-gui-demo">
+                    <div class="merge-header">
+                        <strong>Merge Conflicts: COMMANDER_COCKPIT.html</strong><br>
+                        Base: v123 (Jan 1) → Left: Darrick (v124) vs Right: Tiger (v125)
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <strong>Component: "System Health Widget"</strong>
+                    </div>
+
+                    <div class="merge-comparison">
+                        <div class="merge-side">
+                            <div style="color: #00f0ff; margin-bottom: 10px;"><strong>Darrick's Version</strong></div>
+                            <div>(Added CPU monitor)</div>
+                            <div style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                                <div>CPU: 45% 📊</div>
+                                <div>Disk: 60%</div>
+                            </div>
+                            <button class="btn" style="margin-top: 15px;">Accept Left</button>
+                        </div>
+
+                        <div class="merge-side">
+                            <div style="color: #8b5cf6; margin-bottom: 10px;"><strong>Tiger's Version</strong></div>
+                            <div>(Added Memory graph)</div>
+                            <div style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                                <div>RAM: 8GB 📈</div>
+                                <div>CPU: 45%</div>
+                            </div>
+                            <button class="btn" style="margin-top: 15px;">Accept Right</button>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <strong>Resolution Strategy:</strong>
+                        <div style="margin-top: 10px;">
+                            <label style="display: block; margin: 5px 0;">
+                                <input type="radio" name="strategy"> Accept Left Only
+                            </label>
+                            <label style="display: block; margin: 5px 0;">
+                                <input type="radio" name="strategy" checked> <strong>Merge Both (Smart)</strong> ← AI Recommended
+                            </label>
+                            <label style="display: block; margin: 5px 0;">
+                                <input type="radio" name="strategy"> Accept Right Only
+                            </label>
+                            <label style="display: block; margin: 5px 0;">
+                                <input type="radio" name="strategy"> Manual Edit
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="merge-preview">
+                        <strong>Merged Preview:</strong>
+                        <div style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                            <div><strong>System Health</strong></div>
+                            <div>CPU: 45% 📊  |  RAM: 8GB 📈</div>
+                            <div>Disk: 60%</div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="btn" style="background: rgba(16, 185, 129, 0.3); border-color: #10b981; color: #10b981;">Approve Merge</button>
+                        <button class="btn">Request Review</button>
+                        <button class="btn" style="background: rgba(239, 68, 68, 0.3); border-color: #ef4444; color: #ef4444;">Reject All</button>
+                    </div>
+                </div>
+
+                <h3>Merge Strategies</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-card">
+                        <div class="label">Auto-Merge</div>
+                        <div class="value">Non-conflicting changes merge automatically (80% of cases)</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Three-Way Merge</div>
+                        <div class="value">Base + Left + Right comparison (like git)</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">AI-Assisted</div>
+                        <div class="value">GPT-4 analyzes diffs, suggests best resolution</div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Manual Resolution</div>
+                        <div class="value">User edits merged result directly</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="scale" class="content-panel">
+            <div class="card">
+                <h2>📈 Scale Path: 5 → 50 → 500 Users</h2>
+
+                <table class="scale-table">
+                    <thead>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Users</th>
+                            <th>Timeline</th>
+                            <th>Infrastructure</th>
+                            <th>Key Features</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Phase 1</strong></td>
+                            <td>5</td>
+                            <td>Weeks 1-4</td>
+                            <td>
+                                • Supabase Free<br>
+                                • Netlify Free<br>
+                                • Single org
+                            </td>
+                            <td>
+                                • Basic merge GUI<br>
+                                • Manual resolution<br>
+                                • Git-like versioning
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Phase 2</strong></td>
+                            <td>50</td>
+                            <td>Months 2-6</td>
+                            <td>
+                                • Supabase Pro ($25/mo)<br>
+                                • Railway WebSocket<br>
+                                • Redis cache
+                            </td>
+                            <td>
+                                • Multi-org support<br>
+                                • AI merge suggestions<br>
+                                • Real-time notifications<br>
+                                • Dashboard marketplace
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Phase 3</strong></td>
+                            <td>500</td>
+                            <td>Months 6-12</td>
+                            <td>
+                                • Supabase Team ($599/mo)<br>
+                                • CDN (Cloudflare)<br>
+                                • WebSocket cluster<br>
+                                • Multi-region
+                            </td>
+                            <td>
+                                • Offline-first architecture<br>
+                                • Live collaboration cursors<br>
+                                • Advanced merge strategies<br>
+                                • Dashboard analytics
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Key Metrics by Phase</h3>
+                <div class="mapping-grid">
+                    <div class="mapping-card">
+                        <div class="label">Phase 1 Targets</div>
+                        <div class="value">
+                            <span class="metric-badge">Load < 2s</span>
+                            <span class="metric-badge">1-2 conflicts/week</span>
+                            <span class="metric-badge">Merge < 5min</span>
+                        </div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Phase 2 Targets</div>
+                        <div class="value">
+                            <span class="metric-badge">Query < 100ms</span>
+                            <span class="metric-badge">WebSocket < 50ms</span>
+                            <span class="metric-badge">AI accuracy 80%</span>
+                        </div>
+                    </div>
+                    <div class="mapping-card">
+                        <div class="label">Phase 3 Targets</div>
+                        <div class="value">
+                            <span class="metric-badge">99.9% uptime</span>
+                            <span class="metric-badge">Load < 1s global</span>
+                            <span class="metric-badge">< 10% unresolved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="costs" class="content-panel">
+            <div class="card">
+                <h2>💰 Cost Model & ROI</h2>
+
+                <div class="cost-breakdown">
+                    <div class="cost-card">
+                        <div class="phase">Phase 1</div>
+                        <div class="users">5 Users</div>
+                        <div class="amount">$0/mo</div>
+                        <div style="margin-top: 10px; font-size: 0.9em;">
+                            • Supabase Free<br>
+                            • Netlify Free
+                        </div>
+                    </div>
+
+                    <div class="cost-card">
+                        <div class="phase">Phase 2</div>
+                        <div class="users">50 Users</div>
+                        <div class="amount">$55/mo</div>
+                        <div style="margin-top: 10px; font-size: 0.9em;">
+                            • Supabase Pro: $25<br>
+                            • Railway: $10<br>
+                            • OpenAI: $20
+                        </div>
+                        <div style="margin-top: 10px; color: #8b5cf6;">$1.10 per user</div>
+                    </div>
+
+                    <div class="cost-card">
+                        <div class="phase">Phase 3</div>
+                        <div class="users">500 Users</div>
+                        <div class="amount">$919/mo</div>
+                        <div style="margin-top: 10px; font-size: 0.9em;">
+                            • Supabase Team: $599<br>
+                            • Railway: $100<br>
+                            • CDN: $20<br>
+                            • OpenAI: $200
+                        </div>
+                        <div style="margin-top: 10px; color: #8b5cf6;">$1.84 per user</div>
+                    </div>
+                </div>
+
+                <h3>Revenue Potential (Phase 3)</h3>
+                <table class="scale-table">
+                    <thead>
+                        <tr>
+                            <th>Tier</th>
+                            <th>Price/mo</th>
+                            <th>Users</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>SEEDLING</strong></td>
+                            <td>$10</td>
+                            <td>300</td>
+                            <td>$3,000</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SAPLING</strong></td>
+                            <td>$30</td>
+                            <td>150</td>
+                            <td>$4,500</td>
+                        </tr>
+                        <tr>
+                            <td><strong>TREE</strong></td>
+                            <td>$100</td>
+                            <td>40</td>
+                            <td>$4,000</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FOREST</strong></td>
+                            <td>$300</td>
+                            <td>10</td>
+                            <td>$3,000</td>
+                        </tr>
+                        <tr style="background: rgba(16, 185, 129, 0.2);">
+                            <td colspan="3"><strong>Total Monthly Revenue</strong></td>
+                            <td><strong>$14,500</strong></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">Infrastructure Costs</td>
+                            <td>- $919</td>
+                        </tr>
+                        <tr style="background: rgba(0, 240, 255, 0.2);">
+                            <td colspan="3"><strong>Net Profit</strong></td>
+                            <td><strong>$13,581 (93% margin)</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #6ee7b7;">
+                    <strong>Investment Highlight:</strong> 93% profit margin at scale. Infrastructure costs grow linearly while revenue grows exponentially.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="application/json" id="dna-data">
+    {
+        "name": "Discord-Fractal Dashboard Architecture",
+        "domain": "1_COMMAND",
+        "status": "ARCHITECTURE",
+        "created": "2026-02-25",
+        "architect": "C2",
+        "pattern_theory": "3→7→13→∞",
+        "fractal_depth": 4,
+        "scale_path": [5, 50, 500],
+        "core_technologies": [
+            "Supabase (PostgreSQL + RLS + WebSocket)",
+            "Git-like versioning",
+            "Discord-style UI patterns",
+            "AI-assisted merge resolution"
+        ],
+        "cost_efficiency": "93% profit margin at 500 users",
+        "technical_debt_prevention": [
+            "Build only when needed",
+            "Plugin architecture for extensibility",
+            "Comprehensive testing strategy",
+            "Clear migration path"
+        ],
+        "investment_readiness": "GOLD",
+        "connects": [
+            "DISCORD_DNA_BLUEPRINT.md",
+            "WORKSPACE_DNA_BLUEPRINT.md",
+            "C2_SCALING_ARCHITECTURE_BLUEPRINT.md"
+        ],
+        "next_steps": [
+            "C1: Implement Supabase schema",
+            "C1: Build basic merge GUI",
+            "C3: Validate with 5 beta testers",
+            "C2: Monitor scale metrics"
+        ]
+    }
+    </script>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all panels
+            document.querySelectorAll('.content-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Log DNA data on load
+        console.log('📊 Dashboard Architecture DNA:', JSON.parse(document.getElementById('dna-data').textContent));
+    </script>
+</body>
+</html>

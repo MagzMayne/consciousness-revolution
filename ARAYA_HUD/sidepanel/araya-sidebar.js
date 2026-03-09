@@ -268,6 +268,15 @@ async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
+    // Energy Gate check - spend 1 Energy per Edit message
+    if (window.EnergyGate) {
+        const energyCheck = await EnergyGate.gate('edit', 'chat_message', { autoSpend: true, showUI: true });
+        if (!energyCheck.allowed && !energyCheck.success) {
+            console.log('[ARAYA Edit] Insufficient Energy');
+            return;
+        }
+    }
+
     // Add user message
     addMessage(text, true);
     input.value = '';

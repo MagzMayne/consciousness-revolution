@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardhitter Review - Admin</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 30px;
+      color: #00f5ff;
+    }
+
+    .submissions {
+      display: grid;
+      gap: 20px;
+    }
+
+    .submission-card {
+      background: rgba(20, 20, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 25px;
+      transition: all 0.3s;
+    }
+
+    .submission-card:hover {
+      border-color: #00f5ff;
+      box-shadow: 0 5px 20px rgba(0, 245, 255, 0.1);
+    }
+
+    .submission-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .system-name {
+      font-size: 1.5em;
+      font-weight: 700;
+      color: #00f5ff;
+    }
+
+    .status-badge {
+      padding: 6px 15px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pending {
+      background: rgba(255, 200, 0, 0.2);
+      color: #ffc800;
+    }
+
+    .status-approved {
+      background: rgba(0, 255, 100, 0.2);
+      color: #00ff64;
+    }
+
+    .status-rejected {
+      background: rgba(255, 0, 100, 0.2);
+      color: #ff0064;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .detail-item {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 12px;
+      border-radius: 6px;
+    }
+
+    .detail-label {
+      font-size: 0.85em;
+      color: #888;
+      margin-bottom: 5px;
+    }
+
+    .detail-value {
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    .description-box {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .description-box h3 {
+      color: #00f5ff;
+      font-size: 0.95em;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .approve-btn {
+      background: #00ff64;
+      color: #0a0a0f;
+      flex: 1;
+    }
+
+    .reject-btn {
+      background: #ff0064;
+      color: white;
+    }
+
+    .info-btn {
+      background: #ffc800;
+      color: #0a0a0f;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    input[type="number"] {
+      width: 150px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: #e0e0e0;
+      margin-right: 10px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #888;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #888;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn.active {
+      background: rgba(0, 245, 255, 0.2);
+      border-color: #00f5ff;
+      color: #00f5ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Hardhitter Applications</h1>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="pending">Pending</button>
+      <button class="filter-btn" data-filter="approved">Approved</button>
+      <button class="filter-btn" data-filter="rejected">Rejected</button>
+    </div>
+
+    <div id="submissions" class="submissions">
+      <div class="loading">Loading applications...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const supabase = createClient(
+      'https://lgibygzcbvrrykfaxvbg.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnaWJ5Z3pjYnZycnlrZmF4dmJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY3NzE5NzgsImV4cCI6MjA1MjM0Nzk3OH0.4zN_gPYRh55Wn5s1bwUiGC3aGxN6lJM9hjIABDKWJMs'
+    );
+
+    let currentFilter = 'all';
+    let allSubmissions = [];
+
+    // Load submissions
+    async function loadSubmissions() {
+      try {
+        const { data, error } = await supabase
+          .from('hardhitter_submissions')
+          .select('*')
+          .order('submitted_at', { ascending: false });
+
+        if (error) throw error;
+
+        allSubmissions = data;
+        renderSubmissions();
+      } catch (error) {
+        document.getElementById('submissions').innerHTML = `
+          <div class="empty-state">
+            Error loading submissions: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Render submissions
+    function renderSubmissions() {
+      const container = document.getElementById('submissions');
+      const filtered = currentFilter === 'all'
+        ? allSubmissions
+        : allSubmissions.filter(s => s.status === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            No ${currentFilter === 'all' ? '' : currentFilter} applications found.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(submission => `
+        <div class="submission-card" data-id="${submission.id}">
+          <div class="submission-header">
+            <div class="system-name">${submission.system_name}</div>
+            <span class="status-badge status-${submission.status}">${submission.status}</span>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-item">
+              <div class="detail-label">Email</div>
+              <div class="detail-value">${submission.email}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">System Size</div>
+              <div class="detail-value">${submission.system_size}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Monthly Usage</div>
+              <div class="detail-value">${submission.estimated_monthly_usage.toLocaleString()} calls</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Submitted</div>
+              <div class="detail-value">${new Date(submission.submitted_at).toLocaleDateString()}</div>
+            </div>
+          </div>
+
+          ${submission.repo_url ? `
+            <div class="description-box">
+              <h3>Repository</h3>
+              <a href="${submission.repo_url}" target="_blank" style="color: #00f5ff;">${submission.repo_url}</a>
+            </div>
+          ` : ''}
+
+          <div class="description-box">
+            <h3>System Description</h3>
+            ${submission.system_description}
+          </div>
+
+          <div class="description-box">
+            <h3>Use Case</h3>
+            ${submission.use_case}
+          </div>
+
+          ${submission.status === 'pending' ? `
+            <div class="actions">
+              <input type="number" id="credits-${submission.id}" value="${getSuggestedCredits(submission)}" min="0" step="1000">
+              <button class="approve-btn" onclick="approveSubmission('${submission.id}')">
+                Approve
+              </button>
+              <button class="reject-btn" onclick="rejectSubmission('${submission.id}')">
+                Reject
+              </button>
+              <button class="info-btn" onclick="requestInfo('${submission.id}')">
+                Need Info
+              </button>
+            </div>
+          ` : ''}
+
+          ${submission.review_notes ? `
+            <div class="description-box" style="margin-top: 15px;">
+              <h3>Review Notes</h3>
+              ${submission.review_notes}
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Suggested credits based on system size
+    function getSuggestedCredits(submission) {
+      const credits = {
+        small: 5000,
+        medium: 15000,
+        large: 50000,
+        massive: 100000
+      };
+      return credits[submission.system_size] || 10000;
+    }
+
+    // Approve submission
+    window.approveSubmission = async (id) => {
+      const creditsInput = document.getElementById(`credits-${id}`);
+      const credits = parseInt(creditsInput.value);
+
+      if (!confirm(`Approve with ${credits.toLocaleString()} credits?`)) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+          .from('hardhitter_submissions')
+          .update({
+            status: 'approved',
+            reviewed_by: user?.id,
+            approved_credits: credits,
+            reviewed_at: new Date().toISOString(),
+            review_notes: `Approved for ${credits} credits`
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        alert('Application approved!');
+        loadSubmissions();
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      }
+    };
+
+    // Reject submission
+    window.rejectSubmission = async (id) => {
+      const reason = prompt('Reason for rejection:');
+      if (!reason) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+          .from('hardhitter_submissions')
+          .update({
+            status: 'rejected',
+            reviewed_by: user?.id,
+            reviewed_at: new Date().toISOString(),
+            review_notes: reason
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        alert('Application rejected');
+        loadSubmissions();
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      }
+    };
+
+    // Request more info
+    window.requestInfo = async (id) => {
+      const message = prompt('What information do you need?');
+      if (!message) return;
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await supabase
+          .from('hardhitter_submissions')
+          .update({
+            status: 'needs_info',
+            reviewed_by: user?.id,
+            review_notes: message
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        alert('Info request sent');
+        loadSubmissions();
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      }
+    };
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        renderSubmissions();
+      });
+    });
+
+    // Initial load
+    loadSubmissions();
+  </script>
+</body>
+</html>

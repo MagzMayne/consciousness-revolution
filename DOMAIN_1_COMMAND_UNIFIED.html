@@ -396,6 +396,46 @@
             50% { opacity: 0.5; }
         }
 
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 5px orange; }
+            50% { box-shadow: 0 0 15px orange, 0 0 25px rgba(255, 165, 0, 0.5); }
+        }
+
+        .screenshot-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .screenshot-modal-content {
+            background: var(--bg-card);
+            border: 2px solid orange;
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .screenshot-drop-zone {
+            border: 3px dashed orange;
+            border-radius: 16px;
+            padding: 3rem;
+            margin: 1.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .screenshot-drop-zone:hover, .screenshot-drop-zone.dragover {
+            background: rgba(255, 165, 0, 0.1);
+            border-color: var(--gold);
+        }
+
         .araya-chat-body {
             padding: 1rem 1.5rem;
             max-height: 300px;
@@ -675,6 +715,12 @@
 
             <div class="fear-assurance">
                 ✓ Everything has undo &nbsp;|&nbsp; ✓ Auto-saves always &nbsp;|&nbsp; ✓ Questions welcome
+            </div>
+
+            <div class="screenshot-superpower" style="background: rgba(255, 165, 0, 0.15); border: 2px solid orange; border-radius: 10px; padding: 1rem; margin-bottom: 2rem;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">📸 THE SUPERPOWER</div>
+                <p style="color: orange; font-weight: 600; margin-bottom: 0.5rem;">Keep me open. When stuck, screenshot it!</p>
+                <p style="font-size: 0.85rem; color: var(--text-dim);">Take a screenshot of what's confusing you, paste it here, and I'll guide you through it. This works for ANYTHING - any app, any website, any tech problem.</p>
             </div>
 
             <div class="choice-buttons">
@@ -963,10 +1009,11 @@
 
     <!-- Persistent ARAYA Chat -->
     <div class="araya-chat" id="arayaChat">
-        <div class="araya-chat-header" onclick="Dashboard.toggleChat()">
-            <div class="araya-avatar-small">👁️</div>
-            <span class="araya-status" id="arayaStatus">ARAYA is here to help</span>
-            <div class="araya-status-dot"></div>
+        <div class="araya-chat-header">
+            <div class="araya-avatar-small" onclick="Dashboard.toggleChat()">👁️</div>
+            <span class="araya-status" id="arayaStatus" onclick="Dashboard.toggleChat()">ARAYA is here to help</span>
+            <button class="stuck-btn" onclick="event.stopPropagation(); Dashboard.showStuckHelp();" style="padding: 0.4rem 0.8rem; background: linear-gradient(135deg, orange, #ff6600); border: none; border-radius: 20px; color: white; font-weight: 600; font-size: 0.75rem; cursor: pointer; animation: pulse-orange 2s infinite;">🆘 Stuck? Screenshot!</button>
+            <div class="araya-status-dot" onclick="Dashboard.toggleChat()"></div>
         </div>
         <div class="araya-chat-body">
             <div class="araya-messages" id="arayaMessages">
@@ -977,7 +1024,7 @@
             <div class="araya-suggestions" id="arayaSuggestions">
                 <button class="suggestion-pill" onclick="Dashboard.askAraya('help')">How do I get started?</button>
                 <button class="suggestion-pill" onclick="Dashboard.askAraya('features')">What can I do here?</button>
-                <button class="suggestion-pill" onclick="Dashboard.askAraya('undo')">Can I undo mistakes?</button>
+                <button class="suggestion-pill" onclick="Dashboard.askAraya('screenshot')" style="background: rgba(255,165,0,0.2); border-color: orange; color: orange;">📸 Screenshot help</button>
             </div>
             <div class="araya-input-container">
                 <input type="text" class="araya-input" id="arayaInput" placeholder="Ask ARAYA anything...">
@@ -1188,9 +1235,14 @@
                 const responses = {
                     'help': "Getting started is easy! Just pick one of the three options on the welcome screen. I recommend 'Quick Start' - you'll have your first achievement in under 2 minutes!",
                     'features': "You can organize files, set daily goals, track your progress, and when you're ready - collaborate with a team and share your work publicly. Everything unlocks as you use it!",
-                    'undo': "Yes! Everything you do here can be undone. There's no way to permanently mess anything up. I promise. 😊"
+                    'undo': "Yes! Everything you do here can be undone. There's no way to permanently mess anything up. I promise. 😊",
+                    'screenshot': "📸 THE SCREENSHOT SUPERPOWER!\n\nThis is your #1 weapon when stuck with ANY tech:\n\n1️⃣ Press Win+Shift+S (Windows) or Cmd+Shift+4 (Mac)\n2️⃣ Draw a box around what's confusing\n3️⃣ Paste it here with Ctrl+V\n4️⃣ I'll analyze and guide you through!\n\nKeep me open while working - this creates a 10x learning acceleration loop!"
                 };
 
+                if (topic === 'screenshot') {
+                    this.showStuckHelp();
+                    return;
+                }
                 this.arayaSay(responses[topic] || "I'm here to help! What would you like to know?");
             },
 
@@ -1489,6 +1541,136 @@ console.log("You can see me in the output!");
                 const tip = tips[Math.floor(Math.random() * tips.length)];
                 this.arayaSay(tip);
                 this.addXP(5);
+            },
+
+            // SCREENSHOT SUPERPOWER SYSTEM
+            showStuckHelp() {
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'screenshot-modal';
+                modal.id = 'screenshotModal';
+                modal.innerHTML = `
+                    <div class="screenshot-modal-content">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📸</div>
+                        <h2 style="color: orange; margin-bottom: 1rem;">The Screenshot Superpower</h2>
+                        <p style="color: var(--text-dim); margin-bottom: 1.5rem;">
+                            This is the #1 way to get unstuck with ANY technology.<br>
+                            <strong style="color: var(--text);">Take a screenshot → Paste it here → I'll guide you through it.</strong>
+                        </p>
+
+                        <div class="screenshot-drop-zone" id="dropZone" onclick="document.getElementById('screenshotInput').click()">
+                            <input type="file" id="screenshotInput" accept="image/*" style="display: none;" onchange="Dashboard.handleScreenshot(event)">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
+                            <p style="color: orange; font-weight: 600;">Click to upload or paste screenshot</p>
+                            <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">
+                                Windows: Win+Shift+S | Mac: Cmd+Shift+4<br>
+                                Then Ctrl+V (paste) anywhere
+                            </p>
+                        </div>
+
+                        <div id="screenshotPreview" style="display: none; margin: 1rem 0;"></div>
+
+                        <div style="background: rgba(147,112,219,0.1); border: 1px solid var(--purple); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+                            <p style="font-size: 0.85rem; color: var(--purple);">
+                                💡 <strong>Pro tip:</strong> Keep this tab open while working on ANYTHING.
+                                When you hit a wall, screenshot it instantly. This creates a recursive feedback loop
+                                that accelerates learning 10x.
+                            </p>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; justify-content: center;">
+                            <button class="action-btn" onclick="Dashboard.closeScreenshotModal()">Got it!</button>
+                            <button class="suggestion-pill" onclick="Dashboard.showScreenshotTutorial()">Show me how</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // Setup paste listener
+                modal.addEventListener('paste', (e) => this.handlePaste(e));
+
+                // Setup drag & drop
+                const dropZone = document.getElementById('dropZone');
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    if (e.dataTransfer.files.length) {
+                        this.processScreenshot(e.dataTransfer.files[0]);
+                    }
+                });
+
+                this.arayaSay("📸 Screenshot mode activated! This is your superpower for getting unstuck. Paste or upload any screenshot and I'll help you figure it out.");
+            },
+
+            closeScreenshotModal() {
+                const modal = document.getElementById('screenshotModal');
+                if (modal) modal.remove();
+            },
+
+            handleScreenshot(event) {
+                const file = event.target.files[0];
+                if (file) this.processScreenshot(file);
+            },
+
+            handlePaste(event) {
+                const items = event.clipboardData?.items;
+                if (!items) return;
+
+                for (let item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        const file = item.getAsFile();
+                        this.processScreenshot(file);
+                        break;
+                    }
+                }
+            },
+
+            processScreenshot(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('screenshotPreview');
+                    preview.style.display = 'block';
+                    preview.innerHTML = `
+                        <div style="border: 2px solid var(--success); border-radius: 12px; overflow: hidden;">
+                            <img src="${e.target.result}" style="max-width: 100%; max-height: 300px; display: block;">
+                        </div>
+                        <div style="margin-top: 1rem; padding: 1rem; background: rgba(0,255,136,0.1); border-radius: 8px;">
+                            <p style="color: var(--success); font-weight: 600;">✅ Screenshot received!</p>
+                            <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">
+                                In the full version, I'll analyze this and guide you step-by-step.
+                                For now, describe what you're stuck on and I'll help!
+                            </p>
+                            <textarea id="stuckDescription" class="araya-input" placeholder="What are you trying to do? What's confusing?" style="width: 100%; min-height: 80px; margin-top: 0.75rem;"></textarea>
+                            <button class="action-btn" style="margin-top: 0.75rem; width: 100%;" onclick="Dashboard.submitStuckHelp()">Get Help</button>
+                        </div>
+                    `;
+                    document.getElementById('dropZone').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+                this.addXP(20);
+            },
+
+            submitStuckHelp() {
+                const description = document.getElementById('stuckDescription')?.value || '';
+                this.closeScreenshotModal();
+                this.arayaSay(`I see your screenshot! ${description ? 'You mentioned: "' + description + '"' : ''} Let me help you work through this step by step. What specific part is confusing?`);
+                this.addXP(15);
+                this.triggerConfetti();
+            },
+
+            showScreenshotTutorial() {
+                const tutorialSteps = [
+                    "1️⃣ Press Win+Shift+S (Windows) or Cmd+Shift+4 (Mac)",
+                    "2️⃣ Draw a box around what's confusing you",
+                    "3️⃣ Come back here and press Ctrl+V to paste",
+                    "4️⃣ I'll analyze it and guide you through!"
+                ];
+                this.arayaSay(tutorialSteps.join("\\n"));
             },
 
             triggerConfetti() {

@@ -179,16 +179,42 @@
             font-size: 0.75rem;
             color: #9370db;
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .back-button { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
+            .chat-container { padding: 0.5rem; }
+            .message-bubble { max-width: 90%; }
+            .input-container { flex-direction: column; }
+            .send-button { width: 100%; }
+        }
+        @media (max-width: 480px) {
+            .header { padding: 1rem; }
+            .header h1 { font-size: 1.25rem; }
+            .back-button { top: 0.5rem; left: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+            .message-input { font-size: 16px; }
+            .memory-indicator { display: none; }
+        }
+
+        /* Accessibility */
+        *:focus-visible { outline: 2px solid gold; outline-offset: 2px; }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
     </style>
+    <script src="/src/auth.js"></script>
+    <script src="/src/energy-gate.js"></script>
 </head>
 <body>
-    <div class="sacred-grid"></div>
-    <a href="index.html" class="back-button">Back</a>
+    <div class="sacred-grid" aria-hidden="true"></div>
+    <a href="index.html" class="back-button" aria-label="Back to home">← Back</a>
 
-    <div class="container">
-        <div class="header">
-            <h1>ARAYA LIGHT</h1>
-            <div class="status-badge" id="statusBadge">Connecting...</div>
+    <main class="container" role="main" aria-labelledby="page-title">
+        <header class="header">
+            <h1 id="page-title">ARAYA LIGHT</h1>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 0.5rem;">
+                <div class="status-badge" id="statusBadge">Connecting...</div>
+                <div id="energyBadge" title="Your ARAYA Energy balance"></div>
+            </div>
         </div>
 
         <div class="chat-container">
@@ -217,8 +243,9 @@ What's on your mind?</div>
             </div>
 
             <div class="input-container">
-                <textarea class="message-input" id="messageInput" placeholder="Share what's on your mind..." rows="2"></textarea>
-                <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+                <label for="messageInput" class="visually-hidden">Your message to ARAYA</label>
+                <textarea class="message-input" id="messageInput" placeholder="Share what's on your mind..." rows="2" aria-label="Your message to ARAYA"></textarea>
+                <button class="send-button" id="sendButton" onclick="sendMessage()" aria-label="Send message">Send</button>
             </div>
         </div>
     </div>
@@ -229,7 +256,7 @@ What's on your mind?</div>
         // ARAYA UNIFIED API - All free AIs + Cyclotron memory
         const ARAYA_API = window.location.hostname === 'localhost'
             ? 'http://localhost:6666'
-            : '/.netlify/functions/araya-api';
+            : '/.netlify/functions/araya-chat';
         let isAPIAvailable = false;
         let atomCount = 0;
 
@@ -271,6 +298,15 @@ What's on your mind?</div>
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
+
+            // Energy Gate check - spend 1 Energy per message
+            if (window.EnergyGate) {
+                const energyCheck = await EnergyGate.gate('life', 'chat_message', { autoSpend: true, showUI: true });
+                if (!energyCheck.allowed && !energyCheck.success) {
+                    console.log('[ARAYA] Insufficient Energy');
+                    return;
+                }
+            }
 
             // Add user message
             addMessage(message, 'user');
@@ -357,6 +393,11 @@ What's on your mind?</div>
         // Initialize
         console.log('[ARAYA LIGHT] The AI That Remembers You');
         checkAPI();
+        
+        // Initialize Energy badge
+        if (window.EnergyGate) {
+            EnergyGate.renderBadge('#energyBadge');
+        }
     </script>
     <script src="/js/bug-widget.js"></script>
     <p style="text-align:center;color:#666;font-family:monospace;margin:40px 0;">Pattern: 3 → 7 → 13 → ∞</p>

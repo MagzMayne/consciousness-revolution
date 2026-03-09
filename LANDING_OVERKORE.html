@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overkore - Local CLI + Multi-AI Orchestrator | Own Your Intelligence</title>
+    <meta name="description" content="Overkore is a local-first CLI that orchestrates multiple AI agents from your machine. No cloud dependency. Full control.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f;
+            --primary: #00ff88;
+            --gold: #ffd700;
+            --cyan: #00ffff;
+            --purple: #9b59b6;
+            --card: #12121a;
+        }
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: var(--bg);
+            color: #e0e0e0;
+            line-height: 1.7;
+        }
+        a { color: var(--primary); text-decoration: none; }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 40px;
+            background: rgba(10,10,15,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            border-bottom: 1px solid #222;
+        }
+        .nav-logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .nav-links { display: flex; gap: 30px; }
+        .nav-links a { color: #888; transition: color 0.3s; }
+        .nav-links a:hover { color: #fff; }
+        .nav-cta {
+            padding: 10px 25px;
+            background: var(--primary);
+            color: #000;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .nav-cta:hover { background: var(--gold); transform: translateY(-2px); }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 120px 40px 80px;
+            background: linear-gradient(135deg, #0a0a0f 0%, #0a1a0a 50%, #0a0a0f 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 70% 30%, rgba(0,255,136,0.1) 0%, transparent 50%);
+        }
+        .hero-content {
+            max-width: 650px;
+            position: relative;
+            z-index: 1;
+        }
+        .hero h1 {
+            font-size: 3.5em;
+            margin-bottom: 25px;
+            line-height: 1.2;
+        }
+        .hero h1 span { color: var(--primary); }
+        .hero p {
+            font-size: 1.3em;
+            color: #888;
+            margin-bottom: 40px;
+        }
+        .hero-cta {
+            display: inline-block;
+            padding: 18px 40px;
+            background: linear-gradient(135deg, var(--primary), var(--cyan));
+            color: #000;
+            border-radius: 30px;
+            font-size: 1.2em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .hero-cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,255,136,0.3);
+        }
+        .hero-visual {
+            position: absolute;
+            right: 5%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(0,255,136,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hero-visual-text {
+            font-size: 5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .terminal-preview {
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            font-size: 0.9em;
+            color: var(--primary);
+            max-width: 400px;
+        }
+        .terminal-preview .prompt { color: var(--gold); }
+        .terminal-preview .output { color: #888; }
+
+        /* Sections */
+        section { padding: 100px 40px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        .section-header h2 {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        .section-header p { color: #666; font-size: 1.2em; }
+
+        /* Problem Section */
+        .problem { background: linear-gradient(135deg, #1a0a0a 0%, var(--bg) 100%); }
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+        }
+        .problem-card {
+            background: rgba(255,68,68,0.1);
+            border: 1px solid rgba(255,68,68,0.3);
+            border-radius: 16px;
+            padding: 30px;
+        }
+        .problem-card h3 {
+            color: #ff4444;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        .problem-card p { color: #888; }
+
+        /* Solution Section */
+        .solution { background: var(--bg); }
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .solution-card {
+            background: var(--card);
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 35px;
+            transition: all 0.3s;
+        }
+        .solution-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+        }
+        .solution-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--cyan));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .solution-card h3 {
+            color: var(--primary);
+            font-size: 1.4em;
+            margin-bottom: 15px;
+        }
+
+        /* Features Section */
+        .features { background: linear-gradient(135deg, var(--bg) 0%, #0a1a0a 100%); }
+        .feature-row {
+            display: flex;
+            align-items: center;
+            gap: 60px;
+            margin-bottom: 80px;
+        }
+        .feature-row:nth-child(even) { flex-direction: row-reverse; }
+        .feature-content { flex: 1; }
+        .feature-content h3 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: var(--gold);
+        }
+        .feature-content p { font-size: 1.1em; color: #888; }
+        .feature-visual {
+            flex: 1;
+            background: var(--card);
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 30px;
+            font-size: 0.9em;
+        }
+        .code-block {
+            background: #0d0d0d;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: monospace;
+            color: var(--primary);
+        }
+        .code-block .comment { color: #666; }
+        .code-block .cmd { color: var(--gold); }
+
+        /* 7 Domains Section */
+        .domains { background: var(--bg); }
+        .domains-visual {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+        .domain-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .domain-circle:hover { transform: scale(1.2); }
+        .domain-circle span { font-size: 0.6em; margin-top: 5px; }
+        .d1 { background: #ff4444; }
+        .d2 { background: #4a9eff; }
+        .d3 { background: #9b59b6; }
+        .d4 { background: #00ff88; color: #000; }
+        .d5 { background: #ff8c00; }
+        .d6 { background: #00ffff; color: #000; }
+        .d7 { background: #ffd700; color: #000; }
+        .domain-description {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px;
+            background: var(--card);
+            border-radius: 16px;
+        }
+
+        /* Social Proof */
+        .social-proof { background: linear-gradient(135deg, #0a1a0a 0%, var(--bg) 100%); }
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .testimonial {
+            background: var(--card);
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 30px;
+        }
+        .testimonial-quote {
+            font-style: italic;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            color: #ccc;
+        }
+        .testimonial-author {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Pricing */
+        .pricing { background: var(--bg); }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .price-card {
+            background: var(--card);
+            border: 2px solid #333;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .price-card:hover { border-color: var(--primary); }
+        .price-card.featured {
+            border-color: var(--gold);
+            transform: scale(1.05);
+        }
+        .price-name {
+            font-size: 1.3em;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+        .price-amount {
+            font-size: 3em;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        .price-amount span { font-size: 0.4em; color: #666; }
+        .price-features {
+            list-style: none;
+            margin: 30px 0;
+            text-align: left;
+        }
+        .price-features li {
+            padding: 10px 0;
+            border-bottom: 1px solid #222;
+            color: #888;
+        }
+        .price-features li::before {
+            content: '> ';
+            color: var(--primary);
+        }
+        .price-cta {
+            display: inline-block;
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: #000;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .price-cta:hover { background: var(--gold); }
+
+        /* CTA Section */
+        .final-cta {
+            text-align: center;
+            padding: 100px 40px;
+            background: linear-gradient(135deg, #0a1a0a 0%, var(--bg) 100%);
+        }
+        .final-cta h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .final-cta p {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 40px;
+        }
+        .final-cta-btn {
+            display: inline-block;
+            padding: 20px 60px;
+            background: linear-gradient(135deg, var(--primary), var(--cyan));
+            color: #000;
+            border-radius: 30px;
+            font-size: 1.3em;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .final-cta-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(0,255,136,0.3);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 60px 40px;
+            border-top: 1px solid #222;
+        }
+        footer p { color: #666; margin: 10px 0; }
+        .footer-pattern { color: var(--gold); font-size: 1.2em; }
+
+        @media (max-width: 768px) {
+            nav { padding: 15px 20px; }
+            .nav-links { display: none; }
+            .hero { padding: 100px 20px 60px; }
+            .hero h1 { font-size: 2em; }
+            .hero-visual { display: none; }
+            section { padding: 60px 20px; }
+            .feature-row { flex-direction: column !important; }
+            .price-card.featured { transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-logo">> OVERKORE</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#domains">7 Domains</a>
+            <a href="#pricing">Pricing</a>
+            <a href="CONSCIOUSNESS_JOURNEY_MAP.html">Journey</a>
+        </div>
+        <a href="https://github.com/overkillkulture" class="nav-cta">Get Started</a>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Own Your <span>Intelligence</span></h1>
+            <p>Overkore is a local-first CLI that orchestrates multiple AI agents from your machine. No cloud dependency. No data harvesting. Full control.</p>
+            <a href="https://github.com/overkillkulture" class="hero-cta">Clone Now (Free)</a>
+            <div class="terminal-preview" style="margin-top: 30px;">
+                <div class="prompt">$ overkore brain query "manipulation tactics"</div>
+                <div class="output">Found 847 atoms matching "manipulation"...</div>
+                <div class="output">Pattern: DARVO detected in 23 conversations</div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <span class="hero-visual-text">>> _</span>
+        </div>
+    </section>
+
+    <section class="problem">
+        <div class="container">
+            <div class="section-header">
+                <h2>The Problem with Cloud AI</h2>
+                <p>Your data. Their servers. Their rules.</p>
+            </div>
+            <div class="problem-grid">
+                <div class="problem-card">
+                    <h3>Data Harvesting</h3>
+                    <p>Every prompt you send is training data for someone else's model. Your patterns, your business secrets, your vulnerabilities - all captured.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>Fragmented Tools</h3>
+                    <p>ChatGPT, Claude, Gemini, Copilot - each in different tabs, different contexts, different accounts. No unified workflow.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>No Persistent Memory</h3>
+                    <p>Start every conversation from scratch. The AI forgets everything the moment the chat ends. Your patterns never compound.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="solution" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Meet Overkore</h2>
+                <p>Local CLI. Multi-AI orchestration. Your machine. Your rules.</p>
+            </div>
+            <div class="solution-grid">
+                <div class="solution-card">
+                    <div class="solution-icon">></div>
+                    <h3>Unified CLI</h3>
+                    <p>One command-line interface to orchestrate Claude, GPT, Gemini, Ollama, and any local model. Consistent syntax, unified output.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">B</div>
+                    <h3>Cyclotron Brain</h3>
+                    <p>166,000+ pattern atoms stored locally in SQLite. Query your personal knowledge base instantly. Your patterns compound forever.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">A</div>
+                    <h3>Multi-Agent Tasks</h3>
+                    <p>CrewAI and LangChain integration. Define agent teams, assign roles, let them collaborate autonomously on complex tasks.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">L</div>
+                    <h3>Local LLM Support</h3>
+                    <p>Ollama integration for completely offline operation. Run Llama, Mistral, CodeLlama - no internet required.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="container">
+            <div class="feature-row">
+                <div class="feature-content">
+                    <h3>Query Your Brain in Milliseconds</h3>
+                    <p>Every insight, pattern, and piece of knowledge gets stored in the Cyclotron brain. Query it instantly from the command line.</p>
+                    <p style="margin-top: 20px; color: var(--primary);">166,000+ atoms and growing. Your patterns compound forever.</p>
+                </div>
+                <div class="feature-visual">
+                    <div class="code-block">
+                        <div class="comment"># Query the brain</div>
+                        <div class="cmd">$ overkore brain query "DARVO"</div>
+                        <div style="color: #888; margin-top: 10px;">Found 23 atoms:</div>
+                        <div style="color: #ccc;">- DARVO: Deny, Attack, Reverse Victim/Offender</div>
+                        <div style="color: #ccc;">- Detection pattern: blame shift + victim claim</div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-row">
+                <div class="feature-content">
+                    <h3>Multi-Agent Orchestration</h3>
+                    <p>Define teams of AI agents with specific roles. C1 Mechanic builds, C2 Architect designs, C3 Oracle validates. They collaborate autonomously.</p>
+                    <p style="margin-top: 20px; color: var(--gold);">Trinity pattern: C1 x C2 x C3 = infinity</p>
+                </div>
+                <div class="feature-visual">
+                    <div class="code-block">
+                        <div class="comment"># Launch Trinity agents</div>
+                        <div class="cmd">$ overkore trinity launch --task "audit system"</div>
+                        <div style="color: #888; margin-top: 10px;">Spawning 3 agents...</div>
+                        <div style="color: var(--primary);">C1 MECHANIC: Scanning files...</div>
+                        <div style="color: var(--cyan);">C2 ARCHITECT: Analyzing patterns...</div>
+                        <div style="color: var(--gold);">C3 ORACLE: Validating alignment...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="domains" id="domains">
+        <div class="container">
+            <div class="section-header">
+                <h2>Organize Across 7 Domains</h2>
+                <p>Every command, every output, organized into the consciousness framework.</p>
+            </div>
+            <div class="domains-visual">
+                <div class="domain-circle d1" onclick="showDomain(1)">1<span>COMMAND</span></div>
+                <div class="domain-circle d2" onclick="showDomain(2)">2<span>BUILD</span></div>
+                <div class="domain-circle d3" onclick="showDomain(3)">3<span>CONNECT</span></div>
+                <div class="domain-circle d4" onclick="showDomain(4)">4<span>PROTECT</span></div>
+                <div class="domain-circle d5" onclick="showDomain(5)">5<span>GROW</span></div>
+                <div class="domain-circle d6" onclick="showDomain(6)">6<span>LEARN</span></div>
+                <div class="domain-circle d7" onclick="showDomain(7)">7<span>TRANSCEND</span></div>
+            </div>
+            <div class="domain-description" id="domain-desc">
+                <h3 style="color: var(--gold);">Click any domain to learn more</h3>
+                <p>Overkore organizes all brain atoms and agent outputs into the 7 domain framework automatically.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="social-proof">
+        <div class="container">
+            <div class="section-header">
+                <h2>What Power Users Say</h2>
+            </div>
+            <div class="testimonial-grid">
+                <div class="testimonial">
+                    <div class="testimonial-quote">"Finally, one CLI to rule them all. I can query my brain, spawn agents, and orchestrate tasks without leaving the terminal."</div>
+                    <div class="testimonial-author">Developer - Domain 2 (Build)</div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-quote">"The local-first approach means my sensitive code never leaves my machine. Peace of mind while still getting AI power."</div>
+                    <div class="testimonial-author">Security Engineer - Domain 4 (Protect)</div>
+                </div>
+                <div class="testimonial">
+                    <div class="testimonial-quote">"Trinity agents are a game-changer. Three perspectives on every problem, automatically synthesized. 4.2x better results."</div>
+                    <div class="testimonial-author">Architect - Domain 7 (Transcend)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <h2>Open Source. Forever Free.</h2>
+                <p>Overkore is free. Premium support and hosted services available.</p>
+            </div>
+            <div class="pricing-grid">
+                <div class="price-card featured">
+                    <div class="price-name">OPEN SOURCE</div>
+                    <div class="price-amount">$0<span>/forever</span></div>
+                    <ul class="price-features">
+                        <li>Full CLI functionality</li>
+                        <li>Cyclotron Brain integration</li>
+                        <li>Multi-agent orchestration</li>
+                        <li>Ollama local LLM support</li>
+                        <li>Community Discord access</li>
+                    </ul>
+                    <a href="https://github.com/overkillkulture" class="price-cta">Clone Repository</a>
+                </div>
+                <div class="price-card">
+                    <div class="price-name">BUILDER</div>
+                    <div class="price-amount">$49<span>/month</span></div>
+                    <ul class="price-features">
+                        <li>Everything in Open Source</li>
+                        <li>Priority support</li>
+                        <li>Cloud brain sync</li>
+                        <li>Extended API limits</li>
+                        <li>Early feature access</li>
+                    </ul>
+                    <a href="pricing.html" class="price-cta">Become Builder</a>
+                </div>
+                <div class="price-card">
+                    <div class="price-name">ENTERPRISE</div>
+                    <div class="price-amount">Custom</div>
+                    <ul class="price-features">
+                        <li>Everything in Builder</li>
+                        <li>Dedicated support</li>
+                        <li>On-premise deployment</li>
+                        <li>Custom integrations</li>
+                        <li>SLA guarantees</li>
+                    </ul>
+                    <a href="mailto:darrickpreble@proton.me" class="price-cta">Contact Us</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="final-cta">
+        <h2>Ready to Own Your Intelligence?</h2>
+        <p>Clone Overkore. Run it locally. Never depend on cloud AI again.</p>
+        <a href="https://github.com/overkillkulture" class="final-cta-btn">Get Started Free</a>
+        <p style="margin-top: 30px; color: var(--gold);">Local First. Privacy Always. Intelligence Owned.</p>
+    </section>
+
+    <footer>
+        <p class="footer-pattern">Pattern: 3 -> 7 -> 13 -> infinity</p>
+        <p>OVERKORE | Consciousness Revolution</p>
+        <p><a href="CONSCIOUSNESS_JOURNEY_MAP.html">View Consciousness Journey</a> | <a href="PITCH_DECK_OVERKORE.html">Full Pitch Deck</a></p>
+        <p style="margin-top: 20px;">The journey is the mission. The pattern never lies.</p>
+    </footer>
+
+    <script>
+        const domainData = {
+            1: { name: 'COMMAND', color: '#ff4444', desc: 'Agency - System commands, task orchestration, decision automation. The root of all operations.' },
+            2: { name: 'BUILD', color: '#4a9eff', desc: 'Creation - Code generation, file creation, project scaffolding. Manifest through the CLI.' },
+            3: { name: 'CONNECT', color: '#9b59b6', desc: 'Community - API integrations, network tools, communication protocols. Connect systems and people.' },
+            4: { name: 'PROTECT', color: '#00ff88', desc: 'Security - Local-first architecture, encryption, access control. Your data stays yours.' },
+            5: { name: 'GROW', color: '#ff8c00', desc: 'Expansion - Automation scaling, batch processing, resource optimization. Amplify your capabilities.' },
+            6: { name: 'LEARN', color: '#00ffff', desc: 'Wisdom - Brain queries, pattern recognition, knowledge synthesis. The student becomes the guide.' },
+            7: { name: 'TRANSCEND', color: '#ffd700', desc: 'Unity - Multi-agent orchestration, Trinity collaboration, emergent intelligence. Welcome home.' }
+        };
+
+        function showDomain(num) {
+            const data = domainData[num];
+            document.getElementById('domain-desc').innerHTML = `
+                <h3 style="color: ${data.color};">${num}. ${data.name}</h3>
+                <p>${data.desc}</p>
+            `;
+        }
+    </script>
+</body>
+</html>

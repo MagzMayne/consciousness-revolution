@@ -1786,7 +1786,7 @@ export async function handler(event, context) {
         // BASIC MODE DETECTION - User requesting limited free access
         // ═══════════════════════════════════════════════════════════════
         const isBasicModeRequest = /^basic\s*mode$/i.test(message.trim());
-        const isInBasicMode = memory?.basic_mode === true;
+        let isInBasicMode = false; // Will check after memory loads
 
         if (isBasicModeRequest && user_id) {
             // Enable basic mode for this user
@@ -1910,6 +1910,8 @@ Just ask your question and I'll give you a focused answer.`,
             checkSubscriptionStatus(user_id) // Checks araya_profiles by email
         ]);
 
+        // Now that memory is loaded, check if user is in basic mode
+        isInBasicMode = memory?.basic_mode === true;
 
         // ═══════════════════════════════════════════════════════════════
         // USAGE LIMITS - 7 FREE MESSAGES, then credits required

@@ -5,84 +5,151 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Initialize Supabase if configured
+// Initialize Supabase if configured (using same fallback pattern as other functions)
 function getSupabase() {
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-        return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_SECRET ||
+                process.env.SUPABASE_SERVICE_KEY ||
+                process.env.SUPABASE_ANON_KEY;
+
+    if (url && key) {
+        return createClient(url, key);
     }
+    console.warn('[WEBHOOK] Supabase not configured - missing URL or key');
     return null;
 }
 
-// Update ARAYA subscription status in user profile
+// Update ARAYA subscription status in araya_memory table (type='profile')
+// Note: Using araya_memory since araya_profiles table doesn't exist
 async function updateArayaSubscriptionStatus(email, status, subscriptionId = null, customerId = null) {
     const supabase = getSupabase();
     if (!supabase || !email) {
-        console.log('Cannot update ARAYA status - missing Supabase or email');
+        console.log('[WEBHOOK] Cannot update ARAYA status - missing Supabase or email');
         return null;
     }
 
+    const userId = email.toLowerCase();
+    const profileContent = {
+        subscription_status: status,
+        subscription_updated_at: new Date().toISOString()
+    };
+
+    if (subscriptionId) {
+        profileContent.stripe_subscription_id = subscriptionId;
+    }
+    if (customerId) {
+        profileContent.stripe_customer_id = customerId;
+    }
+
     try {
-        // First check if profile exists
+        // Check if profile record exists in araya_memory
         const { data: existingProfile } = await supabase
-            .from('araya_profiles')
-            .select('id, email')
-            .eq('email', email.toLowerCase())
+            .from('araya_memory')
+            .select('id, content')
+            .eq('user_id', userId)
+            .eq('type', 'profile')
             .single();
 
-        const updateData = {
-            subscription_status: status,
-            subscription_updated_at: new Date().toISOString()
-        };
-
-        if (subscriptionId) {
-            updateData.stripe_subscription_id = subscriptionId;
-        }
-        if (customerId) {
-            updateData.stripe_customer_id = customerId;
-        }
-
         if (existingProfile) {
-            // Update existing profile
+            // Merge with existing profile content
+            const existingContent = typeof existingProfile.content === 'string'
+                ? JSON.parse(existingProfile.content)
+                : existingProfile.content || {};
+
+            const mergedContent = { ...existingContent, ...profileContent };
+
             const { data, error } = await supabase
-                .from('araya_profiles')
-                .update(updateData)
-                .eq('email', email.toLowerCase())
+                .from('araya_memory')
+                .update({
+                    content: JSON.stringify(mergedContent),
+                    metadata: { updated_at: new Date().toISOString(), source: 'stripe_webhook' }
+                })
+                .eq('id', existingProfile.id)
                 .select();
 
             if (error) throw error;
-            console.log('Updated ARAYA profile subscription status:', email, status);
+            console.log('[WEBHOOK] Updated subscription in araya_memory:', userId, status);
             return data;
         } else {
-            // Create new profile with subscription
+            // Create new profile record
             const { data, error } = await supabase
-                .from('araya_profiles')
+                .from('araya_memory')
                 .insert({
-                    email: email.toLowerCase(),
-                    ...updateData,
-                    created_at: new Date().toISOString()
+                    user_id: userId,
+                    type: 'profile',
+                    content: JSON.stringify(profileContent),
+                    metadata: { created_at: new Date().toISOString(), source: 'stripe_webhook' }
                 })
                 .select();
 
             if (error) throw error;
-            console.log('Created ARAYA profile with subscription:', email, status);
+            console.log('[WEBHOOK] Created subscription profile in araya_memory:', userId, status);
             return data;
         }
     } catch (error) {
-        console.error('Failed to update ARAYA subscription status:', error);
+        console.error('[WEBHOOK] Failed to update ARAYA subscription status:', error);
         return null;
     }
 }
 
-// ARAYA product ID for subscription matching
-const ARAYA_PRODUCT_ID = 'prod_TjA91iP5kaKFrV';
+// ═══════════════════════════════════════════════════════════════
+// CREDIT ALLOCATION - Add credits based on purchase
+// ═══════════════════════════════════════════════════════════════
+const PRICE_CREDITS = {
+    // Founding Member $47/mo - 500 credits/month
+    'price_1Si4sWIBd71iNToyQiR5WRY5': { credits: 500, tier: 'founding' },
+    // Pattern Tools Pro $99/mo - Unlimited (1000/month as buffer)
+    'price_1Si4szIBd71iNToyZghCXYaE': { credits: 1000, tier: 'pro' },
+    // Emergency Consulting $500 - 100 credits (one-time)
+    'price_1Si4tKIBd71iNToyUtO6McaO': { credits: 100, tier: 'emergency' },
+    // Beta Access $9/mo - 100 credits
+    'price_beta_9': { credits: 100, tier: 'beta' },
+    // Araya Beta Access $20 one-time - 50 credits
+    'price_araya_beta_20': { credits: 50, tier: 'beta' }
+};
 
-// Check if subscription contains ARAYA product
+async function allocateCredits(userId, priceId, sessionId) {
+    const allocation = PRICE_CREDITS[priceId];
+    if (!allocation || !userId) {
+        console.log(`[CREDITS] No allocation for price ${priceId} or no userId`);
+        return null;
+    }
+
+    try {
+        const response = await fetch(
+            `${process.env.URL || 'https://conciousnessrevolution.io'}/.netlify/functions/araya-credits`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'add_credits',
+                    userId: userId,
+                    amount: allocation.credits,
+                    metadata: {
+                        stripe_session_id: sessionId,
+                        price_id: priceId,
+                        tier: allocation.tier,
+                        source: 'stripe_webhook'
+                    }
+                })
+            }
+        );
+        const result = await response.json();
+        console.log(`[CREDITS] Allocated ${allocation.credits} credits to ${userId}:`, result);
+        return result;
+    } catch (error) {
+        console.error('[CREDITS] Failed to allocate credits:', error);
+        return null;
+    }
+}
+
+
+// Check if subscription is valid for ARAYA access
+// Simplified: Any active subscription grants ARAYA access
 function subscriptionContainsAraya(subscription) {
-    if (!subscription.items?.data) return false;
-    return subscription.items.data.some(item =>
-        item.price?.product === ARAYA_PRODUCT_ID ||
-        item.plan?.product === ARAYA_PRODUCT_ID
-    );
+    // For now, treat ALL subscriptions as ARAYA subscriptions
+    // This simplifies the system - any paying subscriber gets access
+    return subscription && subscription.status;
 }
 
 // Get customer email from Stripe customer ID
@@ -165,6 +232,47 @@ export async function handler(event, context) {
             const customerName = session.customer_details?.name || 'Consciousness Revolutionary';
             const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : '0.00';
             const currency = session.currency?.toUpperCase() || 'USD';
+
+            // ═══════════════════════════════════════════════════════════════
+            // SUBSCRIPTION STATUS - Mark user as active subscriber
+            // ═══════════════════════════════════════════════════════════════
+            // This is the KEY fix: checkout.session.completed should mark user as subscribed
+            if (customerEmail) {
+                const subscriptionId = session.subscription || null;
+                const customerId = session.customer || null;
+
+                console.log('[WEBHOOK] Updating subscription status for:', customerEmail);
+                await updateArayaSubscriptionStatus(
+                    customerEmail,
+                    'active',
+                    subscriptionId,
+                    customerId
+                );
+                console.log('[WEBHOOK] Subscription status updated to active for:', customerEmail);
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // CREDIT ALLOCATION - Add credits for the purchase (optional)
+            // ═══════════════════════════════════════════════════════════════
+            try {
+                // Retrieve session with line_items to get price ID
+                const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+                    expand: ['line_items']
+                });
+                const priceId = fullSession.line_items?.data[0]?.price?.id;
+
+                if (priceId && customerEmail) {
+                    // Use email as userId for credit allocation
+                    const creditsResult = await allocateCredits(customerEmail, priceId, session.id);
+                    console.log('[CREDITS] Allocation result:', creditsResult);
+                } else {
+                    console.log('[CREDITS] No matching price ID or email - skipping credit allocation');
+                }
+            } catch (creditsError) {
+                console.error('[CREDITS] Failed to allocate credits:', creditsError);
+                // Don't fail webhook - subscription status is already updated
+            }
+
 
             // Record marketplace sale contribution if this is a marketplace purchase
             if (metadata.seller_foundation_id) {

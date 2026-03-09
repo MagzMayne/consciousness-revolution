@@ -35,13 +35,25 @@ const corsHeaders = {
   'Content-Type': 'application/json'
 };
 
-// Helper: Get user from Clerk ID
-async function getAccount(clerkId) {
-  const { data, error } = await supabase
+// Helper: Get user account (supports both Clerk ID and Supabase user ID)
+async function getAccount(userId) {
+  // Try by user_id first (Supabase user ID)
+  let { data, error } = await supabase
     .from('araya_accounts')
     .select('*')
-    .eq('clerk_id', clerkId)
+    .eq('user_id', userId)
     .single();
+
+  if (!data && !error) {
+    // Fallback: try by clerk_id for backwards compatibility
+    const clerkResult = await supabase
+      .from('araya_accounts')
+      .select('*')
+      .eq('clerk_id', userId)
+      .single();
+    data = clerkResult.data;
+    error = clerkResult.error;
+  }
 
   if (error && error.code !== 'PGRST116') {
     throw error;
@@ -404,7 +416,7 @@ async function handleWebhook(body, signature) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const { account_id, energy_amount, bonus_energy } = session.metadata;
+      const { account_id, package_id, energy_amount, bonus_energy } = session.metadata;
 
       if (account_id && energy_amount) {
         const totalEnergy = parseInt(energy_amount) + parseInt(bonus_energy || 0);
@@ -417,6 +429,28 @@ async function handleWebhook(body, signature) {
           p_stripe_payment_id: session.payment_intent,
           p_idempotency_key: `stripe_${session.id}`
         });
+
+        // If subscription, also upgrade tier
+        if (session.mode === 'subscription' && package_id) {
+          const { data: pkg } = await supabase
+            .from('araya_packages')
+            .select('tier, energy_amount')
+            .eq('id', package_id)
+            .single();
+
+          if (pkg && pkg.tier) {
+            await supabase
+              .from('araya_accounts')
+              .update({
+                tier: pkg.tier,
+                subscription_status: 'active',
+                monthly_allocation: pkg.energy_amount
+              })
+              .eq('id', account_id);
+
+            console.log(`Upgraded account ${account_id} to tier ${pkg.tier}`);
+          }
+        }
 
         console.log(`Added ${totalEnergy} Energy to account ${account_id}`);
       }
@@ -562,7 +596,7 @@ export async function handler(event) {
 
   const path = event.path.replace('/.netlify/functions/araya-energy', '').replace('/energy', '');
   const method = event.httpMethod;
-  const clerkId = event.headers['x-clerk-user-id'];
+  const clerkId = event.headers['x-user-id'] || event.headers['x-clerk-user-id'];
   const queryParams = event.queryStringParameters || {};
 
   let body = {};

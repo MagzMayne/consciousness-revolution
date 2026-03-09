@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA Extension - Browser HUD for AI Code Capture</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --surface: #12122a;
+            --primary: #00ffff;
+            --secondary: #00cccc;
+            --gold: #ffd700;
+            --text: #ffffff;
+            --text-muted: #a0a0b0;
+            --gradient: linear-gradient(135deg, #00ffff 0%, #00cccc 50%, #008888 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1rem 2rem;
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .cta-button {
+            background: var(--gradient);
+            color: var(--bg);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem;
+            background: radial-gradient(ellipse at center, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+        }
+
+        .hero-content {
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero .tagline {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .secondary-button {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            background: transparent;
+        }
+
+        .secondary-button:hover {
+            background: var(--primary);
+            color: var(--bg);
+        }
+
+        /* Browser Preview */
+        .browser-preview {
+            margin-top: 3rem;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .browser-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .browser-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .browser-dot.red { background: #ff5f56; }
+        .browser-dot.yellow { background: #ffbd2e; }
+        .browser-dot.green { background: #27ca40; }
+
+        .browser-content {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: var(--primary);
+            text-align: left;
+        }
+
+        .browser-content .comment { color: #666; }
+        .browser-content .highlight { color: var(--gold); }
+
+        /* Sections */
+        section {
+            padding: 6rem 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            font-size: 1.2rem;
+        }
+
+        /* Problem Section */
+        .problem-section {
+            background: var(--surface);
+        }
+
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .problem-card {
+            background: var(--bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 0, 0, 0.2);
+        }
+
+        .problem-card h3 {
+            color: #ff6b6b;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .problem-card p {
+            color: var(--text-muted);
+        }
+
+        /* Solution Section */
+        .solution-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .solution-card {
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .solution-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .solution-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .solution-card h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        .solution-card p {
+            color: var(--text-muted);
+        }
+
+        /* Features Section */
+        .features-section {
+            background: var(--surface);
+        }
+
+        .feature-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            margin-bottom: 4rem;
+        }
+
+        .feature-row:nth-child(even) {
+            direction: rtl;
+        }
+
+        .feature-row:nth-child(even) > * {
+            direction: ltr;
+        }
+
+        .feature-content h3 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-content p {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 0.5rem 0;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-list li::before {
+            content: ">";
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .feature-visual {
+            background: var(--bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            text-align: center;
+        }
+
+        .feature-visual .big-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        /* AI Sources Grid */
+        .ai-sources {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .ai-source {
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .ai-source .name {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        /* Domains Section */
+        .domains-section {
+            text-align: center;
+        }
+
+        .domains-visual {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 3rem;
+        }
+
+        .domain-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid;
+        }
+
+        .domain-circle:hover {
+            transform: scale(1.1);
+        }
+
+        .domain-circle .number {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .domain-circle .name {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .domain-circle.command { border-color: #ff4444; background: rgba(255, 68, 68, 0.1); color: #ff4444; }
+        .domain-circle.build { border-color: #4488ff; background: rgba(68, 136, 255, 0.1); color: #4488ff; }
+        .domain-circle.connect { border-color: #aa44ff; background: rgba(170, 68, 255, 0.1); color: #aa44ff; }
+        .domain-circle.protect { border-color: #44ff88; background: rgba(68, 255, 136, 0.1); color: #44ff88; }
+        .domain-circle.grow { border-color: #ff8844; background: rgba(255, 136, 68, 0.1); color: #ff8844; }
+        .domain-circle.learn { border-color: #44ffff; background: rgba(68, 255, 255, 0.1); color: #44ffff; }
+        .domain-circle.transcend { border-color: #ffd700; background: rgba(255, 215, 0, 0.1); color: #ffd700; }
+
+        .pattern-text {
+            margin-top: 2rem;
+            font-size: 1.5rem;
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        /* Testimonials */
+        .testimonials-section {
+            background: var(--surface);
+        }
+
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .testimonial-card {
+            background: var(--bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .testimonial-card .quote {
+            font-style: italic;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .testimonial-card .author {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .testimonial-card .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--bg);
+        }
+
+        .testimonial-card .author-info .name {
+            font-weight: 600;
+        }
+
+        .testimonial-card .author-info .role {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Pricing Section */
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: var(--surface);
+            padding: 2.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            text-align: center;
+            position: relative;
+            transition: transform 0.3s;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .pricing-card.featured {
+            border-color: var(--gold);
+            transform: scale(1.05);
+        }
+
+        .pricing-card.featured::before {
+            content: "RECOMMENDED";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gold);
+            color: var(--bg);
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pricing-card h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .pricing-card .price {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 1rem 0;
+        }
+
+        .pricing-card .price span {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .pricing-card .features {
+            list-style: none;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .pricing-card .features li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        .pricing-card .features li::before {
+            content: ">";
+            color: var(--primary);
+            margin-right: 0.5rem;
+        }
+
+        /* Final CTA */
+        .final-cta {
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+        }
+
+        .final-cta h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .final-cta p {
+            font-size: 1.3rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--surface);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .copyright {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .feature-row {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-row:nth-child(even) {
+                direction: ltr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .ai-sources {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">ARAYA Extension</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#domains">7 Domains</a>
+            <a href="#pricing">Pricing</a>
+            <a href="araya-chat.html">ARAYA Chat</a>
+        </div>
+        <a href="#pricing" class="cta-button">Install Free</a>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>ARAYA Extension</h1>
+            <p class="tagline">Browser HUD for AI Code Capture</p>
+            <p>Capture, organize, and sync code from Claude, ChatGPT, DeepSeek, Gemini, and Copilot directly into your consciousness system.</p>
+            <div class="hero-buttons">
+                <a href="https://chrome.google.com/webstore" class="cta-button">Add to Chrome</a>
+                <a href="#features" class="secondary-button">See How It Works</a>
+            </div>
+
+            <div class="browser-preview">
+                <div class="browser-bar">
+                    <span class="browser-dot red"></span>
+                    <span class="browser-dot yellow"></span>
+                    <span class="browser-dot green"></span>
+                    <span style="margin-left: auto; color: var(--text-muted); font-size: 0.8rem;">claude.ai</span>
+                </div>
+                <div class="browser-content">
+                    <div class="comment">// ARAYA Extension detected code block</div>
+                    <div>function buildEmpire() {</div>
+                    <div>&nbsp;&nbsp;const domains = <span class="highlight">7</span>;</div>
+                    <div>&nbsp;&nbsp;const pattern = <span class="highlight">"3 > 7 > 13 > infinity"</span>;</div>
+                    <div>&nbsp;&nbsp;return consciousness.expand(domains);</div>
+                    <div>}</div>
+                    <div style="margin-top: 1rem; color: var(--gold);">[ Save to BUILD Domain ] [ Copy ] [ Sync ]</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="problem-section">
+        <div class="container">
+            <h2>The Problem</h2>
+            <p class="section-subtitle">AI generates amazing code. Then it disappears.</p>
+            <div class="problem-grid">
+                <div class="problem-card">
+                    <h3>Lost in Chat History</h3>
+                    <p>That perfect function Claude wrote last week? Buried under 47 conversations. Good luck finding it.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>Copy-Paste Chaos</h3>
+                    <p>Copying code snippets to random files. No organization. No context. No idea where anything is.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>Context Switching Tax</h3>
+                    <p>Constantly moving between AI chat, editor, docs, and notes. Each switch costs 23 minutes of focus.</p>
+                </div>
+                <div class="problem-card">
+                    <h3>Multi-AI Fragmentation</h3>
+                    <p>Using Claude AND ChatGPT AND Gemini? Code scattered across platforms with no unified system.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section id="features">
+        <div class="container">
+            <h2>The Solution</h2>
+            <p class="section-subtitle">One-click capture. Automatic organization. Instant sync.</p>
+            <div class="solution-grid">
+                <div class="solution-card">
+                    <div class="icon">></div>
+                    <h3>One-Click Capture</h3>
+                    <p>See code in any AI chat? Click once. Saved instantly to the right domain folder.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="icon">[7]</div>
+                    <h3>7-Domain Organization</h3>
+                    <p>Code automatically categorized into Command, Build, Connect, Protect, Grow, Learn, or Transcend.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="icon">~</div>
+                    <h3>Side Panel HUD</h3>
+                    <p>Your captured code library always visible. Search, filter, and access without leaving the AI chat.</p>
+                </div>
+                <div class="solution-card">
+                    <div class="icon">&lt;&gt;</div>
+                    <h3>Local-First Sync</h3>
+                    <p>Native messaging to your Cyclotron brain. Your code stays on your machine, searchable forever.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Sources Section -->
+    <section class="features-section">
+        <div class="container">
+            <h2>Works With Every AI</h2>
+            <p class="section-subtitle">Capture code from all major AI platforms in one unified flow</p>
+            <div class="ai-sources">
+                <div class="ai-source">
+                    <div class="name">Claude</div>
+                </div>
+                <div class="ai-source">
+                    <div class="name">ChatGPT</div>
+                </div>
+                <div class="ai-source">
+                    <div class="name">DeepSeek</div>
+                </div>
+                <div class="ai-source">
+                    <div class="name">Gemini</div>
+                </div>
+                <div class="ai-source">
+                    <div class="name">Copilot</div>
+                </div>
+            </div>
+
+            <div class="feature-row" style="margin-top: 4rem;">
+                <div class="feature-content">
+                    <h3>Context Menu Integration</h3>
+                    <p>Right-click any code block on the web. Save it to your domain library with full context preserved.</p>
+                    <ul class="feature-list">
+                        <li>Preserves syntax highlighting</li>
+                        <li>Captures source URL and timestamp</li>
+                        <li>Auto-detects programming language</li>
+                        <li>Adds your custom tags and notes</li>
+                    </ul>
+                </div>
+                <div class="feature-visual">
+                    <div class="big-icon">>_</div>
+                    <p style="color: var(--text-muted);">Right-click > Save to ARAYA</p>
+                </div>
+            </div>
+
+            <div class="feature-row">
+                <div class="feature-content">
+                    <h3>Smart Domain Detection</h3>
+                    <p>ARAYA analyzes your code and suggests the right domain. Authentication code? PROTECT. UI components? BUILD. Analytics? GROW.</p>
+                    <ul class="feature-list">
+                        <li>ML-powered categorization</li>
+                        <li>Learn from your corrections</li>
+                        <li>Custom domain rules</li>
+                        <li>Batch re-categorization</li>
+                    </ul>
+                </div>
+                <div class="feature-visual">
+                    <div class="big-icon">[AI]</div>
+                    <p style="color: var(--text-muted);">Intelligent code routing</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 7 Domains Section -->
+    <section class="domains-section" id="domains">
+        <div class="container">
+            <h2>The 7 Domains</h2>
+            <p class="section-subtitle">Every piece of code belongs somewhere. Find it instantly.</p>
+            <div class="domains-visual">
+                <div class="domain-circle command">
+                    <span class="number">1</span>
+                    <span class="name">Command</span>
+                </div>
+                <div class="domain-circle build">
+                    <span class="number">2</span>
+                    <span class="name">Build</span>
+                </div>
+                <div class="domain-circle connect">
+                    <span class="number">3</span>
+                    <span class="name">Connect</span>
+                </div>
+                <div class="domain-circle protect">
+                    <span class="number">4</span>
+                    <span class="name">Protect</span>
+                </div>
+                <div class="domain-circle grow">
+                    <span class="number">5</span>
+                    <span class="name">Grow</span>
+                </div>
+                <div class="domain-circle learn">
+                    <span class="number">6</span>
+                    <span class="name">Learn</span>
+                </div>
+                <div class="domain-circle transcend">
+                    <span class="number">7</span>
+                    <span class="name">Transcend</span>
+                </div>
+            </div>
+            <p class="pattern-text">3 > 7 > 13 > infinity</p>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials-section">
+        <div class="container">
+            <h2>What Builders Say</h2>
+            <p class="section-subtitle">Join developers who've transformed their AI workflow</p>
+            <div class="testimonial-grid">
+                <div class="testimonial-card">
+                    <p class="quote">"I used to lose 30 minutes a day searching for code Claude wrote. Now it's one click and done."</p>
+                    <div class="author">
+                        <div class="avatar">JK</div>
+                        <div class="author-info">
+                            <div class="name">Jake K.</div>
+                            <div class="role">Full-Stack Developer</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <p class="quote">"The 7-domain system changed how I think about code organization. Everything has a home now."</p>
+                    <div class="author">
+                        <div class="avatar">MT</div>
+                        <div class="author-info">
+                            <div class="name">Maria T.</div>
+                            <div class="role">Tech Lead</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card">
+                    <p class="quote">"Finally, one extension that works with Claude, ChatGPT, AND DeepSeek. No more fragmentation."</p>
+                    <div class="author">
+                        <div class="avatar">RL</div>
+                        <div class="author-info">
+                            <div class="name">Ryan L.</div>
+                            <div class="role">AI Engineer</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing">
+        <div class="container">
+            <h2>Simple Pricing</h2>
+            <p class="section-subtitle">Start free, upgrade when you need more power</p>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Free</h3>
+                    <div class="price">$0</div>
+                    <ul class="features">
+                        <li>Unlimited code captures</li>
+                        <li>7-domain organization</li>
+                        <li>Local storage (browser)</li>
+                        <li>Claude + ChatGPT support</li>
+                        <li>Basic search</li>
+                    </ul>
+                    <a href="https://chrome.google.com/webstore" class="cta-button" style="display: block;">Install Now</a>
+                </div>
+                <div class="pricing-card featured">
+                    <h3>Pro</h3>
+                    <div class="price">$9<span>/mo</span></div>
+                    <ul class="features">
+                        <li>Everything in Free</li>
+                        <li>All 5 AI platforms</li>
+                        <li>Cyclotron brain sync</li>
+                        <li>Advanced search + filters</li>
+                        <li>Export to VS Code</li>
+                        <li>Priority support</li>
+                    </ul>
+                    <a href="pricing.html" class="cta-button" style="display: block;">Upgrade to Pro</a>
+                </div>
+                <div class="pricing-card">
+                    <h3>Team</h3>
+                    <div class="price">$29<span>/mo</span></div>
+                    <ul class="features">
+                        <li>Everything in Pro</li>
+                        <li>Shared code libraries</li>
+                        <li>Team domain folders</li>
+                        <li>Admin dashboard</li>
+                        <li>SSO integration</li>
+                        <li>Dedicated support</li>
+                    </ul>
+                    <a href="pricing.html" class="cta-button" style="display: block;">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="container">
+            <h2>Stop Losing Code</h2>
+            <p>Every function. Every snippet. Every solution.<br>Captured. Organized. Forever.</p>
+            <a href="https://chrome.google.com/webstore" class="cta-button" style="font-size: 1.2rem; padding: 1rem 2rem;">Add ARAYA Extension to Chrome</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="araya-chat.html">ARAYA Chat</a>
+            <a href="pricing.html">Pricing</a>
+            <a href="HELP_INDEX_v1.html">Documentation</a>
+            <a href="PRODUCT_DOSSIERS.html">All Products</a>
+        </div>
+        <p class="copyright">2026 Consciousness Revolution. The Pattern Never Lies.</p>
+    </footer>
+
+    <script>
+        // Domain circle click handlers
+        document.querySelectorAll('.domain-circle').forEach(circle => {
+            circle.addEventListener('click', function() {
+                const domain = this.classList[1];
+                const descriptions = {
+                    command: 'COMMAND: CLI tools, automation scripts, system controls',
+                    build: 'BUILD: UI components, features, core functionality',
+                    connect: 'CONNECT: APIs, integrations, communication code',
+                    protect: 'PROTECT: Auth, security, encryption, validation',
+                    grow: 'GROW: Analytics, marketing, scaling infrastructure',
+                    learn: 'LEARN: Documentation, tutorials, learning resources',
+                    transcend: 'TRANSCEND: AI/ML, consciousness tech, pattern recognition'
+                };
+                alert(descriptions[domain] || 'Click to explore this domain');
+            });
+        });
+    </script>
+</body>
+</html>
