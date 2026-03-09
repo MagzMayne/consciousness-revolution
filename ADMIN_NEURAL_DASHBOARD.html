@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 ════════════════════════════════════════════════════════════════════════════════
-© 2024-2025 Ryan Barbrick (Barbrick Design). All Rights Reserved.
+© 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.
 ════════════════════════════════════════════════════════════════════════════════
 
 PROPRIETARY AND CONFIDENTIAL - INTELLECTUAL PROPERTY PROTECTION
@@ -43,7 +43,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-  <meta name="rootib" content="RootIB: RB-20260224204034-7CF53009">
+  <meta name="rootib" content="RootIB: RB-20260223092004-6BE634A1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com https://fonts.gstatic.com; style-src-elem 'self' 'unsafe-inline' https://www.gstatic.com https://fonts.googleapis.com https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' blob: indexeddb: https: ws: wss: http://localhost:* https://*.firebaseio.com https://*.googleapis.com https://*.firebase.com https://*.firebaseapp.com https://api.github.com https://raw.githubusercontent.com https://identitytoolkit.googleapis.com https://www.paypal.com https://*.paypal.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://github.com https://apis.google.com https://www.paypal.com https://*.paypal.com https://app.insightx.network https://pump.fun; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' https: https://fonts.gstatic.com https://fonts.googleapis.com;">
     <title>GemBot Admin Neural Dashboard</title>
@@ -58,46 +58,73 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     <script src="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.js"></script>
     <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.1.0/firebase-ui-auth.css" />
     
+    <!-- Firebase Configuration (gitignored) - copy firebase-config.template.js to firebase-config.js -->
+    <script src="./firebase-config.js"></script>
+    
+    <!-- Secure Config Loader -->
+    <script src="./src/utils/secure-config-loader.js"></script>
+    
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAulZ2a1-i25LB77IuR1ScsxD1w6Wdfmg8",
-            authDomain: "gem-bot-57068.firebaseapp.com",
-            projectId: "gem-bot-57068",
-            storageBucket: "gem-bot-57068.appspot.com",
-            messagingSenderId: "536281556406",
-            appId: "1:536281556406:web:344bbfc5503caffdae0d17",
-            measurementId: "G-CPHEQZPHPZ"
+        // SECURITY: Configure via firebase-config.js (copy from firebase-config.template.js).
+        // Firebase public keys are safe to expose but REQUIRE Firebase Security Rules
+        // to be configured in the Firebase Console to restrict data access.
+        // See: https://firebase.google.com/docs/rules
+        const firebaseConfig = window.FIREBASE_CONFIG || {
+            apiKey: "YOUR_FIREBASE_API_KEY_HERE",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
         };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        window.firebaseApp = firebase.app();
-        window.firebaseAuth = firebase.auth();
-        window.firebaseDb = firebase.firestore();
-        window.firebaseAnalytics = firebase.analytics();
-        window.firebaseInitialized = true;
-        
-        // Export Firestore and Auth functions for compatibility
-        window.firestoreUtils = {
-            collection: (db, name) => db.collection(name),
-            doc: (db, collection, id) => db.collection(collection).doc(id),
-            setDoc: (docRef, data) => docRef.set(data),
-            getDoc: (docRef) => docRef.get(),
-            getDocs: (query) => query.get(),
-            query: (collRef) => collRef,
-            orderBy: (field, dir) => firebase.firestore.FieldPath.documentId(), // simplified
-            limit: (n) => n,
-            serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
-            onAuthStateChanged: (auth, callback) => auth.onAuthStateChanged(callback),
-            signInWithEmailAndPassword: (auth, email, pass) => auth.signInWithEmailAndPassword(email, pass),
-            createUserWithEmailAndPassword: (auth, email, pass) => auth.createUserWithEmailAndPassword(email, pass),
-            signInWithPopup: (auth, provider) => auth.signInWithPopup(provider),
-            GoogleAuthProvider: firebase.auth.GoogleAuthProvider,
-            GithubAuthProvider: firebase.auth.GithubAuthProvider,
-            updateProfile: (user, profile) => user.updateProfile(profile)
-        };
-        
-        console.log('🔥 Firebase initialized with FirebaseUI support');
+        // Validate config - warn if placeholder values detected
+        if (!window.FIREBASE_CONFIG || (window.SecureConfigLoader && window.SecureConfigLoader.isPlaceholder(firebaseConfig.apiKey))) {
+            console.warn('⚠️ Firebase is using placeholder config. Copy firebase-config.template.js to firebase-config.js and add your real credentials. Firebase features will not work until configured.');
+        }
+
+        // Initialize Firebase (graceful fallback if SDK not loaded)
+        if (typeof firebase === 'undefined') {
+            console.warn('⚠️ Firebase SDK not loaded. Firebase features will be unavailable. Check network/ad-blocker settings.');
+            window.firebaseInitialized = false;
+        } else {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                window.firebaseApp = firebase.app();
+                window.firebaseAuth = firebase.auth();
+                window.firebaseDb = firebase.firestore();
+                if (typeof firebase.analytics === 'function') {
+                    window.firebaseAnalytics = firebase.analytics();
+                }
+                window.firebaseInitialized = true;
+                
+                // Export Firestore and Auth functions for compatibility
+                window.firestoreUtils = {
+                    collection: (db, name) => db.collection(name),
+                    doc: (db, collection, id) => db.collection(collection).doc(id),
+                    setDoc: (docRef, data) => docRef.set(data),
+                    getDoc: (docRef) => docRef.get(),
+                    getDocs: (query) => query.get(),
+                    query: (collRef) => collRef,
+                    orderBy: (field, dir) => firebase.firestore.FieldPath.documentId(), // simplified
+                    limit: (n) => n,
+                    serverTimestamp: () => firebase.firestore.FieldValue.serverTimestamp(),
+                    onAuthStateChanged: (auth, callback) => auth.onAuthStateChanged(callback),
+                    signInWithEmailAndPassword: (auth, email, pass) => auth.signInWithEmailAndPassword(email, pass),
+                    createUserWithEmailAndPassword: (auth, email, pass) => auth.createUserWithEmailAndPassword(email, pass),
+                    signInWithPopup: (auth, provider) => auth.signInWithPopup(provider),
+                    GoogleAuthProvider: firebase.auth.GoogleAuthProvider,
+                    GithubAuthProvider: firebase.auth.GithubAuthProvider,
+                    updateProfile: (user, profile) => user.updateProfile(profile)
+                };
+                
+                console.log('🔥 Firebase initialized with FirebaseUI support');
+            } catch (e) {
+                console.warn('⚠️ Firebase initialization failed:', e.message);
+                window.firebaseInitialized = false;
+            }
+        }
     </script>
     
     <style>
@@ -107,11 +134,25 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             background: #0a0e14;
             color: #e0e0e0;
             overflow: hidden;
+            height: 100vh;
         }
         .container {
             display: grid;
             grid-template-columns: 300px 1fr 400px;
-            height: 100vh;
+            /* 60px approximates universal-header height; overridden by flex rules below when header is present */
+            height: calc(100vh - 60px);
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        /* When universal-header is present, body becomes a flex column;
+           the container should fill remaining space */
+        body:has(> .universal-header) {
+            overflow: hidden;
+        }
+        body:has(> .universal-header) .container {
+            height: auto;
+            flex: 1 1 0;
+            min-height: 0;
         }
         .sidebar {
             background: #0f1419;
@@ -605,6 +646,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     <link rel="stylesheet" href="/css/universal-styles.css">
 </head>
 <body>
+    <header class="universal-header">
+        <a href="index.html" class="back-button">← Back to Hub</a>
+        <span class="page-title"></span>
+    </header>
+
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -686,7 +732,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             <h2>📊 Repository Info</h2>
             <div style="font-size: 11px; color: #9ca3af; line-height: 1.6;">
                 <div><strong>Owner:</strong> barbrickdesign</div>
-                <div><strong>Repo:</strong> GemBotAiWebControl</div>
+                <div><strong>Repo:</strong> barbrickdesign.github.io</div>
                 <div><strong>Branch:</strong> main</div>
                 <div><strong>Last Scan:</strong> <span id="lastScan">Never</span></div>
                 <div><strong>Last Sync:</strong> <span id="lastSync">Never</span></div>
@@ -757,10 +803,10 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     
     const CONFIG = {
         OWNER: 'barbrickdesign',
-        REPO: 'GemBotAiWebControl',
+        REPO: 'barbrickdesign.github.io',
         API_BASE: 'https://api.github.com',
         RAW_BASE: 'https://raw.githubusercontent.com',
-        LIVE_BASE: 'https://barbrickdesign.github.io/GemBotAiWebControl',
+        LIVE_BASE: 'https://barbrickdesign.github.io',
         STORAGE_KEY: 'gembot_neural_network_v1',
         SCREENSHOTS_KEY: 'gembot_screenshots_v1',
         TEST_LOGS_KEY: 'gembot_test_logs_v1'
@@ -770,9 +816,6 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     // STATE
     // ═══════════════════════════════════════════════════════════════════════════
     
-    // Filtered nodes for search/status filtering (used by render())
-    let filteredNodes = [];
-
     const state = {
         nodes: [],
         connections: [],
@@ -1120,7 +1163,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             Generated: ${new Date().toISOString()}
         </div>
     </div>
-    <script src="/js/universal-utilities.js"></script>
+    <script src="/js/universal-utilities.js"><\/script>
 
     <!-- Universal Navigation - Added by Project Fixer -->
     <script>
@@ -1137,9 +1180,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 }
             }
         });
-    </script>
-<script src="/js/beta-banner.js" data-level="2" data-page="ADMIN NEURAL DASHBOARD"></script>
-</body>
+    <\/script></body>
 </html>`;
     }
     
@@ -1949,15 +1990,8 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         ctx.translate(state.camera.x, state.camera.y);
         ctx.scale(state.camera.zoom, state.camera.zoom);
         
-        // Draw connections (only between visible filtered nodes)
-        const visibleNodeIds = new Set((filteredNodes.length > 0 || ui.searchFilter.value || ui.statusFilter.value !== 'all'
-            ? filteredNodes
-            : state.nodes).map(n => n.id));
-
+        // Draw connections
         state.connections.forEach(conn => {
-            // Skip connections to nodes not in current filter
-            if (!visibleNodeIds.has(conn.from) || !visibleNodeIds.has(conn.to)) return;
-
             const fromNode = state.nodes.find(n => n.id === conn.from);
             const toNode = state.nodes.find(n => n.id === conn.to);
             if (!fromNode || !toNode) return;
@@ -1977,13 +2011,9 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             
             ctx.stroke();
         });
-
-        // Draw nodes (use filtered list if filters active, otherwise all nodes)
-        const nodesToDraw = filteredNodes.length > 0 || ui.searchFilter.value || ui.statusFilter.value !== 'all'
-            ? filteredNodes
-            : state.nodes;
-
-        nodesToDraw.forEach(node => {
+        
+        // Draw nodes
+        state.nodes.forEach(node => {
             const isSelected = state.selectedNode && state.selectedNode.id === node.id;
             const nodeValue = node.value?.usdValue || 0;
             
@@ -2333,22 +2363,37 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     // ═══════════════════════════════════════════════════════════════════════════
     
     function waitForFirebase() {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            if (window.firebaseInitialized === false) {
+                reject(new Error('Firebase not available'));
+                return;
+            }
             if (window.firebaseInitialized && window.firebaseDb && window.firestoreUtils) {
                 resolve();
-            } else {
-                const check = setInterval(() => {
-                    if (window.firebaseInitialized && window.firebaseDb && window.firestoreUtils) {
-                        clearInterval(check);
-                        resolve();
-                    }
-                }, 100);
+                return;
             }
+            let attempts = 0;
+            const check = setInterval(() => {
+                attempts++;
+                if (window.firebaseInitialized && window.firebaseDb && window.firestoreUtils) {
+                    clearInterval(check);
+                    resolve();
+                } else if (window.firebaseInitialized === false || attempts > 50) { // 50 × 100ms = ~5s timeout
+                    clearInterval(check);
+                    reject(new Error('Firebase not available'));
+                }
+            }, 100);
         });
     }
     
     async function initializeAuth() {
-        await waitForFirebase();
+        try {
+            await waitForFirebase();
+        } catch (e) {
+            console.warn('⚠️ Firebase unavailable — sign-in and cloud sync disabled.');
+            ui.authStatus.innerHTML = '<div style="color: #6b7280;">☁️ Firebase unavailable</div>';
+            return;
+        }
         
         // Use Firebase compat API
         firebase.auth().onAuthStateChanged(async (user) => {
@@ -2894,6 +2939,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     window.showProjectInvestment = showProjectInvestment;
     window.executeInvestment = executeInvestment;
     window.downloadConvertedHTML = downloadConvertedHTML;
+    window.mdConversionState = mdConversionState;
 
     async function syncToFirebase() {
         if (!state.isAuthenticated) {
@@ -3041,6 +3087,10 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         firebaseUI: null,
         
         initFirebaseUI() {
+            if (typeof firebase === 'undefined' || !window.firebaseInitialized) {
+                console.warn('⚠️ Firebase not available for FirebaseUI');
+                return null;
+            }
             // FirebaseUI config
             const uiConfig = {
                 callbacks: {
@@ -3073,17 +3123,23 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     // GitHub
                     firebase.auth.GithubAuthProvider.PROVIDER_ID
                 ],
-                tosUrl: 'https://barbrickdesign.github.io/GemBotAiWebControl/terms.html',
-                privacyPolicyUrl: 'https://barbrickdesign.github.io/GemBotAiWebControl/privacy.html'
+                tosUrl: 'https://barbrickdesign.github.io/terms.html',
+                privacyPolicyUrl: 'https://barbrickdesign.github.io/privacy.html'
             };
             
             // Initialize FirebaseUI
-            this.firebaseUI = new firebaseui.auth.AuthUI(firebase.auth());
-            console.log('🔐 FirebaseUI initialized');
+            if (typeof firebaseui !== 'undefined') {
+                this.firebaseUI = new firebaseui.auth.AuthUI(firebase.auth());
+                console.log('🔐 FirebaseUI initialized');
+            }
             return uiConfig;
         },
         
         openModal() {
+            if (!window.firebaseInitialized || typeof firebase === 'undefined') {
+                alert('⚠️ Firebase is not available. Sign-in requires Firebase to be configured.\n\nPlease ensure firebase-config.js is set up with valid credentials.');
+                return;
+            }
             this.modal.classList.add('active');
             
             // Show loader initially
@@ -3091,17 +3147,24 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             if (loader) loader.style.display = 'block';
             
             // Start FirebaseUI
+            if (typeof firebaseui === 'undefined') {
+                if (loader) loader.style.display = 'none';
+                const container = document.getElementById('firebaseui-auth-container');
+                if (container) container.innerHTML = '<p style="color:#f59e0b;text-align:center;padding:20px;">⚠️ FirebaseUI not loaded. Check network/ad-blocker settings.</p>';
+                return;
+            }
+            
             if (!this.firebaseUI) {
                 const config = this.initFirebaseUI();
-                this.firebaseUI.start('#firebaseui-auth-container', config);
+                if (config && this.firebaseUI) this.firebaseUI.start('#firebaseui-auth-container', config);
             } else if (this.firebaseUI.isPendingRedirect()) {
                 const config = this.initFirebaseUI();
-                this.firebaseUI.start('#firebaseui-auth-container', config);
+                if (config && this.firebaseUI) this.firebaseUI.start('#firebaseui-auth-container', config);
             } else {
                 // Reset and start again
                 this.firebaseUI.reset();
                 const config = this.initFirebaseUI();
-                this.firebaseUI.start('#firebaseui-auth-container', config);
+                if (config && this.firebaseUI) this.firebaseUI.start('#firebaseui-auth-container', config);
             }
         },
         
@@ -3110,6 +3173,10 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         },
         
         async signOut() {
+            if (typeof firebase === 'undefined' || !window.firebaseInitialized) {
+                alert('Firebase not available');
+                return;
+            }
             try {
                 await firebase.auth().signOut();
                 console.log('✅ Signed out successfully');
@@ -3412,32 +3479,14 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     ui.autoLayoutBtn.addEventListener('click', autoLayout);
     
     ui.searchFilter.addEventListener('input', () => {
-        applyFilters();
+        // TODO: Implement search filtering
         render();
     });
-
+    
     ui.statusFilter.addEventListener('change', () => {
-        applyFilters();
+        // TODO: Implement status filtering
         render();
     });
-
-    // Apply search and status filters to node list
-    function applyFilters() {
-        const searchText = ui.searchFilter.value.toLowerCase().trim();
-        const statusValue = ui.statusFilter.value;
-
-        filteredNodes = state.nodes.filter(node => {
-            // Search filter
-            const matchesSearch = !searchText ||
-                node.name.toLowerCase().includes(searchText) ||
-                node.path.toLowerCase().includes(searchText);
-
-            // Status filter
-            const matchesStatus = statusValue === 'all' || node.status === statusValue;
-
-            return matchesSearch && matchesStatus;
-        });
-    }
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ENHANCED SCAN WITH FIREBASE LOGGING
@@ -3544,7 +3593,6 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     console.log('☁️ Firebase integration active');
     
 })();
-    </script>
-<script src="/js/beta-banner.js" data-level="2" data-page="ADMIN NEURAL DASHBOARD"></script>
+    </script>  <script src="/js/rootib-footer.js"></script>
 </body>
 </html>

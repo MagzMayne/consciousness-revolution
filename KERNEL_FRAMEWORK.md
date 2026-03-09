@@ -542,7 +542,7 @@ Help us improve KERNEL:
 
 ## 📜 License
 
-KERNEL Framework © 2025 Barbrick Design
+KERNEL Framework © 2008-2026 Barbrick Design
 Open source under MIT License
 
 ---

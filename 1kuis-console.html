@@ -43,6 +43,7 @@
 
     .page { width: 100%; max-width: 760px; }
 
+    /* ── Nav ── */
     .nav {
       display: flex;
       align-items: center;
@@ -93,6 +94,7 @@
 
     .nav-back:hover { color: var(--text-main); border-color: rgba(148, 163, 184, 0.7); }
 
+    /* ── Gate card ── */
     .gate-card {
       background: radial-gradient(circle at top left, #020617 0, #020617 100%);
       border-radius: var(--radius);
@@ -190,6 +192,7 @@
       min-height: 1.2em;
     }
 
+    /* ── Protocol output ── */
     .protocol-card {
       display: none;
       background: radial-gradient(circle at top left, #020617 0, #020617 100%);
@@ -256,17 +259,16 @@
       max-height: 520px;
       overflow-y: auto;
       overflow-x: hidden;
+      /* Scroll styling */
       scrollbar-width: thin;
       scrollbar-color: rgba(74, 222, 128, 0.3) transparent;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      user-select: none;
     }
 
     .protocol-output::-webkit-scrollbar { width: 5px; }
     .protocol-output::-webkit-scrollbar-track { background: transparent; }
     .protocol-output::-webkit-scrollbar-thumb { background: rgba(74, 222, 128, 0.3); border-radius: 4px; }
 
+    /* Loading spinner */
     .spinner {
       display: inline-block;
       width: 14px;
@@ -281,6 +283,7 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Footer ── */
     .page-footer {
       margin-top: 28px;
       font-size: 0.73rem;
@@ -293,10 +296,19 @@
 
     .page-footer a { color: var(--accent); text-decoration: none; }
     .page-footer a:hover { text-decoration: underline; }
+
+    /* Security: disable text selection on the protocol output to add copy friction */
+    .protocol-output {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
   <div class="page">
+
+    <!-- Navigation -->
     <nav class="nav">
       <a href="1KUIS.html" class="nav-brand">
         <div class="nav-logo"></div>
@@ -308,6 +320,7 @@
       <a href="1KUIS.html" class="nav-back">← Back to Protocol</a>
     </nav>
 
+    <!-- License gate -->
     <div class="gate-card">
       <div class="gate-inner">
         <h1 class="gate-title">Protocol <span>Console</span></h1>
@@ -315,6 +328,7 @@
           Enter your <strong>RootIB license key</strong> to unlock and decrypt your personalized
           $1K Minimum Protocol payload.
         </p>
+
         <label class="field-label" for="licenseInput">RootIB License Key</label>
         <input
           id="licenseInput"
@@ -325,6 +339,7 @@
           spellcheck="false"
           maxlength="48"
         />
+
         <div>
           <button id="unlockBtn" class="btn-unlock" onclick="unlockProtocol()">
             <span>⬤</span> Unlock Protocol
@@ -334,6 +349,7 @@
       </div>
     </div>
 
+    <!-- Decrypted protocol output (hidden until unlocked) -->
     <div id="protocolCard" class="protocol-card">
       <div class="protocol-inner">
         <div class="protocol-header">
@@ -345,7 +361,7 @@
     </div>
 
     <footer class="page-footer">
-      <div>&copy; <span id="year"></span> The $1K Minimum Protocol. All rights reserved.</div>
+      <div>© <span id="year"></span> The $1K Minimum Protocol. All rights reserved.</div>
       <div>
         Questions?
         <a href="mailto:BarbrickDesign@gmail.com">BarbrickDesign@gmail.com</a>
@@ -354,22 +370,28 @@
   </div>
 
   <script>
+    // ── Year ──────────────────────────────────────────────────────────────────
     document.getElementById("year").textContent = new Date().getFullYear();
 
+    // ── Configuration ─────────────────────────────────────────────────────────
     var BACKEND = "https://barbrickdesign-production.up.railway.app";
 
+    // ── Pre-fill license from URL query param ─────────────────────────────────
     (function () {
       var params = new URLSearchParams(window.location.search);
       var key = params.get("license");
       if (key) {
         var inp = document.getElementById("licenseInput");
         if (inp) inp.value = key.trim().toUpperCase();
+        // Auto-unlock if key was passed in URL
         window.addEventListener("DOMContentLoaded", function () {
           unlockProtocol();
         });
       }
     }());
 
+    // ── Web Crypto key derivation — mirrors server deriveKeyFromLicense() ─────
+    // Both sides use: SHA-256(license) → first 32 bytes as AES-256-CBC key
     async function deriveKey(license) {
       var enc = new TextEncoder();
       var raw = await crypto.subtle.digest("SHA-256", enc.encode(license));
@@ -384,6 +406,7 @@
       return new TextDecoder().decode(plainBuf);
     }
 
+    // ── Unlock flow ───────────────────────────────────────────────────────────
     async function unlockProtocol() {
       var licenseInput = document.getElementById("licenseInput");
       var errorEl      = document.getElementById("errorMsg");
@@ -407,10 +430,12 @@
         return;
       }
 
+      // Show loading state
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Unlocking…';
+      btn.innerHTML = "<span class=\"spinner\"></span> Unlocking\u2026";
 
       try {
+        // Fetch encrypted payload from backend using POST to avoid license key in server logs
         var res = await fetch(BACKEND + "/api/1kuis/verify-license", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -429,29 +454,34 @@
           throw new Error(json.error || "Invalid response from server.");
         }
 
+        // Decrypt client-side using the license as the key
         var plaintext = await decryptPayload(license, json.encrypted);
 
+        // Display
         if (badgeEl) badgeEl.textContent = license;
         if (outputEl) outputEl.textContent = plaintext;
         cardEl.classList.add("visible");
+
+        // Smooth scroll to protocol
         cardEl.scrollIntoView({ behavior: "smooth", block: "start" });
 
       } catch (err) {
         console.error("[1KUIS Console]", err);
         var msg = err.message || "Unable to unlock protocol.";
         if (msg.includes("Invalid") || msg.includes("unknown") || msg.includes("403")) {
-          errorEl.textContent = "⚠️ Invalid or unrecognized license key. Check that you entered it correctly.";
+          errorEl.textContent = "\u26a0\ufe0f Invalid or unrecognized license key. Check that you entered it correctly.";
         } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed")) {
-          errorEl.textContent = "⚠️ Could not reach the license server. Check your connection and try again.";
+          errorEl.textContent = "\u26a0\ufe0f Could not reach the license server. Check your connection and try again.";
         } else {
-          errorEl.textContent = "⚠️ " + msg;
+          errorEl.textContent = "\u26a0\ufe0f " + msg;
         }
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>⬤</span> Unlock Protocol';
+        btn.innerHTML = "<span>\u2b24</span> Unlock Protocol";
       }
     }
 
+    // ── Enter key to unlock ───────────────────────────────────────────────────
     var inp = document.getElementById("licenseInput");
     if (inp) {
       inp.addEventListener("keydown", function (e) {
@@ -459,6 +489,7 @@
       });
     }
 
+    // ── Anti-copy friction (light, client-side only) ──────────────────────────
     document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
     document.addEventListener("keydown", function (e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "u" || e.key === "p")) {

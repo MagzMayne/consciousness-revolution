@@ -157,7 +157,7 @@ ping google.com
 ```javascript
 // Open browser console and run:
 console.log(window.merlinAI.apiKey);
-// Should show: AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc
+// Should show your valid API key starting with "AIzaSy..." — verify it matches your Google Cloud Console key
 ```
 
 **Solution 3:** Check browser console for errors

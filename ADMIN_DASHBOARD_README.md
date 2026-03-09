@@ -126,7 +126,7 @@ window.gemBotAdminAPI.startAgent(agentId)     // Start agent
 ### Firebase Configuration
 ```javascript
 const firebaseConfig = {
-    apiKey: "AIzaSyAulZ2a1-i25LB77IuR1ScsxD1w6Wdfmg8",
+    apiKey: "[REDACTED - KEY ROTATED]",
     authDomain: "gem-bot-57068.firebaseapp.com",
     projectId: "gem-bot-57068",
     storageBucket: "gem-bot-57068.appspot.com",

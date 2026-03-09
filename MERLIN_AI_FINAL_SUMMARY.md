@@ -10,7 +10,7 @@
 ## 🎯 WHAT YOU ASKED FOR
 
 > "https://console.firebase.google.com/project/gem-bot-57068/overview  
-> AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc  
+> [REDACTED - KEY ROTATED]  
 > // import the Genkit and Google AI plugin libraries  
 > integrate Genkit with Gemini AI"
 
@@ -98,7 +98,7 @@ window.merlinAI.helloFlow(name)                  // Flow 6
 **Configuration:**
 ```javascript
 Project: gem-bot-57068
-API Key: AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc
+API Key: [REDACTED - KEY ROTATED]
 Endpoint: https://generativelanguage.googleapis.com/v1beta
 Model: gemini-1.5-flash
 ```

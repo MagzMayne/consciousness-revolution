@@ -15,7 +15,7 @@ The Barbrick Design repository now uses **GroqAI** as the primary, repo-wide AI 
 
 The repo-wide GroqAI API key is:
 ```
-gsk_YOUR_API_KEY_HEREWEJn
+gsk_your-groq-api-key-here
 ```
 
 This key is configured in:
@@ -56,7 +56,7 @@ Add this to your HTML file:
 
 <script>
   // Set GroqAI key
-  multiAI.setApiKey('groq', 'gsk_YOUR_API_KEY_HEREWEJn');
+  multiAI.setApiKey('groq', 'gsk_your-groq-api-key-here');
   
   // Use the API
   async function myAIFunction() {
@@ -174,7 +174,7 @@ groqAI.showDashboard();
 {
   "name": "Barbrick Design GroqAI Orchestrator",
   "provider": "groq",
-  "apiKey": "gsk_YOUR_API_KEY_HEREWEJn",
+  "apiKey": "gsk_your-groq-api-key-here",
   "enabled": true,
   "priority": 1,
   "models": {
@@ -195,7 +195,7 @@ groqAI.showDashboard();
 
 ```bash
 # Primary AI Orchestrator
-GROQ_API_KEY=gsk_YOUR_API_KEY_HEREWEJn
+GROQ_API_KEY=gsk_your-groq-api-key-here
 
 # Fallback providers (optional)
 OPENAI_API_KEY=sk-your-openai-key-here

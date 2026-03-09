@@ -157,7 +157,7 @@ setTimeout(async () => {
 
 **API Configuration:**
 ```javascript
-API Key: AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc
+API Key: [REDACTED - KEY ROTATED]
 Model: gemini-1.5-flash
 Endpoint: https://generativelanguage.googleapis.com/v1beta
 Firebase Project: gem-bot-57068
