@@ -212,7 +212,7 @@ ADMIN DASHBOARD INTEGRATION
 │  Value Predict  │  ✅ Change impact forecasting                │
 │  Repo Compare   │  ✅ Side-by-side analysis                    │
 │  Hello Flow     │  ✅ Connection test                          │
-│  API Key        │  ✅ AIzaSyCKuf5EVZ-ldHErhG3OkIw9Zz6jb_w3nMc │
+│  API Key        │  ✅ [REDACTED - KEY ROTATED] │
 │  Firebase       │  ✅ ai_summaries collection                  │
 │  Error Handle   │  ✅ Graceful fallbacks                       │
 │  Token Track    │  ✅ Usage monitoring                         │

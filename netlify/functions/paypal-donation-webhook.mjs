@@ -1,8 +1,7 @@
 /**
  * PayPal Webhook Handler for Donations
  * 
- * Receives PayPal IPN (Instant Payment Notification) or REST API webhooks
- * for donations to BarbrickDesign@gmail.com
+ * Receives PayPal REST API webhooks for donations to BarbrickDesign@gmail.com
  * 
  * Author: Agent R (Barbrick Design)
  * Date: 2026-02-14
@@ -15,11 +14,12 @@
  * 5. Subscribe to these events:
  *    - PAYMENT.SALE.COMPLETED
  *    - PAYMENT.CAPTURE.COMPLETED
- * 6. Add webhook ID to environment variables as PAYPAL_WEBHOOK_ID
- * 7. Add PayPal client ID and secret to environment variables
+ * 6. Add the following to Netlify environment variables:
+ *    - PAYPAL_WEBHOOK_ID  (webhook ID from PayPal dashboard)
+ *    - PAYPAL_CLIENT_ID   (PayPal app client ID)
+ *    - PAYPAL_CLIENT_SECRET (PayPal app client secret)
+ *    - PAYPAL_MODE        (set to 'live' for production, 'sandbox' for testing)
  */
-
-import crypto from 'crypto';
 
 // PayPal webhook event types we care about
 const RELEVANT_EVENTS = [
@@ -28,51 +28,83 @@ const RELEVANT_EVENTS = [
   'CHECKOUT.ORDER.COMPLETED'
 ];
 
+const PAYPAL_API_BASE = process.env.PAYPAL_MODE === 'live'
+  ? 'https://api.paypal.com'
+  : 'https://api.sandbox.paypal.com';
+
 /**
- * Verify PayPal webhook signature
- * This ensures the webhook actually came from PayPal
- * 
- * IMPORTANT: This is a simplified version for initial setup.
- * For production, implement full signature verification using PayPal SDK:
- * https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/#link-verifysignature
+ * Get a PayPal access token for API calls
  */
-function verifyWebhookSignature(headers, body, webhookId) {
+async function getPayPalAccessToken() {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error('PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET must be set');
+  }
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get PayPal access token: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+/**
+ * Verify PayPal webhook signature using the PayPal REST API.
+ * Uses https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/#link-verifysignature
+ */
+async function verifyWebhookSignature(headers, rawBody, webhookId) {
   try {
-    // PayPal sends these headers for verification
     const transmissionId = headers['paypal-transmission-id'];
     const transmissionTime = headers['paypal-transmission-time'];
     const certUrl = headers['paypal-cert-url'];
     const authAlgo = headers['paypal-auth-algo'];
     const transmissionSig = headers['paypal-transmission-sig'];
 
-    if (!transmissionId || !transmissionTime || !transmissionSig) {
+    if (!transmissionId || !transmissionTime || !transmissionSig || !certUrl || !authAlgo) {
       console.warn('Missing required PayPal webhook headers');
       return false;
     }
 
-    // PRODUCTION NOTE: Implement full verification before going live:
-    // 1. Retrieve PayPal certificate from certUrl
-    // 2. Construct expected message: webhook_id + transmission_id + transmission_time + body
-    // 3. Verify signature using certificate and authAlgo
-    // 4. Check certificate is from PayPal domain
-    // 
-    // For now, log verification attempt for monitoring
-    console.log('Webhook verification attempted:', {
-      transmissionId,
-      transmissionTime,
-      authAlgo,
-      certUrl
+    const accessToken = await getPayPalAccessToken();
+
+    const verifyResponse = await fetch(`${PAYPAL_API_BASE}/v1/notifications/verify-webhook-signature`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        auth_algo: authAlgo,
+        cert_url: certUrl,
+        transmission_id: transmissionId,
+        transmission_sig: transmissionSig,
+        transmission_time: transmissionTime,
+        webhook_id: webhookId,
+        webhook_event: JSON.parse(rawBody)  // rawBody is always event.body (raw string)
+      })
     });
 
-    // In development/testing: Accept if headers are present
-    // In production: Return false until full verification is implemented
-    const isProduction = process.env.PAYPAL_MODE === 'live';
-    if (isProduction) {
-      console.error('Production mode requires full signature verification - rejecting webhook');
+    if (!verifyResponse.ok) {
+      console.error('PayPal verify-webhook-signature API error:', verifyResponse.statusText);
       return false;
     }
 
-    return true; // Only for development/testing
+    const result = await verifyResponse.json();
+    console.log('Webhook verification result:', result.verification_status);
+    return result.verification_status === 'SUCCESS';
   } catch (error) {
     console.error('Webhook verification error:', error);
     return false;
@@ -134,7 +166,7 @@ export async function handler(event, context) {
     // Verify webhook signature (if webhook ID is configured)
     const webhookId = process.env.PAYPAL_WEBHOOK_ID;
     if (webhookId) {
-      const isValid = verifyWebhookSignature(headers, body, webhookId);
+      const isValid = await verifyWebhookSignature(headers, event.body, webhookId);
       if (!isValid) {
         console.error('Invalid webhook signature');
         return {

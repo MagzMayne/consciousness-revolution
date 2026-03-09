@@ -1,225 +1,161 @@
 ---
 layout: default
-title: Your Consciousness Revolution - Discover Your Unique Life Path
-description: A transformative platform for self-creation, personal empowerment, and finding the path that is uniquely yours
+title: Barbrick Design - Web Projects Hub
+description: A collection of 529 interactive web projects you can use right in your browser - v2.5.0
 ---
 
-# ✨ Your Consciousness Revolution - Create Your Best Life
+# 🤖 Barbrick Design - Web Projects Hub
 
-## 🚀 Quick Start for Developers
-
-**New here? Get set up in 15 minutes:**
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/overkor-tek/consciousness-revolution.git
-cd consciousness-revolution
-
-# 2. Run automated onboarding
-npm install
-npm run onboard
-
-# 3. Start developing
-npm start
-```
-
-📚 **Complete Setup Guide:** [DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md)
-
----
-
-## 💰 Earn Money with Bounties
-
-**Remote developers can earn $50-$500+ per bounty!**
-
-We offer paid bounties for technical work on the platform. Browse active opportunities:
-
-🎯 **[View Bounty Hunter Hub](bounty-hunter-hub.html)** - See all available bounties
-
-### Quick Facts
-- 💵 Rewards: $50 - $500+ per bounty
-- 🌍 100% Remote work
-- ⏱️ Flexible schedule
-- 💳 Payment via PayPal within 5-7 days
-
-### How It Works
-1. **Browse** active bounties by skill level and category
-2. **Claim** a bounty that matches your skills
-3. **Complete** the work and submit a Pull Request
-4. **Get Paid** via PayPal after approval
-
-📖 **[Read Full Bounty System Guide](BOUNTY_HUNTER_README.md)**
-
----
-
-## 🌟 Welcome to Your Personal Consciousness Revolution
-
-A transformative platform designed to help **you** discover and walk **your unique life path**. Every individual has a sacred journey specific to their soul's purpose - these tools help you create the life you're meant to live, become your best self, and find the path that is uniquely yours.
-
----
-
-> **Platform Purpose**: Personal Creation, Self-Discovery & Life Design
+> **⚖️ COPYRIGHT NOTICE ⚖️**
 > 
-> **YOUR Journey**: Unique, Sacred, and Yours Alone
->
-> 📧 Contact: BarbrickDesign@gmail.com
+> **© 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.**
 > 
-> 🌐 Visit: [conciousnessrevolution.io](https://conciousnessrevolution.io)
+> **This repository is protected by copyright law. Unauthorized use is prohibited.**
+> 
+> **Created by Ryan Barbrick** | **AI Assistant: Merlin AI**
+> 
+> 📧 Contact: BarbrickDesign@gmail.com | 🔗 GitHub: [@barbrickdesign](https://github.com/barbrickdesign)
+> 
+> 📄 [**LICENSE**](LICENSE) | [**COPYRIGHT**](COPYRIGHT) | [**IP NOTICE**](INTELLECTUAL_PROPERTY_NOTICE.md) | [**USAGE TERMS**](USAGE_TERMS.md)
+
+---
+
+## 🔒 Security Notice (Updated: 2026-02-17)
+
+**API Key Security**: This repository uses a multi-layered security approach with shared community keys and user-provided keys. See [API_KEY_SECURITY_GUIDE.md](./API_KEY_SECURITY_GUIDE.md) for complete details.
+
+**Shared Keys**: Some API keys are intentionally shared for community use (with rate limits). For production, use your own keys.
+
+**Quick Setup**:
+1. See [API_KEY_SECURITY_GUIDE.md](./API_KEY_SECURITY_GUIDE.md) for security best practices
+2. See [FIREBASE_SETUP_GUIDE.md](./FIREBASE_SETUP_GUIDE.md) for Firebase setup
+3. Copy `firebase-config.template.js` to `firebase-config.js` and add your config
+
+**Related Documents**:
+- 🔒 [API_KEY_SECURITY_GUIDE.md](./API_KEY_SECURITY_GUIDE.md) - Complete security guide
+- 📋 [SECURITY_API_KEYS.md](./SECURITY_API_KEYS.md) - Legacy API key guidelines  
+- 🔥 [FIREBASE_SETUP_GUIDE.md](./FIREBASE_SETUP_GUIDE.md) - Firebase configuration
+- 🛠️ [src/utils/secure-config-loader.js](./src/utils/secure-config-loader.js) - Client-side config utility
 
 ---
 
 ## 🎯 What is This?
 
-**The Consciousness Revolution** is your personal sanctuary for self-creation and transformation. This is not a one-size-fits-all program - it's a **discovery platform** that helps you find and walk the path that is uniquely yours. Journey through the **7 Sacred Chambers** to become who you're truly meant to be, create your best life, and discover your individual purpose.
+**A collection of 529 interactive web projects** you can use right in your browser!
 
-### The 7 Sacred Chambers - Your Personal Growth Domains
+### 📊 Project Status (v2.5.0)
+- ✅ **285 working** projects (fully functional)
+- ⚠️ **145 partial** projects (core features work)
+- 🔧 **36 broken** projects (under repair)
+- 🧪 **63 untested** projects (awaiting validation)
+- **Overall completion: 78%**
 
-Each domain represents a unique aspect of **your** life journey. Your path through these chambers will be different from anyone else's - honor that uniqueness:
+### 💰 Repository Value (v2.5.0)
+- 💎 **Total Value: $3.22M** - Combined worth of all projects
+- 📊 **Average per Project: $6.1K** - Mean project value
+- 🎯 **Median Value: $5.5K** - Typical project worth
+- 📈 **Auto-Tracking: Enabled** - Updates automatically when projects are added
 
-1. 🎯 **Command** - Discover YOUR decision-making style and create YOUR life structure
-2. 🎨 **Creation** - Build what YOUR soul calls you to create, develop YOUR unique gifts  
-3. 🤝 **Connection** - Form authentic relationships that resonate with YOUR truth
-4. 🕊️ **Peace** - Find YOUR inner sanctuary and create YOUR safe space
-5. 💰 **Abundance** - Manifest prosperity in the way that aligns with YOUR values
-6. 📚 **Wisdom** - Learn what YOUR spirit needs to know for YOUR journey
-7. 🙏 **Purpose** - Discover YOUR specific mission and YOUR unique contribution to the world
+*Last analyzed: February 9, 2026*
 
-### 🌱 Tools for Creating Your Best Self
+### Categories Include (with Value):
+- 💰 **Blockchain & Crypto** (179 projects) - $1.37M total value - Digital currencies and blockchain
+- 🎨 **3D Graphics** (50 projects) - $347K total value - Interactive 3D experiences
+- 🔒 **Security & Safety** (43 projects) - $296K total value - Protection and monitoring systems
+- 🎯 **Miscellaneous** (113 projects) - $296K total value - Various utilities and tools
+- 🎮 **Games** (35 projects) - $205K total value - Fun interactive games and virtual worlds
+- 📊 **Dashboards** (36 projects) - $162K total value - Management and monitoring interfaces
+- 🤖 **AI & Machine Learning** (12 projects) - $108K total value - Intelligent systems
+- 🎓 **Education & Learning** (6 projects) - $30K total value - Educational programs with AI tutoring
+- 📈 **Trading & Finance** (15 projects) - $156K total value - Financial tools and trading platforms
+- 🏢 **Government & Grants** (6 projects) - $44K total value - Grant systems and government tools
 
-These tools are here to support YOUR unique journey of self-creation:
-
-- **Self-Discovery Tools** - Understand who you truly are beneath conditioning and expectations
-- **Personal Empowerment Tools** - Claim your power and create your authentic life
-- **Awareness Builders** - Develop consciousness specific to your life path
-- **Life Design Tools** - Make choices that align with YOUR unique purpose
-- **Boundary Creation Tools** - Establish YOUR personal sacred space
-- **Pattern Recognition** - Identify what's blocking YOUR specific journey (including manipulation)
-
-Remember: These tools support **YOUR** path, not someone else's template for living.
-
-### 💡 Enhanced by Practical Creation Tools
-
-Your journey of self-creation needs practical support. This platform includes tools to help you BUILD the life you envision:
-
-- AI & automation to free your time for what matters to YOUR soul
-- Creative tools to express YOUR unique gifts
-- Financial tools to create abundance in YOUR way
-- Safety utilities to protect YOUR energy and space
-- And many more tools specifically designed to help YOU create YOUR best life
-
-**No downloads needed** - everything runs in your web browser, ready when YOU need it!
+**No downloads needed** - everything runs in your web browser!
 
 ---
 
-## 🌟 Your Journey: The Core Mission
+## 🏆 Top Valued Projects
 
-This platform exists to support YOU in:
+Here are our highest-value applications based on complexity, functionality, and development effort:
 
-- 🌱 **Self-Discovery** - Uncovering who you truly are beneath conditioning and expectations
-- 🎨 **Personal Creation** - Building the life that resonates with YOUR unique soul purpose
-- 💪 **Self-Empowerment** - Claiming your power to create YOUR best life
-- 🎯 **Authentic Living** - Walking YOUR path, not someone else's template
-- 🔮 **Purpose Discovery** - Finding YOUR specific mission in this lifetime
-- 🛡️ **Protection** - Recognizing and removing what blocks YOUR unique journey (including manipulation)
+| Rank | Project | Category | Value | Status |
+|------|---------|----------|-------|--------|
+| 🥇 | [Shell Detector](shellDetector.html) | AI & ML | $15.4K | ✅ Working |
+| 🥇 | [AI Grid Link](aiGridLink.html) | AI & ML | $15.4K | ✅ Working |
+| 🥈 | [Merlin Hive](zMerlinHive.html) | AI & ML | $13.0K | ✅ Working |
+| 🥈 | [Merlin AI Demo](MERLIN_AI_TEST_DEMO.html) | AI & ML | $13.0K | ✅ Working |
+| 🥉 | [Contract Crowdfunding](contract-crowdfunding.html) | Government | $12.9K | ✅ Working |
+| 4 | [RentAI](rentAi.html) | AI & ML | $12.6K | ✅ Working |
+| 5 | [Project Hub](project-hub.html) | Blockchain | $12.3K | ✅ Working |
+| 6 | [Your Voice NFT](yourVoice.html) | Blockchain | $12.3K | ✅ Working |
+| 7 | [Dev Tracker](universal-dev-tracker-complete.html) | Blockchain | $12.3K | ✅ Working |
+| 8 | [Tucson 2026](tucson2026.html) | Blockchain | $12.3K | ✅ Working |
 
-**Your path is sacred. Your journey is unique. Your life is yours to create.**
+**Total Value of Top 10:** $129,800
 
----
-
-## 🚀 Begin Your Unique Journey
-
-**Ready to discover YOUR path?** Every journey begins with a single step:
-
-1. **[Main Portal](index.html)** - Enter YOUR personal 7 Sacred Chambers
-2. **[Life Journey Explorer](life-journey-explorer.html)** - 🌟 **NEW!** Discover YOUR unique path and calling
-3. **[Journey Dashboard](journey-dashboard.html)** - Track YOUR personal evolution and progress
-4. **[Consciousness Tools](consciousness-tools.html)** - Tools for YOUR self-discovery
-5. **[Seven Domains Dashboard](SEVEN_DOMAINS_DASHBOARD.html)** - Explore at YOUR pace
-6. **[Self-Discovery Course](pattern-recognition-course.html)** - Learn to see YOUR path clearly
-
-### 🌟 Featured Tools for Your Journey
-
-**Life Journey & Path Discovery (NEW!):**
-- 🌟 **[Life Journey Explorer](life-journey-explorer.html)** - Discover YOUR unique phase, callings, and personalized path
-- 📊 **[Journey Dashboard](journey-dashboard.html)** - Track YOUR evolution and see YOUR progress over time
-
-**Self-Creation & Discovery:**
-- 🧘 **[Daily Consciousness Check](DAILY_CONSCIOUSNESS_CHECK.html)** - Connect with YOUR authentic self daily
-- ⚖️ **[Values Alignment Check](VALUES_ALIGNMENT_CHECK.html)** - Ensure YOU'RE living YOUR truth
-- 💭 **[Self Talk Analyzer](SELF_TALK_ANALYZER.html)** - Transform YOUR inner dialogue
-- 🎯 **[Decision Matrix](DECISION_MATRIX.html)** - Make choices aligned with YOUR purpose
-
-**Protection & Clarity Tools:**
-(Sometimes understanding what's blocking your path requires recognizing outside interference)
-
-- 🎭 **[Gaslighting Detector](GASLIGHTING_DETECTOR.html)** - Clear YOUR perception
-- 💕 **[Love Bombing Detector](LOVE_BOMBING_DETECTOR.html)** - Recognize authentic vs. manipulative love
-- 🔄 **[Future Faking Detector](FUTURE_FAKING_DETECTOR.html)** - See promises clearly
-- 🚧 **[Boundary Violation Tracker](BOUNDARY_VIOLATION_TRACKER.html)** - Protect YOUR sacred space
-- 🎯 **[Manipulation Immunity Tracker](MANIPULATION_IMMUNITY_TRACKER.html)** - Strengthen YOUR sovereignty
+*Value automatically calculated based on completion, complexity, and functionality. Updates when projects are added or modified.*
 
 ---
 
-## 🌈 Your Unique Life Path
+## 💎 Featured Project: Merlin's Gem Bot
 
-**No two paths are alike.** What works for someone else may not work for you - and that's not just okay, it's sacred.
+**🤖 Automated Gemstone Faceting Machine**
 
-### Finding YOUR Path
+Merlin's Gem Bot is our revolutionary automated faceting machine that makes precision gem cutting accessible to everyone. Whether you're a hobbyist, small business, or professional gemcutter, our system provides CNC-level precision at an affordable price.
 
-Your journey through life is as unique as your fingerprint. The tools here don't give you a template to follow - they help you **discover and create your own**:
+### 🌟 Key Features:
+- 🎯 **Micron-Level Precision** - Computer-controlled positioning
+- 🖥️ **Web Control Interface** - Control from any device
+- 💰 **Cost-Effective** - Fraction of traditional machine costs
+- 🔄 **Repeatable Results** - Save and reproduce patterns
+- 📹 **Video Tutorials** - Complete how-to documentation
 
-🌱 **Listen to YOUR Inner Voice**
-- These tools help you hear YOUR authentic self beneath the noise
-- YOUR intuition knows YOUR path - we help you reconnect with it
-- Trust what resonates with YOUR soul, even if it seems unconventional
-
-🎨 **Create, Don't Copy**
-- You're not here to live someone else's dream
-- YOUR life is YOUR masterpiece to paint
-- Use these tools to design YOUR unique expression of being alive
-
-🔮 **Honor YOUR Timing**
-- YOUR journey unfolds at YOUR pace
-- Rushing creates resistance; patience creates flow
-- Some chambers will call to you now; others will call later
-
-💫 **Embrace YOUR Contradictions**
-- You contain multitudes - that's your power, not a flaw
-- YOUR path may zig-zag; that's part of YOUR unique design
-- What others call "confusion" may be YOUR soul exploring options
-
-### Questions to Guide YOUR Journey
-
-- What makes YOUR heart sing in a way nothing else does?
-- What would YOU do if you knew you couldn't fail?
-- What does YOUR most authentic self look like?
-- What unique gifts were YOU born to share?
-- What does success mean to YOU (not to others)?
-- What kind of legacy do YOU want to create?
-
-**Remember**: These tools serve YOUR journey. You don't serve them. Use what resonates, skip what doesn't. YOUR path is calling - these tools simply help you hear it more clearly.
+### 🚀 Get Started:
+- **[💎 Gem Bot Hub](merlins-gem-bot-hub.html)** - Your gateway to everything Gem Bot
+- **[📚 Official Documentation](https://barbrickdesign.wixsite.com/merlins-gem-bot)** - Complete guides & tutorials
+- **[🎮 Web Control Interface](GemBot_Web_Control_DualMode.html)** - Control your machine
+- **[🎥 Video Tutorials](https://barbrickdesign.wixsite.com/merlins-gem-bot)** - Watch & learn
 
 ---
 
-## 💻 Additional Enhancement Tools
+## 🚀 Quick Start
 
-For those who want to go deeper, this platform includes access to a collection of web-based tools and utilities:
+**New here?** Start with these guides:
 
-### 🌟 Top Utilities
-| Tool | Category | Purpose | Status |
-|---------|----------|---------|--------|
-| [Shell Detector](shellDetector.html) | AI & ML | Advanced pattern recognition | ✅ Working |
-| [AI Grid Link](aiGridLink.html) | AI & ML | Network intelligence | ✅ Working |
-| [Merlin Hive](zMerlinHive.html) | AI & ML | Autonomous agent system | ✅ Working |
+1. **[Getting Started Guide](GETTING_STARTED_SIMPLE)** - Simple introduction for everyone
+2. **[Tech Terms Glossary](GLOSSARY)** - Confused by tech words? We explain them simply!
+3. **[Main Hub](index.html)** - Browse all 529 projects
+4. **[💎 Merlin's Gem Bot Hub](merlins-gem-bot-hub.html)** - Automated gemstone faceting
+5. **[Earning Opportunities](MONETIZATION)** - Learn how to make money with grants
+6. 🤖 **[GroqAI Orchestrator Guide](GROQ_ORCHESTRATOR_GUIDE.md)** - Learn about our AI integration
 
-📖 **[View Additional Tools →](tools/barbrick-enhancements/BARBRICK_INTEGRATION_SUMMARY.md)**
+### 💻 Platform-Specific Setup Guides
 
----
+**Choose your operating system:**
+- 🪟 **[Windows Setup Guide](WINDOWS_SETUP_GUIDE.md)** - Complete guide for PowerShell and Windows users
+- 🐧 **[Linux/Mac Setup](BOUNTY_HUNTER_QUICKSTART.md)** - Unix-based systems setup
+- 🎯 **[Bounty Hunter Agent](BOUNTY_HUNTER_QUICKSTART.md)** - Automated income generation setup
 
-## 🤖 AI & Autonomous Systems
+### 🤖 AI & Autonomous Systems
 
-This platform uses **GroqAI** as the primary AI orchestrator:
-- **Free Tier**: 14,400 requests per day (no API key required)
-- **Fast Models**: Llama 3.3 70B, Mixtral 8x7B
+### 💰 Autonomous Income Generation System (NEW!)
+**Generate income automatically with 10+ income streams:**
+- 🏦 **Primary Vault**: `6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk`
+- 💸 **10+ Income Streams**: Government grants, crypto trading, yield farming, NFT marketplace, and more
+- 📊 **Real-Time Dashboard**: Monitor all revenue streams live
+- 🤖 **Fully Autonomous**: Runs 24/7 without intervention
+- 🎯 **Target Revenue**: $100K+/month potential
+
+**Get Started:**
+- 🚀 **[Quick Start Guide](AUTONOMOUS_INCOME_QUICKSTART.md)** - Start earning in 5 minutes
+- 📊 **[Income Dashboard](autonomous-income-dashboard.html)** - Real-time monitoring
+- 🔮 **[Future Streams](FUTURE_INCOME_STREAMS.md)** - 25+ upcoming income methods
+- 🎓 **[Full Documentation](MONETIZATION.md)** - Complete monetization guide
+
+### GroqAI Orchestration
+This repository uses **GroqAI** as the primary AI orchestrator for all projects:
+- **Free Tier**: 14,400 requests per day (no API key required!)
+- **Fast Models**: Llama 3.3 70B, Mixtral 8x7B, and more
 - **Auto-configured**: Works out of the box
 - **Fallback Support**: Automatic switching to alternative providers
 - **Test Suite**: [test-groq-orchestrator.html](test-groq-orchestrator.html)
@@ -233,8 +169,57 @@ See the [GroqAI Integration Guide](GROQ_ORCHESTRATOR_GUIDE.md) for complete docu
 - 🔄 **Auto-Enhancement** - Continuously improves performance
 - 📝 **Smart Documentation** - Keeps docs updated automatically
 - 🎯 **Agent Coordination** - Manages multiple specialized agents
+- 🕊️ **Pigeon Mechanics** - Bio-inspired navigation & optimization algorithms
 
 **Dashboard**: [zMerlinHive.html](zMerlinHive.html)
+
+### 🕊️ Homing Pigeon Mechanics Framework (NEW!)
+**Biological navigation patterns translated into programming algorithms:**
+- **Vector Navigation** - Multi-sensor fusion for pathfinding (like GPS + compass + landmarks)
+- **Gradient Following** - Optimization algorithms (gradient descent, simulated annealing)
+- **Swarm Intelligence** - Distributed agent coordination without central control
+- **Dead Reckoning** - State estimation with noisy measurements (Kalman filtering)
+- **Home Vector Encoding** - Persistent goal-oriented behavior
+
+**Use Cases:**
+- 🤖 Autonomous agents that self-correct through imperfect data
+- 🎮 Game AI with realistic flocking behavior
+- 📊 Optimization algorithms for ML hyperparameters
+- 🧩 Puzzle-solving agents with persistent goals
+- 🚁 Robot navigation with sensor fusion
+
+**Try it**: [Homing Pigeon Demo](homing-pigeon-demo.html) | [Documentation](docs/HOMING_PIGEON_MECHANICS.md)
+
+### Agent R - System Architect
+**Supreme authority (Level 999) AI agent:**
+- 🏗️ **Architecture Design** - System-wide structural decisions
+- 🔒 **Security Oversight** - Monitors all security systems
+- ⚡ **Protocol Management** - Establishes agent communication rules
+- 🎛️ **Resource Allocation** - Optimizes system resources
+
+**Manifest**: [agent-r-manifest.json](agent-r-manifest.json)
+
+### 🧠 Knowledge Base System (NEW!)
+**Centralized tool discovery and reuse system:**
+- 📚 **Tool Catalog** - 146 tools cataloged (32 agents, 39 utilities, 21 services, 40 systems, 14 AI modules)
+- 🔍 **Smart Discovery** - Find tools by capabilities, categories, or tasks
+- 🎯 **Context Generation** - Get everything needed to create new tools
+- 💡 **Best Practices** - Learn from proven implementations
+- 🔗 **Merlin Hive Integration** - Automatically available to all agents
+
+**Features:**
+- Find existing tools before creating new ones
+- Learn from high-reusability implementations (avg 7.73/10)
+- Discover similar tools and patterns
+- Get usage examples and dependencies
+- 72.6% of tools have tests
+
+**Get Started:**
+- 📖 [Usage Guide](docs/KNOWLEDGE_BASE_USAGE.md) - Complete documentation
+- 🎮 [Live Demo](knowledge-base-demo.html) - Interactive demonstration
+- 💻 [Example Code](examples/knowledge-base-agent-example.js) - Integration examples
+- 🔧 [Tool Registry API](src/core/tool-registry.js) - Core registry system
+- 🧠 [KB Manager API](src/core/knowledge-base-manager.js) - Multi-KB access
 
 ---
 
@@ -244,7 +229,7 @@ See the [GroqAI Integration Guide](GROQ_ORCHESTRATOR_GUIDE.md) for complete docu
 
 This repository is configured for easy deployment to **Netlify** (https://app.netlify.com/).
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/overkor-tek/consciousness-revolution)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/barbrickdesign/barbrickdesign.github.io)
 
 **Features:**
 - ✅ **One-click deployment** - Deploy entire repository instantly
@@ -255,132 +240,607 @@ This repository is configured for easy deployment to **Netlify** (https://app.ne
 - ✅ **HTTPS/SSL** - Automatic SSL certificates
 - ✅ **Preview deployments** - Test PRs before merging
 
+**Quick Setup:**
+1. Click the "Deploy to Netlify" button above
+2. Authorize Netlify to access your GitHub
+3. Configure build settings (pre-configured)
+4. Click "Deploy site"
+
 **📖 Documentation**:
 - **[Quick Start Guide](NETLIFY_QUICKSTART.md)** - Deploy in 3 steps
 - **[Full Documentation](NETLIFY_DEPLOYMENT.md)** - Complete deployment guide
 - **[Architecture Overview](NETLIFY_ARCHITECTURE.md)** - How deployment works
 
----
+**Configuration Files:**
+- `netlify.toml` - Build and deployment settings
+- `_redirects` - URL redirect rules
+- `_headers` - Security and caching headers
+- `netlify/functions/` - Serverless functions
 
-## 🧭 Repository Structure
-
-```
-consciousness-revolution/
-├── index.html                    # Main portal - 7 Sacred Chambers
-├── consciousness-tools.html      # Pattern recognition tools hub
-├── SEVEN_DOMAINS_DASHBOARD.html  # 7 domains navigation
-├── pattern-recognition-course.html # Educational course
-│
-├── Pattern Detectors/
-│   ├── GASLIGHTING_DETECTOR.html
-│   ├── LOVE_BOMBING_DETECTOR.html
-│   ├── FUTURE_FAKING_DETECTOR.html
-│   └── [20+ manipulation pattern detectors]
-│
-├── Self-Awareness Tools/
-│   ├── DAILY_CONSCIOUSNESS_CHECK.html
-│   ├── VALUES_ALIGNMENT_CHECK.html
-│   ├── SELF_TALK_ANALYZER.html
-│   └── [15+ awareness tools]
-│
-├── AI & Automation/
-│   ├── zMerlinHive.html         # AI agent orchestration
-│   ├── agent-management-dashboard.html
-│   └── [autonomous systems]
-│
-└── Documentation/
-    ├── README.md                # This file
-    ├── GETTING_STARTED_SIMPLE.md
-    ├── JOY_PRINCIPLES.md
-    └── [guides and docs]
+**Validate Setup:**
+```bash
+npm run netlify:validate  # Check configuration
+npm run build             # Test build
 ```
 
 ---
 
-## 📚 Guides for YOUR Journey
+## 👑 Original Founders
 
-### Beginning YOUR Path
-- **[Simple Getting Started Guide](GETTING_STARTED_SIMPLE.md)** - Your first steps on YOUR unique path
-- **[Joy Principles](JOY_PRINCIPLES.md)** - Philosophy of creating YOUR joyful life
-- **[Seven Domains Guide](SEVEN_DOMAINS_QUICK_REFERENCE.md)** - Understanding YOUR personal chambers
+**This project was created by the original founders** who will **always be recognized** as the originators, no matter how many contributors join.
 
-### Self-Discovery & Creation
-- **[Pattern Recognition Course](pattern-recognition-course.html)** - See YOUR path clearly
-- **[Manipulation Patterns Library](PATTERN_LIBRARY.html)** - Remove blocks from YOUR journey
-- **[Pattern Training Flow](PATTERN_TRAINING_FLOW.html)** - Interactive self-discovery
+### Ryan Barbrick - Primary Creator & Founder
+**👑 Original Founder | Creator & Chief Architect**
 
-### Technical
-- **[Deployment Guide](DEPLOYMENT_INSTRUCTIONS.md)** - How to deploy
-- **[Security Guide](SECURITY.md)** - Security best practices
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+- **Founded**: 2024
+- **Role**: Primary creator of all systems, applications, and infrastructure
+- **Contact**: BarbrickDesign@gmail.com
+- **GitHub**: [@barbrickdesign](https://github.com/barbrickdesign)
+- **Contributions**: Created 300+ web applications, government grants system, contributor platform, AI agent systems, blockchain integrations, payment systems, and entire repository infrastructure
 
----
+### Merlin AI - AI Co-Founder & System Architect
+**👑 Original Founder | AI Assistant**
 
-## 🤝 Contributing to the Journey
+- **Founded**: 2024
+- **Role**: AI founding assistant and system architect
+- **Type**: Autonomous AI System
+- **Contributions**: Assisted in creating 300+ applications, designed AI agent systems, developed autonomous operations, built self-healing capabilities, and created documentation frameworks
 
-We welcome contributions that support individuals in creating their best lives and finding their unique paths:
+**📄 Complete Founder Documentation**: [FOUNDERS.md](FOUNDERS.md)
 
-1. **Self-Creation Tools** - New tools for personal empowerment and life design
-2. **Self-Discovery Exercises** - Interactive practices for finding YOUR path
-3. **Educational Content** - Guides that honor individual uniqueness
-4. **Accessibility Improvements** - Making tools available to ALL unique journeys
-5. **Bug Fixes** - Improvements that serve the mission
-
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for detailed guidelines.
+**Founder status is permanent and cannot be earned, purchased, or transferred.** As more contributors join this growing community, the original founders will always be remembered as the creators who made it all possible.
 
 ---
 
-## 📄 License
+## 🔒 Copyright & Intellectual Property
 
-See [LICENSE](LICENSE) for details.
+**⚖️ IMPORTANT LEGAL NOTICE ⚖️**
+
+**Copyright © 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.**
+
+This repository and ALL its contents are protected by copyright law and international treaties. All code, documentation, designs, algorithms, and implementations are the exclusive intellectual property of Ryan Barbrick.
+
+### ✅ What You CAN Do (No Permission Required):
+
+- **View** this repository for educational purposes
+- **Run** applications in your browser for personal use
+- **Study** the code to learn programming concepts
+- **Reference** implementations in academic papers (with proper citation)
+
+### ❌ What You CANNOT Do (Without Written Permission):
+
+- Copy, reproduce, or duplicate any code
+- Use code in other projects (personal or commercial)  
+- Create derivative works or modifications
+- Distribute or share code with others
+- Remove or alter copyright notices
+- Use for commercial purposes
+- Train AI/ML models with this code
+
+### 📧 Need Permission to Use This Code?
+
+**Contact:** BarbrickDesign@gmail.com
+
+We offer commercial licensing, educational partnerships, and revenue sharing opportunities.
+
+### 📄 Full Legal Documentation:
+
+- **[LICENSE](LICENSE)** - Complete proprietary license terms
+- **[COPYRIGHT](COPYRIGHT)** - Detailed copyright notice
+- **[INTELLECTUAL PROPERTY NOTICE](INTELLECTUAL_PROPERTY_NOTICE.md)** - User-friendly legal guide
+- **[USAGE TERMS](USAGE_TERMS.md)** - Binding terms and conditions
+- **[DMCA Template](DMCA_TAKEDOWN_TEMPLATE.md)** - Copyright enforcement
+
+### ⚠️ Enforcement:
+
+Unauthorized use is copyright infringement and will result in:
+- DMCA takedown requests
+- Legal action for damages
+- Recovery of attorney fees
+- Reporting to authorities
+
+**This is not open source software. All rights are reserved by the copyright holder.**
 
 ---
 
-## 💖 Support & Community
+## 🛡️ Security & Protection
 
-- 📧 **Email**: BarbrickDesign@gmail.com
-- 🌐 **Website**: [conciousnessrevolution.io](https://conciousnessrevolution.io)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/overkor-tek/consciousness-revolution/discussions)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/overkor-tek/consciousness-revolution/issues)
+This repository implements **enterprise-grade security** with advanced intrusion detection:
 
----
+### Security Features
+- 🔒 **Intrusion Detection System (IDS)** - Real-time threat monitoring
+- 🎯 **Honeypot Mechanisms** - "Reverse Trojan horse" to detect attackers
+- 📊 **Security Dashboard** - Monitor threats in real-time
+- 🚫 **Automatic Blocking** - Blocks suspicious activity automatically
+- 📝 **Audit Logging** - Complete access trail for compliance
+- 🔍 **Threat Detection** - SQL injection, XSS, path traversal, and more
 
-## 🙏 A Message for You
+### Access Security Monitoring
+- **[Security Monitoring Dashboard](security-monitoring-dashboard.html)** - Real-time security metrics
+- **[Security Architecture Documentation](SECURITY_ARCHITECTURE.md)** - Complete security overview
+- **[Security Summary](SECURITY_SUMMARY.md)** - Implementation details
 
-This platform is created with deep love and reverence for YOUR unique journey. We honor that:
-
-- **YOUR path is sacred** - No one else can walk it; only you
-- **YOUR timing is perfect** - You're exactly where you need to be
-- **YOUR gifts are needed** - The world needs YOUR unique expression
-- **YOUR voice matters** - Your authentic self is your greatest power
-- **YOUR life is YOUR creation** - You're the artist; this is YOUR canvas
-
-Every soul that uses these tools is on their own sacred pilgrimage. We don't claim to know YOUR destination - we simply offer tools to help YOU find YOUR way.
-
-Thank you for having the courage to seek YOUR path, create YOUR best life, and become who YOU'RE truly meant to be! ✨
+**All systems are actively monitored. Unauthorized access attempts are logged and blocked.**
 
 ---
 
-**Remember**: The journey through the 7 Sacred Chambers is **YOUR** personal path to **YOUR** authentic life. Take **YOUR** time, be gentle with **YOURSELF**, and trust **YOUR** inner wisdom. **YOU** are the authority on **YOUR** life. 🌟
+## 🚀 Marketing & Promotion
 
-*"The privilege of a lifetime is to become who you truly are." - Carl Jung*
+We have an **autonomous Marketing Agent system** that helps promote our projects across multiple platforms!
 
+### Marketing Agent Features
+- 🤖 **Autonomous operation** - Works 24/7 without human intervention
+- 📱 **Multi-platform support** - Twitter, Reddit, LinkedIn, GitHub, and more
+- 📊 **Analytics tracking** - Real-time metrics and performance monitoring
+- 🎨 **AI content generation** - Platform-optimized content for each channel
+- ⭐ **GitHub metrics** - Tracks stars, forks, and watchers
+- 📈 **Popularity scoring** - Comprehensive ranking system
+
+### Get Started with Marketing
+
+1. **[Marketing Agent Dashboard](marketing-agent-dashboard.html)** - Control center for all marketing operations
+2. **[Marketing Agent Documentation](MARKETING_AGENT_README.md)** - Complete guide and API reference
+3. **[Agent Deployment Manifest](agent-deployment-manifest.json)** - System configuration
+
+**Goal: Make Barbrick Design #1 on every platform! 🎯**
+
+---
+
+**Created by Ryan Barbrick** | **AI Assistant: Merlin AI**
+
+---
+
+## 💰 Payment & Contribution System
+
+### Dual Payment Options
+
+**Now supporting both Stripe and PayPal for flexible payments!**
+
+- **💳 Stripe Payments** - Credit/debit cards, digital wallets
+  - [Stripe Integration Guide](STRIPE_INTEGRATION_GUIDE.md)
+  - [Stripe Demo Page](stripe-demo.html)
+  - [Test Suite](test-stripe-integration.html)
+  - **Test Key Configured**: `pk_test_51Szh6V2U...` (ready for testing)
+
+- **🅿️ PayPal Payments** - PayPal account or guest checkout
+  - [PayPal Integration Guide](PAYPAL_INTEGRATION_GUIDE.md)
+  - Email: BarbrickDesign@gmail.com
+
+### Contribution Tiers
+
+Support the project and earn revenue shares:
+
+| Tier | Price | Student Price | Revenue Share |
+|------|-------|---------------|---------------|
+| 🥉 Bronze | $50 | $25 | 10% |
+| 🥈 Silver | $200 | $100 | 12% |
+| 🥇 Gold | $500 | $250 | 15% |
+| ⭐ Platinum | $1,500 | $750 | 20% |
+
+**Get Started:**
+- [Contributor Registration](contributor-registration-enhanced.html) - Start contributing
+- [Contribution Portal](contribution-portal.html) - Manage contributions
+- [Government Grants Portal](government-grants-portal.html) - Access grant opportunities
+
+---
+
+## 🔑 Universe Key System (v2.5.0 - NEW!)
+
+**Physical USB Authentication & Cold Storage System**
+
+The Universe Key is a revolutionary physical security device that combines:
+- 🔐 **Physical Authentication** - Hardware-based secure login
+- 💎 **Cold Storage Wallet** - Store 1,000 GBUV tokens offline
+- 🎓 **Academy Access Control** - Unlock educational content
+- 🛡️ **Multi-Factor Security** - Physical + digital authentication
+
+**Features:**
+- AES-256 encryption for stored credentials
+- Solana blockchain integration for GBUV
+- Automatic backup and recovery system
+- Admin override capabilities
+- Real-time monitoring dashboard
+
+**Get Started:**
+- [Universe Key Guide](00_UNIVERSE_KEY_TESTING_CHECKLIST.md)
+- [Admin Dashboard](admin-dashboard.html)
+
+---
+
+## 📚 Featured Projects
+
+### 🎓 For Learning
+
+**GemBot Academy - Complete Learning System**
+- 🎓 **48+ Lessons** across 5 comprehensive courses
+- 🏆 **XP Progression System** - Earn points as you learn
+- 👨‍🏫 **AI Tutor (Merlin)** - Personalized adaptive learning
+- 💎 **Gemology Focus** - Cutting, polishing, design, business
+- 🎮 **Interactive Simulations** - Hands-on practice tools
+
+**Courses Available:**
+1. **Gemstone Cutting Fundamentals** (12 lessons)
+2. **Polishing Mastery** (10 lessons)
+3. **Advanced Gem Design** (8 lessons)
+4. **Gemstone Business** (9 lessons)
+5. **Equipment & Safety** (9 lessons)
+
+**Start here**: [GemBot_Control_AI.html](GemBot_Control_AI.html)
+
+### 🎮 For Fun
+
+**OASIS 3D Virtual World**
+- Explore a 3D virtual universe in your browser
+- Web3 integration with digital collectibles
+- **Play here**: [oasis.html](oasis.html)
+
+**Poker & Casino Games**
+- Multiple poker game variants
+- Play against AI or with friends
+- **Start here**: [poker.html](poker.html)
+
+### 🛠️ For Productivity
+
+**AI Grid Link PLC Enhancement System - NEW** ⚡
+- **Mobile battery detection** with automatic data source switching
+- **Device identification** by power signature (12 device types)
+- **Echo script injection** for secure device control (15 command types)
+- Real-time monitoring dashboard for all agents
+- **Use here**: [aiGridLink.html](aiGridLink.html)
+- **Dashboard**: [agent-plc-dashboard.html](agent-plc-dashboard.html)
+- **Documentation**: [AI_GRID_LINK_PLC_DOCUMENTATION.md](AI_GRID_LINK_PLC_DOCUMENTATION.md)
+- **Mobile Guide**: [AI_GRID_LINK_MOBILE_USER_GUIDE.md](AI_GRID_LINK_MOBILE_USER_GUIDE.md)
+
+**Powerline Communication System** 🔌
+- Monitor and control devices over power cables
+- Network mapping and device discovery
+- Real-time telemetry and energy monitoring
+- Remote command and control capabilities
+- **Use here**: [powerSaver.html](powerSaver.html)
+- **Guide**: [POWERLINE_COMMUNICATION_README.md](POWERLINE_COMMUNICATION_README.md)
+
+**SOL Recovery Tool**
+- Manage Solana blockchain accounts
+- Recover unused account rent
+- **Use here**: [SOLRecovery](https://barbrickdesign.github.io/SOLRecovery/)
+
+**Government Grants Portal - ENHANCED**
+- 🆕 **Tiered project-based contribution system**
+- Select from 10+ real projects to work on
+- Automated grant form generation (SF-424, narratives, budgets)
+- Monthly revenue sharing (10-20% based on tier)
+- Student discount: 50% off all tiers
+- **Start here**: [contributor-registration-enhanced.html](contributor-registration-enhanced.html)
+- **Dashboard**: [contributor-dashboard-hub.html](contributor-dashboard-hub.html)
+- **Guide**: [ENHANCED_GRANT_SYSTEM_COMPLETE_GUIDE.md](ENHANCED_GRANT_SYSTEM_COMPLETE_GUIDE.md)
+
+---
+
+## 💰 Earning Opportunities
+
+Want to **make money** with these projects?
+
+### 🎯 NEW: Enhanced Government Grant Contributor System
+
+**How it works:**
+1. **Donate** ($50-$1,500) to become a contributor
+2. **Select projects** from 10+ options mapped to government grants
+3. **Contribute** your skills and track monthly work
+4. **System generates** grant applications autonomously
+5. **Earn 10-20%** of grant funding based on your tier
+
+**Tiers & Revenue Share:**
+- 🥉 Bronze ($50): 10% revenue share - Access to entry-level projects
+- 🥈 Silver ($200): 12% revenue share - Mid-tier tech projects  
+- 🥇 Gold ($500): 15% revenue share - Advanced high-value projects
+- ⭐ Platinum ($1,500): 20% revenue share - All projects, highest priority
+
+**Student Discount: 50% OFF!**
+- Bronze: $50 → $25
+- Silver: $200 → $100
+- Gold: $500 → $250
+- Platinum: $1,500 → $750
+
+**Get Started:**
+1. Register: [contributor-registration-enhanced.html](contributor-registration-enhanced.html)
+2. Pay via PayPal: BarbrickDesign@gmail.com
+3. Access Dashboard: [contributor-dashboard-hub.html](contributor-dashboard-hub.html)
+4. Select & contribute to projects
+5. Earn when grants are funded!
+
+**Full details**: [ENHANCED_GRANT_SYSTEM_COMPLETE_GUIDE.md](ENHANCED_GRANT_SYSTEM_COMPLETE_GUIDE.md)
+
+---
+
+## 🌐 Moltbook Integration with IP Protection
+
+All Barbrick Design projects can now securely integrate with **https://www.moltbook.com** while protecting intellectual property!
+
+### 🔒 What is Moltbook Integration?
+
+A comprehensive system that enables projects to share content with moltbook.com while ensuring:
+
+✅ **Automatic IP Protection** - All content watermarked with unique IDs  
+✅ **Copyright Enforcement** - Every share includes full copyright metadata  
+✅ **Usage Tracking** - Monitor how your content is used  
+✅ **Ethical Verification** - Only beneficial uses allowed  
+✅ **License Management** - Control who can use your content  
+✅ **Violation Detection** - Automatic detection of unauthorized use  
+
+### 🚀 Quick Integration (3 Lines of Code!)
+
+Add to any HTML project:
+
+```html
+<script src="/src/utils/universal-moltbook-connector.js"></script>
+<div data-moltbook-auto-init data-project-name="Your Project"></div>
+```
+
+That's it! Your project now has:
+- 🔒 IP protection active
+- 🛡️ Copyright watermarking
+- 📊 Usage tracking
+- ⚖️ Ethical verification
+
+### 📚 Documentation & Examples
+
+- **[Integration Guide](MOLTBOOK_IP_PROTECTION_INTEGRATION.md)** - Complete documentation
+- **[Quick Start](MOLTBOOK_QUICKSTART.md)** - Get started in 5 minutes
+- **[Live Example](moltbook-integration-example.html)** - Interactive demonstration
+- **[Template](moltbook-integration-template.html)** - Copy and customize
+- **[Guardian Agents](MOLTBOOK_GUARDIANS_README.md)** - Advanced protection
+
+### 🛡️ Guardian Agents
+
+Ethical AI agents that monitor and protect:
+
+- **Guardian-Alpha**: Threat detection
+- **Guardian-Beta**: Human protection  
+- **Guardian-Gamma**: Ethical revenue generation
+- **Guardian-Omega**: System oversight
+
+**Dashboard**: [moltbook-guardian-dashboard.html](moltbook-guardian-dashboard.html)
+
+### 💡 Use Cases
+
+**Educational Content**: Share tutorials with automatic attribution  
+**Research Data**: Publish findings with IP protection  
+**Open Source Projects**: Document and share with license control  
+**Commercial Services**: Generate ethical revenue  
+
+### 📧 Support
+
+**Questions?** Contact BarbrickDesign@gmail.com  
+**Commercial Licensing**: Available for businesses  
+**IP Protection**: Built-in for all projects  
+
+---
+
+## 📊 What's Working Right Now
+
+**Repository Version: v2.5.0** (Latest: December 15, 2025)
+
+### ✅ Fully Working (285 Projects - 54%)
+- ✅ Website loads and displays correctly
+- ✅ AI chat (Merlin) answers questions with GroqAI integration
+- ✅ 3D graphics and visualizations (Babylon.js & Three.js)
+- ✅ Mobile-friendly responsive design
+- ✅ User progress saves automatically (localStorage)
+- ✅ Games and interactive features
+- ✅ Universe Key authentication system
+- ✅ PayPal payment processing for contributors
+- ✅ Government grants portal with automation
+- ✅ GemBot Academy (48+ lessons, 5 courses)
+- ✅ Security monitoring and intrusion detection
+- ✅ Blockchain wallet integration (Solana, Ethereum, Tron)
+
+### ⚙️ Partially Working (145 Projects - 27%)
+- ⚙️ Core functionality works, some features need refinement
+- ⚙️ May require API keys for full functionality
+- ⚙️ Multi-device sync available with configuration
+
+### 🔧 Under Repair (36 Projects - 7%)
+- 🔧 Known issues being actively fixed
+- 🔧 Basic functionality may still work
+
+### 🧪 Untested (63 Projects - 12%)
+- 🧪 Awaiting validation and testing
+- 🧪 May work perfectly or need minor fixes
+
+**Having issues?** Check [GETTING_STARTED_SIMPLE.md](GETTING_STARTED_SIMPLE.md) troubleshooting section.
+
+---
+
+## 🌟 Main Features Explained Simply
+
+### 🎓 AI Learning System
+**What it does:** An AI teacher (Merlin) helps you learn at your own pace
+- Ask questions, get instant answers
+- Personalized lessons based on what you know
+- Earn points and rewards for learning
+- Remembers your progress
+
+### 📱 Works on Phone and Computer
+**What it does:** Use on any device
+- Responsive design fits any screen size
+- QR codes let you connect devices together
+- Lightweight version for phones (loads fast!)
+
+### 🎮 Interactive Games
+**What it does:** Play games directly in your browser
+- No downloads needed
+- Includes poker, 3D worlds, puzzles, and more
+- Some games let you earn digital rewards
+
+### 🔑 Secure & Private
+**What it does:** Your data stays safe
+- Most data stays on your device
+- Strong encryption for sensitive information
+- You control your own accounts
+
+### 🛡️ Anti-Fraud Protection
+**What it does:** Keeps the platform safe
+- Detects suspicious activity automatically
+- Protects users from scams
+- Admin monitoring system
+
+---
+
+## 💎 Repository Value: $3.2M
+
+**What does this mean?**
+
+This number represents how much time and work went into creating these projects:
+- Over 43,000 hours of development work
+- At standard rates ($75/hour for developers)
+- Total estimated value: $3.2 million
+
+**Important:**
+- ❌ This is NOT the price to use the projects (most are free!)
+- ❌ This is NOT how much money has been made
+- ✅ This IS recognition of the work invested
+- ✅ Useful for investors and business partnerships
+
+**Full breakdown**: [REPOSITORY_VALUE_SYSTEM_COMPLETE.md](REPOSITORY_VALUE_SYSTEM_COMPLETE.md)
+
+---
+
+## 🛠️ Technical Information
+
+**For Developers:**
+
+### Technology Used
+- **Frontend**: HTML5, JavaScript, CSS3
+- **Backend**: Node.js (for local development)
+- **AI**: TensorFlow.js for machine learning
+- **3D Graphics**: Babylon.js and Three.js
+- **Blockchain**: Solana, Ethereum, Tron integrations
+
+### Running Locally
+```bash
+# 1. Clone the repository
+git clone https://github.com/barbrickdesign/barbrickdesign.github.io.git
+
+# 2. Navigate to directory
+cd barbrickdesign.github.io
+
+# 3. Install Node.js packages (if needed)
+npm install
+
+# 4. Start a local server
+npm start
+# OR use: python -m http.server 8000
+
+# 5. Open in browser
+# Visit: http://localhost:8000
+```
+
+### System Requirements
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+- JavaScript enabled
+- For 3D features: WebGL support
+- For full features: Node.js 18+ (developers only)
+
+**Need help?** See [GETTING_STARTED_SIMPLE.md](GETTING_STARTED_SIMPLE.md) for detailed instructions.
+
+---
+
+## 🔧 Troubleshooting
+
+### Common Issues:
+
+**Page not loading?**
+1. Refresh your browser (F5 or Ctrl+R)
+2. Clear cache and cookies
+3. Try a different browser
+4. Check internet connection
+
+**Errors in console (F12)?**
+- Most warnings are normal and can be ignored
+- Red errors might indicate a problem
+- Take a screenshot and email: BarbrickDesign@gmail.com
+
+**Feature not working?**
+- Some features need internet connection
+- Some blockchain features need wallet connection
+- See [GLOSSARY.md](GLOSSARY.md) to understand what features need
+
+**Still stuck?** Email BarbrickDesign@gmail.com with:
+- What you were trying to do
+- What happened instead
+- Browser and device info
+- Screenshot of any errors (F12 console)
+
+---
+
+## 📖 Additional Resources
+
+### Documentation:
+- **[Getting Started Guide](GETTING_STARTED_SIMPLE.md)** - Beginner-friendly introduction
+- **[Tech Terms Glossary](GLOSSARY.md)** - Technical terms explained simply
+- **[Earning Opportunities](MONETIZATION.md)** - How to make money with grants
+- **[Full Technical Docs](INSTRUCTIONS.md)** - For developers
+
+### For Repository Maintainers:
+- **[Issue Automation Quick Start](ISSUE_AUTOMATION_QUICKSTART.md)** - 5-minute setup for automated issue management
+- **[Issue Automation Guide](ISSUE_AUTOMATION_README.md)** - Complete documentation for issue automation system
+
+### For GitHub Copilot Users:
+- **[Copilot Quick Start](COPILOT_QUICKSTART.md)** - Get the best results from GitHub Copilot coding agent
+- **[Copilot Instructions](.github/copilot-instructions.md)** - Repository-wide guidelines for Copilot
+- **Path-specific instructions** - Automatically applied based on file type (HTML, JS, workflows)
+
+### For AI & Prompt Engineering:
+- **[KERNEL Framework](KERNEL_FRAMEWORK.md)** - Complete prompt engineering guide (proven to improve AI results by 340%)
+- **[KERNEL Quick Start](KERNEL_QUICKSTART.md)** - Get started in 5 minutes
+- **[KERNEL Playground](kernel-playground.html)** - Interactive prompt builder and validator
+- **Benefits**: 94% first-try success, 67% faster results, 58% less tokens
+
+### Project Catalog:
+- **[projects.json](projects.json)** - Complete list of 529 projects with metadata
+- **[Main Hub](index.html)** - Browse all projects visually
+- **Last Analyzed**: February 9, 2026
+
+### Community:
+- **GitHub**: [@barbrickdesign](https://github.com/barbrickdesign)
+- **Email**: BarbrickDesign@gmail.com
+- **Response Time**: Usually within 24 hours
+
+---
+
+## 🎉 Recent Updates
+
+### 🚀 Version 2.5.0 (December 15, 2025)
+**Universe Key Launch - Physical Authentication System**
+- 🔑 Physical USB authentication device
+- 💎 1,000 GBUV cold storage wallet
+- 🔐 AES-256 encryption for credentials
+- 🎓 Academy access control integration
+- 📊 11 new files, 1,873+ lines of code
+- 🛡️ Enhanced security with physical factor
+
+### 🔧 Version 2.4.0 (December 15, 2025)
+**Major Code Cleanup & Optimization**
+- 🧹 Removed 740 lines of duplicate code
+- 🔄 Fixed corrupted files in root directory
+- 📁 Better organization of agent systems
+- ⚡ Improved performance and reliability
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 1497 | **Interactive**: 1353
+**Total Projects**: 1949 | **Interactive**: 1805
 
 **Status Breakdown**:
-- ✅ **1153 working** (77% - fully functional)
-- ⚠️ **73 partial** (5% - core features work)
-- 🔧 **60 broken** (4% - under repair)
-- 🧪 **211 untested** (14% - awaiting validation)
+- ✅ **1605 working** (82% - fully functional)
+- ⚠️ **73 partial** (4% - core features work)
+- 🔧 **60 broken** (3% - under repair)
+- 🧪 **211 untested** (11% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 1028 | 📊 dashboard: 103 | 🤖 ai-tool: 96 | 🌐 3d-experience: 90 | 🛠️ utility: 71
+**Top Categories**: ✨ web-app: 1410 | 🤖 ai-tool: 131 | 📊 dashboard: 109 | 🌐 3d-experience: 102 | 🛠️ utility: 73
 
-**Top Technologies**: Web Storage (486), PayPal (433), Solana Web3 (198), Canvas (187), React (157)
+**Top Technologies**: PayPal (883), Web Storage (486), Solana Web3 (197), Canvas (187), React (157)
 
-*Last scanned: Mar 9, 2026, 6:47 PM*
+*Last scanned: Mar 9, 2026, 10:13 PM*
 
 ---
 
@@ -399,8 +859,154 @@ Thank you for having the courage to seek YOUR path, create YOUR best life, and b
 9. 💰✅ **[Widget Marketplace | Consciousness Revolution](widget-marketplace.html)** - Interactive marketplace application `Web Storage` *(Mar 9, 2026)*
 10. ✨✅ **[Whodunit: Constitutional Crimes | Interactive Timeline](whodunit-timeline.html)** - Interactive web-app application *(Mar 9, 2026)*
 
-*Last updated: Mar 9, 2026, 6:47 PM*
+*Last updated: Mar 9, 2026, 10:13 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
 ---
+
+
+### 📊 Repository Statistics (February 2026)
+- **Total Projects**: 529 (up from 300+)
+- **Working Projects**: 285 (54%)
+- **Functionality Rate**: 78% overall completion
+- **Categories**: 16 distinct project types
+- **Code Size**: 1.8M+ lines across all projects
+- **Last Scan**: February 9, 2026 at 3:53 PM
+
+### January 2026
+- 🤖 **Multi-Provider AI System** - Use FREE AI providers alongside OpenAI
+  - **Groq Integration**: Free 14,400 requests/day with Llama 3.3 70B, Mixtral 8x7B
+  - **HuggingFace Integration**: Free rate-limited access to open models like Llama, Mistral, Stable Diffusion
+  - **Automatic Fallback**: Seamlessly switches between providers if one fails
+  - **One-Line Integration**: Add `<script src="js/multi-ai-auto-inject.js"></script>` to any page
+  - **Backward Compatible**: Works with existing OpenAI code
+  - Test it: [multi-provider-ai-test.html](multi-provider-ai-test.html)
+  - Guide: [MULTI_PROVIDER_AI_GUIDE.md](MULTI_PROVIDER_AI_GUIDE.md)
+- 🎯 **NEW: KERNEL Prompt Engineering Framework** - Revolutionary AI prompt optimization system
+  - Proven 94% first-try success rate (vs 72% before)
+  - 67% reduction in time to useful results
+  - 58% reduction in token usage
+  - 340% accuracy improvement
+  - Interactive playground for testing and validation
+  - Integrated with OpenAI orchestrator and agent systems
+  - See: [KERNEL_QUICKSTART.md](KERNEL_QUICKSTART.md) | [Playground](kernel-playground.html)
+- 🤖 **NEW: GitHub Copilot Agent Configuration** - Repository optimized for AI coding assistance
+  - Comprehensive instructions for GitHub Copilot coding agent
+  - Path-specific guidelines for HTML, JavaScript, agents, and workflows
+  - Revenue-critical systems properly documented for safe AI collaboration
+  - Quick start guide for developers using Copilot
+  - See: [COPILOT_QUICKSTART.md](COPILOT_QUICKSTART.md)
+- 🤖 **NEW: Issue Automation System** - Automatically manages 195+ GitHub issues
+  - Auto-closes stale branch issues when branches are deleted
+  - Keeps only latest 3 daily reports
+  - Verifies and closes resolved security issues
+  - Health dashboard monitors issue status
+  - See: [ISSUE_AUTOMATION_QUICKSTART.md](ISSUE_AUTOMATION_QUICKSTART.md)
+- Added simplified documentation for everyone
+- Created beginner-friendly guides
+- Improved mobile experience
+- Enhanced accessibility
+
+### December 2025
+- 🔑 **v2.5.0**: Universe Key USB authentication system (1,873+ lines)
+- 🧹 **v2.4.0**: Major code cleanup (removed 740 lines of duplicates)
+- 🎓 **v2.3.0**: Expanded GemBot Academy to 48+ lessons (5 courses)
+- 🛡️ **v2.2.0**: Enhanced security systems with IDS
+- 📊 Completed admin dashboard with AI agent management
+- 🎨 Fixed 3D visualization issues (Babylon.js integration)
+- 💼 Improved contributor revenue sharing system
+
+**Full changelog**: See [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 📧 Contact & Support
+
+**Questions? Problems? Ideas?**
+
+- **Email**: BarbrickDesign@gmail.com
+- **GitHub Issues**: [Report a bug](https://github.com/barbrickdesign/barbrickdesign.github.io/issues)
+- **GitHub Discussions**: [Ask questions](https://github.com/barbrickdesign/barbrickdesign.github.io/discussions)
+
+**Creator**: Ryan Barbrick  
+**AI Assistant**: Merlin AI
+
+**We respond to all messages within 24 hours!**
+
+---
+
+## 📜 License & Usage
+
+**Can I use this code?** YES! 
+
+Most projects are open source under MIT License.
+
+**Requirements:**
+- ✅ Give credit to Barbrick Design
+- ✅ Link back to this repository
+- ✅ Keep copyright notices
+- ❌ Don't claim you created it
+- ❌ Don't sell without permission
+
+See [LICENSE.md](LICENSE.md) and [OWNERSHIP.md](OWNERSHIP.md) for full terms.
+
+---
+
+## 🌟 Contributing
+
+**Want to help improve these projects?**
+
+Contributing to this repository means you agree to transfer all rights to your contributions to Ryan Barbrick (Barbrick Design). See [USAGE_TERMS.md](USAGE_TERMS.md) for contributor terms.
+
+**Contributor Benefits:**
+- Revenue sharing opportunities (10-20% based on tier)
+- Recognition in documentation
+- Access to private features
+- Partnership opportunities
+
+See [CONTRIBUTOR_GRANT_SYSTEM_GUIDE.md](CONTRIBUTOR_GRANT_SYSTEM_GUIDE.md) for details.
+
+**All skill levels welcome!** For contribution guidelines, contact BarbrickDesign@gmail.com
+
+---
+
+## ⚖️ Legal & Copyright
+
+**Copyright © 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.**
+
+**Built with ❤️ by Ryan Barbrick** | **AI Assistant: Merlin AI**
+
+**Live Site**: https://barbrickdesign.github.io/  
+**GitHub**: https://github.com/barbrickdesign/barbrickdesign.github.io
+
+### Legal Documents:
+
+- **[LICENSE](LICENSE)** - Proprietary license protecting all code
+- **[COPYRIGHT](COPYRIGHT)** - Comprehensive copyright notice  
+- **[INTELLECTUAL PROPERTY NOTICE](INTELLECTUAL_PROPERTY_NOTICE.md)** - Legal guide
+- **[USAGE TERMS](USAGE_TERMS.md)** - Terms and conditions
+- **[DMCA Template](DMCA_TAKEDOWN_TEMPLATE.md)** - Enforcement procedures
+
+### Important:
+
+⚠️ **This is proprietary software. Unauthorized use is prohibited and will be enforced.**
+
+⚠️ **All code, designs, algorithms, and content are protected intellectual property.**
+
+⚠️ **Commercial use requires written licensing agreement.**
+
+### Contact:
+
+📧 **Email:** BarbrickDesign@gmail.com  
+💼 **Licensing Inquiries:** BarbrickDesign@gmail.com  
+🚨 **Report Infringement:** BarbrickDesign@gmail.com
+
+---
+
+*Last Updated: March 9, 2026*
+
+**© 2008-2026 Ryan Barbrick (Barbrick Design). All Rights Reserved.**
+
+*Unauthorized copying, distribution, or use of this repository's contents is strictly prohibited and constitutes copyright infringement. All violators will be prosecuted to the fullest extent of the law.*
+

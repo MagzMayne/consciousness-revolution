@@ -427,6 +427,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     
     <!-- Payment Integrations -->
     <script src="/src/utils/stripe-integration.js"></script>
+    <script src="/src/utils/paypal-integration.js"></script>
 </head>
 <body>
     <main class="container" role="main" aria-labelledby="page-title">
@@ -762,8 +763,8 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                         <input type="radio" name="tier" value="lifetimeAccess">
                         <div class="tier-badge">♾️</div>
                         <div class="tier-name">Lifetime Access</div>
-                        <div class="tier-price" id="lifetimeAccess-price">Loading...</div>
-                        <div class="tier-discount-price" id="lifetimeAccess-discount" style="display: none;">Loading...</div>
+                        <div class="tier-price" id="lifetimeAccess-price">$25,000</div>
+                        <div class="tier-discount-price" id="lifetimeAccess-discount" style="display: none;">$12,500</div>
                         <div class="tier-share">One-Time Payment</div>
                         <div class="tier-feature">Lifetime Access to All Features</div>
                     </label>
@@ -772,10 +773,10 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                         <input type="radio" name="tier" value="fullLicensing">
                         <div class="tier-badge">🏆</div>
                         <div class="tier-name">Full Licensing</div>
-                        <div class="tier-price" id="fullLicensing-price">Loading...</div>
-                        <div class="tier-discount-price" id="fullLicensing-discount" style="display: none;">Loading...</div>
+                        <div class="tier-price" id="fullLicensing-price">$100,000</div>
+                        <div class="tier-discount-price" id="fullLicensing-discount" style="display: none;">$50,000</div>
                         <div class="tier-share">Complete Ownership</div>
-                        <div class="tier-feature">Full Licensing & Resale Rights</div>
+                        <div class="tier-feature">Full Licensing &amp; Resale Rights</div>
                     </label>
                 </div>
 
@@ -850,10 +851,19 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 <div id="paypal-payment-section" style="display: none;">
                     <div style="background: rgba(0, 48, 135, 0.2); border: 2px solid rgba(0, 112, 224, 0.4); border-radius: 12px; padding: 20px; margin: 15px 0;">
                         <h4 style="color: #60a5fa; margin-bottom: 15px;">🅿️ PayPal Payment</h4>
-                        <p style="margin-bottom: 15px;">Send your donation via PayPal to:</p>
-                        <div class="paypal-email">BarbrickDesign@gmail.com</div>
-                        <p style="margin-top: 15px; font-size: 0.95em;">
-                            <strong>Important:</strong> Include your email address and selected tier in the PayPal payment notes.
+                        <div style="background: rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 15px; text-align: center; margin: 15px 0;">
+                            <div style="font-size: 1.5em; font-weight: bold; color: #fbbf24; margin-bottom: 10px;">
+                                Selected Amount: <span id="paypal-amount-display">Please select a tier</span>
+                            </div>
+                            <div id="paypal-button-container" style="min-height: 45px;"></div>
+                            <p id="paypal-select-prompt" style="color: #fbbf24; margin-top: 10px;">← Select a tier above to enable PayPal payment</p>
+                        </div>
+                        <p style="font-size: 0.9em; opacity: 0.9; text-align: center;">
+                            🔒 Secure payment powered by PayPal
+                        </p>
+                        <p style="font-size: 0.85em; opacity: 0.8; text-align: center; margin-top: 8px;">
+                            PayPal recipient: <strong>BarbrickDesign@gmail.com</strong><br>
+                            Webhook: <code style="font-size: 0.8em;">/api/contributor-paypal-webhook</code>
                         </p>
                     </div>
                 </div>
@@ -877,20 +887,20 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     <ul style="margin-left: 20px; margin-top: 10px;">
                         <li>Select projects to work on after registration</li>
                         <li>Track your monthly contributions through the dashboard</li>
-                        <li>Earn your percentage when projects receive grant funding</li>
-                        <li>Distributions paid monthly to BarbrickDesign@gmail.com then to contributors</li>
+                        <li>Earn your tier's percentage when projects receive grant funding</li>
+                        <li>Monthly distributions paid directly to contributors via PayPal</li>
                     </ul>
                 </div>
             </div>
 
             <!-- Submit Button -->
             <button type="submit" class="btn">
-                Complete Registration & View Payment Instructions
+                Save Registration & Proceed to Payment
             </button>
         </form>
 
         <div class="warning-box" style="margin-top: 20px;" role="alert">
-            <strong>⚠️ Important:</strong> After submitting this form, you must complete payment via PayPal to BarbrickDesign@gmail.com. Your contributor account will be activated within 24 hours of payment confirmation.
+            <strong>⚠️ Important:</strong> Select your tier, fill in your details, then complete payment using the Stripe or PayPal button in the payment section above. Your contributor account is activated automatically upon payment confirmation.
         </div>
     </main>
 
@@ -909,58 +919,41 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             const projectTierInfo = document.getElementById('projectTierInfo');
             const projectList = document.getElementById('projectList');
 
-            // Tier prices - Initialize with base values
+            // Tier prices - base values in USD
             const tierPrices = {
-                bronze: { full: 50, discounted: 25 },
-                silver: { full: 200, discounted: 100 },
-                gold: { full: 500, discounted: 250 },
-                platinum: { full: 1500, discounted: 750 },
-                diamond: { full: 3500, discounted: 1750 },
-                enterprise: { full: 7500, discounted: 3750 },
-                ultimate: { full: 15000, discounted: 7500 },
-                lifetimeAccess: { full: 0, discounted: 0 }, // Will be calculated dynamically
-                fullLicensing: { full: 0, discounted: 0 }   // Will be calculated dynamically
+                bronze:         { full: 50,     discounted: 25 },
+                silver:         { full: 200,    discounted: 100 },
+                gold:           { full: 500,    discounted: 250 },
+                platinum:       { full: 1500,   discounted: 750 },
+                diamond:        { full: 3500,   discounted: 1750 },
+                enterprise:     { full: 7500,   discounted: 3750 },
+                ultimate:       { full: 15000,  discounted: 7500 },
+                lifetimeAccess: { full: 25000,  discounted: 12500 },
+                fullLicensing:  { full: 100000, discounted: 50000 }
             };
 
-            // Load dynamic pricing from ApplicationValuation
+            // Optionally override Lifetime Access / Full Licensing with dynamic valuation
             function loadDynamicPricing() {
                 if (typeof ApplicationValuation !== 'undefined') {
                     const pricing = ApplicationValuation.getTierPricing();
-                    
-                    // Update Lifetime Access tier (25% of total value)
-                    tierPrices.lifetimeAccess.full = pricing.lifetimeAccess;
+
+                    tierPrices.lifetimeAccess.full       = pricing.lifetimeAccess;
                     tierPrices.lifetimeAccess.discounted = Math.round(pricing.lifetimeAccess * 0.5);
-                    
-                    // Update Full Licensing tier (100% of total value)
-                    tierPrices.fullLicensing.full = pricing.fullLicensing;
+
+                    tierPrices.fullLicensing.full       = pricing.fullLicensing;
                     tierPrices.fullLicensing.discounted = Math.round(pricing.fullLicensing * 0.5);
-                    
-                    // Update the display prices
-                    document.getElementById('lifetimeAccess-price').textContent = 
+
+                    document.getElementById('lifetimeAccess-price').textContent =
                         ApplicationValuation.formatCurrency(tierPrices.lifetimeAccess.full);
-                    document.getElementById('lifetimeAccess-discount').textContent = 
+                    document.getElementById('lifetimeAccess-discount').textContent =
                         ApplicationValuation.formatCurrency(tierPrices.lifetimeAccess.discounted);
-                    
-                    document.getElementById('fullLicensing-price').textContent = 
+
+                    document.getElementById('fullLicensing-price').textContent =
                         ApplicationValuation.formatCurrency(tierPrices.fullLicensing.full);
-                    document.getElementById('fullLicensing-discount').textContent = 
+                    document.getElementById('fullLicensing-discount').textContent =
                         ApplicationValuation.formatCurrency(tierPrices.fullLicensing.discounted);
-                    
+
                     console.log('✅ Dynamic pricing loaded successfully');
-                    console.log('Lifetime Access:', ApplicationValuation.formatCurrency(pricing.lifetimeAccess));
-                    console.log('Full Licensing:', ApplicationValuation.formatCurrency(pricing.fullLicensing));
-                } else {
-                    console.error('ApplicationValuation not loaded, using fallback pricing');
-                    // Fallback pricing if valuation system not loaded
-                    tierPrices.lifetimeAccess.full = 1000000;
-                    tierPrices.lifetimeAccess.discounted = 500000;
-                    tierPrices.fullLicensing.full = 4000000;
-                    tierPrices.fullLicensing.discounted = 2000000;
-                    
-                    document.getElementById('lifetimeAccess-price').textContent = '$1,000,000';
-                    document.getElementById('lifetimeAccess-discount').textContent = '$500,000';
-                    document.getElementById('fullLicensing-price').textContent = '$4,000,000';
-                    document.getElementById('fullLicensing-discount').textContent = '$2,000,000';
                 }
             }
 
@@ -1160,21 +1153,17 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     // Save current contributor ID
                     localStorage.setItem('current_contributor_id', profile.id);
 
-                    // Show success message and redirect
-                    alert(`Registration successful! 
+                    // Guide the user to complete payment via the payment section
+                    alert(`✅ Registration details saved!
 
-Please send your $${donationAmount} donation via PayPal to:
-BarbrickDesign@gmail.com
+Tier: ${selectedTier.toUpperCase()}
+Amount due: $${donationAmount.toLocaleString()}${isStudent ? ' (Student Discount)' : ''}
 
-Include in payment notes:
-- Email: ${contributorData.email}
-- Tier: ${selectedTier.toUpperCase()}
-${isStudent ? '- Student Discount Applied' : ''}
+Please complete your payment using the Stripe or PayPal buttons above.
+Your contributor account will be activated automatically upon payment confirmation.`);
 
-You'll receive access to your contributor dashboard within 24 hours.`);
-
-                    // Redirect to dashboard
-                    window.location.href = 'contributor-dashboard-hub.html';
+                    // Scroll to payment section
+                    document.querySelector('.payment-info').scrollIntoView({ behavior: 'smooth' });
                 } else {
                     alert('System error: Contributor system not loaded. Please refresh and try again.');
                 }
@@ -1351,6 +1340,175 @@ Please try again or use PayPal payment method.`);
                 document.addEventListener('DOMContentLoaded', updateStripeButton);
             } else {
                 updateStripeButton();
+            }
+        })();
+
+        // ========== PAYPAL PAYMENT INTEGRATION ==========
+        (function() {
+            'use strict';
+
+            let currentSelectedTier = null;
+            let currentAmount = 0;
+            let isStudentDiscount = false;
+            let paypalButtonRendered = false;
+
+            // Tier prices in USD (must match tierPrices in the form logic above)
+            const tierPricesUSD = {
+                bronze:         { full: 50,     discounted: 25 },
+                silver:         { full: 200,    discounted: 100 },
+                gold:           { full: 500,    discounted: 250 },
+                platinum:       { full: 1500,   discounted: 750 },
+                diamond:        { full: 3500,   discounted: 1750 },
+                enterprise:     { full: 7500,   discounted: 3750 },
+                ultimate:       { full: 15000,  discounted: 7500 },
+                lifetimeAccess: { full: 25000,  discounted: 12500 },
+                fullLicensing:  { full: 100000, discounted: 50000 }
+            };
+
+            const tierRadios   = document.querySelectorAll('input[name="tier"]');
+            const studentCheck = document.getElementById('isStudent');
+
+            tierRadios.forEach(radio => radio.addEventListener('change', onTierChange));
+            studentCheck.addEventListener('change', () => {
+                isStudentDiscount = studentCheck.checked;
+                onTierChange();
+            });
+
+            function onTierChange() {
+                const selected = document.querySelector('input[name="tier"]:checked');
+                if (!selected) return;
+
+                currentSelectedTier = selected.value;
+                const prices = tierPricesUSD[currentSelectedTier];
+                if (!prices) return;
+
+                currentAmount = isStudentDiscount ? prices.discounted : prices.full;
+
+                const displayEl = document.getElementById('paypal-amount-display');
+                const promptEl  = document.getElementById('paypal-select-prompt');
+
+                if (displayEl) {
+                    displayEl.textContent =
+                        `$${currentAmount.toLocaleString()}${isStudentDiscount ? ' (Student Discount)' : ''}`;
+                }
+                if (promptEl) promptEl.style.display = 'none';
+
+                renderPayPalButton();
+            }
+
+            function renderPayPalButton() {
+                if (!currentSelectedTier || currentAmount <= 0) return;
+
+                const container = document.getElementById('paypal-button-container');
+                if (!container) return;
+
+                // If PayPalIntegration utility is available, use it
+                if (typeof PayPalIntegration !== 'undefined') {
+                    PayPalIntegration.renderButton('paypal-button-container', {
+                        amount:      currentAmount,
+                        description: `${currentSelectedTier.charAt(0).toUpperCase() + currentSelectedTier.slice(1)} Contributor Tier${isStudentDiscount ? ' (Student Discount)' : ''}`,
+                        onSuccess: (result) => handlePayPalSuccess(result),
+                        onError:   (err)    => handlePayPalError(err),
+                        onCancel:  ()       => console.log('PayPal payment cancelled')
+                    }).then(() => {
+                        paypalButtonRendered = true;
+                    }).catch(err => {
+                        console.error('PayPal button render error:', err);
+                        showPayPalFallback(container);
+                    });
+                } else if (window.paypal && window.paypal.Buttons) {
+                    // Fallback: use raw PayPal SDK
+                    container.innerHTML = '';
+                    window.paypal.Buttons({
+                        createOrder: (data, actions) => actions.order.create({
+                            purchase_units: [{
+                                amount: {
+                                    currency_code: 'USD',
+                                    value: currentAmount.toFixed(2)
+                                },
+                                description: `${currentSelectedTier} Contributor Tier${isStudentDiscount ? ' (Student Discount)' : ''}`,
+                                payee: { email_address: 'BarbrickDesign@gmail.com' }
+                            }]
+                        }),
+                        onApprove: async (data, actions) => {
+                            const order = await actions.order.capture();
+                            handlePayPalSuccess({ orderID: data.orderID, details: order });
+                        },
+                        onError: (err) => handlePayPalError(err),
+                        onCancel: ()   => console.log('PayPal payment cancelled')
+                    }).render('#paypal-button-container');
+                } else {
+                    showPayPalFallback(container);
+                }
+            }
+
+            function showPayPalFallback(container) {
+                container.innerHTML = `
+                    <p style="color:#fbbf24; margin-bottom:10px;">PayPal SDK loading... or use direct link:</p>
+                    <a href="https://www.paypal.com/paypalme/BarbrickDesign/${currentAmount}"
+                       target="_blank" rel="noopener noreferrer"
+                       style="display:inline-block; padding:12px 30px; background:linear-gradient(135deg,#0070ba,#003087);
+                              color:#fff; border-radius:8px; text-decoration:none; font-weight:bold;">
+                        Pay $${currentAmount.toLocaleString()} via PayPal
+                    </a>
+                    <p style="font-size:0.85em; opacity:0.8; margin-top:10px;">
+                        After payment, email <strong>BarbrickDesign@gmail.com</strong> with:<br>
+                        your email, tier (<strong>${currentSelectedTier}</strong>), and PayPal transaction ID.
+                    </p>`;
+            }
+
+            function handlePayPalSuccess(result) {
+                const email = document.getElementById('email').value;
+                const name  = document.getElementById('name').value;
+
+                const contributorData = {
+                    name,
+                    email,
+                    githubUsername: document.getElementById('githubUsername').value,
+                    bio:            document.getElementById('bio').value,
+                    tier:           currentSelectedTier,
+                    donationAmount: currentAmount,
+                    isStudent:      isStudentDiscount,
+                    studentEmail:   isStudentDiscount ? document.getElementById('studentEmail').value : null,
+                    registrationDate: new Date().toISOString(),
+                    paymentMethod:  'paypal',
+                    transactionId:  result.orderID || result.details?.id || 'paypal-payment'
+                };
+
+                if (typeof ContributorGrantSystem !== 'undefined') {
+                    const profile = ContributorGrantSystem.initializeProfile(contributorData);
+                    localStorage.setItem('current_contributor_id', profile.id);
+                }
+
+                alert(`✅ PayPal Payment Successful!
+
+Tier: ${currentSelectedTier.toUpperCase()}
+Amount: $${currentAmount.toLocaleString()}
+Order ID: ${contributorData.transactionId}
+
+Welcome to the Consciousness Revolution Contributors!
+You'll receive a confirmation email shortly.`);
+
+                window.location.href = 'contributor-dashboard-hub.html';
+            }
+
+            function handlePayPalError(error) {
+                console.error('PayPal payment error:', error);
+                alert(`❌ PayPal Payment Failed
+
+${error.message || 'An error occurred during payment.'}
+
+Please try again or switch to the Stripe payment method.`);
+            }
+
+            // Re-render button when PayPal tab is activated (in case SDK loaded after tab switch)
+            const paypalTab = document.getElementById('paypal-tab');
+            if (paypalTab) {
+                paypalTab.addEventListener('click', () => {
+                    if (currentSelectedTier && !paypalButtonRendered) {
+                        renderPayPalButton();
+                    }
+                });
             }
         })();
     </script>

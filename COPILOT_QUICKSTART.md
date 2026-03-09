@@ -286,6 +286,23 @@ Additional context:
 2. Test in PayPal sandbox before redeploying
 3. Contact BarbrickDesign@gmail.com if issues persist
 
+### Agent Gets Stuck Loading
+
+If a Copilot agent or in-page agent is stuck in a loading state, see the
+**[Agent Connectivity Troubleshooting Guide](agent-connectivity-troubleshooting.html)**.
+
+Common causes and quick fixes:
+- **Network / firewall** – Check that `octocaptcha.com` and `arkoselabs.com` are not blocked
+- **Terminal customizations** – Temporarily rename `~/.bashrc` / `~/.zshrc` and retry
+- **Service outage** – Check the [GitHub Status page](https://www.githubstatus.com/)
+- **VS Code bug** – Restart VS Code and update the Copilot extension
+- **Permissions** – Verify the Copilot App is authorized under *Settings → Applications → Authorized OAuth Apps*
+- **Large inputs** – Break the task into smaller requests
+- **Incomplete install** – Re-run `npm ci` or reinstall the CLI agent
+
+The `js/agent-loading-watchdog.js` utility automatically detects stuck loading screens
+and surfaces the troubleshooting guide to users.
+
 ### Need Human Review
 
 For these situations, always request human review:
@@ -302,6 +319,7 @@ For these situations, always request human review:
 - **[JavaScript Instructions](.github/instructions/javascript-files.instructions.md)** - JS standards
 - **[Agent Instructions](.github/instructions/agent-files.instructions.md)** - Agent system patterns
 - **[Workflow Instructions](.github/instructions/workflow-files.instructions.md)** - GitHub Actions guide
+- **[Agent Connectivity Troubleshooting](agent-connectivity-troubleshooting.html)** - Fix stuck loading states
 
 ## 💡 Tips for Success
 
