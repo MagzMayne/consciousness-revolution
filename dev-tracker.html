@@ -428,6 +428,16 @@
       gap: 0.2rem;
     }
 
+    .dev-aliases {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      color: rgba(15,245,224,0.38);
+      margin-top: 0.2rem;
+      margin-bottom: 0.3rem;
+      font-style: italic;
+      letter-spacing: 0.03em;
+    }
+
     /* ── Pagination ── */
     .pagination {
       display: flex;
@@ -638,6 +648,31 @@
   // Local storage key for user-logged dev time
   const LS_KEY = 'devTracker_timeLogs';
 
+  /**
+   * Contributor identity map — merges multiple GitHub logins / commit-author names
+   * that represent the same real person into a single canonical display name.
+   * Keys are lowercase for case-insensitive matching at runtime.
+   *
+   * Ryan Barbrick (AgentR / BarbrickDesign) authors commits under three identities:
+   *   • barbrickdesign — personal GitHub account
+   *   • Copilot        — GitHub Copilot-assisted commits attributed to the bot
+   *   • github-actions[bot] / github-actions — automated workflow commits
+   */
+  const CONTRIBUTOR_ALIASES = {
+    'barbrickdesign':       'Ryan Barbrick · AgentR',
+    'copilot':              'Ryan Barbrick · AgentR',
+    'github-actions[bot]':  'Ryan Barbrick · AgentR',
+    'github-actions':       'Ryan Barbrick · AgentR',
+  };
+
+  /**
+   * Human-readable login labels per canonical name.
+   * Used to render the "also known as" badge in leaderboard cards.
+   */
+  const CONTRIBUTOR_ALIAS_LABELS = {
+    'Ryan Barbrick · AgentR': ['barbrickdesign', 'Copilot', 'github-actions[bot]'],
+  };
+
   // ─── Constants ───────────────────────────────────────────────────────────
   /** Maximum GitHub API pages to fetch (100 commits/page) to avoid runaway pagination */
   const MAX_PAGINATION_PAGES = 20;
@@ -694,6 +729,16 @@
   }
 
   function shortSha(sha) { return sha.slice(0, 7); }
+
+  /**
+   * Resolve a raw GitHub login or commit-author name to its canonical display name.
+   * Returns the canonical name if an alias is configured; otherwise returns the
+   * original value unchanged.
+   */
+  function resolveContributor(rawLogin) {
+    if (!rawLogin) return 'unknown';
+    return CONTRIBUTOR_ALIASES[rawLogin.toLowerCase()] || rawLogin;
+  }
 
   function loadTimeLogs() {
     try {
@@ -861,9 +906,14 @@
       const loggedHrs = devAggregates[login] || 0;
       const totalHrs  = s.hours + loggedHrs;
       const usdValue  = calcUSD(totalHrs);
+      const aliases   = CONTRIBUTOR_ALIAS_LABELS[login] || [];
+      const aliasNote = aliases.length
+        ? `<div class="dev-aliases">↔ ${aliases.map(escHtml).join(' · ')}</div>`
+        : '';
       return `
         <div class="dev-card">
           <div class="dev-name">${escHtml(login)}</div>
+          ${aliasNote}
           <div class="dev-stats">
             <span>📦 ${s.commits} commits</span>
             <span style="color:#39ff14">+${fmtNum(s.additions)}</span>
@@ -1044,7 +1094,7 @@
       const name   = (c.commit?.author?.name || '').toLowerCase();
       const sha    = c.sha.toLowerCase();
       const matchQ = !q || msg.includes(q) || login.includes(q) || name.includes(q) || sha.includes(q);
-      const matchA = !author || (c.author?.login || c.commit?.author?.name) === author;
+      const matchA = !author || resolveContributor(c.author?.login || c.commit?.author?.name) === author;
       return matchQ && matchA;
     });
 
@@ -1159,7 +1209,8 @@
       // 4. Build per-dev stats
       devStats = {};
       for (const c of commits) {
-        const login = c.author?.login || c.commit?.author?.name || 'unknown';
+        const rawLogin = c.author?.login || c.commit?.author?.name || 'unknown';
+        const login = resolveContributor(rawLogin);
         if (!devStats[login]) devStats[login] = { commits: 0, additions: 0, deletions: 0, hours: 0, valueScore: 0 };
         const s = c._stats || {};
         devStats[login].commits++;
