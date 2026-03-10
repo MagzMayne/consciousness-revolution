@@ -453,6 +453,68 @@
       letter-spacing: 0.08em;
     }
 
+    /* ── USD Value chip ── */
+    .chip-usd {
+      color: #ffd700;
+      background: rgba(255,215,0,0.07);
+      border: 1px solid rgba(255,215,0,0.25);
+      font-weight: bold;
+    }
+
+    /* ── Rate selector row ── */
+    .rate-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding: 0.65rem 1rem;
+      background: rgba(255,215,0,0.03);
+      border: 1px solid rgba(255,215,0,0.15);
+      border-radius: 6px;
+    }
+
+    .rate-row label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: rgba(255,215,0,0.7);
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .rate-row select,
+    .rate-row input[type="number"] {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      background: rgba(255,215,0,0.04);
+      border: 1px solid rgba(255,215,0,0.25);
+      border-radius: 4px;
+      color: #ffd700;
+      padding: 0.35rem 0.65rem;
+      outline: none;
+      width: 7rem;
+    }
+
+    .rate-row select option { background: #0d0a12; }
+
+    .rate-info {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      color: rgba(255,215,0,0.45);
+      letter-spacing: 0.04em;
+    }
+
+    /* highlight the USD stat card */
+    #statUSDCard {
+      border-color: rgba(255,215,0,0.35);
+      background: rgba(255,215,0,0.04);
+    }
+
+    #statUSD {
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255,215,0,0.35);
+    }
+
     /* ── Responsive ── */
     @media (max-width: 600px) {
       .page-title { font-size: 1rem; }
@@ -504,9 +566,27 @@
         <div class="stat-value" id="statValue">—</div>
         <div class="stat-label">Repo Value Score</div>
       </div>
+      <div class="stat-card" id="statUSDCard">
+        <div class="stat-value" id="statUSD">—</div>
+        <div class="stat-label">Est. USD Value</div>
+      </div>
     </div>
 
-    <!-- Dev Leaderboard -->
+    <!-- USD Rate Selector -->
+    <div class="rate-row">
+      <label for="ratePreset">💵 Dev Rate:</label>
+      <select id="ratePreset" onchange="onRatePresetChange()" aria-label="Developer hourly rate preset">
+        <option value="75">Junior  — $75/hr</option>
+        <option value="100" selected>Mid-level — $100/hr</option>
+        <option value="125">Senior — $125/hr</option>
+        <option value="150">Staff/Lead — $150/hr</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <input type="number" id="rateCustom" min="1" step="1" value="100"
+             placeholder="$/hr" aria-label="Custom hourly rate"
+             style="display:none" oninput="onRateCustomChange()">
+      <span class="rate-info" id="rateInfo">$100/hr · industry-standard mid-level rate</span>
+    </div>
     <div id="leaderboardSection">
       <h2 class="section-heading">🏆 Contributor Leaderboard</h2>
       <div id="leaderboard" class="leaderboard">
@@ -570,6 +650,25 @@
   const LINES_PER_HOUR  = 50;
   /** Round estimated hours to the nearest quarter-hour increment */
   const HOUR_INCREMENT  = 0.25;
+
+  /**
+   * USD rate presets keyed by $/hr value.
+   * Based on real-world industry rates for software developers (2024-2025 US market):
+   *   Junior:      $75/hr  (0-3 yrs exp, web/scripting)
+   *   Mid-level:  $100/hr  (3-7 yrs exp — default, matches industry-standard baseline)
+   *   Senior:     $125/hr  (7-12 yrs exp)
+   *   Staff/Lead: $150/hr  (12+ yrs exp or tech lead role)
+   * Source: Bureau of Labor Statistics, Stack Overflow Developer Survey, Levels.fyi
+   */
+  const USD_RATE_INFO = {
+    '75':  '$75/hr · entry-level / junior developer rate',
+    '100': '$100/hr · industry-standard mid-level rate',
+    '125': '$125/hr · senior developer rate',
+    '150': '$150/hr · staff engineer / tech lead rate',
+  };
+
+  // Mutable hourly USD rate — updated by rate selector UI
+  let USD_HOURLY_RATE = 100;
 
   // ─── State ───────────────────────────────────────────────────────────────
   let allCommits    = [];   // raw commit objects from GitHub
@@ -644,6 +743,60 @@
     return Math.max(HOUR_INCREMENT, Math.round(raw / HOUR_INCREMENT) * HOUR_INCREMENT);
   }
 
+  /**
+   * Convert estimated developer-hours to a USD dollar amount using the
+   * selected hourly rate.  Formula mirrors the industry-standard approach:
+   *   USD = hours × rate/hr
+   * where rate defaults to $100/hr (mid-level developer, US market 2024-2025).
+   */
+  function calcUSD(hours) {
+    const h = (hours != null && !isNaN(hours)) ? hours : 0;
+    return h * USD_HOURLY_RATE;
+  }
+
+  /**
+   * Format a USD amount as a human-readable string.
+   * Values ≥ $1,000 are shown as "$X.Xk"; ≥ $1M as "$X.XXM".
+   */
+  function fmtUSD(amount) {
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    if (abs >= 1000000) return sign + '$' + (abs / 1000000).toFixed(2) + 'M';
+    if (abs >= 1000)    return sign + '$' + (abs / 1000).toFixed(1) + 'k';
+    return sign + '$' + abs.toFixed(0);
+  }
+
+  // ─── Rate Selector Handlers ───────────────────────────────────────────────
+  function onRatePresetChange() {
+    const sel   = document.getElementById('ratePreset');
+    const info  = document.getElementById('rateInfo');
+    const custom = document.getElementById('rateCustom');
+
+    if (sel.value === 'custom') {
+      custom.style.display = 'inline-block';
+      const v = parseFloat(custom.value) || 100;
+      USD_HOURLY_RATE = v;
+      info.textContent = `$${v}/hr · custom rate`;
+    } else {
+      custom.style.display = 'none';
+      USD_HOURLY_RATE = parseFloat(sel.value);
+      info.textContent = USD_RATE_INFO[sel.value] || `$${sel.value}/hr`;
+    }
+    // Re-render all visible content with new rate
+    buildLeaderboard();
+    renderPage();
+  }
+
+  function onRateCustomChange() {
+    const custom = document.getElementById('rateCustom');
+    const info   = document.getElementById('rateInfo');
+    const v = parseFloat(custom.value) || 100;
+    USD_HOURLY_RATE = Math.max(10, v);
+    info.textContent = `$${USD_HOURLY_RATE}/hr · custom rate`;
+    buildLeaderboard();
+    renderPage();
+  }
+
   // ─── GitHub API ──────────────────────────────────────────────────────────
   async function fetchToken() {
     try {
@@ -704,7 +857,8 @@
 
     lb.innerHTML = entries.map(([login, s]) => {
       const loggedHrs = devAggregates[login] || 0;
-      const totalHrs  = (s.hours + loggedHrs).toFixed(1);
+      const totalHrs  = s.hours + loggedHrs;
+      const usdValue  = calcUSD(totalHrs);
       return `
         <div class="dev-card">
           <div class="dev-name">${escHtml(login)}</div>
@@ -712,7 +866,8 @@
             <span>📦 ${s.commits} commits</span>
             <span style="color:#39ff14">+${fmtNum(s.additions)}</span>
             <span style="color:#ff4466">-${fmtNum(s.deletions)}</span>
-            <span>⏱ ~${totalHrs} hrs estimated</span>
+            <span>⏱ ~${totalHrs.toFixed(1)} hrs estimated</span>
+            <span style="color:#ffd700">💵 ${fmtUSD(usdValue)}</span>
             <span style="color:var(--warning-amber)">⭐ Score: ${s.valueScore}</span>
           </div>
         </div>`;
@@ -720,14 +875,16 @@
 
     // Update stat cards
     document.getElementById('statContributors').textContent = entries.length;
-    const totAdd = entries.reduce((s, [, v]) => s + v.additions, 0);
-    const totDel = entries.reduce((s, [, v]) => s + v.deletions, 0);
-    const totHrs = entries.reduce((s, [, v]) => s + v.hours, 0).toFixed(0);
-    const totVal = entries.reduce((s, [, v]) => s + v.valueScore, 0);
+    const totAdd  = entries.reduce((s, [, v]) => s + v.additions, 0);
+    const totDel  = entries.reduce((s, [, v]) => s + v.deletions, 0);
+    const totHrs  = entries.reduce((s, [, v]) => s + v.hours, 0);
+    const totVal  = entries.reduce((s, [, v]) => s + v.valueScore, 0);
+    const totUSD  = calcUSD(totHrs);
     document.getElementById('statAdditions').textContent = fmtNum(totAdd);
     document.getElementById('statDeletions').textContent = fmtNum(totDel);
-    document.getElementById('statHours').textContent     = fmtNum(+totHrs);
+    document.getElementById('statHours').textContent     = fmtNum(Math.round(totHrs));
     document.getElementById('statValue').textContent     = fmtNum(totVal);
+    document.getElementById('statUSD').textContent       = fmtUSD(totUSD);
     document.getElementById('statCommits').textContent   = fmtNum(allCommits.length);
   }
 
@@ -767,6 +924,7 @@
     const loggedTotal = getLoggedTime(sha).toFixed(2);
     const estHours    = estimateHours(additions, deletions).toFixed(2);
     const totalHrs    = (parseFloat(loggedTotal) || parseFloat(estHours)).toFixed(2);
+    const usdValue    = calcUSD(parseFloat(totalHrs));
 
     return `
       <div class="commit-card" id="card-${sha}">
@@ -776,6 +934,7 @@
           <div class="commit-score">
             <span class="score-label">Value ${score}/100</span>
             <div class="score-bar"><div class="score-fill" style="width:${fillW}%"></div></div>
+            <span class="score-label" style="color:#ffd700">${fmtUSD(usdValue)}</span>
           </div>
         </div>
         <div class="commit-meta">
@@ -785,6 +944,7 @@
           ${additions    ? `<span class="meta-chip chip-add">+${fmtNum(additions)}</span>` : ''}
           ${deletions    ? `<span class="meta-chip chip-del">-${fmtNum(deletions)}</span>` : ''}
           <span class="meta-chip chip-value">⏱ ${totalHrs}h</span>
+          <span class="meta-chip chip-usd">💵 ${fmtUSD(usdValue)}</span>
         </div>
         ${renderTimeLogList(sha)}
         <button class="time-log-toggle" onclick="toggleTimeLog('${escHtml(sha)}')">
@@ -904,10 +1064,12 @@
 
   // ─── Export ───────────────────────────────────────────────────────────────
   function exportCSV() {
-    const header = 'SHA,Author,Date,Message,Additions,Deletions,Files,ValueScore,EstHours\n';
+    const header = 'SHA,Author,Date,Message,Additions,Deletions,Files,ValueScore,EstHours,EstUSD\n';
     const rows   = filteredList.map(c => {
       const s = c._stats || {};
       const score = calcValueScore(s.additions, s.deletions, s.total, c.commit?.message);
+      const hrs   = estimateHours(s.additions, s.deletions);
+      const usd   = calcUSD(hrs);
       return [
         c.sha,
         JSON.stringify(c.commit?.author?.name || ''),
@@ -917,7 +1079,8 @@
         s.deletions || 0,
         s.total     || 0,
         score,
-        estimateHours(s.additions, s.deletions)
+        hrs,
+        usd.toFixed(2)
       ].join(',');
     }).join('\n');
 
@@ -937,6 +1100,12 @@
       stats:    c._stats || {},
       score:    calcValueScore((c._stats||{}).additions, (c._stats||{}).deletions, (c._stats||{}).total, c.commit?.message),
       estHours: estimateHours((c._stats||{}).additions, (c._stats||{}).deletions),
+      estUSD:        (() => {
+        const s   = c._stats || {};
+        const hrs = estimateHours(s.additions, s.deletions);
+        return parseFloat(calcUSD(hrs).toFixed(2));
+      })(),
+      usdHourlyRate: USD_HOURLY_RATE,
       timeLogs: timeLogs[c.sha] || []
     }));
 
@@ -1028,9 +1197,9 @@
       }
 
       // Reset stat cards to 0 so they don't stay showing "—"
-      ['statCommits','statContributors','statAdditions','statDeletions','statHours','statValue'].forEach(id => {
+      ['statCommits','statContributors','statAdditions','statDeletions','statHours','statValue','statUSD'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.textContent = '0';
+        if (el) el.textContent = id === 'statUSD' ? '$0' : '0';
       });
     }
   }
