@@ -170,7 +170,7 @@
                 localStorage.setItem('google_auth_user', JSON.stringify(this.user));
                 localStorage.setItem('google_auth_token', credential);
 
-                console.log('✅ User authenticated:', this.user.email);
+                console.log('✅ User authenticated');
 
                 // Notify listeners
                 this.notifyAuthChange(true, this.user);
@@ -264,7 +264,7 @@
                     google.accounts.id.disableAutoSelect();
                 }
 
-                console.log('👋 User signed out:', email);
+                console.log('👋 User signed out');
 
                 // Notify listeners
                 this.notifyAuthChange(false, null);
@@ -291,7 +291,7 @@
                     // Verify token is still valid (simple check)
                     const payload = this.parseJwt(token);
                     if (payload && payload.exp * 1000 > Date.now()) {
-                        console.log('✅ Restored session for:', this.user.email);
+                console.log('✅ Restored existing session');
                         this.notifyAuthChange(true, this.user);
                         this.updateAuthUI(true);
                     } else {

@@ -54,7 +54,7 @@ export async function handler(event) {
                 { expiresIn: JWT_EXPIRY }
             );
 
-            console.log('[SESSION] Created for:', email);
+            console.log('[SESSION] Created');
 
             return {
                 statusCode: 200,
@@ -84,7 +84,7 @@ export async function handler(event) {
 
             try {
                 const decoded = jwt.verify(token, JWT_SECRET);
-                console.log('[SESSION] Verified for:', decoded.email);
+                console.log('[SESSION] Verified');
 
                 return {
                     statusCode: 200,

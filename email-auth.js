@@ -226,7 +226,7 @@
             localStorage.setItem('bcert_auth_type', 'email');
             localStorage.setItem('bcert_email', email);
 
-            console.log('✅ Email account created:', email);
+            console.log('✅ Email account created');
             return {
                 success: true,
                 email: email,
@@ -276,7 +276,7 @@
             localStorage.setItem('bcert_auth_type', 'email');
             localStorage.setItem('bcert_email', email);
 
-            console.log('✅ Email sign-in successful:', email);
+            console.log('✅ Email sign-in successful');
             return {
                 success: true,
                 email: email,
@@ -298,7 +298,7 @@
                     this._email = savedEmail;
                     this._userId = userData.userId;
                     
-                    console.log('✅ Auto-connected with email:', savedEmail);
+                    console.log('✅ Auto-connected with saved session');
                     return {
                         success: true,
                         email: savedEmail,
@@ -331,7 +331,7 @@
 
         // Reset password (simple implementation)
         async resetPassword(email) {
-            console.log('🔄 Password reset requested for:', email);
+            console.log('🔄 Password reset requested');
             
             // Validate email
             if (!this._isValidEmail(email)) {
