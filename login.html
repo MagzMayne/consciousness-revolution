@@ -353,7 +353,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     // Listen for auth changes
                     window.googleOAuthAuth.onAuthChange((isAuthenticated, user) => {
                         if (isAuthenticated) {
-                            console.log('✅ Google authentication successful:', user.email);
+                            console.log('✅ Google authentication successful');
                             
                             // Store user in localStorage for compatibility with existing auth
                             localStorage.setItem('currentUser', JSON.stringify({
@@ -362,6 +362,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                                 photoURL: user.picture,
                                 provider: 'google'
                             }));
+                            localStorage.setItem('isLoggedIn', 'true');
                             
                             // Redirect after successful login
                             const redirectUrl = localStorage.getItem('authRedirect');
@@ -380,44 +381,8 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            // ═══════════════════════════════════════════════════════════════
-            // COMMANDER BYPASS - Instant access without Google OAuth
-            // URL: login.html?commander=Kill50780630#
-            // ═══════════════════════════════════════════════════════════════
-            const urlParams = new URLSearchParams(window.location.search);
-            const commanderKey = urlParams.get('commander');
-
-            if (commanderKey === 'Kill50780630') {
-                console.log('[COMMANDER] ⚡ Bypass activated - Welcome back, Commander');
-
-                // Set all auth flags
-                localStorage.setItem('araya_commander', 'true');
-                localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('currentUser', JSON.stringify({
-                    email: 'darrickpreble@proton.me',
-                    displayName: 'Commander Dwrek',
-                    photoURL: null,
-                    provider: 'commander_bypass',
-                    accessLevel: 'COMMANDER',
-                    bypassTimestamp: new Date().toISOString()
-                }));
-
-                // Redirect to intended destination or hub
-                const redirectUrl = localStorage.getItem('authRedirect') || 'SEVEN_DOMAINS_HUB.html';
-                localStorage.removeItem('authRedirect');
-                window.location.href = redirectUrl;
-                return; // Exit immediately, no further processing
-            }
-
-            // Check for existing Commander status from previous bypass
-            if (localStorage.getItem('araya_commander') === 'true') {
-                console.log('[COMMANDER] ⚡ Existing Commander session detected');
-                const redirectUrl = localStorage.getItem('authRedirect') || 'SEVEN_DOMAINS_HUB.html';
-                localStorage.removeItem('authRedirect');
-                window.location.href = redirectUrl;
-                return;
-            }
-            // ═══════════════════════════════════════════════════════════════
+            // Clear any stale bypass flags that may have been set previously
+            localStorage.removeItem('araya_commander');
 
             // Initialize Google Auth
             initGoogleAuth();
@@ -442,57 +407,101 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             }
 
             // Handle login form submission
-            document.getElementById('login-button').addEventListener('click', () => {
-                const email = document.getElementById('email').value;
+            document.getElementById('login-button').addEventListener('click', async () => {
+                const email = document.getElementById('email').value.trim();
                 const password = document.getElementById('password').value;
                 
-                // Use the global login function
-                if (typeof login === 'function') {
-                    login(email, password);
-                    
-                    // Check for redirect URL from localStorage
-                    const redirectUrl = localStorage.getItem('authRedirect');
-                    if (redirectUrl) {
-                        localStorage.removeItem('authRedirect');
-                        window.location.href = redirectUrl;
+                if (!email || !password) {
+                    alert('Please enter your email and password.');
+                    return;
+                }
+
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    alert('Please enter a valid email address.');
+                    return;
+                }
+
+                const btn = document.getElementById('login-button');
+                btn.disabled = true;
+                btn.textContent = 'Logging in...';
+
+                try {
+                    if (typeof login === 'function') {
+                        await login(email, password);
+                        // Only redirect on success (login() throws on failure)
+                        const redirectUrl = localStorage.getItem('authRedirect');
+                        if (redirectUrl) {
+                            localStorage.removeItem('authRedirect');
+                            window.location.href = redirectUrl;
+                        } else {
+                            window.location.href = 'SEVEN_DOMAINS_HUB.html';
+                        }
                     } else {
-                        window.location.href = 'SEVEN_DOMAINS_HUB.html';
+                        alert('Login functionality is not available. Please try again later.');
                     }
-                } else {
-                    console.error("Login function not found");
-                    alert("Login functionality is not available. Please try again later.");
+                } catch (err) {
+                    if (err && err.message && !String(err.message).toLowerCase().includes('login failed')) {
+                        alert('Login failed. Please check your credentials and try again.');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Login';
                 }
             });
 
             // Handle signup form submission
-            document.getElementById('signup-button').addEventListener('click', () => {
-                const displayName = document.getElementById('display-name').value;
-                const email = document.getElementById('signup-email').value;
+            document.getElementById('signup-button').addEventListener('click', async () => {
+                const displayName = document.getElementById('display-name').value.trim();
+                const email = document.getElementById('signup-email').value.trim();
                 const password = document.getElementById('signup-password').value;
-                
-                // Use the global signUp function
-                if (typeof signUp === 'function') {
-                    signUp(email, password, displayName);
-                    
-                    // Check for redirect URL from localStorage
-                    const redirectUrl = localStorage.getItem('authRedirect');
-                    if (redirectUrl) {
-                        localStorage.removeItem('authRedirect');
-                        window.location.href = redirectUrl;
+
+                if (!email || !password) {
+                    alert('Please enter your email and password.');
+                    return;
+                }
+
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    alert('Please enter a valid email address.');
+                    return;
+                }
+
+                if (password.length < 8) {
+                    alert('Password must be at least 8 characters long.');
+                    return;
+                }
+
+                const btn = document.getElementById('signup-button');
+                btn.disabled = true;
+                btn.textContent = 'Creating account...';
+
+                try {
+                    if (typeof signUp === 'function') {
+                        await signUp(email, password, displayName);
+                        // Only redirect on success (signUp() throws on failure)
+                        const redirectUrl = localStorage.getItem('authRedirect');
+                        if (redirectUrl) {
+                            localStorage.removeItem('authRedirect');
+                            window.location.href = redirectUrl;
+                        } else {
+                            window.location.href = 'SEVEN_DOMAINS_HUB.html';
+                        }
                     } else {
-                        window.location.href = 'SEVEN_DOMAINS_HUB.html';
+                        alert('Signup functionality is not available. Please try again later.');
                     }
-                } else {
-                    console.error("SignUp function not found");
-                    alert("Signup functionality is not available. Please try again later.");
+                } catch (err) {
+                    if (err && err.message && !String(err.message).toLowerCase().includes('signup failed')) {
+                        alert('Signup failed. Please try again.');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Sign Up';
                 }
             });
 
-            // Handle Phantom Wallet buttons removed - replaced with Google Sign-In
-            
-            // If user is already logged in, redirect to intended destination
+            // If user is already authenticated via a valid session, redirect
             const currentUser = localStorage.getItem('currentUser');
-            if (currentUser) {
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            if (currentUser && isLoggedIn) {
                 const redirectUrl = localStorage.getItem('authRedirect');
                 if (redirectUrl) {
                     localStorage.removeItem('authRedirect');
