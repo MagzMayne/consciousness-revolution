@@ -179,9 +179,118 @@ const AGENT_HIERARCHY = {
     universal: { level: 1, permissions: ["basic_access", "general_tasks"] }
 };
 
+/**
+ * AI Architecture Types — 8 state-of-the-art model families
+ * Integrated per issue: "Integrate this into our automated systems"
+ * LLMs are AI models, but not all AI models are LLMs.
+ */
+const AI_ARCHITECTURE_TYPES = {
+    LLM: {
+        name: 'Large Language Model',
+        processingUnit: 'token',
+        modality: ['text'],
+        bestFor: ['text generation', 'reasoning', 'code synthesis', 'summarization', 'translation', 'Q&A'],
+        examples: ['GPT-4', 'LLaMA 3', 'Claude 3', 'Gemini', 'Mixtral'],
+        efficiency: 'medium',
+        taskKeywords: ['write', 'generate text', 'code', 'summarize', 'translate', 'reason', 'answer', 'chat', 'document', 'explain']
+    },
+    LCM: {
+        name: 'Large Concept Model',
+        processingUnit: 'concept (sentence embedding)',
+        modality: ['text', 'multilingual'],
+        bestFor: ['cross-lingual generation', 'semantic reasoning', 'language-agnostic tasks'],
+        examples: ['Meta LCM (SONAR)'],
+        efficiency: 'high',
+        taskKeywords: ['concept', 'semantic', 'multilingual', 'cross-lingual', 'abstract', 'language-agnostic', 'sentence', 'meaning']
+    },
+    VLM: {
+        name: 'Vision-Language Model',
+        processingUnit: 'image patches + tokens',
+        modality: ['text', 'image', 'video'],
+        bestFor: ['image captioning', 'visual QA', 'chart reading', 'OCR', 'video description'],
+        examples: ['GPT-4o', 'LLaVA', 'Gemini Vision', 'CLIP', 'BLIP-2', 'Qwen-VL'],
+        efficiency: 'medium',
+        taskKeywords: ['image', 'photo', 'picture', 'vision', 'visual', 'see', 'describe image', 'chart', 'ocr', 'video', 'screenshot', 'caption']
+    },
+    SLM: {
+        name: 'Small Language Model',
+        processingUnit: 'token',
+        modality: ['text'],
+        bestFor: ['mobile AI', 'on-device inference', 'offline chatbots', 'low-latency tasks'],
+        examples: ['Phi-3-mini', 'Gemma 2B', 'TinyLlama', 'Mistral 7B'],
+        efficiency: 'very high',
+        taskKeywords: ['mobile', 'edge', 'device', 'offline', 'fast', 'lightweight', 'on-device', 'browser', 'iot', 'low power', 'privacy']
+    },
+    MoE: {
+        name: 'Mixture of Experts',
+        processingUnit: 'token → routed experts',
+        modality: ['text', 'multimodal'],
+        bestFor: ['high-throughput serving', 'multi-task learning', 'cost-efficient scaling'],
+        examples: ['Mixtral 8x7B', 'Switch Transformer', 'DeepSeek-MoE'],
+        efficiency: 'very high (sparse)',
+        taskKeywords: ['efficient', 'scale', 'throughput', 'cost', 'diverse', 'multi-task', 'large scale', 'sparse']
+    },
+    MLM: {
+        name: 'Masked Language Model',
+        processingUnit: 'token (bidirectional)',
+        modality: ['text'],
+        bestFor: ['text classification', 'NER', 'sentiment analysis', 'semantic search', 'NLU tasks'],
+        examples: ['BERT', 'RoBERTa', 'DeBERTa', 'ELECTRA', 'XLM-R'],
+        efficiency: 'high',
+        taskKeywords: ['classify', 'classification', 'sentiment', 'ner', 'named entity', 'search', 'embed', 'understand', 'detect', 'fill', 'mask']
+    },
+    LAM: {
+        name: 'Large Action Model',
+        processingUnit: 'task → action sequence',
+        modality: ['text', 'tool use', 'GUI'],
+        bestFor: ['autonomous agents', 'computer use', 'workflow automation', 'API calling'],
+        examples: ['Claude (computer use)', 'GPT-4 with tools', 'ACT-1'],
+        efficiency: 'medium',
+        taskKeywords: ['automate', 'agent', 'action', 'click', 'browse', 'execute', 'workflow', 'computer use', 'tool', 'autonomous', 'task execution']
+    },
+    SAM: {
+        name: 'Segment Anything Model',
+        processingUnit: 'pixel → mask',
+        modality: ['image', 'video'],
+        bestFor: ['object segmentation', 'medical imaging', 'video tracking', 'dataset annotation'],
+        examples: ['SAM (Meta)', 'SAM 2', 'FastSAM', 'MobileSAM', 'EfficientSAM'],
+        efficiency: 'medium',
+        taskKeywords: ['segment', 'segmentation', 'mask', 'pixel', 'object detection', 'region', 'bounding box', 'medical image', 'annotate', 'track']
+    }
+};
+
+/**
+ * Match the best AI architecture type to a described task.
+ * Matching the right architecture to the right task saves time,
+ * boosts productivity, and creates a more natural AI-human flow.
+ *
+ * @param {string} taskDescription - Natural language description of the task
+ * @returns {{ recommended: string|null, architecture: object|null, alternatives: string[], allScores: object[] }}
+ */
+function getArchitectureForTask(taskDescription) {
+    const query = (taskDescription || '').toLowerCase();
+    const scores = Object.entries(AI_ARCHITECTURE_TYPES).map(([key, arch]) => {
+        let score = 0;
+        arch.taskKeywords.forEach(kw => {
+            if (query.includes(kw)) score += kw.split(' ').length;
+        });
+        return { key, arch, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const best = scores[0];
+    const alternatives = scores.slice(1, 3).filter(s => s.score > 0).map(s => s.key);
+
+    return {
+        recommended: best.score > 0 ? best.key : null,
+        architecture: best.score > 0 ? best.arch : null,
+        alternatives,
+        allScores: scores.map(s => ({ id: s.key, score: s.score }))
+    };
+}
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { AGENT_MAPPINGS, MODEL_CAPABILITIES, AGENT_HIERARCHY };
+    module.exports = { AGENT_MAPPINGS, MODEL_CAPABILITIES, AGENT_HIERARCHY, AI_ARCHITECTURE_TYPES, getArchitectureForTask };
 } else {
-    window.agentMappings = { AGENT_MAPPINGS, MODEL_CAPABILITIES, AGENT_HIERARCHY };
+    window.agentMappings = { AGENT_MAPPINGS, MODEL_CAPABILITIES, AGENT_HIERARCHY, AI_ARCHITECTURE_TYPES, getArchitectureForTask };
 }
