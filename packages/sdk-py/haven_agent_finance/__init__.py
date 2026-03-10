@@ -10,6 +10,7 @@ import json
 import urllib.request
 import urllib.error
 
+__all__ = ['AgentFinanceClient']
 
 class AgentFinanceClient:
     """Client for the Agentic Finance HTTP API gateway.

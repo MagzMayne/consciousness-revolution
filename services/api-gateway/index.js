@@ -82,8 +82,10 @@ function createApp() {
     // timing-based enumeration attacks
     const isValid = validKeys.some((key) => {
       try {
-        const a = Buffer.from(provided.padEnd(key.length, '\0'));
-        const b = Buffer.from(key);
+        // Pad both to the same length so timingSafeEqual never throws
+        const maxLen = Math.max(provided.length, key.length);
+        const a = Buffer.from(provided.padEnd(maxLen, '\0'));
+        const b = Buffer.from(key.padEnd(maxLen, '\0'));
         // Buffers must be same length for timingSafeEqual
         if (a.length !== b.length) return false;
         return crypto.timingSafeEqual(a, b);

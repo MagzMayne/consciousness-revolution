@@ -314,7 +314,7 @@ async function runLineageTests() {
   await test('InMemoryLineageStore.listByTimeRange filters by timestamp', async () => {
     const store = new InMemoryLineageStore();
     const before = new Date();
-    await new Promise((r) => setTimeout(r, 5));
+    await new Promise((r) => setTimeout(r, 20));
 
     const rec = createLineageRecord({
       intentId: 'i-t1',
@@ -326,7 +326,7 @@ async function runLineageTests() {
     });
     store.save(rec);
 
-    await new Promise((r) => setTimeout(r, 5));
+    await new Promise((r) => setTimeout(r, 20));
     const after = new Date();
 
     const results = store.listByTimeRange(before, after);

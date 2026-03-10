@@ -30,7 +30,7 @@ async function runFile(file) {
     });
 
     child.on('close', (code) => {
-      resolve({ file, code: code || 0 });
+      resolve({ file, code: code ?? 1 });
     });
 
     child.on('error', (err) => {
