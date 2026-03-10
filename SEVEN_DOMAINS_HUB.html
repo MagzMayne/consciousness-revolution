@@ -17,6 +17,7 @@
             background: #0a0a0f;
             color: #fff;
             height: 100vh;
+            height: 100dvh; /* dynamic viewport height — prevents mobile browser chrome from cutting off content */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -193,7 +194,7 @@
         /* Keyboard shortcut hint */
         .shortcut-hint {
             position: fixed;
-            bottom: 20px;
+            bottom: 60px; /* raised above the beta-banner footer injected by cockpit pages */
             right: 20px;
             background: rgba(0,0,0,0.8);
             padding: 10px 15px;
@@ -327,6 +328,7 @@
         // Frame load complete
         frame.addEventListener('load', () => {
             loadingOverlay.classList.add('hidden');
+            suppressIframeFooters(frame);
         });
 
         // Keyboard navigation
@@ -392,8 +394,35 @@
                 switchDomain(hash);
             } else {
                 loadingOverlay.classList.add('hidden');
+                suppressIframeFooters(frame);
             }
         });
+
+        // Suppress fixed footer widgets injected by cockpit pages (beta-banner, donation button,
+        // rootib badge) so they don't cover content when rendered inside the hub iframe.
+        function suppressIframeFooters(iframeEl) {
+            try {
+                const doc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+                if (!doc || !doc.head) return;
+                const styleId = 'hub-iframe-footer-suppress';
+                if (doc.getElementById(styleId)) return; // already injected
+                const style = doc.createElement('style');
+                style.id = styleId;
+                style.textContent = [
+                    '/* Hub: hide fixed footer widgets that cover content inside the iframe */',
+                    '#beta-maturity-banner { display: none !important; }',
+                    '#barbrick-donation-btn { display: none !important; }',
+                    '#rootib-provenance-badge { display: none !important; }',
+                ].join('\n');
+                doc.head.appendChild(style);
+            } catch (e) {
+                // Silently ignore cross-origin SecurityError — nothing to do for external frames.
+                // Log any other unexpected error for debugging.
+                if (e.name !== 'SecurityError') {
+                    console.warn('[Hub] suppressIframeFooters unexpected error:', e);
+                }
+            }
+        }
 
         // Hide shortcut hint on mobile
         if ('ontouchstart' in window) {
