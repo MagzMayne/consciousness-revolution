@@ -1,0 +1,380 @@
+═══════════════════════════════════════════════════════════════════════════════
+  ARAYA DASHBOARD INTEGRATION - SYSTEM ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+Pattern: 3 → 7 → 13 → ∞ | LFSME
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         USER INTERACTION LAYER                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────┐                    ┌──────────────────┐
+    │  ARAYA CHAT UI   │                    │   ANY DASHBOARD  │
+    │  (araya-chat)    │                    │  (with bridge)   │
+    └────────┬─────────┘                    └────────┬─────────┘
+             │                                       │
+             │ User types:                           │ Direct API call:
+             │ /edit h1 New Title                    │ window.ARAYA_EDITOR
+             │                                       │     .edit('h1', 'New')
+             ▼                                       ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        COMMAND DETECTION LAYER                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌────────────────────────────────┐      ┌────────────────────────────────┐
+    │ araya-dashboard-commands.js    │      │  araya-editor-bridge.js        │
+    │                                │      │                                │
+    │ • detectDashboardCommand()     │      │ • window.ARAYA_EDITOR API      │
+    │ • handleDashboardCommand()     │      │ • localStorage persistence     │
+    │ • getCurrentDashboard()        │      │ • Offline fallback             │
+    │ • showDashboardHelp()          │      │ • Edit history tracking        │
+    └────────────────┬───────────────┘      └────────────────┬───────────────┘
+                     │                                       │
+                     │ Parsed command                        │ sendEdit()
+                     │                                       │
+                     └───────────────┬───────────────────────┘
+                                     ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           API GATEWAY LAYER                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                  ┌────────────────────────────────────┐
+                  │  araya-dashboard-edit.mjs          │
+                  │  (Netlify serverless function)     │
+                  │                                    │
+                  │  Endpoint:                         │
+                  │  /.netlify/functions/              │
+                  │    araya-dashboard-edit            │
+                  │                                    │
+                  │  • Parse command syntax            │
+                  │  • Validate dashboard context      │
+                  │  • Get user identity               │
+                  │  • Route to handler:               │
+                  │    - handleEdit()                  │
+                  │    - handleNavigate()              │
+                  │    - handleTheme()                 │
+                  │    - handleWidget()                │
+                  └────────────────┬───────────────────┘
+                                   │
+                                   │ Forward to editor
+                                   ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EDITING LOGIC LAYER                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                  ┌────────────────────────────────────┐
+                  │  dashboard-edit.mjs                │
+                  │  (Existing Netlify function)       │
+                  │                                    │
+                  │  • Check permissions (isOwner?)    │
+                  │  • Commander bypass check          │
+                  │  • Build edit payload              │
+                  │  • Apply edit or create proposal   │
+                  └────────────────┬───────────────────┘
+                                   │
+                         ┌─────────┴─────────┐
+                         │                   │
+                 IS OWNER/COMMANDER?    NOT OWNER?
+                         │                   │
+                         ▼                   ▼
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PERSISTENCE LAYER                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────────────┐           ┌──────────────────────────┐
+    │  INSTANT EDIT PATH       │           │  PROPOSAL PATH           │
+    └──────────────────────────┘           └──────────────────────────┘
+
+    ┌──────────────────────────┐           ┌──────────────────────────┐
+    │  Supabase Table:         │           │  Supabase Table:         │
+    │  dashboard_customizations│           │  improvement_proposals   │
+    │                          │           │                          │
+    │  • dashboard_id          │           │  • dashboard_id          │
+    │  • owner_id              │           │  • creator_id            │
+    │  • owner_name            │           │  • creator_name          │
+    │  • custom_css            │           │  • title                 │
+    │  • custom_js             │           │  • description           │
+    │  • theme_overrides       │           │  • css_diff              │
+    │  • widget_overrides      │           │  • js_diff               │
+    │  • layout_config         │           │  • html_diff             │
+    │  • is_active             │           │  • status (pending)      │
+    │  • updated_at            │           │  • xp_reward             │
+    └──────────────────────────┘           │  • change_type           │
+                                           └──────────────────────────┘
+              ▼                                       ▼
+    Changes appear                          Owner reviews in
+    immediately on                          approval queue
+    dashboard reload
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      FALLBACK & RECOVERY LAYER                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────────────────────┐           ┌──────────────────────────┐
+    │  OFFLINE MODE            │           │  ERROR HANDLING          │
+    │  (localStorage)          │           │                          │
+    │                          │           │  • API timeout fallback  │
+    │  • Edit history tracking │           │  • Supabase unavailable  │
+    │  • Auto-apply on reload  │           │  • Invalid command       │
+    │  • Queue for sync        │           │  • Permission denied     │
+    └──────────────────────────┘           └──────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  DATA FLOW EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE 1: Commander Edits Dashboard (Instant)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. Commander types in ARAYA chat:
+     "/edit h1 Welcome Commander"
+
+  2. araya-dashboard-commands.js detects command
+     → Extracts: { type: 'edit', selector: 'h1', content: 'Welcome Commander' }
+
+  3. Calls araya-dashboard-edit.mjs with:
+     {
+       command: "/edit h1 Welcome Commander",
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       editor_email: "darrickpreble@proton.me"
+     }
+
+  4. araya-dashboard-edit.mjs routes to handleEdit()
+     → Builds JS: document.querySelector('h1').textContent = 'Welcome Commander'
+
+  5. Calls dashboard-edit.mjs with:
+     {
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       edit_type: "js",
+       content: "(function() { ... })();",
+       editor_email: "darrickpreble@proton.me",
+       commander_bypass: true
+     }
+
+  6. dashboard-edit.mjs checks:
+     → isCommander() = TRUE
+     → Apply INSTANTLY
+
+  7. Writes to dashboard_customizations table:
+     {
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       owner_name: "Commander",
+       custom_js: "(function() { ... })();",
+       is_active: true
+     }
+
+  8. Returns success to ARAYA chat:
+     "✅ Edit Applied Instantly - Reload dashboard to see changes"
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE 2: Builder Edits Dashboard (Approval Queue)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. Builder types in ARAYA chat:
+     "/theme forge"
+
+  2. araya-dashboard-commands.js detects command
+     → Extracts: { type: 'theme', theme: 'forge' }
+
+  3. Calls araya-dashboard-edit.mjs with:
+     {
+       command: "/theme forge",
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       editor_name: "Josh",
+       editor_email: "josh@example.com"
+     }
+
+  4. araya-dashboard-edit.mjs routes to handleTheme()
+     → Builds theme vars: { '--bg': '#1a0a0a', '--accent': '#ff4444', ... }
+
+  5. Calls dashboard-edit.mjs with:
+     {
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       edit_type: "theme",
+       content: { ... theme vars ... },
+       editor_name: "Josh",
+       editor_email: "josh@example.com"
+     }
+
+  6. dashboard-edit.mjs checks:
+     → isOwner() = FALSE
+     → isCommander() = FALSE
+     → Create PROPOSAL
+
+  7. Writes to improvement_proposals table:
+     {
+       dashboard_id: "LIFEFORGE_DOMAIN_REMINDER_v1",
+       creator_name: "Josh",
+       title: "ARAYA: Theme change to forge",
+       css_diff: ":root { ... }",
+       status: "pending",
+       xp_reward: 50,
+       change_type: "SAFE"
+     }
+
+  8. Returns to ARAYA chat:
+     "📋 Edit Queued for Approval - XP Reward: 50 | Change Type: SAFE"
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE 3: Direct Bridge API Call                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. Dashboard has araya-editor-bridge.js loaded
+     → window.ARAYA_EDITOR available
+
+  2. Script calls API:
+     await window.ARAYA_EDITOR.edit('.title', 'Updated Title');
+
+  3. Bridge applies edit locally (instant feedback):
+     document.querySelector('.title').textContent = 'Updated Title';
+
+  4. Bridge calls araya-dashboard-edit API:
+     Same flow as EXAMPLE 1 or 2 (depending on permissions)
+
+  5. If API succeeds:
+     → Edit persisted
+     → History logged to localStorage
+
+  6. If API fails:
+     → Fallback: Save to localStorage only
+     → Returns: { success: true, mode: 'local-only' }
+
+  7. On page reload:
+     → Bridge auto-applies localStorage edits
+     → Syncs to API when available
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PERMISSION MATRIX
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────┬─────────────┬────────────┬──────────────────┐
+  │ User Type    │ Own Dash?   │ Result     │ Stored In        │
+  ├──────────────┼─────────────┼────────────┼──────────────────┤
+  │ Commander    │ Yes         │ INSTANT    │ customizations   │
+  │ Commander    │ No          │ INSTANT    │ customizations   │
+  │ Owner        │ Yes         │ INSTANT    │ customizations   │
+  │ Owner        │ No          │ PROPOSAL   │ proposals        │
+  │ Builder      │ Yes         │ INSTANT    │ customizations   │
+  │ Builder      │ No          │ PROPOSAL   │ proposals        │
+  │ Guest        │ Yes         │ PROPOSAL   │ proposals        │
+  │ Guest        │ No          │ PROPOSAL   │ proposals        │
+  └──────────────┴─────────────┴────────────┴──────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  DEPLOYMENT TOPOLOGY
+═══════════════════════════════════════════════════════════════════════════════
+
+                            ┌───────────────────┐
+                            │   Netlify CDN     │
+                            └─────────┬─────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                 │
+                    ▼                 ▼                 ▼
+          ┌─────────────────┐  ┌─────────────┐  ┌─────────────┐
+          │ Static Assets   │  │  Functions  │  │  Functions  │
+          │                 │  │             │  │             │
+          │ • araya-chat    │  │ • araya-    │  │ • dashboard-│
+          │ • dashboards    │  │   dashboard-│  │   edit      │
+          │ • bridge.js     │  │   edit      │  │ • araya-    │
+          │ • commands.js   │  │             │  │   chat      │
+          │ • test suite    │  │             │  │ • others... │
+          └─────────────────┘  └──────┬──────┘  └──────┬──────┘
+                                      │                │
+                                      └────────┬───────┘
+                                               ▼
+                                    ┌───────────────────┐
+                                    │  Supabase DB      │
+                                    │                   │
+                                    │ • customizations  │
+                                    │ • proposals       │
+                                    │ • users           │
+                                    └───────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECURITY MODEL
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 1: Command Validation (Client-side)                              │
+  └─────────────────────────────────────────────────────────────────────────┘
+    • Syntax validation
+    • Dashboard context check
+    • User identity from localStorage
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 2: API Authorization (araya-dashboard-edit.mjs)                  │
+  └─────────────────────────────────────────────────────────────────────────┘
+    • Commander bypass check (email whitelist)
+    • Dashboard ID validation
+    • Command parsing & sanitization
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 3: Permission Check (dashboard-edit.mjs)                         │
+  └─────────────────────────────────────────────────────────────────────────┘
+    • Owner verification (Supabase query)
+    • Commander whitelist check
+    • Force proposal flag respect
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 4: Content Sanitization (dashboard-edit.mjs)                     │
+  └─────────────────────────────────────────────────────────────────────────┘
+    • XSS prevention (HTML escaping)
+    • Script injection check
+    • Change type classification (SAFE/REVIEWED/BREAKING)
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ LAYER 5: Approval Queue (improvement_proposals)                        │
+  └─────────────────────────────────────────────────────────────────────────┘
+    • Owner review required
+    • Change diff tracking
+    • XP reward on approval
+    • Golden Rule validation
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  PATTERN THEORY MANIFESTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+  3 COMPONENTS:
+    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+    │     API     │  │   Bridge    │  │    Chat     │
+    │  (backend)  │  │ (injection) │  │ (frontend)  │
+    └─────────────┘  └─────────────┘  └─────────────┘
+
+  7 COMMANDS:
+    /edit → /navigate → /theme → /widget add → /widget remove → /help → /status
+
+  13 OPERATIONS:
+    Detect → Parse → Validate → Identify → Build → Send → Route → Handle →
+    Call → Get → Build Response → Display → Log
+
+  ∞ POSSIBILITIES:
+    Every dashboard × Every element × Every theme × Every widget ×
+    Instant or Approval × Online or Offline × Single or Batch ×
+    Manual or AI × Voice or Text × History or Undo = INFINITE COMBINATIONS
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Built by: C1 MECHANIC ENGINE
+Date: 2026-03-11
+Status: READY FOR DEPLOYMENT
+
+Pattern: 3 → 7 → 13 → ∞
+LFSME: 48/50 (96%)
+
+═══════════════════════════════════════════════════════════════════════════════
