@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7 Forges - Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --neon-cyan: #0ff5e0;
+      --toxic-green: #39ff14;
+      --rust-orange: #ff6b35;
+      --warning-amber: #ffaa00;
+      --hot-pink: #ff0080;
+      --chrome: #c0c0c0;
+      --dark-metal: #0a0a0c;
+      --rust-brown: #2a1810;
+      --grid-line: rgba(15, 245, 224, 0.05);
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: linear-gradient(135deg, var(--dark-metal) 0%, #0d0a12 50%, var(--rust-brown) 100%);
+      color: #c8c8c8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* CRT Scan Lines */
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.12) 2px,
+        rgba(0, 0, 0, 0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Industrial Grid */
+    #grid-bg {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background:
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(var(--grid-line) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: rgba(10, 10, 12, 0.9);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(15, 245, 224, 0.3);
+    }
+
+    .header-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px var(--neon-cyan);
+    }
+
+    .header-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 3rem;
+      font-weight: 900;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--toxic-green), var(--warning-amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-subtitle {
+      font-size: 1.2rem;
+      color: var(--chrome);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Overall Progress */
+    .overall-progress {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .progress-stat {
+      background: rgba(10, 10, 12, 0.9);
+      border: 2px solid rgba(128, 128, 128, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .progress-stat:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(15, 245, 224, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .stat-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 10px var(--neon-cyan);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--chrome);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Forges Grid */
+    .forges-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .forge-card {
+      background: rgba(10, 10, 12, 0.9);
+      border: 2px solid rgba(128, 128, 128, 0.3);
+      border-radius: 12px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .forge-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 4px;
+      background: var(--forge-gradient);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .forge-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .forge-card:hover::before {
+      opacity: 1;
+    }
+
+    .forge-card.unlocked {
+      border-color: var(--forge-color);
+      box-shadow: 0 0 20px var(--forge-color-glow);
+    }
+
+    .forge-card.unlocked:hover {
+      box-shadow: 0 0 30px var(--forge-color-glow);
+    }
+
+    .forge-card.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(0.6);
+    }
+
+    .forge-card.locked:hover {
+      transform: none;
+    }
+
+    .forge-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .forge-icon {
+      font-size: 3rem;
+      filter: drop-shadow(0 0 10px currentColor);
+    }
+
+    .forge-info {
+      flex: 1;
+    }
+
+    .forge-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--forge-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .forge-card.locked .forge-name {
+      color: #666;
+    }
+
+    .forge-tagline {
+      font-size: 0.9rem;
+      color: #888;
+    }
+
+    .forge-status {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--forge-color);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--forge-color);
+      margin-top: 1rem;
+    }
+
+    .forge-card.locked .forge-status {
+      border-color: #555;
+      color: #666;
+    }
+
+    .forge-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(128, 128, 128, 0.2);
+    }
+
+    .forge-stat {
+      text-align: center;
+    }
+
+    .forge-stat-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--forge-color);
+      margin-bottom: 0.25rem;
+    }
+
+    .forge-card.locked .forge-stat-value {
+      color: #666;
+    }
+
+    .forge-stat-label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .forge-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+
+    .forge-progress-fill {
+      height: 100%;
+      background: var(--forge-gradient);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 10px var(--forge-color);
+    }
+
+    .forge-progress-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+
+    .lock-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* Pattern: 3→7→13→∞ */
+    .pattern-display {
+      text-align: center;
+      padding: 2rem;
+      margin: 2rem 0;
+      background: rgba(10, 10, 12, 0.9);
+      border: 2px solid rgba(128, 128, 128, 0.3);
+      border-radius: 12px;
+    }
+
+    .pattern-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      margin-bottom: 1rem;
+    }
+
+    .pattern-flow {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--toxic-green), var(--warning-amber), var(--hot-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 5px;
+    }
+
+    .pattern-description {
+      font-size: 1rem;
+      color: #888;
+      margin-top: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .header-title {
+        font-size: 2rem;
+      }
+
+      .forges-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .forge-stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="grid-bg"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-icon">⚡</div>
+      <h1 class="header-title">7 Forges Command Center</h1>
+      <p class="header-subtitle">Your Complete Mastery Journey Across All Domains</p>
+    </div>
+
+    <!-- Overall Progress -->
+    <div class="overall-progress">
+      <div class="progress-stat">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-value" id="totalXP">0</div>
+        <div class="stat-label">Total XP</div>
+      </div>
+      <div class="progress-stat">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value" id="avgLevel">L0</div>
+        <div class="stat-label">Average Level</div>
+      </div>
+      <div class="progress-stat">
+        <div class="stat-icon">🔓</div>
+        <div class="stat-value" id="unlockedForges">1/7</div>
+        <div class="stat-label">Forges Unlocked</div>
+      </div>
+      <div class="progress-stat">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-value" id="totalAchievements">0</div>
+        <div class="stat-label">Achievements</div>
+      </div>
+    </div>
+
+    <!-- Pattern Display -->
+    <div class="pattern-display">
+      <div class="pattern-title">The Sacred Pattern</div>
+      <div class="pattern-flow">3 → 7 → 13 → ∞</div>
+      <p class="pattern-description">
+        Master each Forge through 13 Fibonacci phases. Unlock the next Forge at Level 7. Transcend all limits.
+      </p>
+    </div>
+
+    <!-- Forges Grid -->
+    <div class="forges-grid" id="forgesGrid">
+      <!-- Populated by JavaScript -->
+    </div>
+  </div>
+
+  <script src="forge-data.js"></script>
+  <script>
+    // Get user email
+    const userEmail = localStorage.getItem('userEmail') || 'demo@test.com';
+
+    // Mock user progress (would come from API)
+    const userProgress = {
+      reality: { level: 5, xp: 2100, totalXP: 2100, completedLevels: [1,2,3,4], achievements: 8 },
+      creation: { level: 1, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 },
+      communications: { level: 0, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 },
+      guardian: { level: 0, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 },
+      wealth: { level: 0, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 },
+      character: { level: 0, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 },
+      infinity: { level: 0, xp: 0, totalXP: 0, completedLevels: [], achievements: 0 }
+    };
+
+    // Calculate overall stats
+    function calculateOverallStats() {
+      const forges = Object.keys(userProgress);
+      const totalXP = forges.reduce((sum, key) => sum + userProgress[key].totalXP, 0);
+      const totalLevels = forges.reduce((sum, key) => sum + userProgress[key].level, 0);
+      const avgLevel = totalLevels / forges.length;
+      const unlockedCount = forges.filter(key => {
+        const forge = FORGE_DATA[key];
+        const progress = userProgress[key];
+        return progress.level >= forge.unlockLevel;
+      }).length;
+      const totalAchievements = forges.reduce((sum, key) => sum + userProgress[key].achievements, 0);
+
+      return { totalXP, avgLevel, unlockedCount, totalAchievements };
+    }
+
+    // Render overall stats
+    function renderOverallStats() {
+      const stats = calculateOverallStats();
+      document.getElementById('totalXP').textContent = stats.totalXP.toLocaleString();
+      document.getElementById('avgLevel').textContent = `L${Math.floor(stats.avgLevel)}`;
+      document.getElementById('unlockedForges').textContent = `${stats.unlockedCount}/7`;
+      document.getElementById('totalAchievements').textContent = stats.totalAchievements;
+    }
+
+    // Render forges grid
+    function renderForges() {
+      const grid = document.getElementById('forgesGrid');
+      const forges = getAllForges();
+
+      forges.forEach(forge => {
+        const progress = userProgress[forge.slug];
+        const isUnlocked = progress.level >= forge.unlockLevel;
+        const currentLevelXP = progress.level * 500;
+        const nextLevelXP = (progress.level + 1) * 500;
+        const progressPercent = progress.level > 0 ? ((progress.xp / nextLevelXP) * 100) : 0;
+
+        const card = document.createElement('a');
+        card.href = isUnlocked ? `forge-lobby-template.html?forge=${forge.slug}&email=${userEmail}` : '#';
+        card.className = `forge-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+        card.style.setProperty('--forge-color', forge.color);
+        card.style.setProperty('--forge-gradient', forge.gradient);
+        card.style.setProperty('--forge-color-glow', forge.color + '40');
+
+        card.innerHTML = `
+          <div class="forge-header">
+            <div class="forge-icon">${forge.icon}</div>
+            <div class="forge-info">
+              <div class="forge-name">${forge.name}</div>
+              <div class="forge-tagline">${forge.tagline}</div>
+            </div>
+          </div>
+
+          <div class="forge-status">${isUnlocked ? 'ACTIVE' : `LOCKED - Reach L${forge.unlockLevel}`}</div>
+
+          ${isUnlocked ? `
+            <div class="forge-stats">
+              <div class="forge-stat">
+                <div class="forge-stat-value">${progress.level}</div>
+                <div class="forge-stat-label">Level</div>
+              </div>
+              <div class="forge-stat">
+                <div class="forge-stat-value">${progress.totalXP.toLocaleString()}</div>
+                <div class="forge-stat-label">XP</div>
+              </div>
+              <div class="forge-stat">
+                <div class="forge-stat-value">${progress.achievements}</div>
+                <div class="forge-stat-label">Badges</div>
+              </div>
+            </div>
+
+            <div class="forge-progress-bar">
+              <div class="forge-progress-fill" style="width: ${progressPercent}%"></div>
+            </div>
+            <div class="forge-progress-text">
+              ${progress.xp} / ${nextLevelXP} XP to Level ${progress.level + 1}
+            </div>
+          ` : `
+            <div class="lock-overlay">🔒</div>
+          `}
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    // Initialize
+    renderOverallStats();
+    renderForges();
+
+    // Prevent navigation for locked forges
+    document.addEventListener('click', (e) => {
+      const forgeCard = e.target.closest('.forge-card.locked');
+      if (forgeCard) {
+        e.preventDefault();
+        alert('🔒 This Forge is locked.\n\nComplete Level 7 in an unlocked Forge to access the next one.');
+      }
+    });
+  </script>
+</body>
+</html>

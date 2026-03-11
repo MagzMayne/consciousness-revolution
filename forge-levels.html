@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>13 Phases - Forge Progression</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --neon-cyan: #0ff5e0;
+      --toxic-green: #39ff14;
+      --rust-orange: #ff6b35;
+      --warning-amber: #ffaa00;
+      --hot-pink: #ff0080;
+      --chrome: #c0c0c0;
+      --dark-metal: #0a0a0c;
+      --rust-brown: #2a1810;
+      --grid-line: rgba(15, 245, 224, 0.05);
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: linear-gradient(135deg, var(--dark-metal) 0%, #0d0a12 50%, var(--rust-brown) 100%);
+      color: #c8c8c8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* CRT Scan Lines */
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.12) 2px,
+        rgba(0, 0, 0, 0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Industrial Grid */
+    #grid-bg {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background:
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(var(--grid-line) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 2rem;
+      background: rgba(10, 10, 12, 0.8);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(15, 245, 224, 0.3);
+    }
+
+    .forge-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 0 20px currentColor;
+    }
+
+    .forge-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--toxic-green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .forge-tagline {
+      font-size: 1.2rem;
+      color: var(--chrome);
+      margin-bottom: 1rem;
+    }
+
+    .progress-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: var(--chrome);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    /* Level Grid */
+    .levels-grid {
+      display: grid;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .level-card {
+      background: rgba(10, 10, 12, 0.9);
+      border: 2px solid rgba(128, 128, 128, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .level-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
+      pointer-events: none;
+    }
+
+    /* Level States */
+    .level-card.locked {
+      opacity: 0.5;
+      border-color: rgba(128, 128, 128, 0.2);
+    }
+
+    .level-card.available {
+      border-color: var(--toxic-green);
+      box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+    }
+
+    .level-card.available:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 30px rgba(57, 255, 20, 0.5);
+      cursor: pointer;
+    }
+
+    .level-card.current {
+      border-color: var(--warning-amber);
+      box-shadow: 0 0 30px rgba(255, 170, 0, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(255, 170, 0, 0.5); }
+      50% { box-shadow: 0 0 50px rgba(255, 170, 0, 0.8); }
+    }
+
+    .level-card.completed {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(15, 245, 224, 0.3);
+    }
+
+    .level-card.unlock-point {
+      border-color: var(--hot-pink);
+      box-shadow: 0 0 30px rgba(255, 0, 128, 0.5);
+    }
+
+    /* Level Header */
+    .level-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .level-number {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 10px var(--neon-cyan);
+    }
+
+    .level-status-icon {
+      font-size: 2rem;
+    }
+
+    .level-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .level-card.locked .level-name {
+      color: #666;
+    }
+
+    .level-card.completed .level-name {
+      color: var(--neon-cyan);
+    }
+
+    .level-card.current .level-name {
+      color: var(--warning-amber);
+    }
+
+    /* XP Display */
+    .xp-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .xp-badge {
+      background: rgba(255, 170, 0, 0.2);
+      border: 1px solid var(--warning-amber);
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      color: var(--warning-amber);
+    }
+
+    .xp-required {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    /* Progress Bar */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(128, 128, 128, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--warning-amber), var(--rust-orange));
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      box-shadow: 0 0 10px var(--warning-amber);
+    }
+
+    .progress-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--chrome);
+    }
+
+    /* Level Description */
+    .level-description {
+      margin-top: 1rem;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    .level-card.locked .level-description {
+      color: #555;
+    }
+
+    /* Action Button */
+    .level-action {
+      margin-top: 1rem;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, var(--toxic-green), var(--neon-cyan));
+      border: none;
+      border-radius: 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #000;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .level-action:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px var(--toxic-green);
+    }
+
+    .level-card.locked .level-action {
+      background: rgba(128, 128, 128, 0.3);
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .level-card.locked .level-action:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Unlock Indicator */
+    .unlock-indicator {
+      background: rgba(255, 0, 128, 0.2);
+      border: 2px solid var(--hot-pink);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .unlock-text {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--hot-pink);
+      text-shadow: 0 0 10px var(--hot-pink);
+    }
+
+    /* Completion Badge */
+    .completion-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(15, 245, 224, 0.2);
+      border: 1px solid var(--neon-cyan);
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--neon-cyan);
+    }
+
+    /* Back Button */
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.5rem;
+      background: rgba(10, 10, 12, 0.8);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      text-decoration: none;
+      transition: all 0.3s ease;
+      margin-bottom: 2rem;
+    }
+
+    .back-button:hover {
+      background: var(--neon-cyan);
+      color: #000;
+      box-shadow: 0 0 20px var(--neon-cyan);
+      transform: translateX(-5px);
+    }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      font-family: 'Orbitron', monospace;
+      font-size: 1.5rem;
+      color: var(--neon-cyan);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(15, 245, 224, 0.2);
+      border-top-color: var(--neon-cyan);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .forge-name {
+        font-size: 1.8rem;
+      }
+
+      .level-name {
+        font-size: 1.4rem;
+      }
+
+      .progress-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .level-card.current { animation: none; }
+      .spinner { animation: none; }
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="grid-bg"></div>
+
+  <div class="container">
+    <a href="#" id="backButton" class="back-button">
+      ← Back to Lobby
+    </a>
+
+    <div class="header">
+      <div class="forge-icon" id="forgeIcon">🔥</div>
+      <h1 class="forge-name" id="forgeName">Loading...</h1>
+      <p class="forge-tagline" id="forgeTagline"></p>
+
+      <div class="progress-summary">
+        <div class="stat">
+          <div class="stat-label">Current Level</div>
+          <div class="stat-value" id="currentLevel">1</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total XP</div>
+          <div class="stat-value" id="totalXP">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Completion</div>
+          <div class="stat-value" id="completion">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="levelsContainer">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>Loading Progression...</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="forge-data.js"></script>
+  <script>
+    // Fibonacci XP Requirements
+    const XP_REQUIREMENTS = [
+      { level: 1, xp: 100 },
+      { level: 2, xp: 100 },
+      { level: 3, xp: 200 },
+      { level: 4, xp: 300 },
+      { level: 5, xp: 500 },
+      { level: 6, xp: 800 },
+      { level: 7, xp: 1300 },  // UNLOCK POINT - Next Forge
+      { level: 8, xp: 2100 },
+      { level: 9, xp: 3400 },
+      { level: 10, xp: 5500 },
+      { level: 11, xp: 8900 },
+      { level: 12, xp: 14400 },
+      { level: 13, xp: 23300 }   // MASTERY
+    ];
+
+    // Level Names for Each Forge
+    const LEVEL_NAMES = {
+      reality: [
+        { name: "Awakening", desc: "Open your eyes to what is real" },
+        { name: "Perception", desc: "See beyond the surface" },
+        { name: "Foundation", desc: "Build on solid ground" },
+        { name: "Clarity", desc: "Cut through the fog" },
+        { name: "Truth Seeker", desc: "Question everything" },
+        { name: "Pattern Recognition", desc: "See the underlying structure" },
+        { name: "Reality Architect", desc: "Shape your perception (UNLOCK: Next Forge)" },
+        { name: "Deep Understanding", desc: "Know the mechanisms" },
+        { name: "Consciousness Mastery", desc: "Control your awareness" },
+        { name: "Truth Speaker", desc: "Express what is real" },
+        { name: "Reality Weaver", desc: "Merge perception and truth" },
+        { name: "Existence Explorer", desc: "Push the boundaries" },
+        { name: "Reality Master", desc: "Complete mastery of the real" }
+      ],
+      creation: [
+        { name: "First Spark", desc: "Ignite the creative fire" },
+        { name: "Imagination", desc: "See what could be" },
+        { name: "Ideation", desc: "Generate infinite possibilities" },
+        { name: "Design Thinking", desc: "Structure your visions" },
+        { name: "Prototyping", desc: "Make ideas tangible" },
+        { name: "Iteration", desc: "Refine and improve" },
+        { name: "Manifestation", desc: "Bring visions to life (UNLOCK: Next Forge)" },
+        { name: "Creative Flow", desc: "Channel unlimited creation" },
+        { name: "Innovation Master", desc: "Break new ground" },
+        { name: "World Builder", desc: "Create entire systems" },
+        { name: "Reality Shaper", desc: "Bend existence to your will" },
+        { name: "Divine Creator", desc: "Create from pure intention" },
+        { name: "Creation Master", desc: "Unlimited creative power" }
+      ],
+      communications: [
+        { name: "First Contact", desc: "Begin the dialogue" },
+        { name: "Active Listening", desc: "Hear what's not said" },
+        { name: "Clear Expression", desc: "Communicate with precision" },
+        { name: "Empathy", desc: "Feel what others feel" },
+        { name: "Persuasion", desc: "Move hearts and minds" },
+        { name: "Conflict Resolution", desc: "Turn discord to harmony" },
+        { name: "Master Communicator", desc: "Connect deeply (UNLOCK: Next Forge)" },
+        { name: "Network Weaver", desc: "Build powerful connections" },
+        { name: "Influence", desc: "Shape collective thought" },
+        { name: "Thought Leader", desc: "Guide the conversation" },
+        { name: "Bridge Builder", desc: "Unite disparate worlds" },
+        { name: "Resonance", desc: "Vibrate truth through all" },
+        { name: "Communications Master", desc: "Perfect connection" }
+      ],
+      guardian: [
+        { name: "Vigilance", desc: "Stay alert to threats" },
+        { name: "Defense", desc: "Protect what matters" },
+        { name: "Boundaries", desc: "Define your territory" },
+        { name: "Strength", desc: "Build resilience" },
+        { name: "Strategy", desc: "Plan for all scenarios" },
+        { name: "Counterattack", desc: "Turn defense to offense" },
+        { name: "Guardian Shield", desc: "Impenetrable protection (UNLOCK: Next Forge)" },
+        { name: "Threat Neutralizer", desc: "Eliminate dangers" },
+        { name: "Sanctuary Builder", desc: "Create safe havens" },
+        { name: "Fortress Mind", desc: "Unbreakable mental defense" },
+        { name: "Protector", desc: "Guard others as yourself" },
+        { name: "Eternal Sentinel", desc: "Never-ending watch" },
+        { name: "Guardian Master", desc: "Ultimate protection" }
+      ],
+      wealth: [
+        { name: "Value Recognition", desc: "See what's valuable" },
+        { name: "Exchange", desc: "Trade energy for energy" },
+        { name: "Accumulation", desc: "Build your resources" },
+        { name: "Investment", desc: "Plant seeds for harvest" },
+        { name: "Multiplication", desc: "Grow what you have" },
+        { name: "Leverage", desc: "Use resources wisely" },
+        { name: "Wealth Generator", desc: "Create abundance (UNLOCK: Next Forge)" },
+        { name: "Empire Builder", desc: "Construct systems of value" },
+        { name: "Alchemist", desc: "Transform base to gold" },
+        { name: "Abundance Flow", desc: "Unlimited prosperity" },
+        { name: "Economic Architect", desc: "Design value systems" },
+        { name: "Infinite Wealth", desc: "Access unlimited resources" },
+        { name: "Wealth Master", desc: "Complete abundance mastery" }
+      ],
+      character: [
+        { name: "Self-Awareness", desc: "Know who you are" },
+        { name: "Values Definition", desc: "Discover what matters" },
+        { name: "Discipline", desc: "Control your actions" },
+        { name: "Growth Mindset", desc: "Embrace challenge" },
+        { name: "Virtue Development", desc: "Build your character" },
+        { name: "Integration", desc: "Become whole" },
+        { name: "Character Forge", desc: "Tempered by fire (UNLOCK: Next Forge)" },
+        { name: "Authentic Power", desc: "True strength from within" },
+        { name: "Embodiment", desc: "Live your values fully" },
+        { name: "Mastery of Self", desc: "Complete self-control" },
+        { name: "Transcendent Being", desc: "Beyond limitations" },
+        { name: "Actualization", desc: "Become fully yourself" },
+        { name: "Character Master", desc: "Perfect self-expression" }
+      ],
+      infinity: [
+        { name: "Pattern Vision", desc: "See the infinite structure" },
+        { name: "Paradox Acceptance", desc: "Hold opposites together" },
+        { name: "Quantum Thinking", desc: "Multiple states at once" },
+        { name: "Meta-Awareness", desc: "Awareness of awareness" },
+        { name: "Synthesis", desc: "Unite all perspectives" },
+        { name: "Transcendence", desc: "Beyond all boundaries" },
+        { name: "Infinity Gateway", desc: "Access the infinite (UNLOCK: Full Cycle)" },
+        { name: "Oracle Sight", desc: "See all possibilities" },
+        { name: "Cosmic Consciousness", desc: "One with everything" },
+        { name: "Divine Intelligence", desc: "Universal mind access" },
+        { name: "Eternal Now", desc: "Beyond time itself" },
+        { name: "Source Connection", desc: "Touch the infinite" },
+        { name: "Infinity Master", desc: "Complete transcendence" }
+      ]
+    };
+
+    // Get URL Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const forgeSlug = urlParams.get('forge') || 'reality';
+    const userEmail = urlParams.get('email') || localStorage.getItem('userEmail') || 'demo@test.com';
+
+    // Initialize
+    let forgeData = null;
+    let userProgress = null;
+
+    async function init() {
+      // Load forge data
+      forgeData = getForgeBySlug(forgeSlug);
+      if (!forgeData) {
+        alert('Forge not found');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Update header
+      document.getElementById('forgeIcon').textContent = forgeData.icon;
+      document.getElementById('forgeName').textContent = forgeData.name;
+      document.getElementById('forgeTagline').textContent = forgeData.tagline;
+      document.getElementById('backButton').href = `forge-lobby.html?forge=${forgeSlug}&email=${userEmail}`;
+
+      // Apply forge color scheme
+      document.documentElement.style.setProperty('--forge-color', forgeData.color);
+
+      // Load user progress
+      await loadUserProgress();
+
+      // Render levels
+      renderLevels();
+    }
+
+    async function loadUserProgress() {
+      // Set defaults first
+      userProgress = {
+        level: 3,
+        xp: 150,
+        xp_to_next: 50,
+        total_xp: 350,
+        completed_levels: [1, 2]
+      };
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const response = await fetch(`https://araya-backend.onrender.com/api/forge/progress-get?email=${userEmail}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.progress) {
+            userProgress = data.progress;
+          }
+        }
+      } catch (error) {
+        console.warn('API unavailable, using demo progress:', error.message);
+      }
+
+      // Update summary stats
+      document.getElementById('currentLevel').textContent = userProgress.level;
+      document.getElementById('totalXP').textContent = userProgress.total_xp.toLocaleString();
+
+      const totalXPNeeded = XP_REQUIREMENTS.reduce((sum, req) => sum + req.xp, 0);
+      const completionPercent = Math.floor((userProgress.total_xp / totalXPNeeded) * 100);
+      document.getElementById('completion').textContent = completionPercent + '%';
+    }
+
+    function renderLevels() {
+      const container = document.getElementById('levelsContainer');
+      const levels = LEVEL_NAMES[forgeSlug];
+
+      let html = '<div class="levels-grid">';
+
+      levels.forEach((levelData, index) => {
+        const levelNum = index + 1;
+        const xpReq = XP_REQUIREMENTS[index];
+        const isCompleted = userProgress.completed_levels.includes(levelNum);
+        const isCurrent = userProgress.level === levelNum;
+        const isAvailable = levelNum === userProgress.level || (levelNum === userProgress.level + 1 && !isCurrent);
+        const isLocked = levelNum > userProgress.level && !isCurrent;
+        const isUnlockPoint = levelNum === 7;
+
+        let cardClass = 'level-card';
+        if (isCompleted) cardClass += ' completed';
+        else if (isCurrent) cardClass += ' current';
+        else if (isAvailable) cardClass += ' available';
+        else if (isLocked) cardClass += ' locked';
+        if (isUnlockPoint) cardClass += ' unlock-point';
+
+        let statusIcon = '';
+        if (isCompleted) statusIcon = '✓';
+        else if (isCurrent) statusIcon = '⚡';
+        else if (isAvailable) statusIcon = '→';
+        else if (isLocked) statusIcon = '🔒';
+
+        let actionButton = '';
+        if (isCompleted) {
+          actionButton = `<div class="completion-badge">
+            <span>✓</span> Completed ${getCompletionDate(levelNum)}
+          </div>`;
+        } else if (isCurrent) {
+          actionButton = '<button class="level-action" onclick="continueLevel(' + levelNum + ')">Continue</button>';
+        } else if (isAvailable) {
+          actionButton = '<button class="level-action" onclick="startLevel(' + levelNum + ')">Start Level</button>';
+        } else if (isLocked) {
+          const requiredLevel = levelNum - 1;
+          actionButton = '<button class="level-action" disabled>Complete Level ' + requiredLevel + ' to unlock</button>';
+        }
+
+        let progressBar = '';
+        if (isCurrent) {
+          const currentXP = userProgress.xp;
+          const xpNeeded = xpReq.xp;
+          const progress = (currentXP / xpNeeded) * 100;
+          progressBar = `
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${progress}%"></div>
+            </div>
+            <div class="progress-text">${currentXP} / ${xpNeeded} XP (${Math.floor(progress)}%)</div>
+          `;
+        }
+
+        let unlockIndicator = '';
+        if (isUnlockPoint && !isCompleted) {
+          unlockIndicator = `
+            <div class="unlock-indicator">
+              <div class="unlock-text">🔓 UNLOCK POINT: Complete to access next Forge</div>
+            </div>
+          `;
+        }
+
+        html += `
+          <div class="${cardClass}" data-level="${levelNum}">
+            <div class="level-header">
+              <div class="level-number">Level ${levelNum}</div>
+              <div class="level-status-icon">${statusIcon}</div>
+            </div>
+            <h2 class="level-name">${levelData.name}</h2>
+            <div class="xp-info">
+              <div class="xp-badge">
+                <span class="xp-required">${xpReq.xp.toLocaleString()} XP</span>
+              </div>
+            </div>
+            ${progressBar}
+            <div class="level-description">${levelData.desc}</div>
+            ${unlockIndicator}
+            ${actionButton}
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function getCompletionDate(level) {
+      // This would come from actual completion data
+      // For now, return placeholder
+      return '';
+    }
+
+    function startLevel(level) {
+      window.location.href = `forge-workshop.html?forge=${forgeSlug}&email=${userEmail}&level=${level}`;
+    }
+
+    function continueLevel(level) {
+      window.location.href = `forge-workshop.html?forge=${forgeSlug}&email=${userEmail}&level=${level}`;
+    }
+
+    // Initialize on load
+    init();
+  </script>
+</body>
+</html>
