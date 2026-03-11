@@ -1,0 +1,167 @@
+# Sync Selected Files TO barbrickdesign/barbrickdesign.github.io
+#
+# Purpose:
+#   Keep barbrickdesign.github.io in sync with this repository for shared
+#   pages like dashboard.html that should look identical on both sites.
+#   The source of truth is this repository (consciousnessrevolution.io).
+#
+# How it works:
+#   Files listed in the job are read from the consciousness-revolution repo,
+#   domain-specific strings are substituted, and the result is committed to
+#   barbrickdesign/barbrickdesign.github.io via the GitHub API using a
+#   Personal Access Token stored as BARBRICKDESIGN_TOKEN.
+#
+# Triggers:
+#   - Push to main when dashboard.html (or this workflow) changes
+#   - Manual dispatch (for ad-hoc sync)
+#
+# Required secret:
+#   BARBRICKDESIGN_TOKEN — PAT with `contents: write` on
+#                          barbrickdesign/barbrickdesign.github.io
+#
+# Critical: NO — visual sync only; no revenue-impacting changes
+# Contact:  BarbrickDesign@gmail.com
+
+name: Sync Files to barbrickdesign.github.io
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'dashboard.html'
+      - '.github/workflows/sync-to-barbrickdesign.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report only, do not push)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Push shared pages to barbrickdesign.github.io
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for required secret
+        run: |
+          if [ -z "${{ secrets.BARBRICKDESIGN_TOKEN }}" ]; then
+            echo "::error::BARBRICKDESIGN_TOKEN secret is not set."
+            echo "::error::Add a PAT with 'contents: write' on barbrickdesign/barbrickdesign.github.io."
+            exit 1
+          fi
+          echo "✅ BARBRICKDESIGN_TOKEN is configured."
+
+      - name: Prepare adapted dashboard.html for barbrickdesign.github.io
+        run: |
+          # Start from the source-of-truth dashboard.html in this repo and
+          # replace domain-specific meta-tag attributes so the page is correct
+          # for the barbrickdesign.github.io hosting context.
+          #
+          # NOTE: The body content on line ~364 intentionally shows links to
+          # *both* sites ("Available at consciousnessrevolution.io &
+          # barbrickdesign.github.io"), so that text is left untouched.
+          sed \
+            -e 's|content="https://consciousnessrevolution\.io/dashboard\.html"|content="https://barbrickdesign.github.io/dashboard.html"|g' \
+            -e 's|content="MandemOS Agent Dashboard - Consciousness Revolution"|content="MandemOS Agent Dashboard - Barbrick Design"|g' \
+            dashboard.html > /tmp/dashboard-barbrickdesign.html
+
+          echo "--- Adapted file preview (first 80 lines) ---"
+          head -80 /tmp/dashboard-barbrickdesign.html
+
+      - name: Push dashboard.html to barbrickdesign.github.io
+        if: github.event.inputs.dry_run != 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.BARBRICKDESIGN_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const owner = 'barbrickdesign';
+            const repo  = 'barbrickdesign.github.io';
+            const filesToSync = [
+              {
+                sourcePath: '/tmp/dashboard-barbrickdesign.html',
+                destPath:   'dashboard.html',
+              },
+            ];
+
+            let pushed = 0;
+            let skipped = 0;
+            const results = [];  // Track per-file outcome for the summary
+
+            for (const { sourcePath, destPath } of filesToSync) {
+              const content = fs.readFileSync(sourcePath, 'utf8');
+              const contentBase64 = Buffer.from(content).toString('base64');
+
+              // Fetch current SHA (needed to update an existing file)
+              let sha = undefined;
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  owner, repo, path: destPath,
+                });
+                sha = data.sha;
+              } catch (err) {
+                if (err.status !== 404) throw err;
+                // File doesn't exist yet — that's fine; we'll create it.
+              }
+
+              // Compare content to avoid a no-op commit
+              if (sha) {
+                const existingBase64 = (await github.rest.repos.getContent({
+                  owner, repo, path: destPath,
+                })).data.content.replace(/\n/g, '');
+
+                if (existingBase64 === contentBase64) {
+                  console.log(`⏭️  ${destPath} — already up to date, skipping.`);
+                  skipped++;
+                  results.push([destPath, '⏭️ Already in sync']);
+                  continue;
+                }
+              }
+
+              await github.rest.repos.createOrUpdateFileContents({
+                owner,
+                repo,
+                path: destPath,
+                message: `🔄 Sync ${destPath} from consciousnessrevolution repo`,
+                content: contentBase64,
+                ...(sha ? { sha } : {}),
+                committer: {
+                  name:  'github-actions[bot]',
+                  email: 'github-actions[bot]@users.noreply.github.com',
+                },
+              });
+
+              console.log(`✅ Pushed: ${destPath}`);
+              pushed++;
+              results.push([destPath, '✅ Updated']);
+            }
+
+            core.summary.addHeading('Sync to barbrickdesign.github.io', 2);
+            core.summary.addTable([
+              [{ data: 'File', header: true }, { data: 'Result', header: true }],
+              ...results,
+            ]);
+            await core.summary.write();
+
+            console.log(`\nDone — pushed: ${pushed}, skipped: ${skipped}`);
+
+      - name: Dry-run summary
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "## 🔍 Dry-run: no files were pushed." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Files that **would** be synced:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`dashboard.html\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "To perform the actual sync, re-run this workflow with **dry run = false**." >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Dry run complete — no changes made."
