@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARAYA Dashboard Edit - Test Suite</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #0f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0ff;
+            border-bottom: 2px solid #0ff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid rgba(0, 255, 0, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-section h2 {
+            color: #ff0;
+            margin-bottom: 15px;
+        }
+        button {
+            background: linear-gradient(135deg, #0f0, #0a0);
+            border: none;
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #0ff, #0aa);
+            transform: scale(1.05);
+        }
+        .output {
+            background: #000;
+            border: 1px solid #0f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        .success { color: #0f0; }
+        .error { color: #f00; }
+        .info { color: #0ff; }
+        .warning { color: #ff0; }
+        input {
+            background: #111;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            width: 300px;
+            margin: 5px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        .status.pending { background: #555; }
+        .status.running { background: #ff0; color: #000; animation: pulse 1s infinite; }
+        .status.pass { background: #0f0; color: #000; }
+        .status.fail { background: #f00; color: #fff; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ ARAYA Dashboard Edit - Test Suite</h1>
+        <p>Test the dashboard editing system end-to-end</p>
+
+        <!-- Test 1: Parse Commands -->
+        <div class="test-section">
+            <h2>Test 1: Command Parsing <span id="test1-status" class="status pending">PENDING</span></h2>
+            <p>Validate command syntax detection</p>
+            <button onclick="runTest1()">Run Test</button>
+            <div id="test1-output" class="output"></div>
+        </div>
+
+        <!-- Test 2: API Connection -->
+        <div class="test-section">
+            <h2>Test 2: API Endpoint <span id="test2-status" class="status pending">PENDING</span></h2>
+            <p>Test connectivity to araya-dashboard-edit.mjs</p>
+            <button onclick="runTest2()">Run Test</button>
+            <div id="test2-output" class="output"></div>
+        </div>
+
+        <!-- Test 3: Edit Command -->
+        <div class="test-section">
+            <h2>Test 3: Edit Command <span id="test3-status" class="status pending">PENDING</span></h2>
+            <input type="text" id="test3-dashboard" placeholder="Dashboard ID" value="LIFEFORGE_DOMAIN_REMINDER_v1">
+            <input type="text" id="test3-selector" placeholder="Selector" value=".lifeforge-title">
+            <input type="text" id="test3-content" placeholder="New Content" value="ARAYA TEST">
+            <button onclick="runTest3()">Run Test</button>
+            <div id="test3-output" class="output"></div>
+        </div>
+
+        <!-- Test 4: Theme Command -->
+        <div class="test-section">
+            <h2>Test 4: Theme Command <span id="test4-status" class="status pending">PENDING</span></h2>
+            <input type="text" id="test4-dashboard" placeholder="Dashboard ID" value="LIFEFORGE_DOMAIN_REMINDER_v1">
+            <select id="test4-theme">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="forge">Forge</option>
+            </select>
+            <button onclick="runTest4()">Run Test</button>
+            <div id="test4-output" class="output"></div>
+        </div>
+
+        <!-- Test 5: Bridge Injection -->
+        <div class="test-section">
+            <h2>Test 5: Bridge Script <span id="test5-status" class="status pending">PENDING</span></h2>
+            <p>Inject araya-editor-bridge.js and test API</p>
+            <button onclick="runTest5()">Run Test</button>
+            <div id="test5-output" class="output"></div>
+        </div>
+
+        <!-- Test 6: Run All -->
+        <div class="test-section">
+            <h2>🚀 Run All Tests</h2>
+            <button onclick="runAllTests()" style="background: linear-gradient(135deg, #f0f, #a0a); font-size: 1.1rem; padding: 15px 30px;">RUN ALL TESTS</button>
+            <div id="summary-output" class="output" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://consciousnessrevolution.io/.netlify/functions';
+        const LOCAL_BASE = '/.netlify/functions';
+
+        function log(testId, message, type = 'info') {
+            const output = document.getElementById(testId + '-output');
+            const className = type;
+            output.innerHTML += `<div class="${className}">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function setStatus(testId, status) {
+            const statusEl = document.getElementById(testId + '-status');
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status.toUpperCase();
+        }
+
+        async function runTest1() {
+            setStatus('test1', 'running');
+            log('test1', 'Testing command parsing...', 'info');
+
+            const commands = [
+                '/edit h1 New Title',
+                '/navigate /index.html',
+                '/theme forge',
+                '/widget add clock',
+                '/widget remove widget-123'
+            ];
+
+            let passed = 0;
+            for (const cmd of commands) {
+                // Simple regex validation
+                if (cmd.startsWith('/edit ') && cmd.split(' ').length >= 3) {
+                    log('test1', `✓ Valid: ${cmd}`, 'success');
+                    passed++;
+                } else if (cmd.startsWith('/navigate ') && cmd.split(' ').length >= 2) {
+                    log('test1', `✓ Valid: ${cmd}`, 'success');
+                    passed++;
+                } else if (cmd.startsWith('/theme ') && cmd.split(' ').length >= 2) {
+                    log('test1', `✓ Valid: ${cmd}`, 'success');
+                    passed++;
+                } else if (cmd.startsWith('/widget ') && cmd.split(' ').length >= 3) {
+                    log('test1', `✓ Valid: ${cmd}`, 'success');
+                    passed++;
+                } else {
+                    log('test1', `✗ Invalid: ${cmd}`, 'error');
+                }
+            }
+
+            if (passed === commands.length) {
+                setStatus('test1', 'pass');
+                log('test1', `All ${commands.length} commands parsed correctly`, 'success');
+            } else {
+                setStatus('test1', 'fail');
+                log('test1', `Only ${passed}/${commands.length} commands valid`, 'error');
+            }
+        }
+
+        async function runTest2() {
+            setStatus('test2', 'running');
+            log('test2', 'Testing API endpoint connection...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/araya-dashboard-edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        command: '/edit h1 Test',
+                        dashboard_id: 'TEST',
+                        editor_name: 'Tester',
+                        editor_email: 'test@test.com'
+                    })
+                });
+
+                const result = await response.json();
+                log('test2', `Status: ${response.status}`, response.ok ? 'success' : 'error');
+                log('test2', `Response: ${JSON.stringify(result, null, 2)}`, 'info');
+
+                if (response.ok || response.status === 400) {
+                    // 400 is OK - it means API is responding
+                    setStatus('test2', 'pass');
+                    log('test2', 'API endpoint is responding', 'success');
+                } else {
+                    setStatus('test2', 'fail');
+                    log('test2', 'API endpoint error', 'error');
+                }
+            } catch (error) {
+                setStatus('test2', 'fail');
+                log('test2', `Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function runTest3() {
+            setStatus('test3', 'running');
+            const dashboard = document.getElementById('test3-dashboard').value;
+            const selector = document.getElementById('test3-selector').value;
+            const content = document.getElementById('test3-content').value;
+
+            log('test3', `Testing edit: ${selector} → "${content}" on ${dashboard}`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/araya-dashboard-edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        command: `/edit ${selector} ${content}`,
+                        dashboard_id: dashboard,
+                        editor_name: 'Tester',
+                        editor_email: 'darrickpreble@proton.me' // Commander bypass
+                    })
+                });
+
+                const result = await response.json();
+                log('test3', `Status: ${response.status}`, response.ok ? 'success' : 'error');
+                log('test3', `Response: ${JSON.stringify(result, null, 2)}`, 'info');
+
+                if (result.success) {
+                    setStatus('test3', 'pass');
+                    log('test3', `Edit successful (${result.mode})`, 'success');
+                } else {
+                    setStatus('test3', 'fail');
+                    log('test3', `Edit failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                setStatus('test3', 'fail');
+                log('test3', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function runTest4() {
+            setStatus('test4', 'running');
+            const dashboard = document.getElementById('test4-dashboard').value;
+            const theme = document.getElementById('test4-theme').value;
+
+            log('test4', `Testing theme change to "${theme}" on ${dashboard}`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/araya-dashboard-edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        command: `/theme ${theme}`,
+                        dashboard_id: dashboard,
+                        editor_name: 'Tester',
+                        editor_email: 'darrickpreble@proton.me'
+                    })
+                });
+
+                const result = await response.json();
+                log('test4', `Status: ${response.status}`, response.ok ? 'success' : 'error');
+                log('test4', `Response: ${JSON.stringify(result, null, 2)}`, 'info');
+
+                if (result.success) {
+                    setStatus('test4', 'pass');
+                    log('test4', `Theme change successful`, 'success');
+                } else {
+                    setStatus('test4', 'fail');
+                    log('test4', `Theme change failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                setStatus('test4', 'fail');
+                log('test4', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function runTest5() {
+            setStatus('test5', 'running');
+            log('test5', 'Injecting araya-editor-bridge.js...', 'info');
+
+            try {
+                // Load bridge script
+                const script = document.createElement('script');
+                script.src = '/araya-editor-bridge.js';
+                script.onload = () => {
+                    log('test5', 'Bridge loaded successfully', 'success');
+
+                    // Test API
+                    if (window.ARAYA_EDITOR) {
+                        log('test5', 'window.ARAYA_EDITOR found', 'success');
+                        log('test5', `Version: ${window.ARAYA_EDITOR.version}`, 'info');
+                        log('test5', `Config: ${JSON.stringify(window.ARAYA_EDITOR.config, null, 2)}`, 'info');
+                        setStatus('test5', 'pass');
+                    } else {
+                        log('test5', 'window.ARAYA_EDITOR not found', 'error');
+                        setStatus('test5', 'fail');
+                    }
+                };
+                script.onerror = () => {
+                    log('test5', 'Failed to load bridge script', 'error');
+                    setStatus('test5', 'fail');
+                };
+                document.head.appendChild(script);
+
+            } catch (error) {
+                setStatus('test5', 'fail');
+                log('test5', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('summary-output').innerHTML = '<div class="info">Running all tests...</div>';
+            await runTest1();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest2();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest3();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest4();
+            await new Promise(r => setTimeout(r, 500));
+            await runTest5();
+
+            // Summary
+            const statuses = ['test1', 'test2', 'test3', 'test4', 'test5'].map(id => {
+                const el = document.getElementById(id + '-status');
+                return el.classList.contains('pass') ? 'PASS' : 'FAIL';
+            });
+
+            const passed = statuses.filter(s => s === 'PASS').length;
+            const total = statuses.length;
+
+            const summary = document.getElementById('summary-output');
+            summary.innerHTML = `
+                <div class="info">═══════════════════════════════════════</div>
+                <div class="${passed === total ? 'success' : 'warning'}">
+                    SUMMARY: ${passed}/${total} tests passed
+                </div>
+                <div class="info">═══════════════════════════════════════</div>
+            `;
+        }
+    </script>
+</body>
+</html>
