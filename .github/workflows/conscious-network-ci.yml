@@ -1,0 +1,160 @@
+# Conscious Network CI
+#
+# Runs on every PR that touches conscious-network/ or this workflow.
+# Steps:
+#   1. Unit + integration tests (no external deps needed)
+#   2. Docker build (no push unless secrets configured)
+#   3. Basic integration smoke test inside the built image
+
+name: Conscious Network CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'conscious-network/**'
+      - '.github/workflows/conscious-network-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'conscious-network/**'
+      - '.github/workflows/conscious-network-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  NODE_VERSION: '20'
+  IMAGE_NAME: conscious-network
+
+jobs:
+  # ── Unit + Integration Tests ──────────────────────────────────────────────
+  test:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['18', '20']
+    defaults:
+      run:
+        working-directory: conscious-network
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Run unit tests
+        run: node scripts/run-all-tests.js --unit
+
+      - name: Run integration tests
+        run: node integration.test.js
+
+  # ── Docker Build ──────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./conscious-network
+          file: ./conscious-network/Dockerfile
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Smoke test — agents start and healthcheck passes
+        run: |
+          # Start the container in background
+          docker run -d \
+            --name cn-smoke \
+            -p 3100:3100 \
+            -p 3102:3102 \
+            -e LOG_LEVEL=info \
+            ${{ env.IMAGE_NAME }}:latest
+
+          # Wait for startup (max 20s)
+          echo "Waiting for Communication Agent to become healthy..."
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3100/health > /dev/null 2>&1; then
+              echo "Health check passed on attempt $i"
+              break
+            fi
+            sleep 1
+          done
+
+          # Verify health endpoint
+          HEALTH=$(curl -sf http://localhost:3100/health)
+          echo "Health response: $HEALTH"
+          echo "$HEALTH" | grep -q '"status":"ok"'
+
+          # Send a test message
+          RESP=$(curl -sf -X POST http://localhost:3100/api/message \
+            -H 'Content-Type: application/json' \
+            -d '{"text":"CI smoke test message"}')
+          echo "Message response: $RESP"
+          echo "$RESP" | grep -q '"accepted":true'
+
+          # Check learning endpoint
+          LEARN=$(curl -sf "http://localhost:3102/learning/query?prefix=learning.")
+          echo "Learning response: $LEARN"
+
+          # Cleanup
+          docker stop cn-smoke
+          docker rm cn-smoke
+
+  # ── PR Comment (summary) ─────────────────────────────────────────────────
+  pr-comment:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [test, docker-build]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count tests
+        id: count
+        working-directory: conscious-network
+        run: |
+          count=$(grep -r "^function test\b\|^test(" --include="*.test.js" | wc -l)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testCount = '${{ steps.count.outputs.count }}';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                '## ✅ Conscious Network CI — All Checks Passed',
+                '',
+                '| Check | Status |',
+                '|-------|--------|',
+                '| Unit tests (Node 18) | ✅ |',
+                '| Unit tests (Node 20) | ✅ |',
+                '| Integration tests   | ✅ |',
+                '| Docker build        | ✅ |',
+                '| Smoke test          | ✅ |',
+                '',
+                `~${testCount} test cases across 7 agents + core.`,
+              ].join('\n')
+            });
