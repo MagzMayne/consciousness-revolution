@@ -1,0 +1,172 @@
+# Daily Sync: barbrickdesign.github.io → consciousness-revolution
+#
+# Purpose: Keep this repository in sync with https://barbrickdesign.github.io
+#          by detecting and importing any new files added to
+#          barbrickdesign/barbrickdesign.github.io that are not yet present here.
+#
+# Philosophy: ADDITIVE ONLY — existing files are never modified or deleted.
+#
+# Triggers: Daily at 02:00 UTC, plus manual dispatch
+# Critical: NO — informational/additive sync only; no revenue-impacting changes
+# Contact:  BarbrickDesign@gmail.com
+
+name: Daily Sync from barbrickdesign.github.io
+
+on:
+  schedule:
+    # Run every day at 02:00 UTC (off-peak hours)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report only, do not commit)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  sync:
+    name: Sync from barbrickdesign.github.io
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run sync script
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node .github/scripts/sync-barbrickdesign.js
+
+      - name: Read sync report
+        id: report
+        run: |
+          if [ -f ".github/scripts/barbrickdesign-sync-report.json" ]; then
+            ADDED=$(node -e "const r=require('./.github/scripts/barbrickdesign-sync-report.json'); console.log(r.added.length)")
+            ERRORS=$(node -e "const r=require('./.github/scripts/barbrickdesign-sync-report.json'); console.log(r.errors.length)")
+            echo "added_count=$ADDED" >> $GITHUB_OUTPUT
+            echo "error_count=$ERRORS" >> $GITHUB_OUTPUT
+            echo "Added: $ADDED new file(s), Errors: $ERRORS"
+          else
+            echo "added_count=0" >> $GITHUB_OUTPUT
+            echo "error_count=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit new files
+        if: steps.report.outputs.added_count != '0' && github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage all new files (never stage deletions)
+          git add --all
+
+          # Only commit if there are staged changes
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            ADDED="${{ steps.report.outputs.added_count }}"
+            git commit -m "🔄 Daily sync: +${ADDED} file(s) from barbrickdesign.github.io [skip ci]"
+            git push
+            echo "✅ Committed and pushed $ADDED new file(s)"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update projects.json for new HTML files
+        if: steps.report.outputs.added_count != '0' && github.event.inputs.dry_run != 'true'
+        run: |
+          # Only run project feed update if new HTML files were added
+          NEW_HTML=$(node -e "
+            const r = require('./.github/scripts/barbrickdesign-sync-report.json');
+            const htmlFiles = r.added.filter(f => f.endsWith('.html'));
+            console.log(htmlFiles.length);
+          ")
+
+          if [ "$NEW_HTML" -gt "0" ]; then
+            echo "📦 $NEW_HTML new HTML project(s) found — updating project feed..."
+
+            node .github/scripts/scan-projects.js || true
+            node .github/scripts/update-projects-json.js || true
+            node .github/scripts/update-readme.js || true
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            git add projects.json README.md .github/scripts/scanned-projects.json .github/scripts/recent-projects.json 2>/dev/null || true
+
+            if ! git diff --cached --quiet; then
+              git commit -m "📦 Update project feed: +${NEW_HTML} HTML project(s) from barbrickdesign [skip ci]"
+              git push
+              echo "✅ Project feed updated"
+            else
+              echo "ℹ️  No project feed changes needed"
+            fi
+          else
+            echo "ℹ️  No new HTML files — skipping project feed update"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## 🔄 Daily Sync Summary — barbrickdesign.github.io" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f ".github/scripts/barbrickdesign-sync-report.json" ]; then
+            ADDED="${{ steps.report.outputs.added_count }}"
+            ERRORS="${{ steps.report.outputs.error_count }}"
+            TIMESTAMP=$(node -e "const r=require('./.github/scripts/barbrickdesign-sync-report.json'); console.log(r.timestamp)")
+            EXISTING=$(node -e "const r=require('./.github/scripts/barbrickdesign-sync-report.json'); console.log(r.skipped_existing.length)")
+
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ New files added | $ADDED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏭️  Already in sync | $EXISTING |" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$ERRORS" -gt "0" ]; then
+              echo "| ❌ Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_Sync completed at: $TIMESTAMP_" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$ADDED" -gt "0" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 🆕 New Files Added" >> $GITHUB_STEP_SUMMARY
+              node -e "
+                const r = require('./.github/scripts/barbrickdesign-sync-report.json');
+                r.added.forEach(f => console.log('- \`' + f + '\`'));
+              " >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️  No sync report generated." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> ℹ️  **Dry-run mode** — no files were committed." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if sync errors occurred
+        if: steps.report.outputs.error_count != '0'
+        run: |
+          echo "❌ Sync completed with ${{ steps.report.outputs.error_count }} error(s)"
+          exit 1
