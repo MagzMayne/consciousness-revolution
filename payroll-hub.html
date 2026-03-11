@@ -884,7 +884,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             <span class="info-box-icon">🔒</span>
             <div class="info-box-body">
                 <h4>Secure Data Entry</h4>
-                <p>Banking information is stored encrypted and is never exposed in plain text after submission. Only Commander-level accounts can view or modify routing and account numbers. All data transmissions use HTTPS/TLS encryption.</p>
+                <p>Banking information is <strong>masked for display</strong> (only the last 4 digits are retained) and stored in <strong>sessionStorage</strong> only — cleared automatically when the browser tab is closed. Plain-text numbers exist solely in memory during form processing and are never written to persistent storage. All data transmissions should use HTTPS/TLS encryption.</p>
             </div>
         </div>
 
@@ -1320,6 +1320,51 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 </div>
 
 <!-- ════════════════════════════════════════
+     EDIT RATE MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="edit-rate-modal" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('edit-rate-modal')" aria-label="Close edit rate dialog">×</button>
+        <h2 id="modal-edit-title">✏️ Edit Pay Rate</h2>
+        <p id="edit-rate-member-label" style="color:var(--text-muted); margin-bottom:18px;"></p>
+        <form id="edit-rate-form" novalidate>
+            <input type="hidden" id="edit-rate-member-id">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label for="edit-rate-value">New Pay Rate (USD per period) *</label>
+                <input type="number" id="edit-rate-value" required min="0" step="0.01" placeholder="0.00" aria-label="New pay rate in US dollars">
+            </div>
+            <div class="btn-row">
+                <button type="submit" class="btn-primary" aria-label="Save updated pay rate">💾 Save Rate</button>
+                <button type="button" class="btn-secondary" onclick="closeModal('edit-rate-modal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     QUICK PAY CONFIRM MODAL
+════════════════════════════════════════ -->
+<div class="modal-overlay" id="quick-pay-modal" role="dialog" aria-modal="true" aria-labelledby="modal-qp-title">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('quick-pay-modal')" aria-label="Close quick pay dialog">×</button>
+        <h2 id="modal-qp-title">💸 Confirm Quick Pay</h2>
+        <p id="quick-pay-summary" style="color:var(--text-muted); margin-bottom:20px; line-height:1.6;"></p>
+        <input type="hidden" id="quick-pay-member-id">
+        <div class="info-box warn" style="margin-bottom:20px;">
+            <span class="info-box-icon">⚠️</span>
+            <div class="info-box-body">
+                <h4>Confirm Payment</h4>
+                <p>This will record an immediate payment for this member. Verify the amount is correct before confirming.</p>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-primary" onclick="executeQuickPay()" aria-label="Confirm quick payment">✅ Confirm Payment</button>
+            <button class="btn-secondary" onclick="closeModal('quick-pay-modal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════
      PAY CONFIRM MODAL
 ════════════════════════════════════════ -->
 <div class="modal-overlay" id="pay-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="modal-pay-title">
@@ -1370,7 +1415,7 @@ let state = {
     team: [...DEFAULT_TEAM],
     history: [...DEFAULT_HISTORY],
     schedule: { freq: 'biweekly', startDate: '', cutoff: 'friday', method: 'direct-deposit', currency: 'USD' },
-    bankingInfo: {},   // keyed by member id — never stores plain numbers after page load
+    bankingInfo: {},   // keyed by member id — stores only masked (last-4) display values; plain numbers are cleared from memory after form processing
 };
 
 // ── Load / save state ──
@@ -1452,8 +1497,22 @@ function renderTeam(filter = '') {
     updateStats();
 }
 
-// ── Filter team ──
-function filterTeam(val) { renderTeam(val); }
+// ── Routing number ABA checksum validation ──
+// Uses the standard modulus-10 checksum: 3(d1+d4+d7) + 7(d2+d5+d8) + (d3+d6+d9) ≡ 0 (mod 10)
+function isValidRoutingNumber(r) {
+    if (!/^\d{9}$/.test(r)) return false;
+    const d = r.split('').map(Number);
+    const sum = 3 * (d[0] + d[3] + d[6]) + 7 * (d[1] + d[4] + d[7]) + (d[2] + d[5] + d[8]);
+    return sum % 10 === 0;
+}
+
+// ── Estimated net pay (placeholder — actual withholding requires W-4 data) ──
+// This is a rough 15% estimate (≈7.65% FICA + ~7.35% federal income tax placeholder).
+// Real withholding depends on the employee's W-4 filing status, allowances, and the IRS
+// Publication 15-T withholding tables. Use a certified payroll service for accurate figures.
+function estimateNetPay(gross) {
+    return gross * 0.85;
+}
 
 // ── Render run table ──
 function renderRunTable() {
@@ -1461,7 +1520,7 @@ function renderRunTable() {
     if (!tbody) return;
     tbody.innerHTML = state.team.filter(m => m.status === 'active').map(m => {
         const gross = m.rate;
-        const net   = gross * 0.85; // simplified 15% withholding estimate
+        const net   = estimateNetPay(gross); // Placeholder estimate — see estimateNetPay() for accuracy note
         return `<tr>
             <td><input type="checkbox" class="run-check" data-id="${m.id}" data-gross="${gross}" data-net="${net.toFixed(2)}"
                        onchange="updateRunTotals()" aria-label="Include ${escHtml(m.name)} in payroll run"></td>
@@ -1623,6 +1682,7 @@ document.getElementById('direct-deposit-form').addEventListener('submit', functi
     if (!memberId)  return showToast('❌ Please select a team member.', 'error');
     if (!bankName)  return showToast('❌ Please enter the bank name.', 'error');
     if (!/^\d{9}$/.test(routing))   return showToast('❌ Routing number must be exactly 9 digits.', 'error');
+    if (!isValidRoutingNumber(routing)) return showToast('❌ Invalid routing number (checksum failed). Please double-check.', 'error');
     if (!/^\d{4,17}$/.test(account)) return showToast('❌ Account number must be 4–17 digits.', 'error');
     if (account !== confirm)        return showToast('❌ Account numbers do not match.', 'error');
     if (!acctType)  return showToast('❌ Please select account type.', 'error');
@@ -1684,21 +1744,33 @@ document.getElementById('add-member-form').addEventListener('submit', function(e
     showToast(`✅ ${name} added to core team.`, 'success');
 });
 
-// ── Edit member (simplified inline) ──
+// ── Edit member — uses modal instead of prompt() ──
 function editMember(id) {
     const m = state.team.find(t => t.id === id);
     if (!m) return;
-    const newRate = prompt(`Edit pay rate for ${m.name} (current: $${m.rate}):`, m.rate);
-    if (newRate === null) return;
-    const parsed = parseFloat(newRate);
-    if (isNaN(parsed) || parsed < 0) { showToast('❌ Invalid rate.', 'error'); return; }
-    m.rate = parsed;
-    saveState();
-    renderTeam();
-    showToast(`✅ Rate updated for ${m.name}.`, 'success');
+    document.getElementById('edit-rate-member-id').value = id;
+    document.getElementById('edit-rate-value').value     = m.rate;
+    document.getElementById('edit-rate-member-label').textContent = `Member: ${m.name} — current rate: ${fmt(m.rate)}`;
+    openModal('edit-rate-modal');
 }
 
-// ── Quick pay single member ──
+document.getElementById('edit-rate-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id     = document.getElementById('edit-rate-member-id').value;
+    const parsed = parseFloat(document.getElementById('edit-rate-value').value);
+    if (isNaN(parsed) || parsed < 0) { showToast('❌ Please enter a valid pay rate.', 'error'); return; }
+    const m = state.team.find(t => t.id === id);
+    if (m) {
+        m.rate = parsed;
+        saveState();
+        renderTeam();
+        updateStats();
+        showToast(`✅ Rate updated for ${m.name}.`, 'success');
+    }
+    closeModal('edit-rate-modal');
+});
+
+// ── Quick pay single member — uses modal instead of confirm() ──
 function quickPay(id) {
     const m = state.team.find(t => t.id === id);
     if (!m) return;
@@ -1707,9 +1779,22 @@ function quickPay(id) {
         showTab('deposit', document.getElementById('btn-deposit'));
         return;
     }
-    if (!confirm(`Pay ${m.name} ${fmt(m.rate)} for this pay period?`)) return;
-    addHistoryRecord([m], 'Quick Pay');
-    showToast(`✅ Payment of ${fmt(m.rate)} processed for ${m.name}.`, 'success');
+    document.getElementById('quick-pay-member-id').value = id;
+    document.getElementById('quick-pay-summary').innerHTML =
+        `<strong>Member:</strong> ${escHtml(m.name)}<br>
+         <strong>Role:</strong> ${escHtml(m.role)}<br>
+         <strong>Amount:</strong> ${fmt(m.rate)} (gross)`;
+    openModal('quick-pay-modal');
+}
+
+function executeQuickPay() {
+    const id = document.getElementById('quick-pay-member-id').value;
+    const m  = state.team.find(t => t.id === id);
+    if (m) {
+        addHistoryRecord([m], 'Quick Pay');
+        showToast(`✅ Payment of ${fmt(m.rate)} processed for ${m.name}.`, 'success');
+    }
+    closeModal('quick-pay-modal');
 }
 
 // ── Confirm pay run ──
@@ -1755,7 +1840,7 @@ function addHistoryRecord(members, type) {
     members.forEach(m => {
         const gross = m.rate;
         const adj   = parseFloat(document.querySelector(`.run-adj[data-id="${m.id}"]`)?.value || 0);
-        const net   = gross * 0.85 + adj;
+        const net   = estimateNetPay(gross) + adj; // Placeholder — see estimateNetPay() for accuracy note
         state.history.unshift({
             memberId: m.id,
             memberName: m.name,
