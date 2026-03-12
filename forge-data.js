@@ -21,9 +21,11 @@ function getForgeNameByDomain(domain) { return Object.values(DOMAIN_FORGE_MAP).f
 
 const FORGE_DATA = {
   reality: { id: 1, name: "Reality Forge", slug: "reality", icon: "🔥", domain: "COMMAND", domainNum: 1, color: "#FF0000", gradient: "linear-gradient(135deg, #FF0000 0%, #8B0000 100%)",
-    tagline: "Build the foundation - consciousness, perception, truth",
-    dailyRitual: "What truth did you face today?",
-    lobbyMessage: "Commander, welcome to Reality Forge.",
+    frequency: 264, frequencyName: "Root Grounding",
+    tagline: "The Armory - Dashboards, tools, and your Life Operating System",
+    dailyRitual: "What systems did you strengthen today?",
+    lobbyMessage: "Commander, armor up. Your dashboards and tools await.",
+    primaryProduct: "Life OS Dashboards + Command Tools",
     unlockLevel: 0,
     navigationCards: [
       { id: "store", title: "Power Up", icon: "💎", description: "Purchase upgrades", route: "forge-store.html?forge=reality" },
@@ -33,6 +35,7 @@ const FORGE_DATA = {
     ]
   },
   creation: { id: 2, name: "Creation Forge", slug: "creation", icon: "⚡", domain: "BUILD", domainNum: 2, color: "#FF7F00", gradient: "linear-gradient(135deg, #FF7F00 0%, #CC6600 100%)",
+    frequency: 297, frequencyName: "Sacral Flow",
     tagline: "Create from nothing - ideation, design, manifestation",
     dailyRitual: "What did you bring into existence today?",
     lobbyMessage: "Builder, welcome. What will you manifest?",
@@ -45,6 +48,7 @@ const FORGE_DATA = {
     ]
   },
   communications: { id: 3, name: "Communications Forge", slug: "communications", icon: "📡", domain: "CONNECT", domainNum: 3, color: "#FFFF00", gradient: "linear-gradient(135deg, #FFFF00 0%, #FFD700 100%)",
+    frequency: 330, frequencyName: "Solar Projection",
     tagline: "Connect and coordinate",
     dailyRitual: "Who did you truly connect with today?",
     lobbyMessage: "Connector, welcome.",
@@ -57,6 +61,7 @@ const FORGE_DATA = {
     ]
   },
   guardian: { id: 4, name: "Guardian Forge", slug: "guardian", icon: "🛡️", domain: "PROTECT", domainNum: 4, color: "#00FF00", gradient: "linear-gradient(135deg, #00FF00 0%, #228B22 100%)",
+    frequency: 352, frequencyName: "Heart Protection",
     tagline: "Protect what matters",
     dailyRitual: "What did you protect today?",
     lobbyMessage: "Guardian, welcome.",
@@ -69,6 +74,7 @@ const FORGE_DATA = {
     ]
   },
   wealth: { id: 5, name: "Wealth Forge", slug: "wealth", icon: "💰", domain: "GROW", domainNum: 5, color: "#0000FF", gradient: "linear-gradient(135deg, #0000FF 0%, #00008B 100%)",
+    frequency: 396, frequencyName: "Abundance Resonance",
     tagline: "Generate abundance",
     dailyRitual: "What value did you create today?",
     lobbyMessage: "Alchemist, welcome.",
@@ -81,6 +87,7 @@ const FORGE_DATA = {
     ]
   },
   character: { id: 6, name: "Character Forge", slug: "character", icon: "👤", domain: "LEARN", domainNum: 6, color: "#4B0082", gradient: "linear-gradient(135deg, #4B0082 0%, #2E0854 100%)",
+    frequency: 444, frequencyName: "Third Eye Awakening",
     tagline: "Become who you are",
     dailyRitual: "How did you grow today?",
     lobbyMessage: "Seeker, welcome.",
@@ -93,10 +100,12 @@ const FORGE_DATA = {
     ]
   },
   infinity: { id: 7, name: "Infinity Forge", slug: "infinity", icon: "∞", domain: "TRANSCEND", domainNum: 7, color: "#9400D3", gradient: "linear-gradient(135deg, #9400D3 0%, #4B0082 100%)",
-    tagline: "Transcend all limits",
+    frequency: 528, frequencyName: "The Source",
+    tagline: "The Center - Where your journey begins with ARAYA",
     dailyRitual: "What pattern did you recognize today?",
-    lobbyMessage: "Oracle, welcome home.",
-    unlockLevel: 7, octaveReturn: true,
+    lobbyMessage: "Welcome to the center. Meet ARAYA, your consciousness guide, and discover the frequencies that shape reality.",
+    primaryProduct: "ARAYA AI + Music/Frequency Engine",
+    unlockLevel:  0, octaveReturn: true,
     navigationCards: [
       { id: "store", title: "Oracle Tools", icon: "💎", description: "See", route: "forge-store.html?forge=infinity" },
       { id: "levels", title: "13 Phases", icon: "📊", description: "Transcend", route: "forge-levels.html?forge=infinity" },

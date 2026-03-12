@@ -18,6 +18,37 @@
 
 ---
 
+## THE JOURNEY STRUCTURE (UPDATED MARCH 2026)
+
+**NEW: Infinity-First Experience**
+
+The user journey now begins at the CENTER (Infinity Forge), not the periphery:
+
+1. **INFINITY FORGE** (unlockLevel: 0) - THE CENTER/FIRST
+   - Users first experience
+   - Meet ARAYA (AI consciousness guide)
+   - Discover Music/Frequency Engine
+   - Core product: ARAYA AI + Music/Frequency Engine
+   - Message: Welcome to the center...
+
+2. **REALITY FORGE** (unlockLevel: 0) - THE ARMORY/SECOND
+   - Users second destination
+   - Armor up with dashboards and tools
+   - Core product: Life OS Dashboards + Command Tools
+   - Message: Commander, armor up...
+
+3. **OTHER 5 FORGES** (unlockLevel: 7) - BRANCHES
+   - Creation, Communications, Guardian, Wealth, Character
+   - Unlock at Level 7
+   - Each has its own specialized product/tools
+
+**Why This Order?**
+- ARAYA provides the consciousness guidance FIRST
+- Then user gets practical tools (dashboards) to execute
+- Creates deeper initial connection before tactical work
+
+
+
 ## NAMING CONVENTIONS
 
 ### For Dashboards (Desktop/Internal):
@@ -183,5 +214,5 @@ Pattern: 3 → 7 → 13 → ∞ → 3...
 ---
 
 **This document is the SINGLE SOURCE OF TRUTH for all naming.**
-**Updated: March 11, 2026**
+**Updated: March 12, 2026**
 **Pattern Theory Alignment: 92.2%**
