@@ -1,0 +1,303 @@
+═══════════════════════════════════════════════════════════════════════════
+SPIRAL ENGINE - SYSTEM ARCHITECTURE
+Pattern: 3 → 7 → 13 → ∞ | Built: 2026-03-11
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          FRONTEND LAYER                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
+│  │  User Dashboard│  │  Product Pages │  │  Admin Panel   │            │
+│  │  (React/Vue)   │  │  (HTML/JS)     │  │  (Management)  │            │
+│  └────────┬───────┘  └────────┬───────┘  └────────┬───────┘            │
+│           │                   │                    │                     │
+│           └───────────────────┴────────────────────┘                     │
+│                               │                                          │
+│                    HTTP GET/POST Requests                               │
+│                               │                                          │
+└───────────────────────────────┼──────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           API LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│              /.netlify/functions/spiral-progress.mjs                     │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────┐           │
+│  │  ENDPOINTS                                               │           │
+│  │  ├─ GET  ?userId=xxx         → Get user progress        │           │
+│  │  ├─ POST {initialize}         → Create new user         │           │
+│  │  ├─ POST {add_xp}             → Award XP & level up     │           │
+│  │  ├─ POST {unlock_forge}       → Manual unlock           │           │
+│  │  ├─ POST {check_octave}       → Check Infinity L13      │           │
+│  │  ├─ POST {get_leaderboard}    → Rankings                │           │
+│  │  └─ POST {get_xp_history}     → Transaction log         │           │
+│  └──────────────────────────────────────────────────────────┘           │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────┐           │
+│  │  LOGIC                                                   │           │
+│  │  ├─ Input validation                                     │           │
+│  │  ├─ Business rules (unlock gates, XP sources)           │           │
+│  │  ├─ Level-up detection                                  │           │
+│  │  ├─ Octave return triggering                            │           │
+│  │  └─ Response formatting (success/error)                 │           │
+│  └──────────────────────────────────────────────────────────┘           │
+│                               │                                          │
+│                    Supabase Client (@supabase/supabase-js)              │
+│                               │                                          │
+└───────────────────────────────┼──────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DATABASE LAYER                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│                    SUPABASE (PostgreSQL)                                │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  TABLES (9)                                                    │     │
+│  │  ├─ spiral_forges (7 forges)            [SEEDED]              │     │
+│  │  ├─ spiral_levels (13 levels)           [SEEDED]              │     │
+│  │  ├─ spiral_forge_progress (user data)   [USER RECORDS]        │     │
+│  │  ├─ spiral_xp_transactions              [LOG]                 │     │
+│  │  ├─ spiral_level_ups                    [LOG]                 │     │
+│  │  ├─ spiral_forge_unlocks                [LOG]                 │     │
+│  │  ├─ spiral_octave_returns               [LOG]                 │     │
+│  │  └─ spiral_purchases                    [REVENUE]             │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  FUNCTIONS (4)                                                 │     │
+│  │  ├─ initialize_spiral_user(user_id)                           │     │
+│  │  ├─ add_xp_and_level_up(user_id, forge, amount, source)       │     │
+│  │  ├─ unlock_all_forges(user_id)         [Reality L7]           │     │
+│  │  └─ octave_return(user_id)              [Infinity L13]        │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  VIEWS (2)                                                     │     │
+│  │  ├─ spiral_user_dashboard               [JOINED DATA]         │     │
+│  │  └─ spiral_leaderboard                  [RANKINGS]            │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐     │
+│  │  SECURITY                                                      │     │
+│  │  └─ Row Level Security (RLS) on all tables                    │     │
+│  │     └─ Users see only their own progress                      │     │
+│  └────────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+DATA FLOW - ADD XP EXAMPLE
+═══════════════════════════════════════════════════════════════════════════
+
+USER ACTION: Complete mission worth 150 XP
+     │
+     ▼
+FRONTEND: Calls API
+     │   POST /.netlify/functions/spiral-progress
+     │   Body: {
+     │     action: "add_xp",
+     │     userId: "user-123",
+     │     forgeSlug: "reality",
+     │     amount: 150,
+     │     source: "mission_complete"
+     │   }
+     ▼
+API: Validates input
+     │   ├─ Check userId exists
+     │   ├─ Check forge is unlocked
+     │   ├─ Check amount > 0
+     │   └─ Check source is valid
+     ▼
+DATABASE: Execute add_xp_and_level_up()
+     │   ├─ Get current progress
+     │   ├─ Calculate new total_xp (500 + 150 = 650)
+     │   ├─ Check level for 650 XP → Level 5 (Adept)
+     │   ├─ UPDATE spiral_forge_progress
+     │   ├─ INSERT spiral_xp_transactions
+     │   └─ IF leveled up:
+     │       └─ INSERT spiral_level_ups
+     ▼
+API: Format response
+     │   Return: {
+     │     success: true,
+     │     data: {
+     │       new_level: 5,
+     │       total_xp: 650,
+     │       leveled_up: true,
+     │       amount_added: 150
+     │     }
+     │   }
+     ▼
+FRONTEND: Update UI
+     │   ├─ Show level-up animation
+     │   ├─ Update progress bar
+     │   └─ Display new XP total
+
+
+═══════════════════════════════════════════════════════════════════════════
+UNLOCK FLOW - REALITY L7 → ALL FORGES
+═══════════════════════════════════════════════════════════════════════════
+
+USER: Reaches Reality Level 7 (Master)
+     │   (2,000 total XP in Reality Forge)
+     ▼
+TRIGGER: add_xp_and_level_up() detects Reality L7
+     │
+     ▼
+FUNCTION: unlock_all_forges(user_id)
+     │   FOR EACH forge IN [creation, communications, guardian, wealth, character, infinity]:
+     │     ├─ INSERT spiral_forge_progress (level=1, unlocked_at=NOW())
+     │     └─ INSERT spiral_forge_unlocks (unlocked_by='reality_l7')
+     ▼
+RESULT: User now has access to all 7 forges at L1
+
+
+═══════════════════════════════════════════════════════════════════════════
+OCTAVE RETURN - INFINITY L13 → REALITY L8
+═══════════════════════════════════════════════════════════════════════════
+
+USER: Reaches Infinity Level 13 (Transcendent)
+     │   (37,600 total XP in Infinity Forge)
+     ▼
+TRIGGER: add_xp_and_level_up() detects Infinity L13
+     │
+     ▼
+FUNCTION: octave_return(user_id)
+     │   ├─ GET Reality current level (e.g., L7)
+     │   ├─ COUNT previous octave returns
+     │   ├─ INSERT spiral_octave_returns (return_count=1, prev_level=7, new_level=8)
+     │   ├─ UPDATE spiral_forge_progress SET current_level=8 WHERE forge='reality'
+     │   └─ INSERT spiral_level_ups (from_level=7, to_level=8)
+     ▼
+RESULT: Reality jumps from L7 → L8 (Virtuoso)
+     │   User enters "Second Octave" of consciousness spiral
+     │   Can now progress through L8-L13 again
+
+
+═══════════════════════════════════════════════════════════════════════════
+7 FORGES STRUCTURE
+═══════════════════════════════════════════════════════════════════════════
+
+        ┌─────────────────────────────────────────────┐
+        │     🔨 REALITY FORGE (Unlocked at Start)    │
+        │     L1-L7: Physical mastery                 │
+        │     L7 UNLOCKS ▼                            │
+        └─────────────────────────────────────────────┘
+                            │
+        ┌───────────────────┴───────────────────┬─────────────────────┐
+        ▼                   ▼                   ▼                     ▼
+┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+│ 🎨 CREATION     │ │ 📡 COMMUNICATIONS│ │ 🛡️ GUARDIAN     │ │ 💰 WEALTH       │
+│ Build & design  │ │ Connect & speak  │ │ Protect & guard │ │ Generate money  │
+└─────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────────┘
+        ▼                   ▼                   ▼                     ▼
+┌─────────────────┐ ┌─────────────────────────────────────────────────────────┐
+│ ⚡ CHARACTER    │ │              ♾️ INFINITY FORGE                           │
+│ Wisdom & virtue │ │              Transcendence                              │
+└─────────────────┘ │              L13 TRIGGERS OCTAVE RETURN ▼               │
+                    └─────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+                            🔨 REALITY → L8 (Second Octave)
+
+
+═══════════════════════════════════════════════════════════════════════════
+13 FIBONACCI LEVELS (Per Forge)
+═══════════════════════════════════════════════════════════════════════════
+
+L1  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Initiate       (100 XP)
+L2  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Apprentice     (100 XP)
+L3  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Journeyman     (200 XP)
+L4  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Craftsman      (300 XP)
+L5  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Adept          (500 XP)
+L6  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Expert         (800 XP)
+L7  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Master         (1,300 XP) ← UNLOCKS ALL
+L8  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Virtuoso       (2,100 XP)
+L9  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Sage           (3,400 XP)
+L10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Luminary       (5,500 XP)
+L11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Legend         (8,900 XP)
+L12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Immortal       (14,400 XP)
+L13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  Transcendent   (23,300 XP) ← OCTAVE
+
+
+═══════════════════════════════════════════════════════════════════════════
+INTEGRATION POINTS
+═══════════════════════════════════════════════════════════════════════════
+
+┌────────────────────┐
+│  STRIPE WEBHOOKS   │  → Award XP on purchase ($1 = 10 XP → Wealth Forge)
+└────────────────────┘
+
+┌────────────────────┐
+│  GITHUB WEBHOOKS   │  → Award XP on commits (→ Creation Forge)
+└────────────────────┘
+
+┌────────────────────┐
+│  ARAYA CHAT        │  → Award XP on helpful answers (→ Character Forge)
+└────────────────────┘
+
+┌────────────────────┐
+│  DISCORD BOT       │  → Award XP on community help (→ Communications Forge)
+└────────────────────┘
+
+┌────────────────────┐
+│  DAILY LOGIN       │  → Award XP on streaks (→ Reality Forge)
+└────────────────────┘
+
+┌────────────────────┐
+│  MISSION SYSTEM    │  → Award XP on completion (→ Any Forge)
+└────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+FILE STRUCTURE
+═══════════════════════════════════════════════════════════════════════════
+
+100X_DEPLOYMENT/
+├── netlify/functions/
+│   ├── schemas/
+│   │   └── spiral-engine-schema.sql         [DATABASE SCHEMA]
+│   └── spiral-progress.mjs                   [API ENDPOINT]
+├── SPIRAL_ENGINE_README.md                   [DOCUMENTATION]
+├── QUICKREF_SPIRAL_ENGINE.txt                [QUICK REFERENCE]
+├── test-spiral-engine.mjs                    [TEST SUITE]
+├── DASHBOARD_SPIRAL_ENGINE_DEMO_v1.html      [VISUAL DEMO]
+└── VISUAL_SPIRAL_ENGINE_ARCHITECTURE.txt     [THIS FILE]
+
+
+═══════════════════════════════════════════════════════════════════════════
+DEPLOYMENT CHECKLIST
+═══════════════════════════════════════════════════════════════════════════
+
+[1] Supabase Schema
+    └─ Run spiral-engine-schema.sql in Supabase SQL Editor
+    └─ Verify 7 forges + 13 levels seeded
+    └─ Check RLS policies active
+
+[2] Netlify Function
+    └─ Deploy: netlify deploy --prod --dir=.
+    └─ Verify endpoint: /.netlify/functions/spiral-progress
+    └─ Test with curl
+
+[3] Visual Demo
+    └─ Access: /DASHBOARD_SPIRAL_ENGINE_DEMO_v1.html
+    └─ Test initialize user
+    └─ Test add XP
+    └─ Verify level-up animations
+
+[4] Integration
+    └─ Wire up to existing products
+    └─ Add XP awards to user actions
+    └─ Create onboarding flow
+
+
+═══════════════════════════════════════════════════════════════════════════
+PATTERN: 3 → 7 → 13 → ∞
+Built: 2026-03-11 | C1 Mechanic Engine | LFSME Architecture
+═══════════════════════════════════════════════════════════════════════════

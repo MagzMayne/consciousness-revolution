@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Engine - 7 Forges Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .controls button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+        }
+
+        .stats-header {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .forges-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .forge-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid;
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .forge-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .forge-card.locked {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .forge-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .forge-icon {
+            font-size: 2rem;
+        }
+
+        .forge-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .forge-level {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .level-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .level-name {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .xp-bar-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, currentColor 100%);
+        }
+
+        .xp-text {
+            text-align: right;
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .actions button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .actions button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .octave-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .level-up-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 60px;
+            border-radius: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: levelUpPop 1.5s ease-out;
+        }
+
+        @keyframes levelUpPop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            10% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ SPIRAL ENGINE ⚡</h1>
+        <p class="subtitle">7 Forges • 13 Levels • ∞ Potential</p>
+
+        <div class="controls">
+            <input type="text" id="userId" placeholder="Enter User ID" value="demo-user-123">
+            <button onclick="initUser()">Initialize User</button>
+            <button onclick="loadProgress()">Load Progress</button>
+            <button onclick="grantBonusXP()">Grant 1000 XP</button>
+        </div>
+
+        <div id="statsHeader"></div>
+        <div id="forgesGrid"></div>
+        <div id="loading" class="loading">Enter a User ID and click "Initialize User" or "Load Progress"</div>
+    </div>
+
+    <script>
+        const API_URL = '/.netlify/functions/spiral-progress';
+        let currentUserId = null;
+        let currentProgress = null;
+
+        const FORGE_COLORS = {
+            'reality': '#FF6B6B',
+            'creation': '#4ECDC4',
+            'communications': '#45B7D1',
+            'guardian': '#96CEB4',
+            'wealth': '#FFEAA7',
+            'character': '#DDA15E',
+            'infinity': '#BC6C25'
+        };
+
+        async function initUser() {
+            const userId = document.getElementById('userId').value.trim();
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+
+            currentUserId = userId;
+            showLoading('Initializing user...');
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'initialize', userId })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                currentProgress = result.data;
+                renderProgress();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        }
+
+        async function loadProgress() {
+            const userId = document.getElementById('userId').value.trim();
+            if (!userId) {
+                alert('Please enter a User ID');
+                return;
+            }
+
+            currentUserId = userId;
+            showLoading('Loading progress...');
+
+            const response = await fetch(`${API_URL}?userId=${userId}`);
+            const result = await response.json();
+
+            if (result.success && result.data.is_initialized) {
+                currentProgress = result.data;
+                renderProgress();
+            } else if (result.success && !result.data.is_initialized) {
+                alert('User not initialized. Click "Initialize User" first.');
+                hideLoading();
+            } else {
+                alert('Error: ' + result.error);
+                hideLoading();
+            }
+        }
+
+        async function addXP(forgeSlug, amount) {
+            if (!currentUserId) return;
+
+            showLoading('Adding XP...');
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'add_xp',
+                    userId: currentUserId,
+                    forgeSlug,
+                    amount,
+                    source: 'bonus',
+                    metadata: { demo: true }
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                if (result.data.leveled_up) {
+                    showLevelUp(forgeSlug, result.data.new_level);
+                }
+                await loadProgress();
+            } else {
+                alert('Error: ' + result.error);
+                hideLoading();
+            }
+        }
+
+        async function grantBonusXP() {
+            if (!currentUserId) {
+                alert('Initialize or load a user first');
+                return;
+            }
+
+            const unlockedForge = currentProgress.forges.find(f => f.status === 'unlocked');
+            if (unlockedForge) {
+                await addXP(unlockedForge.slug, 1000);
+            }
+        }
+
+        function renderProgress() {
+            hideLoading();
+
+            // Render stats header
+            const statsHTML = `
+                <div class="stats-header">
+                    <div class="stat-card">
+                        <div class="stat-label">Total XP</div>
+                        <div class="stat-value">${currentProgress.total_xp.toLocaleString()}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Forges Unlocked</div>
+                        <div class="stat-value">${currentProgress.forges.filter(f => f.status === 'unlocked').length}/7</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Highest Level</div>
+                        <div class="stat-value">L${Math.max(...currentProgress.forges.map(f => f.current_level))}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Octave Returns</div>
+                        <div class="stat-value">${currentProgress.octave_count}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('statsHeader').innerHTML = statsHTML;
+
+            // Render forge cards
+            const forgesHTML = currentProgress.forges.map(forge => {
+                const color = FORGE_COLORS[forge.slug];
+                const percentComplete = forge.xp_for_next_level > 0
+                    ? (forge.current_xp / forge.xp_for_next_level * 100)
+                    : 100;
+
+                return `
+                    <div class="forge-card ${forge.status === 'locked' ? 'locked' : ''}"
+                         style="border-left-color: ${color}">
+                        ${forge.status === 'locked' ? '<div class="locked-overlay">🔒 Unlock at Reality L7</div>' : ''}
+
+                        <div class="forge-header">
+                            <div class="forge-icon">${forge.icon}</div>
+                            <div class="forge-name">${forge.name}</div>
+                        </div>
+
+                        <div class="forge-level">
+                            <div class="level-number">L${forge.current_level}</div>
+                            <div class="level-name">${forge.level_name}</div>
+                        </div>
+
+                        <div class="xp-bar-container">
+                            <div class="xp-bar-fill" style="width: ${percentComplete}%; color: ${color}"></div>
+                        </div>
+
+                        <div class="xp-text">${forge.current_xp.toLocaleString()} / ${forge.xp_for_next_level.toLocaleString()} XP</div>
+
+                        ${forge.status === 'unlocked' ? `
+                            <div class="actions">
+                                <button onclick="addXP('${forge.slug}', 100)">+100 XP</button>
+                                <button onclick="addXP('${forge.slug}', 500)">+500 XP</button>
+                                <button onclick="addXP('${forge.slug}', 2000)">+2000 XP</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('forgesGrid').innerHTML = forgesHTML;
+
+            // Show octave badge if applicable
+            if (currentProgress.octave_count > 0) {
+                if (!document.querySelector('.octave-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'octave-badge';
+                    badge.textContent = `♾️ Octave ${currentProgress.octave_count}`;
+                    document.body.appendChild(badge);
+                }
+            }
+        }
+
+        function showLevelUp(forgeSlug, newLevel) {
+            const notification = document.createElement('div');
+            notification.className = 'level-up-notification';
+            notification.textContent = `🎉 Level ${newLevel}!`;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 1500);
+        }
+
+        function showLoading(message) {
+            document.getElementById('loading').textContent = message;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('statsHeader').style.display = 'none';
+            document.getElementById('forgesGrid').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('statsHeader').style.display = 'grid';
+            document.getElementById('forgesGrid').style.display = 'grid';
+        }
+    </script>
+</body>
+</html>
