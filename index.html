@@ -642,18 +642,27 @@
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
     const enableAutoRotate = !isTouchDevice; // Disable auto-rotate on touch devices
 
-    // Calculate items per view based on viewport width
+    // Calculate items per view based on viewport width and actual item widths
     function calculateItemsPerView() {
       const viewport = document.querySelector('.carousel-viewport');
       const containerWidth = viewport ? viewport.offsetWidth : document.querySelector('.carousel-container').offsetWidth;
-      const itemWidth = links[0] ? links[0].offsetWidth : 0;
-      if (!itemWidth) return itemsPerView; // DOM not ready yet
-      const gap = 12; // matches CSS gap: 0.75rem (12px at default 16px root font size)
-      
-      // Calculate how many items can fit
-      itemsPerView = Math.floor((containerWidth + gap) / (itemWidth + gap));
-      itemsPerView = Math.max(1, Math.min(itemsPerView, totalItems));
-      
+      if (!containerWidth || !links.length) return itemsPerView;
+      const firstItemWidth = links[0] ? links[0].offsetWidth : 0;
+      if (!firstItemWidth) return itemsPerView; // DOM not ready yet
+      const gapPx = parseFloat(window.getComputedStyle(track).gap) || 12;
+
+      // Count how many items actually fit using each item's real width
+      let count = 0;
+      let usedWidth = 0;
+      for (let i = 0; i < totalItems; i++) {
+        const itemW = links[i].offsetWidth;
+        const needed = (count > 0 ? gapPx : 0) + itemW;
+        if (usedWidth + needed > containerWidth) break;
+        usedWidth += needed;
+        count++;
+      }
+
+      itemsPerView = Math.max(1, count);
       return itemsPerView;
     }
 
@@ -672,10 +681,13 @@
     }
 
     function updateCarousel() {
-      const itemWidth = links[0].offsetWidth;
-      const gap = window.innerWidth <= 768 ? 16 : 32;
-      const offset = -(currentIndex * (itemWidth + gap));
-      track.style.transform = `translateX(${offset}px)`;
+      // Use the real CSS gap and each item's actual width for accurate positioning
+      const gapPx = parseFloat(window.getComputedStyle(track).gap) || 12;
+      let offset = 0;
+      for (let i = 0; i < currentIndex; i++) {
+        offset += links[i].offsetWidth + gapPx;
+      }
+      track.style.transform = `translateX(${-offset}px)`;
 
       // Update indicators
       const indicators = indicatorsContainer.querySelectorAll('.indicator');
