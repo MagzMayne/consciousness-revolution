@@ -1,4 +1,4 @@
--- ============================================================
+﻿-- ============================================================
 -- CERTIFICATION SEED DATA
 -- Real-world certifications for Consciousness Revolution
 -- Created: 2026-02-16
@@ -595,7 +595,7 @@ INSERT INTO certification_templates (
         'Implement security best practices',
         'Manage personal data protection',
         'Navigate privacy regulations',
-        'Secure online communications',
+        'Secure online signal',
         'Teach digital security to others'
     ],
     ARRAY[
@@ -718,3 +718,4 @@ INSERT INTO certifiable_skills (name, slug, description, category, industry_dema
 ON CONFLICT (slug) DO NOTHING;
 
 COMMIT;
+

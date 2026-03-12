@@ -1,4 +1,4 @@
-# 7 DOMAINS SINGULARITY
+﻿# 7 DOMAINS SINGULARITY
 ## The Canonical Mapping - Single Source of Truth
 ## Pattern: 3 → 7 → 13 → ∞
 
@@ -10,7 +10,7 @@
 |---|---------------|------------|------|------|-------|---------------|
 | 1 | COMMAND | Reality Forge | reality | 🔥 | #FF0000 | Foundation - consciousness, perception, truth |
 | 2 | BUILD | Creation Forge | creation | ⚡ | #FF7F00 | Manifestation - ideation, design, building |
-| 3 | CONNECT | Communications Forge | communications | 📡 | #FFFF00 | Connection - language, networking, influence |
+| 3 | CONNECT | signal Forge | signal | 📡 | #FFFF00 | Connection - language, networking, influence |
 | 4 | PROTECT | Guardian Forge | guardian | 🛡️ | #00FF00 | Protection - security, boundaries, resilience |
 | 5 | GROW | Wealth Forge | wealth | 💰 | #0000FF | Abundance - value creation, economics |
 | 6 | LEARN | Character Forge | character | 👤 | #4B0082 | Evolution - growth, integrity, becoming |
@@ -38,7 +38,7 @@ The user journey now begins at the CENTER (Infinity Forge), not the periphery:
    - Message: Commander, armor up...
 
 3. **OTHER 5 FORGES** (unlockLevel: 7) - BRANCHES
-   - Creation, Communications, Guardian, Wealth, Character
+   - Creation, signal, Guardian, Wealth, Character
    - Unlock at Level 7
    - Each has its own specialized product/tools
 
@@ -57,12 +57,12 @@ Use **DOMAIN** names: COMMAND, BUILD, CONNECT, PROTECT, GROW, LEARN, TRANSCEND
 - Example: `HUB_BUILD_OVERVIEW_v2.html`
 
 ### For User-Facing (Website/Product):
-Use **FORGE** names: Reality, Creation, Communications, Guardian, Wealth, Character, Infinity
+Use **FORGE** names: Reality, Creation, signal, Guardian, Wealth, Character, Infinity
 - Example: `forge-lobby.html?forge=reality`
 - Example: `forge-store.html?forge=creation`
 
 ### For Database/API:
-Use **SLUG** names: reality, creation, communications, guardian, wealth, character, infinity
+Use **SLUG** names: reality, creation, signal, guardian, wealth, character, infinity
 - Example: `GET /api/progress?forge=reality`
 - Example: `forges.slug = 'guardian'`
 
@@ -90,10 +90,10 @@ Each Domain gets 7 dashboards (49 total):
 6. DASHBOARD_BUILD_TESTS - Testing & QA
 7. DASHBOARD_BUILD_INFINITY - Architecture vision
 
-### Domain 3: CONNECT (Communications Forge)
+### Domain 3: CONNECT (signal Forge)
 1. DASHBOARD_CONNECT_OVERVIEW - Communication hub
 2. DASHBOARD_CONNECT_CHANNELS - Active channels
-3. DASHBOARD_CONNECT_FORGE - Communications Forge progress
+3. DASHBOARD_CONNECT_FORGE - signal Forge progress
 4. DASHBOARD_CONNECT_NETWORK - Network map
 5. DASHBOARD_CONNECT_OUTREACH - Marketing & outreach
 6. DASHBOARD_CONNECT_COMMUNITY - Community metrics
@@ -154,7 +154,7 @@ Each Domain gets 7 dashboards (49 total):
 ## DATABASE REFERENCE
 
 **Supabase Tables:**
-- `forges` - 7 records (id 1-7, slugs: reality, creation, communications, guardian, wealth, character, infinity)
+- `forges` - 7 records (id 1-7, slugs: reality, creation, signal, guardian, wealth, character, infinity)
 - `levels` - 91 records (7 forges × 13 levels)
 - `forge_progress` - User progress per forge
 - `purchases` - Stripe transactions
@@ -205,7 +205,7 @@ Pattern: 3 → 7 → 13 → ∞ → 3...
 |---------|-------|------|------|-------|
 | 1_COMMAND | Reality | reality | 🔥 | Foundation |
 | 2_BUILD | Creation | creation | ⚡ | Manifestation |
-| 3_CONNECT | Communications | communications | 📡 | Connection |
+| 3_CONNECT | signal | signal | 📡 | Connection |
 | 4_PROTECT | Guardian | guardian | 🛡️ | Protection |
 | 5_GROW | Wealth | wealth | 💰 | Abundance |
 | 6_LEARN | Character | character | 👤 | Evolution |
@@ -216,3 +216,4 @@ Pattern: 3 → 7 → 13 → ∞ → 3...
 **This document is the SINGLE SOURCE OF TRUTH for all naming.**
 **Updated: March 12, 2026**
 **Pattern Theory Alignment: 92.2%**
+
