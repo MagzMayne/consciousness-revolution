@@ -840,7 +840,7 @@ npm start
 
 **Top Technologies**: PayPal (893), Web Storage (503), Solana Web3 (202), Canvas (187), React (160)
 
-*Last scanned: Mar 12, 2026, 1:11 PM*
+*Last scanned: Mar 12, 2026, 1:15 PM*
 
 ---
 
@@ -848,18 +848,18 @@ npm start
 
 **Live Feed** - Automatically updated when new projects are pushed! 🔴
 
-1. 📊✅ **[OpenClaw User Hub](user-dashboard.html)** - Interactive dashboard application `React`, `Solana Web3`, `PayPal` *(Mar 12, 2026)*
-2. 📊✅ **[Contributor Dashboard | Barbrick Design](contributor-dashboard-hub.html)** - Interactive dashboard application `Solana Web3`, `PayPal`, `Web Storage` *(Mar 12, 2026)*
-3. ✨✅ **[🛠️ Human Setup Guide — Barbrick Design Programs](human-setup-guide.html)** - Step-by-step human setup guide to bring all Barbrick Design programs to 100% functional — Railway, PayPal, Google OAuth, Phantom wallet, API keys. `React`, `Vue`, `Solana Web3` *(Mar 12, 2026)*
-4. ✨✅ **[🚀 One-Click Deploy — Barbrick Design Setup Wizard](one-click-deploy.html)** - One-click deployment setup wizard — configure Railway, PayPal, Google OAuth, GitHub, AI keys, and Solana for your Barbrick Design platform after purchase. `Solana Web3`, `PayPal`, `WebSocket` *(Mar 12, 2026)*
-5. 🤖✅ **[Agent Mail — Autonomous Agent Email System](agent-mail.html)** - AgentMail integration dashboard — give every autonomous agent its own email inbox powered by AgentMail.to `Web Storage` *(Mar 12, 2026)*
-6. ✨✅ **[Autonomous Agent Hub — zMerlin Hive (Enhanced)](zMerlinHive.html)** - Interactive web-app application `React`, `PayPal` *(Mar 12, 2026)*
-7. ✨✅ **[User-Owned AI Voice Tool](yourVoice.html)** - Interactive web-app application `PayPal` *(Mar 12, 2026)*
-8. 🤖✅ **[Worm Agent 3D Visualization](worm-agent-visualization.html)** - Interactive ai-tool application `Three.js`, `Canvas`, `WebGL` *(Mar 12, 2026)*
-9. 🤖✅ **[Worm Agent System Dashboard](worm-agent-dashboard.html)** - Interactive ai-tool application `Canvas` *(Mar 12, 2026)*
-10. ✨✅ **[WORKSPACE - Dashboard Hub](workspace.html)** - Interactive web-app application *(Mar 12, 2026)*
+1. ✨✅ **[Autonomous Agent Hub — zMerlin Hive (Enhanced)](zMerlinHive.html)** - Interactive web-app application `React`, `PayPal` *(Mar 12, 2026)*
+2. ✨✅ **[User-Owned AI Voice Tool](yourVoice.html)** - Interactive web-app application `PayPal` *(Mar 12, 2026)*
+3. 🤖✅ **[Worm Agent 3D Visualization](worm-agent-visualization.html)** - Interactive ai-tool application `Three.js`, `Canvas`, `WebGL` *(Mar 12, 2026)*
+4. 🤖✅ **[Worm Agent System Dashboard](worm-agent-dashboard.html)** - Interactive ai-tool application `Canvas` *(Mar 12, 2026)*
+5. ✨✅ **[WORKSPACE - Dashboard Hub](workspace.html)** - Interactive web-app application *(Mar 12, 2026)*
+6. ✨⚠️ **[Workshop - Build Things](workshop.html)** - Interactive web-app application *(Mar 12, 2026)*
+7. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Mar 12, 2026)*
+8. ✨✅ **[Magical Wishing Well](wishingWell.html)** - Interactive web-app application `Three.js`, `PayPal`, `WebGL` *(Mar 12, 2026)*
+9. 💰✅ **[Widget Marketplace | Consciousness Revolution](widget-marketplace.html)** - Interactive marketplace application `Web Storage` *(Mar 12, 2026)*
+10. ✨✅ **[Whodunit: Constitutional Crimes | Interactive Timeline](whodunit-timeline.html)** - Interactive web-app application *(Mar 12, 2026)*
 
-*Last updated: Mar 12, 2026, 1:11 PM*
+*Last updated: Mar 12, 2026, 1:15 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
