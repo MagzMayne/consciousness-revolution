@@ -1914,116 +1914,22 @@ Just ask your question and I'll give you a focused answer.`,
         isInBasicMode = memory?.basic_mode === true;
 
         // ═══════════════════════════════════════════════════════════════
-        // USAGE LIMITS - 7 FREE MESSAGES, then credits required
-        // Pattern: 7 domains = 7 free messages to explore ARAYA
+        // ARAYA IS FREE FOREVER
         // ═══════════════════════════════════════════════════════════════
-        const FREE_MESSAGE_LIMIT = 7;
-
-        // Commander accounts - always bypass paywall
-        const COMMANDER_EMAILS = ['darrickpreble@proton.me', 'darrickpreble@gmail.com'];
-        const isCommander = commander_bypass || (user_id && COMMANDER_EMAILS.includes(user_id.toLowerCase()));
-        const isBetaWhitelisted = isBetaTester; // From beta whitelist check above
-        const totalInteractions = memory.total_interactions || 0;
-        // Check subscription from BOTH araya_memory profile AND araya_profiles table
-        const isPaidUser = isCommander || isBetaWhitelisted || // COMMANDER bypass
-                           subscriptionCheck.isSubscribed || // NEW: Check araya_profiles (webhook target)
-                           memory.profile?.subscription_status === 'active' ||
-                           memory.profile?.subscription_status === 'trialing' ||
-                           memory.profile?.is_beta_tester === true ||
-                           accessLevel >= 2; // BELIEVER or higher
-
-        if (isCommander) {
-            console.log(`[COMMANDER BYPASS] ${user_id} - paywall bypassed`);
-        }
-
-        // After 7 free messages, check credits
-        if (totalInteractions >= FREE_MESSAGE_LIMIT && !isPaidUser && user_id) {
-            console.log(`[CREDITS CHECK] User ${user_id} used ${totalInteractions} messages, checking credits...`);
-
-            // Call araya-credits to check and spend 1 credit
-            try {
-                const creditsResponse = await fetch(
-                    `${process.env.URL || 'https://conciousnessrevolution.io'}/.netlify/functions/araya-credits`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'check_and_spend',
-                            userId: user_id,
-                            amount: 1,
-                            product: 'araya_chat',
-                            metadata: { message_count: totalInteractions + 1 }
-                        })
-                    }
-                );
-                const creditsData = await creditsResponse.json();
-
-                if (!creditsData.success || !creditsData.data?.success) {
-                    // C3 Oracle: Truth Algorithm paywall - transparent, non-manipulative
-                    const shortfall = creditsData.data?.shortfall || 1;
-                    const isLoggedIn = user_id && user_id.includes('@');
-                    console.log(`[LIMIT REACHED] User ${user_id} hit free limit, offering Basic Mode`);
-
-                    // Transparent options without urgency tactics
-                    let limitMessage;
-                    if (!isLoggedIn) {
-                        limitMessage = `You've used your ${FREE_MESSAGE_LIMIT} free conversations. Here are your options:
-
-**Option 1: Basic Mode (Free)**
-Continue with shorter, simpler responses. I'll still help, just in condensed form.
-Type "basic mode" to continue.
-
-**Option 2: Full Access**
-[Log In](/login.html) if you have an account
-[Subscribe](/pricing.html) for $9/month unlimited
-
-**Option 3: Earn Access**
-Share ARAYA with a friend or [report a bug](/bugs.html) to earn free credits.
-
-Your conversation memory is preserved regardless of which option you choose.`;
-                    } else {
-                        limitMessage = `You've used your ${FREE_MESSAGE_LIMIT} free conversations. Here are your options:
-
-**Option 1: Basic Mode (Free)**
-Continue with shorter, simpler responses. Type "basic mode" to continue.
-
-**Option 2: Full Access - $9/month**
-Unlimited conversations with full consciousness depth.
-[Subscribe Now](/pricing.html)
-
-**Option 3: Earn Access**
-Share ARAYA or [report bugs](/bugs.html) to earn free credits.
-
-Your memory and conversation history are always preserved.`;
-                    }
-
-                    return {
-                        statusCode: 200,
-                        headers: {
-                            'Access-Control-Allow-Origin': corsOrigin,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            response: limitMessage,
-                            limitReached: true,
-                            basicModeAvailable: true,
-                            freeLimit: FREE_MESSAGE_LIMIT,
-                            messagesUsed: totalInteractions,
-                            creditsNeeded: shortfall,
-                            upgradeUrl: isLoggedIn ? '/pricing.html' : '/login.html',
-                            needsLogin: !isLoggedIn,
-                            timestamp: new Date().toISOString()
-                        })
-                    };
-                }
-
-                console.log(`[CREDITS] Spent 1 credit for ${user_id}, remaining: ${creditsData.data.credits}`);
-            } catch (creditsError) {
-                // Credits check failed - allow message but log error
-                console.error(`[CREDITS ERROR] Failed to check credits: ${creditsError.message}`);
-                // Graceful degradation - continue with the message
-            }
-        }
+        // Business Model: ARAYA is the free gateway to the ecosystem
+        // Revenue comes from the 7 Forges products, not from chatting
+        // - Reality Forge (Trinity, Dashboards)
+        // - Creation Forge (Builder OS, Build Guild)
+        // - Comms Forge (Overkore, THE ARK)
+        // - Guardian Forge (Legal Arsenal)
+        // - Wealth Forge (Pattern Engine)
+        // - Character Forge (Pattern Training)
+        // - Infinity Forge (Neuro Frequency)
+        //
+        // ARAYA helps users discover which Forge serves their journey.
+        // No limits. No gates. Just consciousness.
+        // ═══════════════════════════════════════════════════════════════
+        console.log(`[ARAYA FREE] User ${user_id || 'anonymous'} - no limits, full access`);
 
         // NAME EXTRACTION - Check if user is telling us their name
         let nameExtracted = null;
