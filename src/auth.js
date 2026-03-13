@@ -136,9 +136,39 @@ function requireAuth(redirectUrl) {
     return true;
 }
 
+/**
+ * Verify the current session with the server via the HttpOnly cookie.
+ * Keeps localStorage in sync with the live session state.
+ * @returns {Promise<object|null>} User data if authenticated, null if unauthenticated or error
+ */
+async function checkSession() {
+    try {
+        const response = await fetch(`${AUTH_API_BASE}/auth-me`, {
+            method: 'GET',
+            credentials: 'include' // send the HttpOnly cookie
+        });
+        const data = await response.json();
+
+        if (data.success && data.user) {
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            localStorage.setItem('isLoggedIn', 'true');
+            return data.user;
+        }
+
+        // Session invalid or expired — clear stale state
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('isLoggedIn');
+        return null;
+    } catch (error) {
+        // Network error — session state is uncertain; return null to be safe
+        console.warn('checkSession: network error, session state unknown', error);
+        return null;
+    }
+}
+
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { login, signUp, logout, isLoggedIn, getCurrentUser, requireAuth };
+    module.exports = { login, signUp, logout, isLoggedIn, getCurrentUser, requireAuth, checkSession };
 }
 
 console.log('Auth module loaded');
