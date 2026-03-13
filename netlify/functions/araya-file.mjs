@@ -260,14 +260,15 @@ export async function handler(event, context) {
     try {
         const { action, path, content, edits, message } = JSON.parse(event.body);
 
-        // Authentication for write operations (CRITICAL SECURITY FIX)
-        if (action === 'write' || action === 'edit') {
+        // Authentication for ALL file operations (CRITICAL SECURITY FIX - 2026-03-12)
+        // READ, LIST, WRITE, EDIT all require auth to protect .consciousness/ and .trinity/ data
+        if (['read', 'write', 'edit', 'list'].includes(action)) {
             const authKey = event.headers['x-file-key'];
             if (authKey !== process.env.FILE_API_KEY) {
                 return {
                     statusCode: 401,
                     headers,
-                    body: JSON.stringify({ error: 'Unauthorized - valid x-file-key required for write operations' })
+                    body: JSON.stringify({ error: 'Unauthorized - valid x-file-key required for file operations' })
                 };
             }
         }
