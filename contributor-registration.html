@@ -834,50 +834,64 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             </div>
             
             <div class="form-group">
-                <label>Donation Amount: <span id="tierAmount" style="color: var(--success); font-weight: bold;">$0</span></label>
-                <p style="margin-top: 10px; padding: 15px; background: #f0f0f0; border-radius: 8px; color: #333;">
-                    💳 <strong>Payment Instructions:</strong><br>
-                    1. Click "Complete Registration" below<br>
-                    2. Send <span id="paymentAmount">$0</span> via PayPal to <strong>BarbrickDesign@gmail.com</strong><br>
-                    3. Include your email in payment notes<br>
-                    4. You'll receive access within 24 hours
+                <label>Contribution Amount: <span id="tierAmount" style="color: var(--success); font-weight: bold;">$0</span></label>
+                <p style="margin-top: 10px; padding: 10px 15px; background: rgba(99,102,241,0.08); border-left: 3px solid var(--primary); border-radius: 4px; color: #555; font-size: 0.9em;">
+                    After submitting your information you will be taken to a secure PayPal checkout to complete your payment.
                 </p>
             </div>
             
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeRegistrationForm()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Complete Registration</button>
+                <button type="submit" class="btn btn-primary">Continue to Payment →</button>
             </div>
         </form>
     </div>
 
+    <!-- ── Payment Step Overlay ── -->
+    <div class="registration-form" id="paymentStep" style="display:none;">
+        <button class="close-form" onclick="closePaymentStep()" aria-label="Close payment step">×</button>
+        <h2 style="margin-bottom:15px; color:#333;">💳 Complete Your Payment</h2>
+        <div style="padding:15px; background:#f9f9f9; border-radius:8px; margin-bottom:20px; border:1px solid #e5e7eb;">
+            <p style="color:#333; margin-bottom:5px; font-size:0.9em;">Registering as: <strong id="payment-tier-display">Bronze Contributor</strong></p>
+            <p style="color:#333; font-size:1.5em; font-weight:700; margin:6px 0;">Amount: <span id="payment-amount-display" style="color:var(--success);">$50</span></p>
+            <p style="color:#666; font-size:0.85em; margin:0;">Payment to: <strong>BarbrickDesign@gmail.com</strong></p>
+        </div>
+        <!-- PayPal SDK button or PayPal.me link rendered here by JS -->
+        <div id="paypal-checkout-container" style="min-height:55px; margin-bottom:15px;"></div>
+        <p style="font-size:0.78em; color:#888; text-align:center; margin-bottom:12px;">
+            🔒 Secure payment via PayPal &nbsp;·&nbsp; Access activated within minutes of payment confirmation
+        </p>
+        <div style="border-top:1px solid #eee; padding-top:14px; margin-top:8px; display:flex; justify-content:flex-start;">
+            <button type="button" class="btn btn-secondary" onclick="closePaymentStep()">← Back</button>
+        </div>
+    </div>
+
     <div class="success-message" id="successMessage">
         <div class="success-icon">✅</div>
-        <h2 style="color: #333; margin-bottom: 15px;">Registration Successful!</h2>
+        <h2 style="color: #333; margin-bottom: 15px;">Payment Received!</h2>
         <p style="color: #666; margin-bottom: 20px;">
-            Thank you for registering! Please complete your payment via PayPal to activate your contributor account.
+            Thank you! Your <strong id="final-tier-display">Bronze</strong> contributor registration and payment of <strong id="finalAmount">$0</strong> have been received.
         </p>
-        <div style="padding: 20px; background: #f0f0f0; border-radius: 10px; margin-bottom: 20px;">
-            <p style="color: #333; font-weight: bold; margin-bottom: 10px;">Payment Instructions:</p>
-            <p style="color: #333;">Send <strong id="finalAmount">$0</strong> to:</p>
-            <p style="color: #333; font-size: 1.2em; font-weight: bold; margin: 10px 0;">BarbrickDesign@gmail.com</p>
-            <p style="color: #666; font-size: 0.9em;">Include your email in payment notes</p>
+        <div style="padding: 20px; background: #f0fff4; border-radius: 10px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+            <p style="color: #155724; font-weight:bold; margin-bottom: 8px;">🎉 Your contributor access will be activated shortly.</p>
+            <p style="color: #666; font-size: 0.9em;">A confirmation email will be sent to <strong id="success-email-display"></strong>. Questions? Contact <strong>BarbrickDesign@gmail.com</strong></p>
         </div>
-        <button class="btn btn-primary" onclick="closeSuccessMessage()">Got It!</button>
+        <button class="btn btn-primary" onclick="closeSuccessMessage()">✨ Start Contributing</button>
     </div>
 
     <script src="contributor-grant-system.js"></script>
+    <script src="src/utils/paypal-integration.js" onerror="console.warn('paypal-integration.js failed to load; payment fallback will be used.')"></script>
     <script>
         let selectedTierData = null;
+        let pendingRegistrationData = null;
 
         function openRegistrationForm(tier) {
             const tierConfig = ContributorGrantSystem.CONFIG.tiers[tier];
             selectedTierData = { tier, ...tierConfig };
-            
+
             document.getElementById('selectedTier').value = tier;
             document.getElementById('tierAmount').textContent = '$' + tierConfig.donation;
-            document.getElementById('paymentAmount').textContent = '$' + tierConfig.donation;
-            
+
             document.getElementById('formOverlay').classList.add('active');
             document.getElementById('registrationForm').classList.add('active');
         }
@@ -890,34 +904,156 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
         function submitRegistration(event) {
             event.preventDefault();
-            
+
             const formData = new FormData(event.target);
-            const data = {
+            pendingRegistrationData = {
                 name: formData.get('name'),
                 email: formData.get('email'),
                 studentId: formData.get('studentId'),
                 githubUsername: formData.get('githubUsername'),
                 portfolioUrl: formData.get('portfolioUrl'),
-                skills: formData.get('skills').split(',').map(s => s.trim()).filter(s => s),
+                skills: (formData.get('skills') || '').split(',').map(s => s.trim()).filter(s => s),
                 bio: formData.get('bio'),
-                donationAmount: selectedTierData.donation
+                tier: selectedTierData.tier,
+                donationAmount: selectedTierData.donation,
             };
-            
-            try {
-                const profile = ContributorGrantSystem.initializeProfile(data);
-                
-                document.getElementById('finalAmount').textContent = '$' + selectedTierData.donation;
-                closeRegistrationForm();
-                document.getElementById('formOverlay').classList.add('active');
-                document.getElementById('successMessage').classList.add('active');
-                
-                updateStats();
-                
-                console.log('Contributor profile created:', profile);
-            } catch (error) {
-                alert('Error creating profile: ' + error.message);
-                console.error('Registration error:', error);
+
+            // Close registration form and open payment step
+            closeRegistrationForm();
+            openPaymentStep();
+        }
+
+        // ── Payment step ──────────────────────────────────────────────────
+        function openPaymentStep() {
+            if (!pendingRegistrationData || !selectedTierData) return;
+
+            const tierNames = {
+                bronze: 'Bronze Contributor',
+                silver: 'Silver Contributor',
+                gold: 'Gold Contributor',
+                platinum: 'Platinum Contributor',
+            };
+            const tierName = tierNames[selectedTierData.tier] || selectedTierData.tier;
+            const amount = selectedTierData.donation;
+
+            document.getElementById('payment-tier-display').textContent = tierName;
+            document.getElementById('payment-amount-display').textContent = '$' + amount;
+
+            const step = document.getElementById('paymentStep');
+            step.style.display = 'block';
+            document.getElementById('formOverlay').classList.add('active');
+            step.classList.add('active');
+
+            // Render PayPal button (or PayPal.me fallback)
+            const container = document.getElementById('paypal-checkout-container');
+            container.innerHTML = '<p style="text-align:center;color:#888;font-size:0.9em;">Loading payment options…</p>';
+
+            const description = tierName + ' — Consciousness Revolution contributor registration';
+
+            if (typeof PayPalIntegration !== 'undefined') {
+                PayPalIntegration.renderButtonWithFallback('paypal-checkout-container', {
+                    amount: amount,
+                    description: description,
+                    onSuccess: function(details) {
+                        onPaymentSuccess(details);
+                    },
+                    onError: function(err) {
+                        console.error('PayPal error:', err);
+                        // Still show manual link on error
+                        PayPalIntegration.renderDonationLink('paypal-checkout-container', {
+                            amount: amount,
+                            description: description,
+                            label: '💳 Pay $' + amount + ' via PayPal',
+                        });
+                        appendManualConfirmButton(amount);
+                    },
+                    onCancel: function() {
+                        showToastMessage('Payment cancelled. Click Pay to try again.', '#f59e0b');
+                    },
+                });
+                // When falling back to a PayPal.me link (no SDK), add a manual confirm button
+                // so the user can indicate they have completed their payment.
+                try {
+                    if (PayPalIntegration.getConfig().usingFallback) {
+                        appendManualConfirmButton(amount);
+                    }
+                } catch (cfgErr) {
+                    // getConfig() failed — add manual button as a safe fallback
+                    appendManualConfirmButton(amount);
+                }
+            } else {
+                // Script not loaded; render direct PayPal.me link
+                const url = 'https://www.paypal.com/paypalme/BarbrickDesign/' + amount;
+                container.innerHTML = '<div style="text-align:center;padding:12px 0;">' +
+                    '<a href="' + url + '" target="_blank" rel="noopener noreferrer" ' +
+                    'style="display:inline-block;background:#0070ba;color:#fff;font-weight:bold;' +
+                    'padding:12px 28px;border-radius:24px;text-decoration:none;font-size:1em;">' +
+                    '💳 Pay $' + amount + ' via PayPal</a>' +
+                    '<p style="margin:8px 0 0;font-size:0.82em;color:#888;">Secure payment powered by PayPal</p>' +
+                    '</div>';
+                appendManualConfirmButton(amount);
             }
+        }
+
+        function appendManualConfirmButton(amount) {
+            // Show this button so users who paid via PayPal.me link can proceed
+            const existing = document.getElementById('manual-confirm-btn');
+            if (existing) return;
+            const btn = document.createElement('button');
+            btn.id = 'manual-confirm-btn';
+            btn.type = 'button';
+            btn.className = 'btn btn-secondary';
+            btn.style.cssText = 'margin-top:10px; width:100%; font-size:0.88em;';
+            btn.textContent = '✅ I\'ve completed my $' + amount + ' PayPal payment';
+            btn.onclick = function() { onPaymentSuccess({ manual: true }); };
+            document.getElementById('paypal-checkout-container').appendChild(btn);
+        }
+
+        function closePaymentStep() {
+            const step = document.getElementById('paymentStep');
+            step.style.display = 'none';
+            step.classList.remove('active');
+            document.getElementById('formOverlay').classList.remove('active');
+            document.getElementById('paypal-checkout-container').innerHTML = '';
+            const btn = document.getElementById('manual-confirm-btn');
+            if (btn) btn.remove();
+        }
+
+        function onPaymentSuccess(details) {
+            if (!pendingRegistrationData) return;
+
+            try {
+                const profile = ContributorGrantSystem.initializeProfile(pendingRegistrationData);
+                console.log('Contributor profile created:', profile);
+            } catch (e) {
+                console.warn('Profile save error (non-critical):', e.message);
+            }
+
+            // Update success display
+            const tierNames = {
+                bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum',
+            };
+            document.getElementById('final-tier-display').textContent =
+                tierNames[selectedTierData.tier] || selectedTierData.tier;
+            document.getElementById('finalAmount').textContent = '$' + selectedTierData.donation;
+            document.getElementById('success-email-display').textContent = pendingRegistrationData.email || '';
+
+            closePaymentStep();
+            document.getElementById('formOverlay').classList.add('active');
+            document.getElementById('successMessage').classList.add('active');
+
+            updateStats();
+            pendingRegistrationData = null;
+        }
+
+        function showToastMessage(msg, color) {
+            const t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);' +
+                'background:' + (color || '#333') + ';color:#fff;padding:10px 20px;border-radius:8px;' +
+                'z-index:9999;font-size:0.9em;';
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3500);
         }
 
         function closeSuccessMessage() {
@@ -927,7 +1063,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
         function updateStats() {
             const stats = ContributorGrantSystem.getContributorStats();
-            
+
             document.getElementById('totalContributors').textContent = stats.total;
             document.getElementById('totalDonations').textContent = '$' + stats.totalDonations.toLocaleString();
             document.getElementById('totalEarnings').textContent = '$' + stats.totalEarnings.toLocaleString();

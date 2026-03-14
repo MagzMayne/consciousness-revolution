@@ -1291,6 +1291,10 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                     <input type="email" id="m-email" required maxlength="120" placeholder="name@example.com" autocomplete="email">
                 </div>
                 <div class="form-group">
+                    <label for="m-paypal-email">PayPal Email <span style="font-size:0.8em;color:var(--text-muted);">(for payouts)</span></label>
+                    <input type="email" id="m-paypal-email" maxlength="120" placeholder="paypal@example.com" autocomplete="off">
+                </div>
+                <div class="form-group">
                     <label for="m-type">Worker Type *</label>
                     <select id="m-type" required>
                         <option value="">— Select —</option>
@@ -1400,12 +1404,12 @@ const STORAGE_KEY = 'payroll_hub_v1';
 
 // ── Default team members (sample data) ──
 const DEFAULT_TEAM = [
-    { id: 'tm-001', name: 'Darrick (Commander)',  role: 'Commander / Director',    email: '', type: 'w2',   rate: 3500, rateType: 'per-period', status: 'active', bankOnFile: false },
-    { id: 'tm-002', name: 'Alex Rivera',          role: 'Lead Developer',          email: '', type: 'w2',   rate: 2800, rateType: 'per-period', status: 'active', bankOnFile: false },
-    { id: 'tm-003', name: 'Jordan Kim',           role: 'AI Systems Engineer',     email: '', type: 'w2',   rate: 3000, rateType: 'per-period', status: 'active', bankOnFile: false },
-    { id: 'tm-004', name: 'Morgan Lee',           role: 'Content & Outreach Lead', email: '', type: '1099', rate: 1500, rateType: 'per-period', status: 'active', bankOnFile: false },
-    { id: 'tm-005', name: 'Sam Torres',           role: 'Community Manager',       email: '', type: '1099', rate: 1200, rateType: 'per-period', status: 'active', bankOnFile: false },
-    { id: 'tm-006', name: 'Casey Patel',          role: 'Operations Coordinator',  email: '', type: 'w2',   rate: 2200, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-001', name: 'Darrick (Commander)',  role: 'Commander / Director',    email: '', paypalEmail: '', type: 'w2',   rate: 3500, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-002', name: 'Alex Rivera',          role: 'Lead Developer',          email: '', paypalEmail: '', type: 'w2',   rate: 2800, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-003', name: 'Jordan Kim',           role: 'AI Systems Engineer',     email: '', paypalEmail: '', type: 'w2',   rate: 3000, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-004', name: 'Morgan Lee',           role: 'Content & Outreach Lead', email: '', paypalEmail: '', type: '1099', rate: 1500, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-005', name: 'Sam Torres',           role: 'Community Manager',       email: '', paypalEmail: '', type: '1099', rate: 1200, rateType: 'per-period', status: 'active', bankOnFile: false },
+    { id: 'tm-006', name: 'Casey Patel',          role: 'Operations Coordinator',  email: '', paypalEmail: '', type: 'w2',   rate: 2200, rateType: 'per-period', status: 'active', bankOnFile: false },
 ];
 
 const DEFAULT_HISTORY = [];
@@ -1486,7 +1490,7 @@ function renderTeam(filter = '') {
             <td><span class="worker-type-badge type-${escHtml(m.type)}">${m.type.toUpperCase()}</span></td>
             <td>${fmt(m.rate)} <span style="font-size:0.78em; color:var(--text-muted);">/ ${escHtml(m.rateType)}</span></td>
             <td>${escHtml(state.schedule.freq || 'bi-weekly')}</td>
-            <td>${m.bankOnFile ? '<span style="color:var(--green);">✅ On File</span>' : '<span style="color:var(--red);">❌ Missing</span>'}</td>
+            <td>${m.bankOnFile ? '<span style="color:var(--green);">✅ Bank</span>' : (m.paypalEmail ? '<span style="color:#0070ba;">💙 PayPal</span>' : '<span style="color:var(--red);">❌ Missing</span>')}</td>
             <td><span class="pay-status-${m.status === 'active' ? 'paid' : 'hold'}">${m.status === 'active' ? '🟢 Active' : '🔴 Inactive'}</span></td>
             <td style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button class="action-btn btn-pay"  onclick="quickPay('${m.id}')"   aria-label="Pay ${escHtml(m.name)}">Pay</button>
@@ -1718,12 +1722,13 @@ function openAddMemberModal() {
 
 document.getElementById('add-member-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    const name     = document.getElementById('m-name').value.trim();
-    const role     = document.getElementById('m-role').value.trim();
-    const email    = document.getElementById('m-email').value.trim();
-    const type     = document.getElementById('m-type').value;
-    const rate     = parseFloat(document.getElementById('m-rate').value);
-    const rateType = document.getElementById('m-rate-type').value;
+    const name       = document.getElementById('m-name').value.trim();
+    const role       = document.getElementById('m-role').value.trim();
+    const email      = document.getElementById('m-email').value.trim();
+    const paypalEmail = document.getElementById('m-paypal-email').value.trim();
+    const type       = document.getElementById('m-type').value;
+    const rate       = parseFloat(document.getElementById('m-rate').value);
+    const rateType   = document.getElementById('m-rate-type').value;
 
     if (!name || !role || !type || isNaN(rate) || rate < 0) {
         showToast('❌ Please fill in all required fields.', 'error');
@@ -1732,7 +1737,7 @@ document.getElementById('add-member-form').addEventListener('submit', function(e
 
     const newMember = {
         id: 'tm-' + Date.now(),
-        name, role, email, type, rate, rateType,
+        name, role, email, paypalEmail, type, rate, rateType,
         status: 'active',
         bankOnFile: false,
     };
@@ -1774,27 +1779,89 @@ document.getElementById('edit-rate-form').addEventListener('submit', function(e)
 function quickPay(id) {
     const m = state.team.find(t => t.id === id);
     if (!m) return;
-    if (!m.bankOnFile) {
-        showToast(`⚠️ No banking info on file for ${m.name}. Please add direct deposit details first.`, 'error', 5000);
+    if (!m.bankOnFile && !m.paypalEmail) {
+        showToast(`⚠️ No payment method on file for ${m.name}. Add direct deposit info or a PayPal email.`, 'error', 5000);
         showTab('deposit', document.getElementById('btn-deposit'));
         return;
     }
+    const method = m.paypalEmail ? 'paypal' : (state.schedule.method || 'direct-deposit');
     document.getElementById('quick-pay-member-id').value = id;
     document.getElementById('quick-pay-summary').innerHTML =
         `<strong>Member:</strong> ${escHtml(m.name)}<br>
          <strong>Role:</strong> ${escHtml(m.role)}<br>
-         <strong>Amount:</strong> ${fmt(m.rate)} (gross)`;
+         <strong>Amount:</strong> ${fmt(m.rate)} (gross)<br>
+         <strong>Method:</strong> ${m.paypalEmail ? '💙 PayPal (' + escHtml(m.paypalEmail) + ')' : '🏦 Direct Deposit'}`;
     openModal('quick-pay-modal');
 }
 
-function executeQuickPay() {
+async function executeQuickPay() {
     const id = document.getElementById('quick-pay-member-id').value;
     const m  = state.team.find(t => t.id === id);
-    if (m) {
-        addHistoryRecord([m], 'Quick Pay');
-        showToast(`✅ Payment of ${fmt(m.rate)} processed for ${m.name}.`, 'success');
-    }
+    if (!m) { closeModal('quick-pay-modal'); return; }
+
     closeModal('quick-pay-modal');
+
+    // Attempt PayPal payout if member has a PayPal email
+    if (m.paypalEmail) {
+        await sendPayPalPayout(m, m.rate, 'Quick Pay — ' + m.role);
+    } else {
+        // Bank/direct-deposit path — record optimistically
+        addHistoryRecord([m], 'Quick Pay');
+        showToast(`✅ Payment of ${fmt(m.rate)} recorded for ${m.name}. Complete via your bank or payroll service.`, 'success');
+    }
+}
+
+/**
+ * Build a PayPal "Send Money" URL the user can open to pay manually.
+ * @param {string} recipientEmail
+ * @param {string} amount  — formatted with 2 decimal places
+ * @returns {string}
+ */
+function buildPayPalFallbackUrl(recipientEmail, amount) {
+    return 'https://www.paypal.com/myaccount/transfer/send?emailAddress=' +
+        encodeURIComponent(recipientEmail) + '&amount=' + amount + '&currencyCode=USD';
+}
+
+/**
+ * Initiate a PayPal payout via the Netlify function.
+ * Falls back to opening PayPal "Send Money" in a new tab if the API is unavailable.
+ */
+async function sendPayPalPayout(member, amount, note) {
+    showToast(`💙 Initiating PayPal payment to ${member.name}…`, 'info', 3000);
+    const amountStr = parseFloat(amount).toFixed(2);
+    const fallback = buildPayPalFallbackUrl(member.paypalEmail, amountStr);
+    try {
+        const resp = await fetch('/api/paypal-payout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipientEmail: member.paypalEmail,
+                amount: amountStr,
+                note,
+                memberId: member.id,
+            }),
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            addHistoryRecord([member], 'PayPal Payout');
+            showToast(`✅ PayPal payout sent to ${member.name}!`, 'success', 5000);
+        } else {
+            // API not configured or errored — open PayPal send-money link
+            if (data.fallbackUrl || fallback) {
+                window.open(data.fallbackUrl || fallback, '_blank', 'noopener,noreferrer');
+                addHistoryRecord([member], 'PayPal (Manual)');
+                showToast(`💙 PayPal opened for ${member.name}. Complete the payment and it will be recorded.`, 'info', 6000);
+            } else {
+                showToast(`⚠️ PayPal payout failed: ${data.apiError || 'Unknown error'}. Please pay manually.`, 'error', 6000);
+            }
+        }
+    } catch (err) {
+        // Network error — open PayPal send-money link directly
+        window.open(fallback, '_blank', 'noopener,noreferrer');
+        addHistoryRecord([member], 'PayPal (Manual)');
+        showToast(`💙 PayPal opened for ${member.name}. Complete the payment there.`, 'info', 5000);
+    }
 }
 
 // ── Confirm pay run ──
@@ -1812,18 +1879,33 @@ function confirmPayRun() {
     openModal('pay-confirm-modal');
 }
 
-function executePayRun() {
+async function executePayRun() {
     const checked  = document.querySelectorAll('.run-check:checked');
     const members  = Array.from(checked).map(cb => state.team.find(m => m.id === cb.dataset.id)).filter(Boolean);
-    const hasNoBank = members.filter(m => !m.bankOnFile);
-    if (hasNoBank.length) {
-        showToast(`⚠️ Missing banking info for: ${hasNoBank.map(m => m.name).join(', ')}`, 'error', 6000);
+    const hasNoPay = members.filter(m => !m.bankOnFile && !m.paypalEmail);
+    if (hasNoPay.length) {
+        showToast(`⚠️ Missing payment method for: ${hasNoPay.map(m => m.name).join(', ')}`, 'error', 6000);
         closeModal('pay-confirm-modal');
         return;
     }
-    addHistoryRecord(members, 'Payroll Run');
     closeModal('pay-confirm-modal');
-    showToast(`✅ Payroll processed for ${members.length} member(s)!`, 'success');
+
+    const period = (document.getElementById('run-period-start')?.value || '—') +
+                   ' – ' + (document.getElementById('run-period-end')?.value || '—');
+
+    let successCount = 0;
+    for (const m of members) {
+        const adj = parseFloat(document.querySelector(`.run-adj[data-id="${m.id}"]`)?.value || 0);
+        const net = estimateNetPay(m.rate) + adj;
+        if (m.paypalEmail) {
+            await sendPayPalPayout(m, net, `Payroll — ${period}`);
+        } else {
+            addHistoryRecord([m], 'Payroll Run');
+        }
+        successCount++;
+    }
+
+    showToast(`✅ Payroll processed for ${successCount} member(s)!`, 'success');
     document.getElementById('run-select-all').checked = false;
     document.querySelectorAll('.run-check').forEach(cb => { cb.checked = false; });
     updateRunTotals();
