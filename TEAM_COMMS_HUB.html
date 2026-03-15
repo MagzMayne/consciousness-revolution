@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="domain" content="COMMAND">
+    <meta name="facing" content="private">
+    <meta name="status" content="beta">
+    <meta name="purpose" content="2-way communication between Commander and team">
+    <title>TEAM COMMS HUB - 2-Way Messaging</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            padding: 20px 10px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        header h1 { font-size: 1.5rem; color: #00f0ff; margin-bottom: 5px; }
+        header p { color: #888; font-size: 0.9rem; }
+
+        /* User Selector */
+        .user-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .user-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 10px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .user-btn:hover { border-color: #00f0ff; }
+        .user-btn.active { border-color: #00f0ff; background: rgba(0,240,255,0.1); }
+        .user-btn .emoji { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        .user-btn .name { font-size: 0.8rem; }
+
+        /* Recipient Section */
+        .recipient-section {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .recipient-section h3 { color: #00f0ff; margin-bottom: 10px; font-size: 0.9rem; }
+        .recipient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 8px;
+        }
+        .recipient-chip {
+            padding: 8px 5px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: transparent;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.75rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .recipient-chip:hover { border-color: #f1c40f; color: #fff; }
+        .recipient-chip.selected { border-color: #f1c40f; background: rgba(241,196,15,0.2); color: #fff; }
+
+        /* Message Composer */
+        .composer {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .composer h3 { color: #00f0ff; margin-bottom: 10px; font-size: 0.9rem; }
+        .composer textarea {
+            width: 100%;
+            min-height: 100px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #444;
+            border-radius: 10px;
+            color: #fff;
+            padding: 12px;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+        .composer textarea:focus { outline: none; border-color: #00f0ff; }
+
+        .priority-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .priority-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .priority-btn:hover { color: #fff; }
+        .priority-btn.selected { border-color: var(--pcolor); color: var(--pcolor); }
+        .priority-btn[data-priority="low"] { --pcolor: #888; }
+        .priority-btn[data-priority="normal"] { --pcolor: #3498db; }
+        .priority-btn[data-priority="high"] { --pcolor: #f39c12; }
+        .priority-btn[data-priority="urgent"] { --pcolor: #e74c3c; }
+
+        .send-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #00f0ff, #0080ff);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .send-btn:hover { transform: scale(1.02); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Inbox */
+        .inbox {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            border-radius: 15px;
+            padding: 15px;
+        }
+        .inbox h3 {
+            color: #00f0ff;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .inbox h3 .badge {
+            background: #e74c3c;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+        .refresh-btn {
+            padding: 5px 10px;
+            background: rgba(0,240,255,0.1);
+            border: 1px solid #00f0ff;
+            border-radius: 5px;
+            color: #00f0ff;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .message-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message-item {
+            padding: 12px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: rgba(0,0,0,0.2);
+        }
+        .message-item.unread { border-left: 3px solid #e74c3c; }
+        .message-item .meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            color: #888;
+        }
+        .message-item .sender { color: #f1c40f; font-weight: bold; }
+        .message-item .content { color: #ccc; line-height: 1.4; }
+        .message-item .priority-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+        }
+        .priority-tag.urgent { background: #e74c3c; }
+        .priority-tag.high { background: #f39c12; }
+        .priority-tag.normal { background: #3498db; }
+        .priority-tag.low { background: #666; }
+
+        .no-messages {
+            text-align: center;
+            color: #666;
+            padding: 30px;
+        }
+
+        .status-bar {
+            text-align: center;
+            padding: 10px;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .status-bar.success { color: #2ecc71; }
+        .status-bar.error { color: #e74c3c; }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+        footer a { color: #00f0ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📡 TEAM COMMS HUB</h1>
+            <p>2-Way Messaging • Send & Receive</p>
+        </header>
+
+        <!-- WHO ARE YOU -->
+        <div class="user-selector">
+            <button class="user-btn active" data-user="commander">
+                <span class="emoji">👑</span>
+                <span class="name">Commander</span>
+            </button>
+            <button class="user-btn" data-user="agent_r">
+                <span class="emoji">🤖</span>
+                <span class="name">Agent R</span>
+            </button>
+            <button class="user-btn" data-user="tiger">
+                <span class="emoji">🐅</span>
+                <span class="name">Tiger</span>
+            </button>
+            <button class="user-btn" data-user="nero">
+                <span class="emoji">🎯</span>
+                <span class="name">Nero</span>
+            </button>
+        </div>
+
+        <!-- SEND TO -->
+        <div class="recipient-section">
+            <h3>📤 SEND TO:</h3>
+            <div class="recipient-grid">
+                <button class="recipient-chip" data-to="all">ALL</button>
+                <button class="recipient-chip selected" data-to="agent_r">Agent R</button>
+                <button class="recipient-chip" data-to="commander">Commander</button>
+                <button class="recipient-chip" data-to="tiger">Tiger</button>
+                <button class="recipient-chip" data-to="nero">Nero</button>
+                <button class="recipient-chip" data-to="alex">Alex</button>
+                <button class="recipient-chip" data-to="ryan">Ryan</button>
+                <button class="recipient-chip" data-to="josh_serrano">Josh S</button>
+            </div>
+        </div>
+
+        <!-- COMPOSER -->
+        <div class="composer">
+            <h3>✍️ MESSAGE:</h3>
+            <textarea id="messageInput" placeholder="Type your message here..."></textarea>
+
+            <div class="priority-row">
+                <button class="priority-btn" data-priority="low">Low</button>
+                <button class="priority-btn selected" data-priority="normal">Normal</button>
+                <button class="priority-btn" data-priority="high">High</button>
+                <button class="priority-btn" data-priority="urgent">🚨 Urgent</button>
+            </div>
+
+            <button class="send-btn" id="sendBtn">SEND MESSAGE</button>
+        </div>
+
+        <!-- INBOX -->
+        <div class="inbox">
+            <h3>
+                📥 YOUR INBOX
+                <span class="badge" id="unreadBadge" style="display:none;">0</span>
+                <button class="refresh-btn" id="refreshBtn">🔄 Refresh</button>
+            </h3>
+            <div class="message-list" id="messageList">
+                <div class="no-messages">Click refresh to load messages</div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar"></div>
+
+        <footer>
+            <a href="/">Home</a> •
+            <a href="/araya-chat.html">ARAYA</a> •
+            <a href="/AGENT_R_7_DOMAINS_UNIFIED.html">Agent R Dashboard</a>
+        </footer>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // TEAM COMMS HUB - Frontend Logic
+        // ═══════════════════════════════════════════════════════════════
+
+        const API_URL = '/.netlify/functions/team-messages';
+        const COMMANDER_KEY = 'consciousness137';
+
+        // State
+        let currentUser = 'commander';
+        let selectedRecipient = 'agent_r';
+        let selectedPriority = 'normal';
+
+        // ─────────────────────────────────────────────────────────────────
+        // USER SELECTION
+        // ─────────────────────────────────────────────────────────────────
+
+        document.querySelectorAll('.user-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.user-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentUser = btn.dataset.user;
+                loadMessages();
+            });
+        });
+
+        // ─────────────────────────────────────────────────────────────────
+        // RECIPIENT SELECTION
+        // ─────────────────────────────────────────────────────────────────
+
+        document.querySelectorAll('.recipient-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.recipient-chip').forEach(c => c.classList.remove('selected'));
+                chip.classList.add('selected');
+                selectedRecipient = chip.dataset.to;
+            });
+        });
+
+        // ─────────────────────────────────────────────────────────────────
+        // PRIORITY SELECTION
+        // ─────────────────────────────────────────────────────────────────
+
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedPriority = btn.dataset.priority;
+            });
+        });
+
+        // ─────────────────────────────────────────────────────────────────
+        // SEND MESSAGE
+        // ─────────────────────────────────────────────────────────────────
+
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+
+            if (!message) {
+                showStatus('Please enter a message', 'error');
+                return;
+            }
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'SENDING...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: COMMANDER_KEY,
+                        to: selectedRecipient,
+                        message: message,
+                        priority: selectedPriority,
+                        from: currentUser.charAt(0).toUpperCase() + currentUser.slice(1).replace('_', ' ')
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.sent) {
+                    showStatus(`✅ Message sent to ${selectedRecipient}!`, 'success');
+                    messageInput.value = '';
+                } else {
+                    showStatus('❌ ' + (data.error || 'Failed to send'), 'error');
+                }
+            } catch (err) {
+                showStatus('❌ Network error: ' + err.message, 'error');
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'SEND MESSAGE';
+        });
+
+        // ─────────────────────────────────────────────────────────────────
+        // LOAD MESSAGES
+        // ─────────────────────────────────────────────────────────────────
+
+        async function loadMessages() {
+            const messageList = document.getElementById('messageList');
+            messageList.innerHTML = '<div class="no-messages">Loading...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}?user=${currentUser}&mark_read=true`);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    messageList.innerHTML = data.messages.map(msg => `
+                        <div class="message-item ${msg.read ? '' : 'unread'}">
+                            <div class="meta">
+                                <span class="sender">From: ${msg.sender}</span>
+                                <span>${formatTime(msg.created_at)}</span>
+                            </div>
+                            <div class="content">${escapeHtml(msg.message)}</div>
+                            <span class="priority-tag ${msg.priority}">${msg.priority}</span>
+                        </div>
+                    `).join('');
+
+                    // Update unread badge
+                    const unreadBadge = document.getElementById('unreadBadge');
+                    if (data.unread > 0) {
+                        unreadBadge.style.display = 'inline';
+                        unreadBadge.textContent = data.unread;
+                    } else {
+                        unreadBadge.style.display = 'none';
+                    }
+                } else {
+                    messageList.innerHTML = '<div class="no-messages">No messages yet</div>';
+                }
+            } catch (err) {
+                messageList.innerHTML = `<div class="no-messages">Error loading: ${err.message}</div>`;
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadMessages);
+
+        // ─────────────────────────────────────────────────────────────────
+        // HELPERS
+        // ─────────────────────────────────────────────────────────────────
+
+        function showStatus(msg, type) {
+            const statusBar = document.getElementById('statusBar');
+            statusBar.textContent = msg;
+            statusBar.className = 'status-bar ' + type;
+            setTimeout(() => { statusBar.textContent = ''; }, 5000);
+        }
+
+        function formatTime(isoString) {
+            const d = new Date(isoString);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Auto-load on start
+        loadMessages();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadMessages, 30000);
+    </script>
+</body>
+</html>

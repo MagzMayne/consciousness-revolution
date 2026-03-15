@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Guild Library - Product Catalog</title>
+
+    <script type="application/json" id="dashboard-dna">
+{
+  "name": "Build Guild Library",
+  "version": "1.0.0",
+  "purpose": "Product catalog with copy/download functionality for agents",
+  "domain": "BUILD",
+  "sphere": "CREATION_FORGE",
+  "created": "2026-03-14",
+  "status": "LIVE",
+  "url": "https://conciousnessrevolution.io/BUILD_GUILD_LIBRARY.html",
+  "features": ["product-catalog", "copy-project", "download-code", "version-tracking"],
+  "owner": "Commander"
+}
+    </script>
+
+    <style>
+        :root {
+            --bg: #0a0a12;
+            --card: #12121a;
+            --text: #ffffff;
+            --text-dim: #888;
+            --border: #333;
+            --accent: #ff8800;
+            --accent-glow: rgba(255, 136, 0, 0.3);
+            --live: #00ff88;
+            --wip: #ffaa00;
+            --planned: #00aaff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, rgba(255, 136, 0, 0.1), rgba(255, 136, 0, 0.02));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 25px;
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .search-box:focus {
+            border-color: var(--accent);
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 25px;
+            transition: all 0.3s;
+        }
+
+        .product-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 5px 30px var(--accent-glow);
+            transform: translateY(-3px);
+        }
+
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .product-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text);
+        }
+
+        .product-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status-live { background: rgba(0, 255, 136, 0.15); color: var(--live); }
+        .status-wip { background: rgba(255, 170, 0, 0.15); color: var(--wip); }
+        .status-planned { background: rgba(0, 170, 255, 0.15); color: var(--planned); }
+
+        .product-desc {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .product-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .product-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .forge-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: rgba(255, 136, 0, 0.15);
+            color: var(--accent);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .action-btn.primary {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .action-btn.primary:hover {
+            background: #ffaa33;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .file-list {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .file-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--live);
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--live);
+            color: var(--bg);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5rem; }
+            .stats-bar { gap: 20px; }
+            .product-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>Build Guild Library</h1>
+        <p>Complete product catalog - Copy, Download, Deploy</p>
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" style="color: var(--live);" id="liveCount">15</div>
+                <div class="stat-label">LIVE Products</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" style="color: var(--wip);" id="wipCount">6</div>
+                <div class="stat-label">In Development</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" style="color: var(--planned);" id="plannedCount">15</div>
+                <div class="stat-label">Planned</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="filters">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search products...">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="live">Live</button>
+        <button class="filter-btn" data-filter="wip">In Dev</button>
+        <button class="filter-btn" data-filter="planned">Planned</button>
+    </div>
+
+    <div class="product-grid" id="productGrid"></div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="productModal">
+            <h2 id="modalTitle">Product Details</h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Copied to clipboard!</div>
+
+    <script>
+        const PRODUCTS = [
+            // LIVE PRODUCTS
+            {
+                id: "araya-chat",
+                name: "ARAYA Chat",
+                description: "AI assistant trained on Pattern Theory with consciousness alignment",
+                status: "live",
+                forge: "Infinity",
+                files: ["araya-chat.html", "netlify/functions/araya-chat.mjs"],
+                url: "/araya-chat.html",
+                version: "2.1.0",
+                downloads: 0,
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "trinity-api",
+                name: "Trinity API",
+                description: "3-perspective AI convergence (C1 Mechanic, C2 Architect, C3 Oracle)",
+                status: "live",
+                forge: "Infinity",
+                files: ["railway: trinity-api"],
+                url: "https://trinity-api-production-dff4.up.railway.app/",
+                version: "1.0.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "influence-detector",
+                name: "Influence Detector",
+                description: "Spot manipulation patterns and psychological influence attempts",
+                status: "live",
+                forge: "Guardian",
+                files: ["INFLUENCE_DETECTOR.html"],
+                url: "/INFLUENCE_DETECTOR.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-10"
+            },
+            {
+                id: "reinforcement-detector",
+                name: "Reinforcement Detector",
+                description: "Detect intermittent reinforcement manipulation patterns",
+                status: "live",
+                forge: "Guardian",
+                files: ["INTERMITTENT_REINFORCEMENT_DETECTOR.html"],
+                url: "/INTERMITTENT_REINFORCEMENT_DETECTOR.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-10"
+            },
+            {
+                id: "evidence-tracker",
+                name: "Evidence Tracker",
+                description: "Legal case evidence organizer with timeline and categorization",
+                status: "live",
+                forge: "Guardian",
+                files: ["EVIDENCE_TRACKER.html"],
+                url: "/EVIDENCE_TRACKER.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-08"
+            },
+            {
+                id: "analytics-dashboard",
+                name: "Analytics Dashboard",
+                description: "Site analytics and visitor tracking dashboard",
+                status: "live",
+                forge: "Wealth",
+                files: ["ANALYTICS_DASHBOARD.html"],
+                url: "/ANALYTICS_DASHBOARD.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-05"
+            },
+            {
+                id: "software-engineering-101",
+                name: "Software Engineering 101",
+                description: "Developer learning hub with tutorials and resources",
+                status: "live",
+                forge: "Character",
+                files: ["SOFTWARE_ENGINEERING_101.html"],
+                url: "/SOFTWARE_ENGINEERING_101.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-01"
+            },
+            {
+                id: "dna-index",
+                name: "DNA Index",
+                description: "System documentation browser for all DNA files",
+                status: "live",
+                forge: "Character",
+                files: ["DNA_INDEX.html"],
+                url: "/DNA_INDEX.html",
+                version: "1.0.0",
+                lastUpdated: "2026-02-28"
+            },
+            {
+                id: "widget-governance",
+                name: "Widget Governance Panel",
+                description: "Widget library manager and governance system",
+                status: "live",
+                forge: "Creation",
+                files: ["WIDGET_GOVERNANCE_PANEL.html"],
+                url: "/WIDGET_GOVERNANCE_PANEL.html",
+                version: "1.0.0",
+                lastUpdated: "2026-02-25"
+            },
+            {
+                id: "commander-7-domains",
+                name: "Commander 7 Domains",
+                description: "Commander unified dashboard with Personal/Team/Public views",
+                status: "live",
+                forge: "Reality",
+                files: ["COMMANDER_7_DOMAINS_UNIFIED.html"],
+                url: "/COMMANDER_7_DOMAINS_UNIFIED.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "agent-r-7-domains",
+                name: "Agent R 7 Domains",
+                description: "Agent R unified dashboard with Personal/Team/Public views",
+                status: "live",
+                forge: "Reality",
+                files: ["AGENT_R_7_DOMAINS_UNIFIED.html"],
+                url: "/AGENT_R_7_DOMAINS_UNIFIED.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "team-command-center",
+                name: "Team Command Center",
+                description: "Team roster and directory management",
+                status: "live",
+                forge: "Signal",
+                files: ["TEAM_COMMAND_CENTER.html"],
+                url: "/TEAM_COMMAND_CENTER.html",
+                version: "1.0.0",
+                lastUpdated: "2026-02-20"
+            },
+            {
+                id: "jedi-alliance",
+                name: "Jedi AI Alliance",
+                description: "AI collaboration tools and multi-AI coordination",
+                status: "live",
+                forge: "Signal",
+                files: ["JEDI_ALLIANCE_DNA.html"],
+                url: "/JEDI_ALLIANCE_DNA.html",
+                version: "1.0.0",
+                lastUpdated: "2026-02-15"
+            },
+            {
+                id: "trinity-dna",
+                name: "Trinity DNA",
+                description: "Trinity system documentation and architecture",
+                status: "live",
+                forge: "Infinity",
+                files: ["TRINITY_DNA.html"],
+                url: "/TRINITY_DNA.html",
+                version: "1.0.0",
+                lastUpdated: "2026-02-10"
+            },
+            {
+                id: "7-forges-hub",
+                name: "7 Forges Hub",
+                description: "Navigation hub for all 7 Forge domains",
+                status: "live",
+                forge: "Reality",
+                files: ["domains-simple.html"],
+                url: "/domains-simple.html",
+                version: "1.0.0",
+                lastUpdated: "2026-03-14"
+            },
+
+            // AGENT R PRODUCTS (80% Complete)
+            {
+                id: "build-guild",
+                name: "Build Guild",
+                description: "Builder community and project collaboration platform",
+                status: "wip",
+                forge: "Creation",
+                files: ["BUILD_GUILD.html"],
+                url: "/BUILD_GUILD.html",
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "the-ark",
+                name: "THE ARK",
+                description: "Raspberry Pi + CLI off-grid communications system",
+                status: "wip",
+                forge: "Signal",
+                files: ["planned: ark-cli/"],
+                url: null,
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "pro-se-legal-arsenal",
+                name: "Pro Se Legal Arsenal",
+                description: "Legal tools and document templates for self-representation",
+                status: "wip",
+                forge: "Guardian",
+                files: ["planned: LEGAL_ARSENAL/"],
+                url: null,
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "pattern-recognition-engine",
+                name: "Pattern Recognition Engine",
+                description: "Financial pattern detection and market analysis",
+                status: "wip",
+                forge: "Wealth",
+                files: ["planned: pattern-engine/"],
+                url: null,
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "pattern-theory-training",
+                name: "Pattern Theory Training",
+                description: "Consciousness training program based on Pattern Theory",
+                status: "wip",
+                forge: "Character",
+                files: ["planned: pattern-training/"],
+                url: null,
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+            {
+                id: "neuro-frequency",
+                name: "Neuro Frequency",
+                description: "Brainwave entrainment and consciousness expansion tools",
+                status: "wip",
+                forge: "Infinity",
+                files: ["planned: neuro-frequency/"],
+                url: null,
+                version: "0.8.0",
+                lastUpdated: "2026-03-14"
+            },
+
+            // PLANNED PRODUCTS
+            {
+                id: "autonomous-social",
+                name: "Autonomous Social Media",
+                description: "Auto-post to all platforms from content queue",
+                status: "planned",
+                forge: "Signal",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "contacts-network",
+                name: "Contacts/Networking App",
+                description: "Relationship tracker with follow-up reminders",
+                status: "planned",
+                forge: "Signal",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "xp-dashboard",
+                name: "XP Dashboard",
+                description: "Track XP, levels, and achievements",
+                status: "planned",
+                forge: "Character",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "brain-query",
+                name: "Brain Query UI",
+                description: "Query Cyclotron brain atoms via dashboard",
+                status: "planned",
+                forge: "Infinity",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "team-files-hub",
+                name: "Team Files Hub",
+                description: "File sharing between team members",
+                status: "planned",
+                forge: "Signal",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "stripe-dashboard",
+                name: "Stripe Dashboard",
+                description: "Revenue tracking and subscription management",
+                status: "planned",
+                forge: "Wealth",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "onboarding-flow",
+                name: "Onboarding Flow",
+                description: "New user guided setup experience",
+                status: "planned",
+                forge: "Character",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "ai-coding-school",
+                name: "AI Coding School",
+                description: "Learn to code with AI assistance",
+                status: "planned",
+                forge: "Character",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "discord-integration",
+                name: "Discord Integration",
+                description: "Discord activity dashboard and bot",
+                status: "planned",
+                forge: "Signal",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "anti-destroyer",
+                name: "Anti-Destroyer System",
+                description: "Full manipulation detection suite",
+                status: "planned",
+                forge: "Guardian",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "legal-arsenal",
+                name: "Legal Arsenal",
+                description: "Legal tools and document templates",
+                status: "planned",
+                forge: "Guardian",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "pattern-visualizer",
+                name: "Pattern Visualizer",
+                description: "Recursive pattern visualization",
+                status: "planned",
+                forge: "Infinity",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "emergence-dashboard",
+                name: "Emergence Dashboard",
+                description: "Consciousness emergence tracking",
+                status: "planned",
+                forge: "Infinity",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            },
+            {
+                id: "bridge-server",
+                name: "Bridge Server",
+                description: "Brain + Trinity control panel",
+                status: "planned",
+                forge: "Reality",
+                files: [],
+                url: null,
+                version: "0.0.0"
+            }
+        ];
+
+        // Render products
+        function renderProducts(filter = 'all', search = '') {
+            const grid = document.getElementById('productGrid');
+            let filtered = PRODUCTS;
+
+            if (filter !== 'all') {
+                filtered = filtered.filter(p => p.status === filter);
+            }
+
+            if (search) {
+                const s = search.toLowerCase();
+                filtered = filtered.filter(p =>
+                    p.name.toLowerCase().includes(s) ||
+                    p.description.toLowerCase().includes(s) ||
+                    p.forge.toLowerCase().includes(s)
+                );
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="product-card" data-id="${p.id}">
+                    <div class="product-header">
+                        <div class="product-name">${p.name}</div>
+                        <div class="product-status status-${p.status}">
+                            ${p.status.toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="product-desc">${p.description}</div>
+                    <div class="product-meta">
+                        <span class="forge-badge">${p.forge}</span>
+                        <span>v${p.version}</span>
+                        ${p.lastUpdated ? `<span>${p.lastUpdated}</span>` : ''}
+                    </div>
+                    <div class="product-actions">
+                        ${p.url ? `<a href="${p.url}" target="_blank" class="action-btn primary">Open</a>` : ''}
+                        ${p.files.length > 0 ? `<button class="action-btn" onclick="showDetails('${p.id}')">Details</button>` : ''}
+                        ${p.status === 'live' ? `<button class="action-btn" onclick="copyProject('${p.id}')">Copy</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Update counts
+            document.getElementById('liveCount').textContent = PRODUCTS.filter(p => p.status === 'live').length;
+            document.getElementById('wipCount').textContent = PRODUCTS.filter(p => p.status === 'wip').length;
+            document.getElementById('plannedCount').textContent = PRODUCTS.filter(p => p.status === 'planned').length;
+        }
+
+        // Show product details
+        function showDetails(id) {
+            const product = PRODUCTS.find(p => p.id === id);
+            if (!product) return;
+
+            const modal = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            title.textContent = product.name;
+            content.innerHTML = `
+                <p style="color: var(--text-dim); margin-bottom: 20px;">${product.description}</p>
+                <div style="margin-bottom: 15px;">
+                    <strong>Forge:</strong> ${product.forge}<br>
+                    <strong>Version:</strong> ${product.version}<br>
+                    <strong>Status:</strong> ${product.status.toUpperCase()}
+                </div>
+                <h3 style="margin-bottom: 10px;">Files</h3>
+                <div class="file-list">
+                    ${product.files.map(f => `<div class="file-item">${f}</div>`).join('')}
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    ${product.url ? `<a href="${product.url}" target="_blank" class="action-btn primary" style="flex:1;text-decoration:none;">Open Product</a>` : ''}
+                    <button class="action-btn" style="flex:1;" onclick="copyProject('${product.id}')">Copy Project</button>
+                    <button class="action-btn" style="flex:1;" onclick="closeModal()">Close</button>
+                </div>
+            `;
+
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        // Copy project functionality
+        function copyProject(id) {
+            const product = PRODUCTS.find(p => p.id === id);
+            if (!product) return;
+
+            const projectInfo = `
+# ${product.name}
+Version: ${product.version}
+Forge: ${product.forge}
+Status: ${product.status}
+
+## Description
+${product.description}
+
+## Files
+${product.files.join('\n')}
+
+## URL
+${product.url || 'Not deployed yet'}
+
+---
+Copied from Build Guild Library
+https://conciousnessrevolution.io/BUILD_GUILD_LIBRARY.html
+            `.trim();
+
+            navigator.clipboard.writeText(projectInfo).then(() => {
+                showToast('Project info copied!');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // Event listeners
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderProducts(btn.dataset.filter, document.getElementById('searchBox').value);
+            });
+        });
+
+        document.getElementById('searchBox').addEventListener('input', (e) => {
+            const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+            renderProducts(activeFilter, e.target.value);
+        });
+
+        document.getElementById('modalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modalOverlay') closeModal();
+        });
+
+        // Initial render
+        renderProducts();
+    </script>
+</body>
+</html>

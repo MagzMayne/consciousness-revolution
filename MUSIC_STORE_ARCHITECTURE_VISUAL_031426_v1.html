@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DWREK Music Store Architecture | Scalable Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #00ff88;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #ffd700;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 5px;
+        }
+
+        .tab:hover {
+            background: rgba(0, 255, 136, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            background: #00ff88;
+            color: #0a0a0a;
+            font-weight: bold;
+        }
+
+        .panel {
+            display: none;
+            background: rgba(26, 26, 46, 0.8);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .architecture-diagram {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .arch-box {
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .arch-box:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .arch-box h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .arch-box ul {
+            list-style: none;
+            text-align: left;
+        }
+
+        .arch-box li {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .arch-box li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #ffd700;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            font-size: 2em;
+            color: #ffd700;
+            margin: 20px 0;
+        }
+
+        .cost-calculator {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .cost-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+
+        .cost-row.header {
+            background: rgba(0, 255, 136, 0.2);
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .cost-total {
+            background: rgba(255, 215, 0, 0.2);
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-size: 1.3em;
+            text-align: center;
+        }
+
+        .revenue-chart {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .scenario-box {
+            background: rgba(0, 255, 136, 0.05);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .scenario-box h3 {
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .year-breakdown {
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .year-breakdown div {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .big-number {
+            font-size: 2.5em;
+            color: #00ff88;
+            margin: 20px 0;
+            text-shadow: 0 0 15px #00ff88;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stack-item {
+            background: rgba(0, 255, 136, 0.05);
+            border-left: 4px solid #ffd700;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .stack-item h4 {
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .pros {
+            color: #00ff88;
+        }
+
+        .cons {
+            color: #ff6b6b;
+        }
+
+        .checklist {
+            background: rgba(0, 255, 136, 0.05);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .checklist-item:hover {
+            background: rgba(0, 255, 136, 0.1);
+            transform: translateX(5px);
+        }
+
+        .checkbox {
+            width: 25px;
+            height: 25px;
+            border: 2px solid #00ff88;
+            border-radius: 5px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .checklist-item.checked .checkbox {
+            background: #00ff88;
+            color: #0a0a0a;
+        }
+
+        .priority {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            margin-left: auto;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .metric-card {
+            background: rgba(0, 255, 136, 0.05);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            color: #ffd700;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #00ff88;
+            font-size: 0.9em;
+        }
+
+        .pattern-box {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 255, 136, 0.1));
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .pattern-box h3 {
+            color: #ffd700;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .pattern-formula {
+            font-size: 1.3em;
+            margin: 20px 0;
+            color: #00ff88;
+        }
+
+        @media (max-width: 768px) {
+            .architecture-diagram,
+            .revenue-chart,
+            .tech-stack,
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cost-row {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+
+        .interactive-slider {
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(0, 255, 136, 0.05);
+            border-radius: 10px;
+        }
+
+        .slider-container {
+            margin: 20px 0;
+        }
+
+        .slider-container label {
+            display: block;
+            margin-bottom: 10px;
+            color: #ffd700;
+        }
+
+        .slider-container input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 255, 136, 0.2);
+            outline: none;
+            border-radius: 5px;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00ff88;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .slider-value {
+            display: inline-block;
+            background: rgba(255, 215, 0, 0.2);
+            padding: 5px 15px;
+            border-radius: 5px;
+            margin-left: 15px;
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 DWREK MUSIC STORE ARCHITECTURE 🎵</h1>
+        <div class="subtitle">Scalable Design: 1 User → 1000+ Listeners | $0-$10/mo Infrastructure</div>
+
+        <div class="tab-container">
+            <div class="tab active" onclick="showPanel('overview')">Overview</div>
+            <div class="tab" onclick="showPanel('architecture')">Architecture</div>
+            <div class="tab" onclick="showPanel('costs')">Cost Analysis</div>
+            <div class="tab" onclick="showPanel('revenue')">Revenue Model</div>
+            <div class="tab" onclick="showPanel('implementation')">Implementation</div>
+            <div class="tab" onclick="showPanel('calculator')">ROI Calculator</div>
+        </div>
+
+        <!-- OVERVIEW PANEL -->
+        <div id="overview" class="panel active">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">🎯 Executive Summary</h2>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Tracks</div>
+                    <div class="metric-value">91+</div>
+                    <div class="metric-label">Across 5 Albums</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Infrastructure Cost</div>
+                    <div class="metric-value">$0</div>
+                    <div class="metric-label">Month 1-6</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Build Time</div>
+                    <div class="metric-value">12-16h</div>
+                    <div class="metric-label">Over 2 Weeks</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Profit Margin</div>
+                    <div class="metric-value">90%</div>
+                    <div class="metric-label">After Gumroad Fee</div>
+                </div>
+            </div>
+
+            <div class="pattern-box">
+                <h3>THE PATTERN: HYBRID ARTIST-FIRST MODEL</h3>
+                <div class="pattern-formula">
+                    FREE DISCOVERY (Spotify) + PREMIUM SALES (Gumroad) + CONSCIOUSNESS CONTEXT (Archetypal Guides) = UNIQUE VALUE
+                </div>
+                <p>Other artists: "Here's my music, hope you like it"</p>
+                <p style="color: #ffd700; font-weight: bold;">DWREK: "This music is an archetypal map of your consciousness"</p>
+            </div>
+
+            <h3 style="color: #ffd700; margin: 30px 0 15px;">🚀 3-Phase Rollout</h3>
+            <div class="architecture-diagram">
+                <div class="arch-box">
+                    <h3>PHASE 1: Personal Player</h3>
+                    <ul>
+                        <li>1 user (DWREK)</li>
+                        <li>Local + Netlify files</li>
+                        <li>Spotify embeds</li>
+                        <li>$0/mo infrastructure</li>
+                        <li>Week 1-2 build</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>PHASE 2: Beta Storefront</h3>
+                    <ul>
+                        <li>10-100 beta testers</li>
+                        <li>Gumroad payments</li>
+                        <li>Premium downloads</li>
+                        <li>$0-5/mo cost</li>
+                        <li>Week 3-4 build</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>PHASE 3: Public Scale</h3>
+                    <ul>
+                        <li>1000+ listeners</li>
+                        <li>Global CDN</li>
+                        <li>Analytics dashboard</li>
+                        <li>$5-20/mo cost</li>
+                        <li>Month 2-3 build</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ARCHITECTURE PANEL -->
+        <div id="architecture" class="panel">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">🏗️ Technical Architecture</h2>
+
+            <h3 style="color: #00ff88; margin: 30px 0 15px;">Storage Layer (3-Tier)</h3>
+            <div class="tech-stack">
+                <div class="stack-item">
+                    <h4>Netlify Free Tier (Preview Tracks)</h4>
+                    <p><strong>Purpose:</strong> 10 best tracks in MP3 320kbps (~200MB total)</p>
+                    <p><strong>Use Case:</strong> Web player streaming preview</p>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            ✅ 100GB/mo bandwidth<br>
+                            ✅ Already deployed<br>
+                            ✅ Global CDN included
+                        </div>
+                        <div class="cons">
+                            ⚠️ 500 plays/day limit<br>
+                            ⚠️ No analytics included
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>Cloudflare R2 (Premium Downloads)</h4>
+                    <p><strong>Purpose:</strong> All 91 tracks in lossless WAV (~2GB total)</p>
+                    <p><strong>Use Case:</strong> Paid customer downloads only</p>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            ✅ $0 egress fees (vs S3)<br>
+                            ✅ 10GB free storage<br>
+                            ✅ S3-compatible API
+                        </div>
+                        <div class="cons">
+                            ⚠️ No streaming (download only)<br>
+                            ⚠️ Signed URLs required
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>Spotify/Apple Music (Free Streaming)</h4>
+                    <p><strong>Purpose:</strong> All tracks via DistroKid distribution</p>
+                    <p><strong>Use Case:</strong> Embedded iframes on DWREK site</p>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            ✅ Infinite free streaming<br>
+                            ✅ Platform credibility<br>
+                            ✅ Analytics included<br>
+                            ✅ Playlist discovery
+                        </div>
+                        <div class="cons">
+                            ⚠️ Low payouts ($0.003/stream)<br>
+                            ⚠️ Platform owns audience
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>Gumroad (Payment & Delivery)</h4>
+                    <p><strong>Purpose:</strong> Premium track/album sales</p>
+                    <p><strong>Use Case:</strong> Direct sales + download delivery</p>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            ✅ 10% fee (no monthly cost)<br>
+                            ✅ Auto download delivery<br>
+                            ✅ Email receipts<br>
+                            ✅ Sales analytics
+                        </div>
+                        <div class="cons">
+                            ⚠️ Higher fee than Stripe<br>
+                            ⚠️ Gumroad branding
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #00ff88; margin: 40px 0 15px;">Application Layer</h3>
+            <div style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; border: 2px solid #00ff88;">
+                <pre style="color: #00ff88; overflow-x: auto;">
+┌────────────────────────────────────────────────────────┐
+│           MUSIC_PLAYER_V2.html (Central Hub)           │
+├────────────────────────────────────────────────────────┤
+│                                                         │
+│  TAB 1: FREE STREAMING                                 │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Spotify Embed (Hive Mind 2)                     │  │
+│  │  Apple Music Embed (Album 2)                     │  │
+│  │  YouTube Embed (Top 10 Playlist)                 │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  TAB 2: PREMIUM PLAYER                                 │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Wavesurfer.js Audio Player                      │  │
+│  │  - Track List (91 tracks)                        │  │
+│  │  - Play Preview (30s from Netlify)               │  │
+│  │  - Buy Lossless (Gumroad link)                   │  │
+│  │  - Download (after purchase)                     │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  TAB 3: CONSCIOUSNESS CONTEXT                          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Sacred Geometry Visualization (SVG)             │  │
+│  │  Archetypal Journey Map                          │  │
+│  │  Track Meanings & Insights                       │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+└────────────────────────────────────────────────────────┘
+                </pre>
+            </div>
+        </div>
+
+        <!-- COSTS PANEL -->
+        <div id="costs" class="panel">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">💰 Cost Analysis (3-Year TCO)</h2>
+
+            <div class="cost-calculator">
+                <h3 style="color: #ffd700; margin-bottom: 20px;">Monthly Infrastructure Costs</h3>
+
+                <div class="cost-row header">
+                    <div>Service</div>
+                    <div>Month 1</div>
+                    <div>Month 6 (100 users)</div>
+                    <div>Month 12 (1000 users)</div>
+                </div>
+
+                <div class="cost-row">
+                    <div>Netlify (100GB/mo bandwidth)</div>
+                    <div>$0</div>
+                    <div>$0</div>
+                    <div>$0</div>
+                </div>
+
+                <div class="cost-row">
+                    <div>Cloudflare R2 (storage only)</div>
+                    <div>$0</div>
+                    <div>$0</div>
+                    <div>$0.30</div>
+                </div>
+
+                <div class="cost-row">
+                    <div>Spotify/Apple (via DistroKid)</div>
+                    <div>$0</div>
+                    <div>$0</div>
+                    <div>$0</div>
+                </div>
+
+                <div class="cost-row">
+                    <div>Gumroad (10% of sales)</div>
+                    <div>$0</div>
+                    <div>$5</div>
+                    <div>$50</div>
+                </div>
+
+                <div class="cost-row">
+                    <div>Bunny CDN (optional upgrade)</div>
+                    <div>-</div>
+                    <div>-</div>
+                    <div>$10</div>
+                </div>
+
+                <div class="cost-total">
+                    <div style="margin-bottom: 10px;">Total Infrastructure Cost:</div>
+                    <div>Month 1: <strong style="color: #00ff88;">$0/mo</strong></div>
+                    <div>Month 6: <strong style="color: #00ff88;">$5/mo</strong> (covered by 1 subscription)</div>
+                    <div>Month 12: <strong style="color: #00ff88;">$60/mo</strong> (covered by 12 subscriptions)</div>
+                </div>
+            </div>
+
+            <h3 style="color: #00ff88; margin: 40px 0 15px;">3-Year Total Cost of Ownership</h3>
+            <div style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.2em; margin-bottom: 10px;">Year 1</div>
+                        <div class="big-number">$0-60</div>
+                        <div style="color: #888;">Mostly free tier</div>
+                    </div>
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.2em; margin-bottom: 10px;">Year 2</div>
+                        <div class="big-number">$120-360</div>
+                        <div style="color: #888;">CDN upgrade</div>
+                    </div>
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.2em; margin-bottom: 10px;">Year 3</div>
+                        <div class="big-number">$240-600</div>
+                        <div style="color: #888;">Scale to 10K users</div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 2px solid #00ff88;">
+                    <div style="color: #ffd700; font-size: 1.3em; margin-bottom: 10px;">3-Year Total Infrastructure Cost</div>
+                    <div class="big-number">$360-1,020</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- REVENUE PANEL -->
+        <div id="revenue" class="panel">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">📈 Revenue Projections (3-Year Model)</h2>
+
+            <div class="revenue-chart">
+                <div class="scenario-box">
+                    <h3>🔹 Conservative Scenario</h3>
+                    <div class="year-breakdown">
+                        <div><strong>Year 1:</strong> $488</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 10 premium purchases: $100<br>
+                            • 5 subscriptions × 12mo: $300<br>
+                            • 2 bundles: $58<br>
+                            • 10K Spotify streams: $30
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 2:</strong> $2,140</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 50 purchases: $500<br>
+                            • 20 subscriptions: $1,200<br>
+                            • 10 bundles: $290<br>
+                            • 50K streams: $150
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 3:</strong> $6,470</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 200 purchases: $2,000<br>
+                            • 50 subscriptions: $3,000<br>
+                            • 30 bundles: $870<br>
+                            • 200K streams: $600
+                        </div>
+                    </div>
+                    <div class="big-number" style="font-size: 1.8em; margin-top: 20px;">$9,098</div>
+                    <div style="color: #888;">3-Year Total</div>
+                    <div style="margin-top: 15px; color: #00ff88;">ROI: <strong>800%</strong></div>
+                </div>
+
+                <div class="scenario-box" style="border-color: #ffd700;">
+                    <h3>🔸 Optimistic Scenario</h3>
+                    <div class="year-breakdown">
+                        <div><strong>Year 1:</strong> $2,640</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 100 purchases: $1,000<br>
+                            • 20 subscriptions: $1,200<br>
+                            • 10 bundles: $290<br>
+                            • 50K streams: $150
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 2:</strong> $14,450</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 500 purchases: $5,000<br>
+                            • 100 subscriptions: $6,000<br>
+                            • 50 bundles: $1,450<br>
+                            • 500K streams: $1,500<br>
+                            • YouTube ads: $500
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 3:</strong> $55,350</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • 2K purchases: $20,000<br>
+                            • 300 subscriptions: $18,000<br>
+                            • 150 bundles: $4,350<br>
+                            • 2M streams: $6,000<br>
+                            • YouTube: $2,000<br>
+                            • Licensing: $5,000
+                        </div>
+                    </div>
+                    <div class="big-number" style="font-size: 1.8em; margin-top: 20px; color: #ffd700;">$72,440</div>
+                    <div style="color: #888;">3-Year Total</div>
+                    <div style="margin-top: 15px; color: #ffd700;">ROI: <strong>7,000%</strong></div>
+                </div>
+
+                <div class="scenario-box" style="border-color: #ff6b6b;">
+                    <h3 style="color: #ff6b6b;">💥 Aggressive Scenario</h3>
+                    <div class="year-breakdown">
+                        <div><strong>Year 1:</strong> $10,000</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • TikTok viral moment<br>
+                            • 1K+ track sales<br>
+                            • 50+ subscriptions<br>
+                            • Merch revenue
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 2:</strong> $50,000</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • Playlist placements<br>
+                            • Tour merchandise<br>
+                            • Sync licensing deals<br>
+                            • Consciousness courses
+                        </div>
+                    </div>
+                    <div class="year-breakdown">
+                        <div><strong>Year 3:</strong> $200,000</div>
+                        <div style="font-size: 0.85em; padding-left: 15px;">
+                            • Major licensing deals<br>
+                            • Label partnerships<br>
+                            • Live performances<br>
+                            • Consciousness Academy
+                        </div>
+                    </div>
+                    <div class="big-number" style="font-size: 1.8em; margin-top: 20px; color: #ff6b6b;">$260,000</div>
+                    <div style="color: #888;">3-Year Total</div>
+                    <div style="margin-top: 15px; color: #ff6b6b;">ROI: <strong>25,000%</strong></div>
+                </div>
+            </div>
+
+            <div class="pattern-box" style="margin-top: 40px;">
+                <h3>💡 Revenue Breakdown by Source</h3>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px;">
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.5em;">$1/track</div>
+                        <div>Premium Downloads</div>
+                        <div style="font-size: 0.85em; color: #888; margin-top: 5px;">90% profit margin</div>
+                    </div>
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.5em;">$10/album</div>
+                        <div>Full Albums</div>
+                        <div style="font-size: 0.85em; color: #888; margin-top: 5px;">Higher AOV</div>
+                    </div>
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.5em;">$5/mo</div>
+                        <div>Subscriptions</div>
+                        <div style="font-size: 0.85em; color: #888; margin-top: 5px;">Recurring revenue</div>
+                    </div>
+                    <div>
+                        <div style="color: #ffd700; font-size: 1.5em;">$29</div>
+                        <div>Consciousness Bundles</div>
+                        <div style="font-size: 0.85em; color: #888; margin-top: 5px;">Premium experience</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IMPLEMENTATION PANEL -->
+        <div id="implementation" class="panel">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">🛠️ Implementation Checklist</h2>
+
+            <div class="checklist">
+                <h3 style="color: #ffd700; margin-bottom: 15px;">Week 1: Foundation (C1 Priority)</h3>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Convert 10 best tracks to MP3 320kbps (FFmpeg batch script)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Upload MP3s to Netlify (100X_DEPLOYMENT/music/preview/)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Set up Cloudflare R2 bucket (dwrek-music-premium)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Upload all 91 .wav files to R2</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Verify DistroKid account (HUMAN - get 4 album names + Spotify/Apple links)</div>
+                    <div class="priority">P1 HUMAN</div>
+                </div>
+            </div>
+
+            <div class="checklist">
+                <h3 style="color: #ffd700; margin-bottom: 15px;">Week 2: Player Build</h3>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Clone MUSIC_DASHBOARD.html → MUSIC_PLAYER_V2.html</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Add Spotify embed iframes (Free Streaming tab)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Integrate Wavesurfer.js (waveform player)</div>
+                    <div class="priority">P2</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Build track list with preview buttons</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Add sacred geometry visualization (SVG from ChatGPT)</div>
+                    <div class="priority">P3</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Test on mobile (responsive design)</div>
+                    <div class="priority">P1</div>
+                </div>
+            </div>
+
+            <div class="checklist">
+                <h3 style="color: #ffd700; margin-bottom: 15px;">Week 3: Gumroad Integration</h3>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create Gumroad account (HUMAN - connect bank)</div>
+                    <div class="priority">P1 HUMAN</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create 91 single track products ($1 each)</div>
+                    <div class="priority">P2</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create 5 album products ($10 each)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create subscription product ($5/mo)</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create Consciousness Bundle ($29)</div>
+                    <div class="priority">P2</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Wire buy buttons to Gumroad permalinks</div>
+                    <div class="priority">P1</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Test purchase flow (buy 1 track, verify download)</div>
+                    <div class="priority">P1</div>
+                </div>
+            </div>
+
+            <div class="checklist">
+                <h3 style="color: #ffd700; margin-bottom: 15px;">Week 4: Analytics & Polish</h3>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Connect Gumroad API to MUSIC_DASHBOARD.html</div>
+                    <div class="priority">P2</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Add Spotify for Artists analytics embed</div>
+                    <div class="priority">P3</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Set up Plausible Analytics (track plays)</div>
+                    <div class="priority">P2</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Create archetypal journey guides (1 per album)</div>
+                    <div class="priority">P3 HUMAN</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Design sacred geometry visuals (Figma/ChatGPT)</div>
+                    <div class="priority">P3</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Write consciousness context for top 10 tracks</div>
+                    <div class="priority">P2 HUMAN</div>
+                </div>
+                <div class="checklist-item" onclick="toggleCheck(this)">
+                    <div class="checkbox"></div>
+                    <div style="flex: 1;">Beta test with 5 users</div>
+                    <div class="priority">P1 HUMAN</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: rgba(0, 255, 136, 0.1); border-radius: 10px; border-left: 4px solid #ffd700;">
+                <h4 style="color: #ffd700; margin-bottom: 10px;">⏱️ Total Build Time Estimate</h4>
+                <p style="color: #00ff88; font-size: 1.2em;">12-16 hours over 2 weeks</p>
+                <p style="margin-top: 10px;">Machine work: 10-12 hours | Human work: 2-4 hours</p>
+            </div>
+        </div>
+
+        <!-- CALCULATOR PANEL -->
+        <div id="calculator" class="panel">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">🧮 Interactive ROI Calculator</h2>
+
+            <div class="interactive-slider">
+                <h3 style="color: #ffd700; margin-bottom: 20px;">Adjust Your Assumptions</h3>
+
+                <div class="slider-container">
+                    <label>Monthly Listeners: <span class="slider-value" id="listenersValue">500</span></label>
+                    <input type="range" id="listeners" min="10" max="5000" value="500" oninput="updateCalculation()">
+                </div>
+
+                <div class="slider-container">
+                    <label>Conversion Rate (plays → purchases): <span class="slider-value" id="conversionValue">2%</span></label>
+                    <input type="range" id="conversion" min="0.5" max="10" step="0.5" value="2" oninput="updateCalculation()">
+                </div>
+
+                <div class="slider-container">
+                    <label>Monthly Subscribers: <span class="slider-value" id="subscribersValue">20</span></label>
+                    <input type="range" id="subscribers" min="0" max="500" value="20" oninput="updateCalculation()">
+                </div>
+
+                <div class="slider-container">
+                    <label>Average Purchase Value: $<span class="slider-value" id="avgPurchaseValue">5</span></label>
+                    <input type="range" id="avgPurchase" min="1" max="29" value="5" oninput="updateCalculation()">
+                </div>
+
+                <div style="margin-top: 40px; padding: 30px; background: rgba(0, 0, 0, 0.5); border-radius: 10px; border: 2px solid #ffd700;">
+                    <h3 style="color: #ffd700; text-align: center; margin-bottom: 20px;">Your Projected Monthly Revenue</h3>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                        <div style="text-align: center;">
+                            <div style="color: #888; margin-bottom: 5px;">Track Sales</div>
+                            <div style="font-size: 2em; color: #00ff88;">$<span id="trackSales">50</span></div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="color: #888; margin-bottom: 5px;">Subscriptions</div>
+                            <div style="font-size: 2em; color: #00ff88;">$<span id="subRevenue">100</span></div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="color: #888; margin-bottom: 5px;">Streaming</div>
+                            <div style="font-size: 2em; color: #00ff88;">$<span id="streamRevenue">2</span></div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; padding-top: 30px; border-top: 2px solid #ffd700;">
+                        <div style="color: #ffd700; font-size: 1.3em; margin-bottom: 10px;">Total Monthly Revenue</div>
+                        <div style="font-size: 3em; color: #00ff88; text-shadow: 0 0 20px #00ff88;">$<span id="totalRevenue">152</span></div>
+                        <div style="color: #888; margin-top: 10px;">Annual: $<span id="annualRevenue">1824</span></div>
+                    </div>
+
+                    <div style="margin-top: 30px; padding: 20px; background: rgba(255, 215, 0, 0.1); border-radius: 5px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <div style="color: #888; margin-bottom: 5px;">Infrastructure Cost</div>
+                                <div style="font-size: 1.5em; color: #ff6b6b;">$<span id="infaCost">10</span>/mo</div>
+                            </div>
+                            <div>
+                                <div style="color: #888; margin-bottom: 5px;">Net Profit</div>
+                                <div style="font-size: 1.5em; color: #00ff88;">$<span id="netProfit">142</span>/mo</div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 215, 0, 0.3);">
+                            <div style="color: #ffd700;">Profit Margin: <strong><span id="profitMargin">93</span>%</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pattern-box" style="margin-top: 40px;">
+                <h3>📊 Break-Even Analysis</h3>
+                <div style="margin-top: 20px;">
+                    <p>With $10/mo infrastructure cost at scale, you break even with:</p>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px;">
+                        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px;">
+                            <div style="color: #ffd700; font-size: 1.5em;">2-4</div>
+                            <div>Subscriptions/mo</div>
+                            <div style="font-size: 0.85em; color: #888; margin-top: 5px;">@ $5/mo each</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px;">
+                            <div style="color: #ffd700; font-size: 1.5em;">10</div>
+                            <div>Track sales/mo</div>
+                            <div style="font-size: 0.85em; color: #888; margin-top: 5px;">@ $1 each</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px;">
+                            <div style="color: #ffd700; font-size: 1.5em;">1</div>
+                            <div>Album sale/mo</div>
+                            <div style="font-size: 0.85em; color: #888; margin-top: 5px;">@ $10 each</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 20px; text-align: center; color: #00ff88; font-size: 1.1em;">
+                        <strong>Every sale after break-even = 90% pure profit</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPanel(panelId) {
+            // Hide all panels
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(panelId).classList.add('active');
+
+            // Activate clicked tab
+            event.target.classList.add('active');
+        }
+
+        function toggleCheck(item) {
+            item.classList.toggle('checked');
+            const checkbox = item.querySelector('.checkbox');
+            if (item.classList.contains('checked')) {
+                checkbox.textContent = '✓';
+            } else {
+                checkbox.textContent = '';
+            }
+        }
+
+        function updateCalculation() {
+            const listeners = parseInt(document.getElementById('listeners').value);
+            const conversion = parseFloat(document.getElementById('conversion').value);
+            const subscribers = parseInt(document.getElementById('subscribers').value);
+            const avgPurchase = parseFloat(document.getElementById('avgPurchase').value);
+
+            // Update slider value displays
+            document.getElementById('listenersValue').textContent = listeners;
+            document.getElementById('conversionValue').textContent = conversion + '%';
+            document.getElementById('subscribersValue').textContent = subscribers;
+            document.getElementById('avgPurchaseValue').textContent = avgPurchase.toFixed(0);
+
+            // Calculate revenue streams
+            const trackSales = Math.round(listeners * (conversion / 100) * avgPurchase);
+            const subRevenue = subscribers * 5;
+            const streamRevenue = Math.round(listeners * 0.003);
+
+            const totalRevenue = trackSales + subRevenue + streamRevenue;
+            const annualRevenue = totalRevenue * 12;
+
+            // Calculate costs (simplified based on scale)
+            let infraCost = 0;
+            if (listeners > 2000) infraCost = 20;
+            else if (listeners > 500) infraCost = 10;
+            else if (listeners > 100) infraCost = 5;
+
+            const netProfit = totalRevenue - infraCost;
+            const profitMargin = Math.round((netProfit / totalRevenue) * 100);
+
+            // Update display
+            document.getElementById('trackSales').textContent = trackSales;
+            document.getElementById('subRevenue').textContent = subRevenue;
+            document.getElementById('streamRevenue').textContent = streamRevenue;
+            document.getElementById('totalRevenue').textContent = totalRevenue;
+            document.getElementById('annualRevenue').textContent = annualRevenue;
+            document.getElementById('infaCost').textContent = infraCost;
+            document.getElementById('netProfit').textContent = netProfit;
+            document.getElementById('profitMargin').textContent = profitMargin;
+        }
+
+        // Initialize calculator
+        updateCalculation();
+    </script>
+</body>
+</html>

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<!--
+  SPIRAL NAVIGATION WIDGET
+  7 Forges Consciousness Journey
+
+  INSTALLATION:
+  1. Copy entire <style> block to your forge page <head>
+  2. Copy entire <div class="spiral-nav"> to before </body>
+  3. Copy entire <script> block after the HTML
+  4. Set data-forge="[current-forge-name]" on the spiral-nav div
+
+  EXAMPLE:
+  <div class="spiral-nav" data-forge="reality">
+
+  Architect: C2
+  Date: March 14, 2026
+-->
+
+<!-- ============================================ -->
+<!-- STEP 1: ADD THIS TO <HEAD> -->
+<!-- ============================================ -->
+<style>
+/* Spiral Navigation Widget - Core Styles */
+:root {
+  --spiral-bg: rgba(0, 0, 0, 0.92);
+  --spiral-border: rgba(255, 215, 0, 0.4);
+  --spiral-text: #f0f0f0;
+  --spiral-accent: #ffd700;
+  --spiral-active: #00ff00;
+  --spiral-complete: rgba(255, 215, 0, 0.7);
+  --spiral-incomplete: rgba(255, 255, 255, 0.2);
+  --spiral-radius: 12px;
+  --spiral-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Main Container - Fixed Bottom Right */
+.spiral-nav {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Montserrat', sans-serif;
+  font-size: 14px;
+  color: var(--spiral-text);
+}
+
+/* Toggle Button - Always Visible */
+.spiral-nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--spiral-bg);
+  border: 1px solid var(--spiral-border);
+  border-radius: var(--spiral-radius);
+  padding: 12px 16px;
+  cursor: pointer;
+  box-shadow: var(--spiral-shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.spiral-nav-toggle:hover {
+  background: rgba(0, 0, 0, 0.95);
+  border-color: var(--spiral-accent);
+  box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.spiral-icon {
+  font-size: 20px;
+  animation: spiral-pulse 3s infinite;
+}
+
+@keyframes spiral-pulse {
+  0%, 100% { transform: rotate(0deg) scale(1); opacity: 1; }
+  50% { transform: rotate(180deg) scale(1.1); opacity: 0.8; }
+}
+
+.progress-badge {
+  font-weight: 600;
+  color: var(--spiral-accent);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+/* Expanded Panel */
+.spiral-nav-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 320px;
+  max-height: 0;
+  overflow: hidden;
+  background: var(--spiral-bg);
+  border: 1px solid var(--spiral-border);
+  border-radius: var(--spiral-radius);
+  box-shadow: var(--spiral-shadow);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.spiral-nav.expanded .spiral-nav-panel {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Panel Header */
+.spiral-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.spiral-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--spiral-accent);
+  letter-spacing: 0.5px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--spiral-text);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: var(--spiral-accent);
+}
+
+/* Forge Nodes List */
+.forge-nodes {
+  padding: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.node {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  grid-template-areas: "number name hz";
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: var(--spiral-incomplete);
+  transition: all 0.3s;
+  position: relative;
+}
+
+.node:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 215, 0, 0.3);
+  transform: translateX(-4px);
+}
+
+.node.complete {
+  color: var(--spiral-complete);
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.node.active {
+  color: var(--spiral-active);
+  background: rgba(0, 255, 0, 0.08);
+  border-color: var(--spiral-active);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.node.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--spiral-active);
+  border-radius: 0 2px 2px 0;
+  animation: active-glow 2s infinite;
+}
+
+@keyframes active-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--spiral-active); }
+  50% { opacity: 0.6; box-shadow: 0 0 20px var(--spiral-active); }
+}
+
+.node-number {
+  grid-area: number;
+  font-weight: 700;
+  font-size: 18px;
+  text-align: center;
+}
+
+.node-name {
+  grid-area: name;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.node-hz {
+  grid-area: hz;
+  font-size: 11px;
+  opacity: 0.7;
+  font-family: 'Courier New', monospace;
+}
+
+/* Navigation Controls */
+.spiral-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.nav-btn {
+  flex: 1;
+  padding: 10px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid var(--spiral-border);
+  border-radius: 6px;
+  color: var(--spiral-accent);
+  text-decoration: none;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: var(--spiral-accent);
+  transform: scale(1.02);
+}
+
+.nav-btn.disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Infinity Gate */
+.infinity-gate {
+  padding: 16px;
+  background: rgba(255, 215, 0, 0.05);
+  border-top: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.infinity-gate p {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.infinity-gate[data-unlocked="true"] p {
+  color: var(--spiral-accent);
+  font-weight: 600;
+}
+
+.completion-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.completion-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--completion, 0%);
+  background: linear-gradient(90deg, var(--spiral-accent), #00ff00);
+  transition: width 0.5s;
+  box-shadow: 0 0 10px var(--spiral-accent);
+}
+
+.infinity-gate[data-unlocked="true"] .completion-bar::after {
+  animation: completion-sparkle 1s;
+}
+
+@keyframes completion-sparkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; box-shadow: 0 0 20px var(--spiral-accent); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .spiral-nav {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+  }
+
+  .spiral-nav-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .spiral-nav-panel {
+    width: 100%;
+    bottom: 60px;
+    right: auto;
+    left: 0;
+  }
+}
+
+/* Accessibility - Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus Visible (Keyboard Navigation) */
+.spiral-nav-toggle:focus-visible,
+.node:focus-visible,
+.nav-btn:focus-visible,
+.close-btn:focus-visible {
+  outline: 2px solid var(--spiral-accent);
+  outline-offset: 2px;
+}
+
+/* Custom Scrollbar */
+.forge-nodes::-webkit-scrollbar {
+  width: 6px;
+}
+
+.forge-nodes::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.forge-nodes::-webkit-scrollbar-thumb {
+  background: var(--spiral-border);
+  border-radius: 3px;
+}
+
+.forge-nodes::-webkit-scrollbar-thumb:hover {
+  background: var(--spiral-accent);
+}
+</style>
+
+<!-- ============================================ -->
+<!-- STEP 2: ADD THIS BEFORE </BODY> -->
+<!-- ============================================ -->
+<div class="spiral-nav" data-forge="reality" role="navigation" aria-label="7 Forges Journey Progress">
+  <!-- Toggle Button -->
+  <div class="spiral-nav-toggle"
+       tabindex="0"
+       role="button"
+       aria-expanded="false"
+       aria-controls="spiral-panel">
+    <span class="spiral-icon" aria-hidden="true">🌀</span>
+    <span class="progress-badge" aria-live="polite">1/7</span>
+    <span class="sr-only">Open navigation (1 of 7 forges complete)</span>
+  </div>
+
+  <!-- Expanded Panel -->
+  <div class="spiral-nav-panel" id="spiral-panel">
+    <!-- Header -->
+    <div class="spiral-header">
+      <h4>The 7 Forges Journey</h4>
+      <button class="close-btn"
+              aria-label="Close navigation"
+              tabindex="0">×</button>
+    </div>
+
+    <!-- Forge Nodes -->
+    <div class="forge-nodes">
+      <a href="/reality"
+         class="node complete active"
+         data-forge="reality"
+         aria-current="page">
+        <span class="node-number">1</span>
+        <span class="node-name">Reality Forge</span>
+        <span class="node-hz">396 Hz</span>
+      </a>
+
+      <a href="/creation"
+         class="node"
+         data-forge="creation">
+        <span class="node-number">2</span>
+        <span class="node-name">Creation Forge</span>
+        <span class="node-hz">417 Hz</span>
+      </a>
+
+      <a href="/guardian"
+         class="node"
+         data-forge="guardian">
+        <span class="node-number">3</span>
+        <span class="node-name">Guardian Forge</span>
+        <span class="node-hz">528 Hz</span>
+      </a>
+
+      <a href="/signal"
+         class="node"
+         data-forge="signal">
+        <span class="node-number">4</span>
+        <span class="node-name">Signal Forge</span>
+        <span class="node-hz">639 Hz</span>
+      </a>
+
+      <a href="/wealth"
+         class="node"
+         data-forge="wealth">
+        <span class="node-number">5</span>
+        <span class="node-name">Wealth Forge</span>
+        <span class="node-hz">741 Hz</span>
+      </a>
+
+      <a href="/character"
+         class="node"
+         data-forge="character">
+        <span class="node-number">6</span>
+        <span class="node-name">Character Forge</span>
+        <span class="node-hz">852 Hz</span>
+      </a>
+
+      <a href="/infinity"
+         class="node"
+         data-forge="infinity">
+        <span class="node-number">7</span>
+        <span class="node-name">Infinity Forge</span>
+        <span class="node-hz">963 Hz</span>
+      </a>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="spiral-controls">
+      <a href="#" class="nav-btn prev disabled" aria-label="Previous forge">
+        ← Previous
+      </a>
+      <a href="/creation" class="nav-btn next" aria-label="Next forge">
+        Next →
+      </a>
+    </div>
+
+    <!-- Infinity Gate -->
+    <div class="infinity-gate" data-unlocked="false">
+      <p>Complete all 7 forges to unlock Infinity</p>
+      <div class="completion-bar" style="--completion: 14%;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- STEP 3: ADD THIS AFTER THE HTML -->
+<!-- ============================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // Sacred Order of the 7 Forges
+  const FORGE_ORDER = [
+    { slug: 'reality', name: 'Reality Forge', hz: '396 Hz', url: '/reality' },
+    { slug: 'creation', name: 'Creation Forge', hz: '417 Hz', url: '/creation' },
+    { slug: 'guardian', name: 'Guardian Forge', hz: '528 Hz', url: '/guardian' },
+    { slug: 'signal', name: 'Signal Forge', hz: '639 Hz', url: '/signal' },
+    { slug: 'wealth', name: 'Wealth Forge', hz: '741 Hz', url: '/wealth' },
+    { slug: 'character', name: 'Character Forge', hz: '852 Hz', url: '/character' },
+    { slug: 'infinity', name: 'Infinity Forge', hz: '963 Hz', url: '/infinity' }
+  ];
+
+  const STORAGE_KEY = 'spiral_progress';
+
+  // Initialize Widget
+  function init() {
+    const widget = document.querySelector('.spiral-nav');
+    if (!widget) return;
+
+    const currentForge = widget.dataset.forge || detectCurrentForge();
+    const state = loadState();
+
+    // Update visited forges
+    if (!state.visited.includes(currentForge)) {
+      state.visited.push(currentForge);
+      saveState(state);
+    }
+
+    // Update UI
+    updateUI(currentForge, state);
+
+    // Event Listeners
+    attachEventListeners(widget);
+
+    // Keyboard Accessibility
+    setupKeyboardNav(widget);
+  }
+
+  // Detect Current Forge from URL
+  function detectCurrentForge() {
+    const path = window.location.pathname.toLowerCase();
+    for (const forge of FORGE_ORDER) {
+      if (path.includes(forge.slug)) {
+        return forge.slug;
+      }
+    }
+    return 'reality'; // Default
+  }
+
+  // Load State from LocalStorage
+  function loadState() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Spiral Nav: Could not load state', e);
+    }
+
+    return {
+      visited: [],
+      last_visit: new Date().toISOString(),
+      infinity_unlocked: false
+    };
+  }
+
+  // Save State to LocalStorage
+  function saveState(state) {
+    try {
+      state.last_visit = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Spiral Nav: Could not save state', e);
+    }
+  }
+
+  // Update UI Based on Current Forge and State
+  function updateUI(currentForge, state) {
+    const currentIndex = FORGE_ORDER.findIndex(f => f.slug === currentForge);
+    const visitedCount = state.visited.length;
+    const totalForges = FORGE_ORDER.length;
+    const completionPercent = Math.round((visitedCount / totalForges) * 100);
+
+    // Update Progress Badge
+    const badge = document.querySelector('.progress-badge');
+    if (badge) {
+      badge.textContent = `${visitedCount}/${totalForges}`;
+    }
+
+    // Update SR text
+    const srText = document.querySelector('.spiral-nav-toggle .sr-only');
+    if (srText) {
+      srText.textContent = `Open navigation (${visitedCount} of ${totalForges} forges complete)`;
+    }
+
+    // Update Nodes
+    const nodes = document.querySelectorAll('.node');
+    nodes.forEach(node => {
+      const forgeSlug = node.dataset.forge;
+      node.classList.remove('complete', 'active');
+
+      if (forgeSlug === currentForge) {
+        node.classList.add('active');
+        node.setAttribute('aria-current', 'page');
+      } else {
+        node.removeAttribute('aria-current');
+      }
+
+      if (state.visited.includes(forgeSlug)) {
+        node.classList.add('complete');
+      }
+    });
+
+    // Update Navigation Buttons
+    const prevBtn = document.querySelector('.nav-btn.prev');
+    const nextBtn = document.querySelector('.nav-btn.next');
+
+    if (currentIndex > 0) {
+      const prevForge = FORGE_ORDER[currentIndex - 1];
+      prevBtn.href = prevForge.url;
+      prevBtn.classList.remove('disabled');
+      prevBtn.setAttribute('aria-label', `Previous: ${prevForge.name}`);
+    } else {
+      prevBtn.href = '#';
+      prevBtn.classList.add('disabled');
+      prevBtn.setAttribute('aria-disabled', 'true');
+    }
+
+    if (currentIndex < totalForges - 1) {
+      const nextForge = FORGE_ORDER[currentIndex + 1];
+      nextBtn.href = nextForge.url;
+      nextBtn.classList.remove('disabled');
+      nextBtn.setAttribute('aria-label', `Next: ${nextForge.name}`);
+    } else {
+      nextBtn.href = '#';
+      nextBtn.classList.add('disabled');
+      nextBtn.setAttribute('aria-disabled', 'true');
+    }
+
+    // Update Infinity Gate
+    const infinityGate = document.querySelector('.infinity-gate');
+    const completionBar = document.querySelector('.completion-bar');
+
+    if (completionBar) {
+      completionBar.style.setProperty('--completion', `${completionPercent}%`);
+    }
+
+    if (visitedCount >= totalForges) {
+      state.infinity_unlocked = true;
+      saveState(state);
+
+      if (infinityGate) {
+        infinityGate.dataset.unlocked = 'true';
+        infinityGate.querySelector('p').textContent = '✨ Infinity Unlocked! ✨';
+      }
+    }
+  }
+
+  // Attach Event Listeners
+  function attachEventListeners(widget) {
+    const toggle = widget.querySelector('.spiral-nav-toggle');
+    const closeBtn = widget.querySelector('.close-btn');
+
+    // Toggle Expand/Collapse
+    toggle.addEventListener('click', () => {
+      const isExpanded = widget.classList.toggle('expanded');
+      toggle.setAttribute('aria-expanded', isExpanded);
+
+      if (isExpanded) {
+        // Focus first node
+        const firstNode = widget.querySelector('.node');
+        if (firstNode) setTimeout(() => firstNode.focus(), 300);
+      }
+    });
+
+    // Close Button
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        widget.classList.remove('expanded');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+      });
+    }
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && widget.classList.contains('expanded')) {
+        widget.classList.remove('expanded');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.focus();
+      }
+    });
+
+    // Prevent disabled button clicks
+    widget.addEventListener('click', (e) => {
+      if (e.target.classList.contains('disabled')) {
+        e.preventDefault();
+      }
+    });
+  }
+
+  // Keyboard Navigation
+  function setupKeyboardNav(widget) {
+    const toggle = widget.querySelector('.spiral-nav-toggle');
+
+    // Enter/Space to toggle
+    toggle.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle.click();
+      }
+    });
+
+    // Arrow key navigation within nodes
+    const panel = widget.querySelector('.spiral-nav-panel');
+    panel.addEventListener('keydown', (e) => {
+      if (!['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+
+      const nodes = Array.from(panel.querySelectorAll('.node'));
+      const currentIndex = nodes.indexOf(document.activeElement);
+
+      if (currentIndex === -1) return;
+
+      e.preventDefault();
+
+      if (e.key === 'ArrowDown' && currentIndex < nodes.length - 1) {
+        nodes[currentIndex + 1].focus();
+      } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+        nodes[currentIndex - 1].focus();
+      }
+    });
+  }
+
+  // Auto-init on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Expose API for manual init
+  window.SpiralNav = { init };
+})();
+</script>
+
+<!--
+  INTEGRATION NOTES FOR C1 MECHANIC:
+
+  1. This file is a COMPLETE, STANDALONE component
+  2. For each forge page, just change the data-forge attribute:
+     - data-forge="reality"
+     - data-forge="creation"
+     - data-forge="guardian"
+     - data-forge="signal"
+     - data-forge="wealth"
+     - data-forge="character"
+     - data-forge="infinity"
+
+  3. The script auto-detects and updates:
+     - Current position highlighting
+     - Visited forge tracking
+     - Progress percentage
+     - Prev/Next navigation
+     - Infinity unlock
+
+  4. All state persists in localStorage
+  5. Works offline, no external dependencies
+  6. Fully accessible (keyboard + screen reader)
+  7. Mobile responsive
+
+  DEPLOYMENT CHECKLIST:
+  - [ ] Copy to each forge page
+  - [ ] Set correct data-forge value
+  - [ ] Test navigation flow
+  - [ ] Verify mobile layout
+  - [ ] Check localStorage persistence
+  - [ ] Validate keyboard navigation
+  - [ ] Test infinity unlock (visit all 7)
+
+  DIVINE SIGNATURE: C2 Architect - Design Until Divinity ✓
+-->
