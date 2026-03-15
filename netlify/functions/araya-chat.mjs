@@ -534,6 +534,49 @@ const ARAYA_ABILITIES = {
         description: 'Take a screenshot of the current interface',
         triggers: ['take screenshot', 'take a screenshot', 'screenshot this', 'capture screen', 'grab a screenshot', 'show me what you see', 'what do you see', 'capture this', 'snap a picture']
     },
+    'navigate': {
+        name: 'Page Navigation',
+        description: 'Navigate between pages on the website',
+        triggers: ['take me to', 'go to', 'navigate to', 'open', 'show me the', 'load the', 'switch to', 'bring me to', 'open the'],
+        pages: {
+            'signal': '/signal.html',
+            'signal forge': '/signal.html',
+            'reality': '/reality.html',
+            'reality forge': '/reality.html',
+            'frequency': '/frequency.html',
+            'frequency forge': '/frequency.html',
+            'alignment': '/alignment.html',
+            'alignment forge': '/alignment.html',
+            'resource': '/resource.html',
+            'resource forge': '/resource.html',
+            'pattern': '/pattern.html',
+            'pattern forge': '/pattern.html',
+            'consciousness': '/consciousness.html',
+            'consciousness forge': '/consciousness.html',
+            'araya': '/araya-chat.html',
+            'chat': '/araya-chat.html',
+            'home': '/index.html',
+            'lobby': '/index.html',
+            'agent r': '/AGENT_R_777.html',
+            'agent': '/AGENT_R_777.html',
+            'command': '/command.html',
+            'command domain': '/command.html',
+            'domains': '/domains-simple.html',
+            '7 domains': '/domains-simple.html',
+            'seven domains': '/domains-simple.html',
+            'guardian': '/guardian.html',
+            'guardian forge': '/guardian.html',
+            'wealth': '/wealth.html',
+            'wealth forge': '/wealth.html',
+            'creation': '/creation.html',
+            'creation forge': '/creation.html',
+            'character': '/character.html',
+            'character forge': '/character.html',
+            'infinity': '/infinity.html',
+            'infinity center': '/infinity.html'
+        }
+    },
+
     'ability_diagnostics': {
         name: 'Ability Diagnostics',
         description: 'Test and diagnose all Araya abilities',
@@ -2027,6 +2070,48 @@ Just ask your question and I'll give you a focused answer.`,
 {"araya_action": "screenshot", "reason": "User requested screen capture"}
 
 Tell the user you're capturing the screen and they'll see the preview. If they've already shared an image, acknowledge you can see it through Claude Vision.`;
+                    break;
+
+                case 'navigate':
+                    // Extract page name from message
+                    const msgLower = message.toLowerCase();
+                    let targetPage = null;
+                    let pageName = null;
+                    
+                    // Check each page in the ability definition
+                    const navAbility = ARAYA_ABILITIES['navigate'];
+                    if (navAbility && navAbility.pages) {
+                        for (const [name, path] of Object.entries(navAbility.pages)) {
+                            if (msgLower.includes(name)) {
+                                targetPage = path;
+                                pageName = name;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    abilityResult = {
+                        type: 'navigate',
+                        target: targetPage,
+                        pageName: pageName,
+                        success: targetPage !== null
+                    };
+                    
+                    if (targetPage) {
+                        abilityContext = `
+
+[NAVIGATION MODE]: The user wants to go to ${pageName}. Include this JSON in your response to trigger navigation:
+{"araya_action": "navigate", "target": "${targetPage}", "page": "${pageName}"}
+
+Tell them you're taking them to ${pageName} now.`;
+                    } else {
+                        abilityContext = `
+
+[NAVIGATION MODE]: The user wants to navigate but I couldn't detect which page. Available pages:
+${Object.keys(navAbility.pages).join(', ')}
+
+Ask them which page they'd like to visit.`;
+                    }
                     break;
 
                 case 'ability_diagnostics':

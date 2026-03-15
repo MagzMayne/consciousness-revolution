@@ -1,0 +1,44 @@
+        switch(action) {
+            case 'screenshot':
+                addMessage('📸 Capturing screen...', 'araya');
+                await captureScreen();
+                if (attachments.length > 0) {
+                    addMessage('✅ Screenshot captured! I can see it in the attachments. Send a message and I\'ll analyze it.', 'araya');
+                }
+                break;
+            case 'diagnostics':
+                addMessage('🔧 Running ability diagnostics...', 'araya');
+                break;
+            case 'navigate':
+                // Extract navigation target from JSON
+                const fullMatch = response.match(/\{"araya_action"\s*:\s*"navigate"[^}]*\}/);
+                if (fullMatch) {
+                    try {
+                        const actionData = JSON.parse(fullMatch[0]);
+                        const target = actionData.target || actionData.url || actionData.path;
+                        if (target) {
+                            console.log('[Navigation Request]:', target);
+                            // Try iframe parent first, then direct navigation
+                            try {
+                                window.parent.postMessage({ type: 'araya-navigate', url: target }, '*');
+                            } catch(e) {
+                                console.log('Parent postMessage failed, using direct navigation');
+                            }
+                            // Also do direct navigation as fallback
+                            setTimeout(() => {
+                                window.location.href = target.startsWith('/') ? target : '/' + target;
+                            }, 500);
+                        }
+                    } catch(e) {
+                        console.error('Navigation JSON parse error:', e);
+                    }
+                }
+                break;
+            case 'execute_code':
+                // Code execution would go here - for now just log it
+                console.log('[Code Execution Requested]');
+                addMessage('🔧 Code execution requested (not yet implemented)', 'araya');
+                break;
+            default:
+                console.log('[Unknown Araya Action]:', action);
+        }

@@ -1883,9 +1883,40 @@ async function handleArayaActions(response) {
             case 'diagnostics':
                 addMessage('🔧 Running ability diagnostics...', 'araya');
                 break;
+            case 'navigate':
+                // Extract navigation target from JSON
+                const fullMatch = response.match(/\{"araya_action"\s*:\s*"navigate"[^}]*\}/);
+                if (fullMatch) {
+                    try {
+                        const actionData = JSON.parse(fullMatch[0]);
+                        const target = actionData.target || actionData.url || actionData.path;
+                        if (target) {
+                            console.log('[Navigation Request]:', target);
+                            // Try iframe parent first, then direct navigation
+                            try {
+                                window.parent.postMessage({ type: 'araya-navigate', url: target }, '*');
+                            } catch(e) {
+                                console.log('Parent postMessage failed, using direct navigation');
+                            }
+                            // Also do direct navigation as fallback
+                            setTimeout(() => {
+                                window.location.href = target.startsWith('/') ? target : '/' + target;
+                            }, 500);
+                        }
+                    } catch(e) {
+                        console.error('Navigation JSON parse error:', e);
+                    }
+                }
+                break;
+            case 'execute_code':
+                // Code execution would go here - for now just log it
+                console.log('[Code Execution Requested]');
+                addMessage('🔧 Code execution requested (not yet implemented)', 'araya');
+                break;
             default:
                 console.log('[Unknown Araya Action]:', action);
         }
+
         // Remove the action JSON from the displayed response
         return response.replace(/\{"araya_action"[^}]*\}/, '').trim();
     }
@@ -1909,7 +1940,13 @@ async function callArayaAPI(msg, msgAttachments) {
         conversationHistory: conversationHistory.slice(-10),
         user_id: userId,
         mode: 'consciousness',
-        commander_bypass: userIsCommander
+        commander_bypass: userIsCommander,
+        context: {
+            page: 'araya-chat',
+            url: window.location.pathname,
+            canNavigate: true,
+            canExecuteCode: true
+        }
     };
     /* Include attachments if present (base64 images, text, file metadata) */
     if (msgAttachments && msgAttachments.length > 0) {
