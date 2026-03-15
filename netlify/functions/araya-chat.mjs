@@ -506,13 +506,13 @@ const ARAYA_ABILITIES = {
         name: 'File Editor',
         description: 'Read, write, and edit files on the website',
         triggers: ['edit file', 'update file', 'change the', 'modify the', 'fix the code', 'add to file', 'create file', 'read file', 'show me the file'],
-        allowedPaths: ['index.html', 'araya-chat.html', 'araya-light.html', 'araya-welcome.html', 'ARAYA/', 'styles/', 'scripts/', 'components/']
+        allowedPaths: ['index.html', 'araya-chat.html', 'araya-light.html', 'araya-welcome.html', 'AGENT_R_777.html', 'ARAYA/', 'styles/', 'scripts/', 'components/']
     },
     'file_write': {
         name: 'File Writer',
         description: 'Write changes to files (after confirmation)',
         triggers: ['write file', 'save file', 'commit the changes', 'apply the changes', 'make those changes', 'do it', 'go ahead and change'],
-        allowedPaths: ['index.html', 'araya-chat.html', 'araya-light.html', 'araya-welcome.html', 'ARAYA/', 'styles/', 'scripts/', 'components/']
+        allowedPaths: ['index.html', 'araya-chat.html', 'araya-light.html', 'araya-welcome.html', 'AGENT_R_777.html', 'ARAYA/', 'styles/', 'scripts/', 'components/']
     },
     'bug_report': {
         name: 'Bug Reporter',
