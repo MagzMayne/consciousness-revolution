@@ -2569,73 +2569,154 @@ Guide them through their next steps enthusiastically! Show them the path and wha
                     break;
 
 
-                // === DASHBOARD CUSTOMIZATION HANDLER (Scalable 1000x) ===
+                                // === DASHBOARD CUSTOMIZATION HANDLER (Scalable 1000x) ===
                 case 'dashboard_edit':
-                    // Parse the edit intent
-                    const parseResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=parse`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message })
-                    });
+                    // Check if we have real file editing permissions
+                    if (context?.canEdit === true && context?.file) {
+                        // REAL FILE EDITING PATH
+                        console.log('[DASHBOARD_EDIT] Real file editing mode for:', context.file);
 
-                    let parsed = { understood: false };
-                    if (parseResponse.ok) {
-                        const parseData = await parseResponse.json();
-                        parsed = parseData.parsed || parsed;
-                    }
+                        // Color mappings for common requests
+                        const colorMap = {
+                            'gold': '#FFD700', 'bright gold': '#FFD700', 'metallic gold': '#D4AF37',
+                            'purple': '#8B5CF6', 'violet': '#7C3AED', 'indigo': '#6366F1',
+                            'blue': '#3B82F6', 'cyan': '#06B6D4', 'teal': '#14B8A6',
+                            'green': '#10B981', 'emerald': '#059669', 'lime': '#84CC16',
+                            'red': '#EF4444', 'crimson': '#DC2626', 'rose': '#F43F5E',
+                            'orange': '#F97316', 'amber': '#F59E0B', 'yellow': '#EAB308',
+                            'pink': '#EC4899', 'magenta': '#D946EF', 'fuchsia': '#C026D3',
+                            'white': '#FFFFFF', 'black': '#000000', 'dark': '#0A0A0A',
+                            'gray': '#6B7280', 'silver': '#94A3B8', 'slate': '#475569'
+                        };
 
-                    if (parsed.understood && parsed.property && parsed.value) {
-                        // Apply the edit
-                        const dashboard = context?.page || context?.dashboard || 'COMMANDER_DOMAIN_1';
-                        const editResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=set`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                user_id: user_id,
-                                dashboard: dashboard,
-                                property: parsed.property,
-                                value: parsed.value
-                            })
-                        });
+                        // Detect what property to change
+                        const msgLower = message.toLowerCase();
+                        let cssVarOptions = null;
+                        let newColor = null;
+                        let propertyName = null;
 
-                        if (editResponse.ok) {
-                            abilityResult = {
-                                type: 'dashboard_edit',
-                                success: true,
-                                property: parsed.propertyFriendly || parsed.property,
-                                value: parsed.value,
-                                dashboard: dashboard
-                            };
-                            abilityContext = `
+                        // Detect color from message
+                        for (const [name, hex] of Object.entries(colorMap)) {
+                            if (msgLower.includes(name)) {
+                                newColor = hex;
+                                break;
+                            }
+                        }
+                        // Also check for hex codes
+                        const hexMatch = message.match(/#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})/);
+                        if (hexMatch) newColor = hexMatch[0];
 
-[DASHBOARD CUSTOMIZED]: Successfully updated ${parsed.propertyFriendly || parsed.property} to ${parsed.value}!
+                        // Detect which CSS variable to change
+                        const cssVarMap = {
+                            'accent': { names: ['--accent', '--accent-color'], display: 'accent color' },
+                            'primary': { names: ['--primary', '--primary-color', '--d1'], display: 'primary color' },
+                            'background': { names: ['--bg', '--bg-color', '--background'], display: 'background color' },
+                            'text': { names: ['--text', '--text-color'], display: 'text color' },
+                            'header': { names: ['--header-bg', '--header'], display: 'header background' },
+                            'gem': { names: ['--gem', '--gem-color'], display: 'gem color' },
+                            'card': { names: ['--card', '--card-bg'], display: 'card background' },
+                            'border': { names: ['--border', '--border-color'], display: 'border color' }
+                        };
 
-The dashboard has been personalized. Refresh the page to see your changes.
+                        if (msgLower.includes('accent')) {
+                            cssVarOptions = cssVarMap['accent'];
+                            propertyName = 'accent color';
+                        } else if (msgLower.includes('primary')) {
+                            cssVarOptions = cssVarMap['primary'];
+                            propertyName = 'primary color';
+                        } else if (msgLower.includes('background') || msgLower.includes('bg')) {
+                            cssVarOptions = cssVarMap['background'];
+                            propertyName = 'background color';
+                        } else if (msgLower.includes('text') || msgLower.includes('font color')) {
+                            cssVarOptions = cssVarMap['text'];
+                            propertyName = 'text color';
+                        } else if (msgLower.includes('header')) {
+                            cssVarOptions = cssVarMap['header'];
+                            propertyName = 'header background';
+                        } else if (msgLower.includes('gem')) {
+                            cssVarOptions = cssVarMap['gem'];
+                            propertyName = 'gem color';
+                        } else if (msgLower.includes('card')) {
+                            cssVarOptions = cssVarMap['card'];
+                            propertyName = 'card background';
+                        } else if (msgLower.includes('border')) {
+                            cssVarOptions = cssVarMap['border'];
+                            propertyName = 'border color';
+                        }
 
-Want to change more? Try:
-- "make my accent color gold"
-- "change my welcome message to Hello"
-- "set my company name to My Company"
+                        if (cssVarOptions && newColor) {
+                            const readResult = await araraFileOperation('read', context.file);
+                            if (readResult.success) {
+                                let fileContent = readResult.content;
+                                let foundVar = null;
 
-Tell the user their change was saved!`;
-                        } else {
+                                for (const varName of cssVarOptions.names) {
+                                    const testRegex = new RegExp(varName + '\\s*:');
+                                    if (testRegex.test(fileContent)) {
+                                        foundVar = varName;
+                                        break;
+                                    }
+                                }
+
+                                if (foundVar) {
+                                    fileContent = fileContent.replace(new RegExp('(' + foundVar + '\\s*:\\s*)([^;]+)(;)', 'g'), '$1' + newColor + '$3');
+                                    const writeResult = await araraFileOperation('write', context.file, fileContent, '[ARAYA] Dashboard edit: ' + propertyName + ' to ' + newColor);
+
+                                    if (writeResult.success) {
+                                        abilityResult = { type: 'dashboard_edit', success: true, property: propertyName, value: newColor, file: context.file, fileEdited: true, cssVar: foundVar };
+                                        abilityContext = `\n\n[FILE EDITED]: Changed ${propertyName} to ${newColor} in ${context.file}!\n\nRefresh the page to see your changes!`;
+                                    } else {
+                                        abilityResult = { type: 'dashboard_edit', success: false, error: writeResult.error };
+                                        abilityContext = `\n\n[FILE EDIT FAILED]: ${writeResult.error}`;
+                                    }
+                                } else {
+                                    abilityResult = { type: 'dashboard_edit', success: false };
+                                    abilityContext = `\n\n[CSS VARIABLE NOT FOUND]: None of ${cssVarOptions.names.join(', ')} found in this file.`;
+                                }
+                            } else {
+                                abilityResult = { type: 'dashboard_edit', success: false, error: readResult.error };
+                                abilityContext = `\n\n[FILE READ FAILED]: ${readResult.error}`;
+                            }
+                        } else if (!newColor) {
                             abilityResult = { type: 'dashboard_edit', success: false };
-                            abilityContext = `
-
-[EDIT FAILED]: Could not save customization.`;
+                            abilityContext = `\n\n[COLOR NOT RECOGNIZED]: Supported: gold, purple, blue, cyan, teal, green, red, orange, pink. Or use hex: #FFD700`;
+                        } else if (!cssVarOptions) {
+                            abilityResult = { type: 'dashboard_edit', success: false };
+                            abilityContext = `\n\n[WHAT TO CHANGE?]: Try "change my ACCENT color to ${newColor}" or "change my BACKGROUND to ${newColor}"`;
                         }
                     } else {
-                        abilityResult = { type: 'dashboard_edit', success: false };
-                        abilityContext = `
+                        // FALLBACK: Dashboard config path (no file editing permission)
+                        const parseResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=parse`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message })
+                        });
 
-[DASHBOARD CUSTOMIZER]: I can personalize your dashboard!
+                        let parsed = { understood: false };
+                        if (parseResponse.ok) {
+                            const parseData = await parseResponse.json();
+                            parsed = parseData.parsed || parsed;
+                        }
 
-Try:
-- "make my header purple"
-- "change my accent to gold"
-- "set my background to dark"
+                        if (parsed.understood && parsed.property && parsed.value) {
+                            const dashboard = context?.page || context?.dashboard || 'COMMANDER_DOMAIN_1';
+                            const editResponse = await fetch(`${process.env.URL || 'https://consciousnessrevolution.io'}/.netlify/functions/dashboard-config?action=set`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ user_id: user_id, dashboard: dashboard, property: parsed.property, value: parsed.value })
+                            });
 
-What would you like to change?`;
+                            if (editResponse.ok) {
+                                abilityResult = { type: 'dashboard_edit', success: true, property: parsed.propertyFriendly || parsed.property, value: parsed.value, dashboard: dashboard };
+                                abilityContext = `\n\n[PREFERENCE SAVED]: Updated ${parsed.propertyFriendly || parsed.property} to ${parsed.value}! Refresh to see.`;
+                            } else {
+                                abilityResult = { type: 'dashboard_edit', success: false };
+                                abilityContext = `\n\n[EDIT FAILED]: Could not save.`;
+                            }
+                        } else {
+                            abilityResult = { type: 'dashboard_edit', success: false };
+                            abilityContext = `\n\n[DASHBOARD CUSTOMIZER]: Try "change my accent color to gold" or "make my background dark"`;
+                        }
                     }
                     break;
 
