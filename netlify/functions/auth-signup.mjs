@@ -205,8 +205,27 @@ export async function handler(event, context) {
             }
         }
 
-        // Handle the signup response - user might be null if email confirmation required
+        // Handle the signup response - check if email confirmation is required
         if (authData?.user) {
+            // Check if email is confirmed (Supabase returns user even when confirmation required)
+            const needsConfirmation = !authData.user.email_confirmed_at;
+
+            if (needsConfirmation) {
+                secureLog('Signup needs confirmation', {
+                    userId: authData.user.id,
+                    email: validation.sanitized.email
+                });
+
+                return successResponse({
+                    message: 'Check your email to confirm your account!',
+                    needs_confirmation: true,
+                    user: {
+                        id: authData.user.id,
+                        email: authData.user.email
+                    }
+                }, origin, 200);
+            }
+
             secureLog('Successful signup', {
                 userId: authData.user.id,
                 email: validation.sanitized.email
@@ -220,8 +239,8 @@ export async function handler(event, context) {
                 }
             }, origin, 200);
         } else {
-            // Signup succeeded but needs email confirmation
-            secureLog('Signup needs confirmation', {
+            // No user returned - edge case
+            secureLog('Signup returned no user', {
                 email: validation.sanitized.email
             });
 
