@@ -5,7 +5,7 @@ The consciousness assistant AI that powers the Consciousness Revolution platform
 
 ## STATUS
 - Working: **WORKING**
-- Last tested: 2026-03-06
+- Last tested: 2026-03-15
 - Current issues: None critical - fully operational
 
 ## LOCATION
@@ -320,3 +320,67 @@ netlify functions:invoke araya-chat --payload '{"message":"test"}'
 - [TRINITY_HUB_DNA.md] - Coordination (ARAYA can use Trinity)
 - [CYCLOTRON_BRAIN_DNA.md] - Knowledge backend
 - [ARAYA_EXTENSION_DNA.md] - Browser extension companion
+
+---
+
+## DASHBOARD EDITING CAPABILITY (NEW - March 2026)
+
+ARAYA can now **actually edit dashboard files**, not just suggest changes.
+
+### How It Works:
+```
+User: "change my accent color to gold"
+Context: { dashboard: "agent_r_777", file: "AGENT_R_777.html", canEdit: true }
+
+ARAYA:
+1. Detects "accent" -> cssVarMap['accent'] = ['--accent', '--accent-color']
+2. Detects "gold" -> colorMap['gold'] = '#FFD700'
+3. Reads file via araraFileOperation('read', file)
+4. Finds which CSS variable exists (--accent found)
+5. Replaces: --accent: #00c896; -> --accent: #FFD700;
+6. Writes via araraFileOperation('write', file, content, commit_message)
+7. Returns: { success: true, cssVar: "--accent", value: "#FFD700" }
+```
+
+### Supported Properties:
+| Property | CSS Variables Tried | Display Name |
+|----------|---------------------|--------------|
+| accent | --accent, --accent-color | accent color |
+| primary | --primary, --primary-color, --d1 | primary color |
+| background | --bg, --bg-color, --background | background color |
+| text | --text, --text-color | text color |
+| header | --header-bg, --header | header background |
+| gem | --gem, --gem-color | gem color |
+| card | --card, --card-bg | card background |
+| border | --border, --border-color | border color |
+
+### Supported Colors:
+- **Named:** gold, purple, blue, cyan, teal, green, red, orange, pink, white, black, dark, gray, silver, slate
+- **Hex codes:** Any valid hex like #FFD700, #8B5CF6
+
+### Context Requirements:
+```javascript
+context: {
+  dashboard: "agent_r_777",     // Dashboard identifier
+  file: "AGENT_R_777.html",     // File to edit
+  canEdit: true,                // Edit permission (requires $10 purchase)
+  owner: "user-123",            // File owner
+  level: "BUILDER"              // Access level
+}
+```
+
+### Location in Code:
+- Handler: araya-chat.mjs lines 2572-2708 (case 'dashboard_edit')
+- File ops: araraFileOperation() at line 675
+
+### Test Command:
+```bash
+curl -X POST "https://conciousnessrevolution.io/.netlify/functions/araya-chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "change my accent color to gold", "context": {"dashboard": "agent_r_777", "file": "AGENT_R_777.html", "canEdit": true}}'
+```
+
+### Verified Working:
+- Date: March 15, 2026
+- GitHub Commit: [ARAYA] Dashboard edit: accent color to #FFD700
+- Session: 211
