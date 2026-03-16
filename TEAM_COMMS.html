@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Comms - House HQ</title>
+    <script type="application/json" id="dashboard-dna">
+{
+  "name": "Team Comms - House HQ",
+  "version": "1.0.0",
+  "purpose": "Simple team communication for Commander + Maggie + Tiger",
+  "tier": "BUILDER",
+  "created": "2026-03-15"
+}
+    </script>
+    <style>
+        :root {
+            --bg: #0a0a12; --card: #12121a; --text: #fff; --text-dim: #888; --border: #333;
+            --accent: #00ffcc; --commander: #ff6b9d; --maggie: #00aaff; --tiger: #ffaa00;
+            --good: #00ff88; --warn: #ffaa00;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 2px solid var(--accent); flex-wrap: wrap; gap: 10px; }
+        .header h1 { font-size: 1.3rem; color: var(--accent); }
+        .header h1::before { content: "📡 "; }
+        .online-status { display: flex; gap: 15px; }
+        .status-dot { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .status-dot::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--good); animation: pulse 2s infinite; }
+        .status-dot.offline::before { background: var(--border); animation: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .main { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 768px) { .main { grid-template-columns: 1fr; } }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .card-header h2 { font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        .card-body { padding: 16px; max-height: 300px; overflow-y: auto; }
+
+        /* COMMANDER STATUS */
+        .commander-card { border-color: var(--commander); }
+        .commander-card .card-header { background: rgba(255,107,157,0.1); }
+        .commander-card h2 { color: var(--commander); }
+        .status-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .status-item:last-child { border: none; }
+        .status-label { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px; }
+        .status-value { font-size: 0.9rem; }
+
+        /* MESSAGE BOARD */
+        .messages-card { grid-column: span 2; }
+        @media (max-width: 768px) { .messages-card { grid-column: span 1; } }
+        .message { padding: 12px; border-radius: 8px; margin-bottom: 10px; background: rgba(255,255,255,0.03); }
+        .message:last-child { margin-bottom: 0; }
+        .message-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .message-author { font-weight: 600; font-size: 0.85rem; }
+        .message-author.commander { color: var(--commander); }
+        .message-author.maggie { color: var(--maggie); }
+        .message-author.tiger { color: var(--tiger); }
+        .message-time { font-size: 0.75rem; color: var(--text-dim); }
+        .message-text { font-size: 0.9rem; line-height: 1.5; }
+
+        /* TASKS */
+        .task { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .task:last-child { border: none; }
+        .task-checkbox { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .task-checkbox.done { background: var(--good); border-color: var(--good); }
+        .task-checkbox.done::after { content: "✓"; color: var(--bg); font-size: 0.8rem; }
+        .task-text { flex: 1; font-size: 0.9rem; }
+        .task-text.done { text-decoration: line-through; color: var(--text-dim); }
+        .task-owner { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; }
+        .task-owner.commander { background: rgba(255,107,157,0.2); color: var(--commander); }
+        .task-owner.maggie { background: rgba(0,170,255,0.2); color: var(--maggie); }
+        .task-owner.tiger { background: rgba(255,170,0,0.2); color: var(--tiger); }
+
+        /* INPUT AREA */
+        .input-area { padding: 15px; background: var(--card); border-top: 1px solid var(--border); position: fixed; bottom: 0; left: 0; right: 0; }
+        .input-row { display: flex; gap: 10px; max-width: 1200px; margin: 0 auto; }
+        .input-row select { padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; font-size: 0.9rem; }
+        .input-row input { flex: 1; padding: 10px 15px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; font-size: 0.9rem; }
+        .input-row input:focus { outline: none; border-color: var(--accent); }
+        .input-row button { padding: 10px 20px; background: var(--accent); color: var(--bg); border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .input-row button:hover { opacity: 0.9; }
+
+        /* QUICK LINKS */
+        .quick-link { display: block; padding: 10px 12px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .quick-link:hover { background: rgba(0,255,204,0.1); }
+        .quick-link:last-child { margin-bottom: 0; }
+
+        .spacer { height: 80px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Team Comms - House HQ</h1>
+        <div class="online-status">
+            <div class="status-dot" id="status-commander">Commander</div>
+            <div class="status-dot" id="status-maggie">Maggie</div>
+            <div class="status-dot" id="status-tiger">Tiger</div>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- COMMANDER STATUS -->
+        <div class="card commander-card">
+            <div class="card-header">
+                <h2>Commander Status</h2>
+                <span style="font-size: 0.75rem; color: var(--text-dim);" id="last-update">Live</span>
+            </div>
+            <div class="card-body">
+                <div class="status-item">
+                    <div class="status-label">Currently Working On</div>
+                    <div class="status-value" id="current-work">Dashboard standardization + Team Comms</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Today's Priority</div>
+                    <div class="status-value" id="priority">Get ARAYA coding & flipping pages</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Need Help With</div>
+                    <div class="status-value" id="need-help">Testing dashboards, feedback</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">ETA Home</div>
+                    <div class="status-value" id="eta">Already here</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK LINKS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Quick Links</h2>
+            </div>
+            <div class="card-body">
+                <a href="araya-chat.html" class="quick-link">Ask ARAYA</a>
+                <a href="Commander_777.html" class="quick-link">Commander Dashboard</a>
+                <a href="araya-chat.html" class="quick-link">Ask ARAYA</a>
+                <a href="bugs.html" class="quick-link">Report a Bug</a>
+                <a href="https://conciousnessrevolution.io" class="quick-link">Main Site</a>
+            </div>
+        </div>
+
+        <!-- SHARED TASKS -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Shared Tasks</h2>
+                <button onclick="addTask()" style="background: var(--accent); color: var(--bg); border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">+ Add</button>
+            </div>
+            <div class="card-body" id="tasks-list">
+                <div class="task">
+                    <div class="task-checkbox done" onclick="toggleTask(this)"></div>
+                    <span class="task-text done">Set up Team Comms dashboard</span>
+                    <span class="task-owner commander">Commander</span>
+                </div>
+                <div class="task">
+                    <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                    <span class="task-text">Test ARAYA chat on phone</span>
+                    <span class="task-owner maggie">Maggie</span>
+                </div>
+                <div class="task">
+                    <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                    <span class="task-text">Review bug reports</span>
+                    <span class="task-owner tiger">Tiger</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HOUSE NOTES -->
+        <div class="card">
+            <div class="card-header">
+                <h2>House Notes</h2>
+            </div>
+            <div class="card-body">
+                <div class="status-item">
+                    <div class="status-label">Groceries Needed</div>
+                    <div class="status-value" contenteditable="true" id="groceries">Click to edit...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Upcoming</div>
+                    <div class="status-value" contenteditable="true" id="upcoming">Click to edit...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Remember</div>
+                    <div class="status-value" contenteditable="true" id="remember">Click to edit...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MESSAGE BOARD -->
+        <div class="card messages-card">
+            <div class="card-header">
+                <h2>Message Board</h2>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">Last 24 hours</span>
+            </div>
+            <div class="card-body" id="messages-list">
+                <div class="message">
+                    <div class="message-header">
+                        <span class="message-author commander">Commander</span>
+                        <span class="message-time">Just now</span>
+                    </div>
+                    <div class="message-text">Team Comms is live! Use this to stay in sync. Messages save to browser.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="spacer"></div>
+
+    <!-- INPUT AREA -->
+    <div class="input-area">
+        <div class="input-row">
+            <select id="sender-select">
+                <option value="commander">Commander</option>
+                <option value="maggie">Maggie</option>
+                <option value="tiger">Tiger</option>
+            </select>
+            <input type="text" id="message-input" placeholder="Type a message or task..." onkeypress="if(event.key==='Enter')sendMessage()">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Load saved data
+        function loadData() {
+            const messages = JSON.parse(localStorage.getItem('team_messages') || '[]');
+            const tasks = JSON.parse(localStorage.getItem('team_tasks') || '[]');
+            const notes = JSON.parse(localStorage.getItem('team_notes') || '{}');
+            const status = JSON.parse(localStorage.getItem('commander_status') || '{}');
+
+            // Render messages
+            if (messages.length > 0) {
+                const list = document.getElementById('messages-list');
+                list.innerHTML = messages.map(m => `
+                    <div class="message">
+                        <div class="message-header">
+                            <span class="message-author ${m.author}">${m.author.charAt(0).toUpperCase() + m.author.slice(1)}</span>
+                            <span class="message-time">${m.time}</span>
+                        </div>
+                        <div class="message-text">${m.text}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Load notes
+            if (notes.groceries) document.getElementById('groceries').textContent = notes.groceries;
+            if (notes.upcoming) document.getElementById('upcoming').textContent = notes.upcoming;
+            if (notes.remember) document.getElementById('remember').textContent = notes.remember;
+
+            // Load status
+            if (status.currentWork) document.getElementById('current-work').textContent = status.currentWork;
+            if (status.priority) document.getElementById('priority').textContent = status.priority;
+            if (status.needHelp) document.getElementById('need-help').textContent = status.needHelp;
+            if (status.eta) document.getElementById('eta').textContent = status.eta;
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const sender = document.getElementById('sender-select').value;
+            const text = input.value.trim();
+            if (!text) return;
+
+            const messages = JSON.parse(localStorage.getItem('team_messages') || '[]');
+            const now = new Date();
+            const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            messages.unshift({ author: sender, text: text, time: time, timestamp: now.toISOString() });
+
+            // Keep last 50 messages
+            if (messages.length > 50) messages.pop();
+
+            localStorage.setItem('team_messages', JSON.stringify(messages));
+            input.value = '';
+            loadData();
+        }
+
+        // Toggle task
+        function toggleTask(el) {
+            el.classList.toggle('done');
+            el.nextElementSibling.classList.toggle('done');
+            saveTasks();
+        }
+
+        // Save tasks
+        function saveTasks() {
+            const tasks = [];
+            document.querySelectorAll('.task').forEach(t => {
+                tasks.push({
+                    text: t.querySelector('.task-text').textContent,
+                    done: t.querySelector('.task-checkbox').classList.contains('done'),
+                    owner: t.querySelector('.task-owner').textContent.toLowerCase()
+                });
+            });
+            localStorage.setItem('team_tasks', JSON.stringify(tasks));
+        }
+
+        // Add task
+        function addTask() {
+            const text = prompt('Task description:');
+            if (!text) return;
+            const owner = prompt('Owner (commander/maggie/tiger):', 'commander') || 'commander';
+
+            const list = document.getElementById('tasks-list');
+            const task = document.createElement('div');
+            task.className = 'task';
+            task.innerHTML = `
+                <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                <span class="task-text">${text}</span>
+                <span class="task-owner ${owner}">${owner.charAt(0).toUpperCase() + owner.slice(1)}</span>
+            `;
+            list.appendChild(task);
+            saveTasks();
+        }
+
+        // Save notes on edit
+        document.querySelectorAll('[contenteditable]').forEach(el => {
+            el.addEventListener('blur', () => {
+                const notes = {
+                    groceries: document.getElementById('groceries').textContent,
+                    upcoming: document.getElementById('upcoming').textContent,
+                    remember: document.getElementById('remember').textContent
+                };
+                localStorage.setItem('team_notes', JSON.stringify(notes));
+            });
+        });
+
+        // Initialize
+        loadData();
+
+        // Update timestamp
+        setInterval(() => {
+            document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }, 60000);
+    </script>
+</body>
+</html>
