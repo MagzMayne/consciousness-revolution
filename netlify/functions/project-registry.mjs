@@ -118,6 +118,22 @@ const PROJECTS = [
         github: 'https://github.com/overkillkulture/consciousness-revolution',
         tags: ['ai', 'agents', 'core']
     },
+    {
+        id: 'language-engine',
+        name: 'ARAYA Language Engine',
+        category: 'core',
+        status: 'needs-work',
+        progress: 40,
+        priority: 'high',
+        description: 'Universal translation, speech recognition, and pronunciation coaching across all domains',
+        needs: ['Web UI for practice', 'More languages (zh, ar, fr)', 'Audio output (TTS)', 'Database tables', 'Earbud/glasses integration'],
+        contributors: ['Commander'],
+        rewards: { okk: 600, xp: 1200 },
+        url: '/api/araya-translate',
+        github: 'https://github.com/overkillkulture/consciousness-revolution',
+        dna: '/dna-library/2/ARAYA_LANGUAGE_ENGINE_DNA.md',
+        tags: ['language', 'translation', 'speech', 'accessibility', 'core']
+    },
 
     // === FINANCIAL TOOLS ===
     {
