@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Map - Who Has What</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; background: #0a0a12; color: #fff; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #00ff88; text-align: center; margin-bottom: 10px; }
+        .subtitle { color: #888; text-align: center; margin-bottom: 30px; }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px 25px;
+            text-align: center;
+        }
+        .stat-num { font-size: 2rem; font-weight: bold; color: #00ff88; }
+        .stat-label { font-size: 0.8rem; color: #888; }
+        .stat-box.warning .stat-num { color: #f39c12; }
+        .stat-box.danger .stat-num { color: #e74c3c; }
+
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .comparison-table th {
+            background: #1a1a2e;
+            color: #00ffcc;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+        }
+        .comparison-table th.link-col { text-align: left; min-width: 200px; }
+        .comparison-table td.link-col { text-align: left; font-size: 0.85rem; }
+        .comparison-table tr:hover { background: rgba(0,255,136,0.05); }
+
+        /* Status Icons */
+        .has { color: #2ecc71; font-size: 1.2rem; }
+        .missing { color: #e74c3c; font-size: 1.2rem; }
+        .partial { color: #f39c12; font-size: 1.2rem; }
+
+        /* Category Headers */
+        .category-row td {
+            background: linear-gradient(90deg, rgba(0,255,204,0.1), transparent);
+            font-weight: bold;
+            color: #00ffcc;
+            text-align: left !important;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex; gap: 30px; justify-content: center; margin: 20px 0;
+            padding: 15px; background: rgba(255,255,255,0.03); border-radius: 10px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+
+        /* Actions */
+        .actions { text-align: center; margin: 30px 0; }
+        .btn {
+            display: inline-block; padding: 12px 25px; margin: 5px;
+            background: rgba(0,255,136,0.1); border: 2px solid #00ff88;
+            border-radius: 25px; color: #00ff88; text-decoration: none;
+            font-weight: bold; transition: all 0.2s;
+        }
+        .btn:hover { background: #00ff88; color: #000; }
+        .btn.secondary { border-color: #00aaff; color: #00aaff; background: rgba(0,170,255,0.1); }
+        .btn.secondary:hover { background: #00aaff; color: #000; }
+
+        /* Owner Headers */
+        .owner-commander { color: #00ffcc; }
+        .owner-agentr { color: #00aaff; }
+        .owner-magz { color: #00ff88; }
+        .owner-tiger { color: #ff8800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Link Map Dashboard</h1>
+        <p class="subtitle">At a glance: Who has what link. Spot gaps instantly.</p>
+
+        <div class="stats-bar">
+            <div class="stat-box">
+                <div class="stat-num" id="total-links">0</div>
+                <div class="stat-label">Total Links</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="shared-links">0</div>
+                <div class="stat-label">Shared by All</div>
+            </div>
+            <div class="stat-box warning">
+                <div class="stat-num" id="partial-links">0</div>
+                <div class="stat-label">Partial Coverage</div>
+            </div>
+            <div class="stat-box danger">
+                <div class="stat-num" id="missing-gaps">0</div>
+                <div class="stat-label">Missing Gaps</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="has">✓</span> Has Link</div>
+            <div class="legend-item"><span class="missing">✗</span> Missing</div>
+            <div class="legend-item"><span class="partial">◐</span> Partial/Different</div>
+        </div>
+
+        <table class="comparison-table" id="link-table">
+            <thead>
+                <tr>
+                    <th class="link-col">Link / Page</th>
+                    <th class="owner-commander">👑 Commander</th>
+                    <th class="owner-agentr">🛡️ Agent R</th>
+                    <th class="owner-magz">💚 MAGZ</th>
+                    <th class="owner-tiger">🔥 Tiger</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+
+        <div class="actions">
+            <a href="TEAM_TASKS.html" class="btn">📋 Add Task to Fix</a>
+            <a href="bugs.html" class="btn secondary">🐛 Report Issue</a>
+            <a href="lobby.html" class="btn secondary">🏠 Back to Lobby</a>
+        </div>
+    </div>
+
+    <script>
+        // Link inventory - manually maintained or pulled from registry
+        const linkData = {
+            "ACTION CENTER": [
+                { link: "TEAM_TASKS.html", name: "📋 Shared Tasks", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "TEAM_COMMS.html", name: "📡 Team Comms", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "BUILD_GUILD.html", name: "🔨 Build Guild", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "EDIT_YOUR_DASHBOARD.html", name: "✏️ Edit Dashboard", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "DASHBOARD_HELP.html", name: "❓ Help", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "BETA_TESTER_START.html", name: "🧪 Beta Guide", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "TEAM_LINKS.html", name: "📚 All Links", commander: true, agentr: true, magz: true, tiger: true },
+            ],
+            "7 FORGES": [
+                { link: "reality.html", name: "💎 Reality", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "creation.html", name: "⚒️ Creation", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "signal.html", name: "📡 Signal", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "guardian.html", name: "🛡️ Guardian", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "wealth.html", name: "📈 Wealth", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "character.html", name: "📚 Character", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "infinity.html", name: "∞ Infinity", commander: true, agentr: true, magz: true, tiger: true },
+            ],
+            "TOOLS": [
+                { link: "araya-chat.html", name: "🤖 ARAYA Chat", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "bugs.html", name: "🐛 Bug Reporter", commander: true, agentr: true, magz: true, tiger: true },
+                { link: "lobby.html", name: "🏠 Lobby", commander: true, agentr: true, magz: true, tiger: true },
+            ],
+            "PERSONAL QUICK ACCESS": [
+                { link: "infinity.html", name: "✨ Sanctuary", commander: false, agentr: false, magz: true, tiger: false, notes: "MAGZ Healer quick access" },
+                { link: "wealth.html", name: "💰 Wealth Forge", commander: false, agentr: false, magz: false, tiger: true, notes: "Tiger Arsenal" },
+                { link: "signal.html", name: "📡 Signal Forge", commander: false, agentr: false, magz: false, tiger: true, notes: "Tiger Arsenal" },
+            ],
+            "PERSONAL DASHBOARDS": [
+                { link: "AGENT_R_START.html", name: "Agent R Start", commander: false, agentr: true, magz: false, tiger: false, notes: "Agent R only" },
+                { link: "AGENT_R_BLUEPRINT.html", name: "Agent R Blueprint", commander: false, agentr: true, magz: false, tiger: false, notes: "Agent R only" },
+                { link: "AGENT_R_LINKS.html", name: "Agent R Links", commander: false, agentr: true, magz: false, tiger: false, notes: "Agent R only" },
+            ],
+        };
+
+        // Render table
+        const tbody = document.getElementById('table-body');
+        let totalLinks = 0;
+        let sharedLinks = 0;
+        let partialLinks = 0;
+        let missingGaps = 0;
+
+        Object.keys(linkData).forEach(category => {
+            // Category header
+            const catRow = document.createElement('tr');
+            catRow.className = 'category-row';
+            catRow.innerHTML = `<td colspan="6">${category}</td>`;
+            tbody.appendChild(catRow);
+
+            // Links in category
+            linkData[category].forEach(item => {
+                totalLinks++;
+
+                const allHave = item.commander && item.agentr && item.magz && item.tiger;
+                const noneHave = !item.commander && !item.agentr && !item.magz && !item.tiger;
+                const someHave = !allHave && !noneHave;
+
+                if (allHave) sharedLinks++;
+                if (someHave) {
+                    partialLinks++;
+                    // Count individual gaps
+                    if (!item.commander) missingGaps++;
+                    if (!item.agentr) missingGaps++;
+                    if (!item.magz) missingGaps++;
+                    if (!item.tiger) missingGaps++;
+                }
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="link-col"><a href="${item.link}" style="color: #888; text-decoration: none;">${item.name}</a></td>
+                    <td>${item.commander ? '<span class="has">✓</span>' : '<span class="missing">✗</span>'}</td>
+                    <td>${item.agentr ? '<span class="has">✓</span>' : '<span class="missing">✗</span>'}</td>
+                    <td>${item.magz ? '<span class="has">✓</span>' : '<span class="missing">✗</span>'}</td>
+                    <td>${item.tiger ? '<span class="has">✓</span>' : '<span class="missing">✗</span>'}</td>
+                    <td style="font-size: 0.75rem; color: #666;">${item.notes || ''}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        });
+
+        // Update stats
+        document.getElementById('total-links').textContent = totalLinks;
+        document.getElementById('shared-links').textContent = sharedLinks;
+        document.getElementById('partial-links').textContent = partialLinks;
+        document.getElementById('missing-gaps').textContent = missingGaps;
+    </script>
+</body>
+</html>
