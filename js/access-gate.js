@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-F617C473
 /**
  * ACCESS GATE - Client-side 3-Layer Security Enforcement
  * ═══════════════════════════════════════════════════════════════════════════

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-7739E492
 /**
  * WIDGET LOADER - Dashboard Factory Phase 3
  * Include this script in any dashboard to load installed widgets

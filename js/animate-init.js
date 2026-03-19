@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-D6CDFF61
 /**
  * animate-init.js
  * Consciousness Revolution — Animate.css integration helper

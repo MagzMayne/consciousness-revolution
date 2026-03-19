@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-5C6576BC
 /**
  * AUL Message Router (JavaScript)
  * Client-side message routing and delivery for browser-based agents

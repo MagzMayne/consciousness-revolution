@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-A235EDDB
 /**
  * mobile-responsive.js
  * Consciousness Revolution — Universal Mobile Responsiveness Helper

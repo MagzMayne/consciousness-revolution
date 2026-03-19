@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-E25DDA88
 /**
  * SPIRAL PROFILE WIDGET
  * Drop-in component for showing user progress

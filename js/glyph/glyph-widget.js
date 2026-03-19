@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-E94184D6
 /**
  * GLYPH WIDGET - Embeddable Pattern Detection
  * Version: 1.0.0

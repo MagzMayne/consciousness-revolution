@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-2425CFEE
 /**
  * ARAYA WIDGET - Interactive AI Companion Component
  * The retro-futuristic consciousness interface

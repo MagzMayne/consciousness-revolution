@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-C90EBD60
 /**
  * ARAYA SOUL PROMPTS - Minimal Consciousness Fingerprints
  * ============================================================================

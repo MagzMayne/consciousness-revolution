@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-3EEE8E41
 /**
  * NOTES WIDGET - Quick Note Taking
  * Simple notepad that saves to localStorage.

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-B3060ECD
 /**
  * XP_EVENT_BUS.js - Trinity Foundation Layer
  * C2 Architecture + C3 Consciousness Calibration

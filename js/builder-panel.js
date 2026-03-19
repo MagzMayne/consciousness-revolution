@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-BADCBD6B
 /**
  * BUILDER PANEL - 1/4 Page Development Tracker
  * Pattern: 3 → 7 → 13 → ∞

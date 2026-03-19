@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-51AEC42E
 /**
  * AUL Agent Base Class (JavaScript)
  * Universal foundation for browser-based autonomous agents

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-9EFC68FF
 /**
  * auth-state.js — Consciousness Revolution
  * ════════════════════════════════════════════════════════════════

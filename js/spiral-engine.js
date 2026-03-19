@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-C8A332D8
 /**
  * SPIRAL ENGINE API CLIENT
  * Connects frontend to Supabase-powered backend

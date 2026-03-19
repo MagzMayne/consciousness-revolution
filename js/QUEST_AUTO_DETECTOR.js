@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-8A4432C3
 /**
  * QUEST_AUTO_DETECTOR.js - Trinity Quest System
  * C1 Implementation + C3 Two-Phase Verification
