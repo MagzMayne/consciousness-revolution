@@ -117,7 +117,10 @@ export const handler = async (event) => {
 
         callTasks.push(task);
 
-        // Simulate async assignment after 1s (Phase 1 mock progression)
+        // Phase 1 mock: simulate async node assignment after 1 s.
+        // This mutates the in-memory task object intentionally so that a subsequent
+        // GET /api/voip-calls/{id} returns the updated status. In Phase 2 this will
+        // be replaced by real orchestration and a persistent data store.
         setTimeout(() => {
             task.status = 'assigned';
             task.node_id = preferred_node_type === 'phone' ? 'phone-1' : 'emu-1';

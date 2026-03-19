@@ -464,6 +464,8 @@
                 <h2>Device Registry</h2>
                 <p style="color:#666;font-size:0.85rem;margin-bottom:18px;">All registered emulator and phone farm nodes. Status refreshes automatically.</p>
 
+                <div id="device-notify" class="notify" role="alert" aria-live="polite"></div>
+
                 <div class="device-tabs" role="tablist">
                     <button class="device-tab active" role="tab" onclick="switchDeviceTab('emulators')" aria-selected="true">🖥️ Emulators</button>
                     <button class="device-tab"        role="tab" onclick="switchDeviceTab('phones')"    aria-selected="false">📱 Phone Farm</button>
@@ -726,6 +728,7 @@
 
         // ── Tab navigation ───────────────────────────────────────────────────────────────
         const TAB_IDS = ['home', 'devices', 'voip', 'social', 'logs'];
+        const _loadedTabs = new Set(['home']); // track first-visit loads
         function switchTab(tab) {
             TAB_IDS.forEach(id => {
                 document.getElementById('sec-' + id).classList.toggle('active', id === tab);
@@ -735,11 +738,14 @@
                 btn.classList.toggle('active', isActive);
                 btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
             });
-            // Lazy-load section data on first visit
-            if (tab === 'devices') { loadEmulators(); loadPhones(); }
-            if (tab === 'voip')    { loadCallList(); loadCallLogs(); }
-            if (tab === 'social')  { loadSocialTasks(); }
-            if (tab === 'logs')    { loadAllLogs(); }
+            // Lazy-load section data only on first visit to each tab
+            if (!_loadedTabs.has(tab)) {
+                _loadedTabs.add(tab);
+                if (tab === 'devices') { loadEmulators(); loadPhones(); }
+                if (tab === 'voip')    { loadCallList(); loadCallLogs(); }
+                if (tab === 'social')  { loadSocialTasks(); }
+                if (tab === 'logs')    { loadAllLogs(); }
+            }
         }
 
         function switchDeviceTab(subtab) {
@@ -756,7 +762,9 @@
         // ── Helpers ──────────────────────────────────────────────────────────────────────
         function escapeHtml(str) {
             if (!str) return '';
-            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            return String(str)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
         }
 
         function fmtTime(iso) {
@@ -840,9 +848,9 @@
             try {
                 const res = await fetch(`/api/${endpoint}/${id}/status`);
                 const data = await res.json();
-                alert(`Device ${id}\nStatus: ${data.status}\nLast heartbeat: ${data.last_heartbeat || '—'}`);
+                showNotify('device-notify', `Device ${id} — Status: ${data.status} | Last heartbeat: ${data.last_heartbeat || '—'}`, 'info');
             } catch (err) {
-                alert(`Ping failed: ${err.message}`);
+                showNotify('device-notify', `Ping failed for ${id}: ${err.message}`, 'error');
             }
         }
 

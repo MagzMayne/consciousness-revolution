@@ -126,7 +126,10 @@ export const handler = async (event) => {
 
         socialTasks.push(task);
 
-        // Simulate async assignment after 1s (Phase 1 mock progression)
+        // Phase 1 mock: simulate async node assignment after 1 s.
+        // This mutates the in-memory task object intentionally so that a subsequent
+        // GET /api/voip-social-tasks/{id} returns the updated status. In Phase 2 this
+        // will be replaced by real orchestration and a persistent data store.
         setTimeout(() => {
             task.status = 'assigned';
             task.node_id = 'emu-1';
