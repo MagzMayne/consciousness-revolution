@@ -68,11 +68,36 @@ jobs:
         run: |
           FAILED=0
 
-          # Check for live PayPal/Stripe keys accidentally committed
-          if grep -r "sk_live_" . \
+          # Check for live Stripe SECRET keys (sk_live_) accidentally committed
+          if grep -rn "sk_live_" . \
               --include="*.js" --include="*.html" --include="*.ts" \
-              --exclude-dir=node_modules --exclude-dir=.git -l 2>/dev/null; then
-            echo "::error::Potential live Stripe key found in committed files"
+              --exclude-dir=node_modules --exclude-dir=.git \
+              --exclude-dir=.archive --exclude-dir=.backups 2>/dev/null | \
+              grep -v "placeholder\|example\|YOUR_\|process\.env\|window\.ENV" | grep -q .; then
+            echo "::error::Stripe live SECRET key (sk_live_) found in committed files"
+            FAILED=1
+          fi
+
+          # Check for hardcoded Google/Firebase/Gemini API keys (AIza...)
+          if grep -rn \
+              --include="*.js" --include="*.mjs" --include="*.html" --include="*.ts" \
+              --exclude-dir=node_modules --exclude-dir=.git \
+              --exclude-dir=.archive --exclude-dir=.backups --exclude-dir=tools \
+              --exclude="scripts/pre-commit-hook.js" --exclude="backend-health-checker.js" \
+              -P '["'"'"']AIza[0-9A-Za-z_-]{35}["'"'"']' . 2>/dev/null | \
+              grep -v "Dummy\|dummy\|example\|placeholder\|YOUR_\|window\.ENV\|process\.env" | grep -q .; then
+            echo "::error::Hardcoded Google/Firebase/Gemini API key (AIza...) found in committed files. Use window.ENV.FIREBASE_API_KEY / window.ENV.GEMINI_API_KEY instead."
+            FAILED=1
+          fi
+
+          # Check for hardcoded Stripe live publishable key (pk_live_)
+          if grep -rn \
+              --include="*.js" --include="*.mjs" --include="*.html" --include="*.ts" \
+              --exclude-dir=node_modules --exclude-dir=.git \
+              --exclude-dir=.archive --exclude-dir=.backups --exclude-dir=tools \
+              -P '["'"'"']pk_live_[0-9a-zA-Z]{24,}["'"'"']' . 2>/dev/null | \
+              grep -v "placeholder\|example\|YOUR_\|window\.ENV\|process\.env" | grep -q .; then
+            echo "::error::Hardcoded Stripe live publishable key (pk_live_) found in committed files. Use window.ENV.STRIPE_PUBLISHABLE_KEY instead."
             FAILED=1
           fi
 

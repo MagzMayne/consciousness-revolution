@@ -51,7 +51,7 @@
  * Integrates with existing payment systems
  * 
  * Security Note: API keys should be stored in environment variables
- * Test Key: pk_test_51Szh6V2UmH0IzuSRMgUHVugtXD9Acn8uH5CfFqcTsUO6NaQKB9mFSvBppsRVhSgirEJNPqZryl414awr0fqUG6JS00PD90ymWs
+ * Test Key: pk_test_51Szh6V2...  (configure via STRIPE_PUBLISHABLE_KEY env var)
  */
 
 class StripePaymentIntegration {
@@ -96,9 +96,9 @@ class StripePaymentIntegration {
             return window.ENV.STRIPE_PUBLISHABLE_KEY;
         }
         
-        // Fallback to test key for development
-        // Production deployments should use environment variables
-        return 'pk_test_51Szh6V2UmH0IzuSRMgUHVugtXD9Acn8uH5CfFqcTsUO6NaQKB9mFSvBppsRVhSgirEJNPqZryl414awr0fqUG6JS00PD90ymWs';
+        // Fallback: no key configured — production deployments should set STRIPE_PUBLISHABLE_KEY
+        console.warn('Stripe publishable key not configured. Set STRIPE_PUBLISHABLE_KEY env var or window.ENV.STRIPE_PUBLISHABLE_KEY.');
+        return '';
     }
 
     /**

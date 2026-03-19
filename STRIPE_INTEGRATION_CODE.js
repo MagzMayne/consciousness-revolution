@@ -73,7 +73,7 @@ async function initiateCheckout(priceId) {
     const { sessionId } = await response.json();
 
     // Redirect to Stripe Checkout
-    const stripe = Stripe('pk_live_51SF4PSIBd71iNToykS4kDyC4WI02jFkipcCa2qTcIX1W69IsBXAEToehdXNeP8sd5pxuEurtRjbQpNnGBtaWkLgj00uC5iVtae');
+    const stripe = Stripe((typeof window !== 'undefined' && window.ENV && window.ENV.STRIPE_PUBLISHABLE_KEY) ? window.ENV.STRIPE_PUBLISHABLE_KEY : '');
     return stripe.redirectToCheckout({ sessionId });
 
   } catch (error) {

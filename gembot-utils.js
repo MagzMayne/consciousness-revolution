@@ -77,7 +77,7 @@ window.GemBotUtils = (function() {
      * @constant {Object}
      */
     const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyAulZ2a1-i25LB77IuR1ScsxD1w6Wdfmg8",
+        apiKey: (typeof window !== 'undefined' && window.ENV && window.ENV.FIREBASE_API_KEY) ? window.ENV.FIREBASE_API_KEY : '',
         authDomain: "gem-bot-57068.firebaseapp.com",
         projectId: "gem-bot-57068",
         storageBucket: "gem-bot-57068.appspot.com",
