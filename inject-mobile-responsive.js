@@ -66,12 +66,25 @@ function processFile(filepath) {
     let changed = src;
     let didChange = false;
 
-    /* 1. Inject mobile-responsive.js before </head> if not present */
+    /* 1. Inject mobile-responsive.js before </head> (or <body>/<header>) if not present */
     if (!changed.includes('mobile-responsive.js')) {
         if (changed.includes('</head>')) {
             changed = changed.replace('</head>', SCRIPT_TAG + '</head>');
             didChange = true;
+        } else if (/<body[\s>]/i.test(changed)) {
+            /* Fallback: insert before <body> for pages missing </head> */
+            changed = changed.replace(/<body[\s>]/i, function(m) {
+                return SCRIPT_TAG + m;
+            });
+            didChange = true;
+        } else if (/<header[\s>]/i.test(changed) && /<html[\s>]/i.test(changed)) {
+            /* Fallback: full HTML page with <head> but no </head>/<body> — insert before <header> */
+            changed = changed.replace(/<header[\s>]/i, function(m) {
+                return SCRIPT_TAG + m;
+            });
+            didChange = true;
         }
+        /* If none of the above match, it's an HTML fragment — skip */
     }
 
     /* 2. Inject viewport meta if missing */
