@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-B9F7ECE1
 /**
  * brain-dashboard.js - Brain Integration for Commander Dashboards
  * Fetches real brain stats and enables brain queries

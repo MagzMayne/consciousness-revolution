@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-6DC3C906
 /**
  * XP_INTEGRATION_TRACKER.js - Trinity Integration Layer
  * C1 Implementation + C3 Two-Phase Calibration

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-21C0A91D
 /**
  * WIDGET PANEL - Dashboard Factory Phase 3
  * Adds a collapsible widget sidebar + manage button to any dashboard

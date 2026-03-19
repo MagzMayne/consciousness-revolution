@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-40DB865A
 /**
  * FILE TRANSFER MODULE - Send Anything, Any Size
  * Works via: Direct upload, Supabase Storage, or P2P WebRTC

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-8C0086D2
 /**
  * DASHBOARD EDIT MODE - Drop-in editing for any dashboard
  * ═══════════════════════════════════════════════════════════════════════════

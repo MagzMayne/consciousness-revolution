@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-35622BB5
 /**
  * DASHBOARD DNA RENDERER - Client-side Customization Engine
  * ═══════════════════════════════════════════════════════════════════════════

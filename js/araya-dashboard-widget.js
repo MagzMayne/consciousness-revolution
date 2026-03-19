@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-7EE64191
 /**
  * ARAYA Dashboard Widget - Universal Edit Interface
  * Embeds on every dashboard in "Second Tier" mode

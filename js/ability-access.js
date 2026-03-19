@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-AFB06E61
 /**
  * AbilityAccessController
  * Client-side wrapper for ability access control

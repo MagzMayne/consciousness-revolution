@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-1F905F3B
 /**
  * DOMAIN SUPABASE MODULE
  * Trinity Architecture - Shared data layer for all 7 domain dashboards
