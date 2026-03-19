@@ -113,7 +113,18 @@ jobs:
             [ -f "$f" ] || continue
             validate_json "$f" || FAILED=1
           done
+          # Validate tools-catalog.json and llm-context.json if they exist
+          for f in tools-catalog.json llm-context.json; do
+            [ -f "$f" ] && { validate_json "$f" || FAILED=1; }
+          done
           [ "$FAILED" -eq 0 ] || exit 1
+
+      - name: Verify tools catalog is current
+        run: |
+          if [ -f "tools-catalog.json" ] && [ -f "scripts/sync-forges.js" ]; then
+            node scripts/sync-forges.js --verify && echo "✅ tools-catalog.json is current" \
+              || echo "::warning::tools-catalog.json may be out of date — run 'npm run sync:forges'"
+          fi
 
   test:
     name: Test Suite
