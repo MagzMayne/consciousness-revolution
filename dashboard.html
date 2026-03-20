@@ -374,6 +374,8 @@
         <button class="dash-tab"        role="tab" aria-selected="false" aria-controls="sec-voip"    onclick="switchTab('voip')"    >📞 VoIP Calls</button>
         <button class="dash-tab"        role="tab" aria-selected="false" aria-controls="sec-social"  onclick="switchTab('social')"  >💬 Social</button>
         <button class="dash-tab"        role="tab" aria-selected="false" aria-controls="sec-logs"    onclick="switchTab('logs')"    >📋 Task Logs</button>
+        <button class="dash-tab"        role="tab" aria-selected="false" aria-controls="sec-backend" onclick="switchTab('backend')" >🖥️ Backend Setup</button>
+        <button class="dash-tab"        role="tab" aria-selected="false" aria-controls="sec-openclaw" onclick="switchTab('openclaw')">🦞 OpenClaw Hub</button>
     </nav>
 
     <main>
@@ -454,6 +456,14 @@
                 <a href="forge-store.html" class="action-card">
                     <h3>Forge Store</h3>
                     <p>Tools and resources for your journey</p>
+                </a>
+                <a href="#" class="action-card" onclick="switchTab('backend');return false;">
+                    <h3>🖥️ Backend Setup</h3>
+                    <p>Deploy to Railway or run locally — one-click wizard</p>
+                </a>
+                <a href="#" class="action-card" onclick="switchTab('openclaw');return false;" style="border-color:rgba(255,92,92,0.3);">
+                    <h3>🦞 OpenClaw Hub</h3>
+                    <p>Full-power agent control center for individuals and businesses</p>
                 </a>
             </section>
         </div><!-- /sec-home -->
@@ -693,6 +703,236 @@
             </div>
         </div><!-- /sec-logs -->
 
+        <!-- ════════════════════════════════ BACKEND SETUP SECTION ══════════════════════════ -->
+        <div id="sec-backend" class="dash-section">
+
+            <!-- Railway Quick Connect -->
+            <div class="panel">
+                <h2>🚀 Railway Backend — Quick Connect</h2>
+                <p style="color:#666;font-size:0.85rem;margin-bottom:20px;">
+                    Paste your Railway gateway WebSocket URL and token, then click <strong style="color:#e0e0e0;">Connect</strong>.
+                    The token must match the <code style="color:#00d4ff;">GATEWAY_TOKEN</code> environment variable set in your Railway service.
+                </p>
+
+                <div id="backend-notify" class="notify" role="alert" aria-live="polite"></div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:3;">
+                        <label for="be-gw-url">Railway WebSocket URL</label>
+                        <input type="url" id="be-gw-url" placeholder="wss://your-service.up.railway.app" aria-label="Railway WebSocket URL" />
+                    </div>
+                    <div class="form-group" style="flex:2;">
+                        <label for="be-gw-token">Gateway Token</label>
+                        <input type="password" id="be-gw-token" placeholder="GATEWAY_TOKEN value" aria-label="Gateway token" autocomplete="off" />
+                    </div>
+                    <div style="display:flex;align-items:flex-end;gap:10px;">
+                        <button class="btn-primary" onclick="backendConnect()" id="be-connect-btn">🔌 Connect</button>
+                        <button class="btn-sm" onclick="backendTest()" id="be-test-btn">🧪 Test</button>
+                    </div>
+                </div>
+                <div id="be-conn-status" style="font-size:0.83rem;color:#555;margin-top:8px;">
+                    Settings are saved locally and never sent to our servers.
+                </div>
+            </div>
+
+            <!-- Service Status Grid -->
+            <div class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                    <h2 style="margin-bottom:0;">📡 Backend Services</h2>
+                    <button class="btn-sm" onclick="refreshServiceStatus()">↻ Refresh</button>
+                </div>
+                <div id="backend-service-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+                    <p style="color:#555;font-size:0.85rem;grid-column:1/-1;">Connect to your Railway gateway to see service status.</p>
+                </div>
+            </div>
+
+            <!-- One-Click Railway Deployment Guide -->
+            <div class="panel">
+                <h2>⚡ Deploy Your Gateway to Railway</h2>
+                <p style="color:#666;font-size:0.85rem;margin-bottom:20px;">
+                    Follow these steps once to deploy your own backend gateway on Railway — takes about 5 minutes.
+                </p>
+
+                <div style="display:flex;flex-direction:column;gap:20px;">
+
+                    <div style="display:flex;gap:16px;align-items:flex-start;">
+                        <div style="min-width:36px;height:36px;border-radius:50%;background:linear-gradient(90deg,#7b2cbf,#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;">1</div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:4px;">Create a Railway account</div>
+                            <div style="color:#666;font-size:0.85rem;line-height:1.6;">
+                                Go to <a href="https://railway.app" target="_blank" rel="noopener" style="color:#00d4ff;">railway.app</a> and sign in with GitHub.
+                                Railway offers a free tier that runs services 24/7.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:16px;align-items:flex-start;">
+                        <div style="min-width:36px;height:36px;border-radius:50%;background:linear-gradient(90deg,#7b2cbf,#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;">2</div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:4px;">Deploy the gateway folder</div>
+                            <div style="color:#666;font-size:0.85rem;line-height:1.6;">
+                                In Railway → New Project → Deploy from GitHub repo, select the
+                                <code style="color:#00d4ff;background:rgba(0,212,255,0.08);padding:1px 6px;border-radius:4px;">gateway/</code>
+                                folder from the consciousness-revolution repository.
+                                Or drag-and-drop the gateway folder directly.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:16px;align-items:flex-start;">
+                        <div style="min-width:36px;height:36px;border-radius:50%;background:linear-gradient(90deg,#7b2cbf,#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;">3</div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:4px;">Set environment variables</div>
+                            <div style="color:#666;font-size:0.85rem;line-height:1.6;margin-bottom:10px;">
+                                In Railway → your service → <strong>Variables</strong>, add these:
+                            </div>
+                            <div style="background:rgba(10,10,25,0.7);border:1px solid #2a2a3e;border-radius:8px;padding:14px;font-family:monospace;font-size:0.83rem;line-height:2;">
+                                <div><span style="color:#00d4ff;">GATEWAY_TOKEN</span>=<span style="color:#ffa500;">your-strong-secret-32-chars-min</span></div>
+                                <div><span style="color:#00d4ff;">OPENAI_API_KEY</span>=<span style="color:#ffa500;">sk-…</span> <span style="color:#555;">  # optional — for AI agents</span></div>
+                                <div><span style="color:#00d4ff;">ANTHROPIC_API_KEY</span>=<span style="color:#ffa500;">sk-ant-…</span> <span style="color:#555;">  # optional — for Claude agents</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:16px;align-items:flex-start;">
+                        <div style="min-width:36px;height:36px;border-radius:50%;background:linear-gradient(90deg,#7b2cbf,#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;">4</div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:4px;">Copy your Railway URL</div>
+                            <div style="color:#666;font-size:0.85rem;line-height:1.6;">
+                                Railway → your service → <strong>Settings → Networking</strong> shows your domain,
+                                e.g. <code style="color:#00d4ff;background:rgba(0,212,255,0.08);padding:1px 6px;border-radius:4px;">abc123.up.railway.app</code>.
+                                Paste it above as <code style="color:#00d4ff;background:rgba(0,212,255,0.08);padding:1px 6px;border-radius:4px;">wss://abc123.up.railway.app</code>.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:16px;align-items:flex-start;">
+                        <div style="min-width:36px;height:36px;border-radius:50%;background:linear-gradient(90deg,#22c55e,#00d4ff);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;">✓</div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:4px;">Connect &amp; verify</div>
+                            <div style="color:#666;font-size:0.85rem;line-height:1.6;">
+                                Paste the URL and token above, click <strong style="color:#e0e0e0;">Connect</strong>.
+                                Then open the <strong style="color:#e0e0e0;">🦞 OpenClaw Hub</strong> tab for full agent control.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Local Machine Setup -->
+            <div class="panel">
+                <h2>💻 Local Machine Backend Setup</h2>
+                <p style="color:#666;font-size:0.85rem;margin-bottom:20px;">
+                    Run the full backend stack on your own machine for development or private deployments.
+                </p>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+
+                    <div style="background:rgba(10,10,25,0.7);border:1px solid #2a2a3e;border-radius:12px;padding:20px;">
+                        <div style="font-weight:600;margin-bottom:10px;color:#00d4ff;">📦 Prerequisites</div>
+                        <ul style="color:#888;font-size:0.85rem;line-height:2;padding-left:16px;">
+                            <li>Node.js 18+ — <a href="https://nodejs.org" target="_blank" rel="noopener" style="color:#00d4ff;">nodejs.org</a></li>
+                            <li>Git — <a href="https://git-scm.com" target="_blank" rel="noopener" style="color:#00d4ff;">git-scm.com</a></li>
+                            <li>npm (bundled with Node.js)</li>
+                            <li>Railway CLI (optional) — <a href="https://docs.railway.app/develop/cli" target="_blank" rel="noopener" style="color:#00d4ff;">docs.railway.app</a></li>
+                        </ul>
+                    </div>
+
+                    <div style="background:rgba(10,10,25,0.7);border:1px solid #2a2a3e;border-radius:12px;padding:20px;">
+                        <div style="font-weight:600;margin-bottom:10px;color:#00d4ff;">🚀 Quick Start</div>
+                        <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:12px;font-family:monospace;font-size:0.82rem;line-height:2;overflow-x:auto;">
+                            <div style="color:#22c55e;"># Clone and install</div>
+                            <div>git clone https://github.com/overkor-tek/consciousness-revolution</div>
+                            <div>cd consciousness-revolution</div>
+                            <div>npm run setup</div>
+                            <div style="color:#22c55e;"># Start local backend</div>
+                            <div>npm run dev</div>
+                            <div style="color:#22c55e;"># In another terminal — start gateway</div>
+                            <div>cd gateway &amp;&amp; npm install &amp;&amp; node index.js</div>
+                        </div>
+                    </div>
+
+                    <div style="background:rgba(10,10,25,0.7);border:1px solid #2a2a3e;border-radius:12px;padding:20px;">
+                        <div style="font-weight:600;margin-bottom:10px;color:#00d4ff;">🔑 Environment Variables (.env)</div>
+                        <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:12px;font-family:monospace;font-size:0.82rem;line-height:1.9;overflow-x:auto;">
+                            <div style="color:#555;"># gateway/.env</div>
+                            <div>GATEWAY_TOKEN=your-local-dev-token</div>
+                            <div>PORT=8080</div>
+                            <div style="color:#555;"># Optional AI keys</div>
+                            <div>OPENAI_API_KEY=sk-...</div>
+                            <div>ANTHROPIC_API_KEY=sk-ant-...</div>
+                        </div>
+                        <div style="margin-top:10px;font-size:0.8rem;color:#555;">
+                            Then connect from this dashboard with <code style="color:#00d4ff;">ws://localhost:8080</code>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div><!-- /sec-backend -->
+
+        <!-- ════════════════════════════════ OPENCLAW HUB SECTION ════════════════════════════ -->
+        <div id="sec-openclaw" class="dash-section">
+
+            <div class="panel" style="text-align:center;padding:40px 28px;">
+                <div style="font-size:4rem;margin-bottom:16px;">🦞</div>
+                <h2 style="font-size:1.8rem;margin-bottom:12px;background:linear-gradient(90deg,#ff5c5c,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">OpenClaw Enhanced Hub</h2>
+                <p style="color:#888;font-size:1rem;max-width:600px;margin:0 auto 28px;line-height:1.7;">
+                    The full-power control center for individuals and businesses. Manage AI agents, automate tasks,
+                    monitor your Railway backend, control cron jobs, track revenue, and more — all in one place.
+                </p>
+                <a href="/openclaw-hub.html" class="btn-primary" style="display:inline-block;text-decoration:none;font-size:1rem;padding:14px 36px;background:linear-gradient(90deg,#ff5c5c,#f59e0b);">
+                    🚀 Launch OpenClaw Hub
+                </a>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:0;">
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">♟ Agent R — Orchestrator</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">Supreme root orchestrator (Level 999). Coordinates all AI agents, delegates tasks, manages the agent hierarchy, and ensures automated operations run without manual intervention.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">⚡ Task Automation</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">Queue and dispatch tasks to AI agents in real-time via WebSocket. Full visibility into task status, results, and history — with one-click retry and cancellation.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">⏱️ Cron Scheduler</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">Create, pause, and monitor recurring automation jobs. Schedule any agent task on a cron schedule — from hourly market scans to daily content generation.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">🔍 Advanced Diagnostics</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">System checks, WebSocket frame inspector, error history, and self-healing actions — reconnect, flush pending requests, reload agent data without refreshing the page.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">💹 Revenue Intelligence</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">Track product sales, grant revenue, and contributor payouts from a unified dashboard. AI-powered suggestions for maximising income streams.</p>
+                </div>
+
+                <div class="panel" style="margin-bottom:0;">
+                    <h3 style="margin-bottom:12px;">🛒 Barbrick Design Shop</h3>
+                    <p style="color:#666;font-size:0.85rem;line-height:1.6;">Browse and purchase digital products delivered instantly after PayPal checkout. Premium tools and subscriptions directly integrated into the hub.</p>
+                </div>
+
+            </div>
+
+            <div class="panel backend-setup-callout" style="margin-top:20px;background:rgba(20,184,166,0.05);border-color:rgba(20,184,166,0.25);">
+                <h3 style="margin-bottom:10px;color:#14b8a6;">🔗 First time? Set up your Railway backend first</h3>
+                <p style="color:#666;font-size:0.85rem;line-height:1.6;margin-bottom:16px;">
+                    OpenClaw Hub connects to your Railway gateway over a secure WebSocket.
+                    Go to the <strong style="color:#e0e0e0;">🖥️ Backend Setup</strong> tab, deploy the gateway, then come back and launch the hub.
+                </p>
+                <button class="btn-sm" onclick="switchTab('backend')" style="border-color:#14b8a6;color:#14b8a6;">⚙️ Go to Backend Setup →</button>
+            </div>
+
+        </div><!-- /sec-openclaw -->
+
     </main>
 
     <script>
@@ -727,7 +967,7 @@
         }
 
         // ── Tab navigation ───────────────────────────────────────────────────────────────
-        const TAB_IDS = ['home', 'devices', 'voip', 'social', 'logs'];
+        const TAB_IDS = ['home', 'devices', 'voip', 'social', 'logs', 'backend', 'openclaw'];
         const _loadedTabs = new Set(['home']); // track first-visit loads
         function switchTab(tab) {
             TAB_IDS.forEach(id => {
@@ -745,6 +985,8 @@
                 if (tab === 'voip')    { loadCallList(); loadCallLogs(); }
                 if (tab === 'social')  { loadSocialTasks(); }
                 if (tab === 'logs')    { loadAllLogs(); }
+                if (tab === 'backend') { initBackendTab(); }
+                if (tab === 'openclaw') { initOpenClawTab(); }
             }
         }
 
@@ -1076,6 +1318,127 @@
         }
 
         loadUser();
+
+        // Handle hash-based tab navigation (#backend, #openclaw, etc.)
+        (function handleHashNav() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && TAB_IDS.includes(hash)) switchTab(hash);
+        })();
+
+        // ── Backend Setup Tab ────────────────────────────────────────────────────────────
+        const BE_STORAGE_URL   = 'oc_gateway_url';
+        const BE_STORAGE_TOKEN = 'oc_gateway_token';
+
+        function initBackendTab() {
+            const savedUrl   = localStorage.getItem(BE_STORAGE_URL)   || '';
+            const savedToken = localStorage.getItem(BE_STORAGE_TOKEN) || '';
+            if (savedUrl)   document.getElementById('be-gw-url').value   = savedUrl;
+            if (savedToken) document.getElementById('be-gw-token').value = savedToken;
+            if (savedUrl) refreshServiceStatus();
+        }
+
+        function backendConnect() {
+            const url   = document.getElementById('be-gw-url').value.trim();
+            const token = document.getElementById('be-gw-token').value.trim();
+            if (!url) { showNotify('backend-notify', 'Please enter the Railway WebSocket URL.', 'error'); return; }
+            if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+                showNotify('backend-notify', 'URL must start with wss:// (or ws:// for localhost).', 'error');
+                return;
+            }
+            if (!token) { showNotify('backend-notify', 'Please enter the gateway token.', 'error'); return; }
+            localStorage.setItem(BE_STORAGE_URL,   url);
+            localStorage.setItem(BE_STORAGE_TOKEN, token);
+            document.getElementById('be-conn-status').textContent = '✅ Settings saved. Testing connection…';
+            backendTest(true);
+        }
+
+        async function backendTest(fromConnect = false) {
+            const url   = localStorage.getItem(BE_STORAGE_URL)   || document.getElementById('be-gw-url').value.trim();
+            const token = localStorage.getItem(BE_STORAGE_TOKEN) || document.getElementById('be-gw-token').value.trim();
+            const statusEl = document.getElementById('be-conn-status');
+            if (!url) { showNotify('backend-notify', 'No gateway URL configured. Enter one above and click Connect.', 'error'); return; }
+
+            const httpUrl = url.replace(/^wss?:\/\//, 'https://');
+            statusEl.textContent = '🔄 Connecting to gateway…';
+            try {
+                const res = await fetch(`${httpUrl}/health`, {
+                    method: 'GET',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                    signal: AbortSignal.timeout(8000)
+                });
+                if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    statusEl.style.color = '#22c55e';
+                    statusEl.textContent = `✅ Connected — Gateway v${data.version || '?'} | Status: ${data.status || 'ok'}`;
+                    if (!fromConnect) showNotify('backend-notify', '✅ Gateway reachable!', 'success');
+                    refreshServiceStatus();
+                } else {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+            } catch (err) {
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = `❌ Connection failed: ${err.message}. Check your URL and token.`;
+                if (!fromConnect) showNotify('backend-notify', `❌ Test failed: ${err.message}`, 'error');
+            }
+        }
+
+        const BACKEND_SERVICES = [
+            { id: 'bounty-hunter', label: '🏆 Bounty Hunter',    desc: 'Bounty completion automation' },
+            { id: 'cleardebt',     label: '💳 ClearDebt',        desc: 'Bankruptcy assistance platform' },
+            { id: 'email',         label: '📧 Email Service',     desc: 'Email campaigns & lead management' },
+            { id: 'grid-control',  label: '⚡ Grid Control',      desc: 'PLC infrastructure management' },
+            { id: 'gem-scraper',   label: '💎 Gem Scraper',       desc: 'Product intelligence' },
+            { id: 'riogrande',     label: '🏔 Rio Grande',        desc: 'Gemstone pricing' },
+            { id: 'gge',           label: '🌐 GGE Marketplace',   desc: 'Global marketplace' },
+            { id: 'kas',           label: '🔑 KAS',               desc: 'Key/token management' },
+        ];
+
+        async function refreshServiceStatus() {
+            const grid = document.getElementById('backend-service-grid');
+            const url   = localStorage.getItem(BE_STORAGE_URL);
+            const token = localStorage.getItem(BE_STORAGE_TOKEN);
+            if (!url) {
+                grid.innerHTML = '<p style="color:#555;font-size:0.85rem;grid-column:1/-1;">Connect to your Railway gateway to see service status.</p>';
+                return;
+            }
+            const httpUrl = url.replace(/^wss?:\/\//, 'https://');
+            grid.innerHTML = '<p style="color:#555;font-size:0.85rem;grid-column:1/-1;">Checking services…</p>';
+
+            const results = await Promise.allSettled(
+                BACKEND_SERVICES.map(svc =>
+                    fetch(`${httpUrl}/services/${encodeURIComponent(svc.id)}/health`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                        signal: AbortSignal.timeout(6000)
+                    }).then(r => ({ svc, ok: r.ok, status: r.status }))
+                     .catch(() => ({ svc, ok: false, status: null }))
+                )
+            );
+
+            const cards = results.map(r => {
+                const { svc, ok, status } = r.value || { svc: r.reason?.svc, ok: false, status: null };
+                const color = ok ? '#22c55e' : '#ef4444';
+                const label = ok ? 'Online' : 'Offline';
+                return `
+                    <div style="background:rgba(10,10,25,0.7);border:1px solid ${ok ? 'rgba(34,197,94,0.25)' : '#2a2a3e'};border-radius:12px;padding:16px;">
+                        <div style="font-weight:600;margin-bottom:6px;">${escapeHtml(svc.label)}</div>
+                        <div style="font-size:0.78rem;color:#666;margin-bottom:10px;">${escapeHtml(svc.desc)}</div>
+                        <span style="font-size:0.78rem;padding:3px 10px;border-radius:12px;background:${ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)'};color:${color};font-weight:600;">
+                            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px;${ok ? 'box-shadow:0 0 5px '+color : ''}"></span>
+                            ${label}${status ? ` (${status})` : ''}
+                        </span>
+                    </div>`;
+            }).join('');
+            grid.innerHTML = cards;
+        }
+
+        // ── OpenClaw Hub Tab ─────────────────────────────────────────────────────────────
+        function initOpenClawTab() {
+            const savedUrl = localStorage.getItem(BE_STORAGE_URL);
+            const calloutEl = document.querySelector('#sec-openclaw .backend-setup-callout');
+            if (calloutEl && savedUrl) {
+                calloutEl.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>
