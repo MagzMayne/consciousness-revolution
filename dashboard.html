@@ -922,7 +922,7 @@
 
             </div>
 
-            <div class="panel" style="margin-top:20px;background:rgba(20,184,166,0.05);border-color:rgba(20,184,166,0.25);">
+            <div class="panel backend-setup-callout" style="margin-top:20px;background:rgba(20,184,166,0.05);border-color:rgba(20,184,166,0.25);">
                 <h3 style="margin-bottom:10px;color:#14b8a6;">🔗 First time? Set up your Railway backend first</h3>
                 <p style="color:#666;font-size:0.85rem;line-height:1.6;margin-bottom:16px;">
                     OpenClaw Hub connects to your Railway gateway over a secure WebSocket.
@@ -1319,6 +1319,12 @@
 
         loadUser();
 
+        // Handle hash-based tab navigation (#backend, #openclaw, etc.)
+        (function handleHashNav() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && TAB_IDS.includes(hash)) switchTab(hash);
+        })();
+
         // ── Backend Setup Tab ────────────────────────────────────────────────────────────
         const BE_STORAGE_URL   = 'oc_gateway_url';
         const BE_STORAGE_TOKEN = 'oc_gateway_token';
@@ -1357,13 +1363,13 @@
             try {
                 const res = await fetch(`${httpUrl}/health`, {
                     method: 'GET',
-                    headers: token ? { 'Authorization': `Bearer ${escapeHtml(token)}` } : {},
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                     signal: AbortSignal.timeout(8000)
                 });
                 if (res.ok) {
                     const data = await res.json().catch(() => ({}));
                     statusEl.style.color = '#22c55e';
-                    statusEl.textContent = `✅ Connected — Gateway v${escapeHtml(data.version || '?')} | Status: ${escapeHtml(data.status || 'ok')}`;
+                    statusEl.textContent = `✅ Connected — Gateway v${data.version || '?'} | Status: ${data.status || 'ok'}`;
                     if (!fromConnect) showNotify('backend-notify', '✅ Gateway reachable!', 'success');
                     refreshServiceStatus();
                 } else {
@@ -1371,8 +1377,8 @@
                 }
             } catch (err) {
                 statusEl.style.color = '#ef4444';
-                statusEl.textContent = `❌ Connection failed: ${escapeHtml(err.message)}. Check your URL and token.`;
-                if (!fromConnect) showNotify('backend-notify', `❌ Test failed: ${escapeHtml(err.message)}`, 'error');
+                statusEl.textContent = `❌ Connection failed: ${err.message}. Check your URL and token.`;
+                if (!fromConnect) showNotify('backend-notify', `❌ Test failed: ${err.message}`, 'error');
             }
         }
 
@@ -1400,8 +1406,8 @@
 
             const results = await Promise.allSettled(
                 BACKEND_SERVICES.map(svc =>
-                    fetch(`${httpUrl}/services/${escapeHtml(svc.id)}/health`, {
-                        headers: token ? { 'Authorization': `Bearer ${escapeHtml(token)}` } : {},
+                    fetch(`${httpUrl}/services/${encodeURIComponent(svc.id)}/health`, {
+                        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                         signal: AbortSignal.timeout(6000)
                     }).then(r => ({ svc, ok: r.ok, status: r.status }))
                      .catch(() => ({ svc, ok: false, status: null }))
@@ -1428,7 +1434,7 @@
         // ── OpenClaw Hub Tab ─────────────────────────────────────────────────────────────
         function initOpenClawTab() {
             const savedUrl = localStorage.getItem(BE_STORAGE_URL);
-            const calloutEl = document.querySelector('#sec-openclaw .panel[style*="rgba(20,184,166"]');
+            const calloutEl = document.querySelector('#sec-openclaw .backend-setup-callout');
             if (calloutEl && savedUrl) {
                 calloutEl.style.display = 'none';
             }
