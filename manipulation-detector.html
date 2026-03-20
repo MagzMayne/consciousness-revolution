@@ -661,7 +661,13 @@ const EXAMPLES = {
 
 // ── Analysis engine ──────────────────────────────────────────
 
-function analyseText(text) {
+// Scoring constants (tune these to adjust sensitivity)
+const WORD_COUNT_FACTOR = 0.08;  // Normalises raw score against text length
+const DENSITY_MULTIPLIER = 30;   // Scales density contribution to M-Score
+const MATCH_MULTIPLIER = 1.5;    // Scales raw match count contribution to M-Score
+const MIN_WORDS_FULL_SCORE = 50; // Texts shorter than this get a density penalty
+
+function analyzeText(text) {
     const lower = text.toLowerCase();
     const words = lower.split(/\s+/);
     const wordCount = words.length;
@@ -692,8 +698,11 @@ function analyseText(text) {
 
     // M-Score: weighted by severity, normalised to 0-100
     const rawScore = foundTactics.reduce((sum, t) => sum + (t.severity * t.matchCount), 0);
-    const densityFactor = Math.min(1, wordCount / 50); // penalise short texts
-    const mScore = Math.min(100, Math.round((rawScore / (wordCount * 0.08 + 1)) * 30 * densityFactor + rawScore * 1.5));
+    const densityFactor = Math.min(1, wordCount / MIN_WORDS_FULL_SCORE); // penalise short texts
+    const mScore = Math.min(100, Math.round(
+        (rawScore / (wordCount * WORD_COUNT_FACTOR + 1)) * DENSITY_MULTIPLIER * densityFactor +
+        rawScore * MATCH_MULTIPLIER
+    ));
 
     // Severity level
     let severity, verdictDesc;
@@ -760,7 +769,7 @@ function runAnalysis() {
 
     // Simulate async processing
     setTimeout(() => {
-        const r = analyseText(text);
+        const r = analyzeText(text);
         renderResults(r);
         document.getElementById('loader').classList.remove('active');
         document.getElementById('analyzeBtn').disabled = false;
