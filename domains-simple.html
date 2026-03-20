@@ -74,6 +74,15 @@
             background: linear-gradient(135deg, rgba(99,60,180,0.3) 0%, rgba(60,100,200,0.2) 100%);
             border: 1px solid rgba(130,80,255,0.3);
             border-radius: var(--radius); padding: 14px 16px;
+            position: relative; overflow: hidden;
+        }
+        /* Fade-out on the right signals that the missions row is scrollable */
+        .daily-banner::after {
+            content: '';
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: 48px; pointer-events: none;
+            background: linear-gradient(to right, transparent, rgba(12,9,30,0.85));
+            border-radius: 0 var(--radius) var(--radius) 0;
         }
         .daily-banner-label {
             font-size: 0.68rem; font-weight: 700;
@@ -84,6 +93,7 @@
             display: flex; gap: 8px;
             overflow-x: auto; scrollbar-width: none;
             -ms-overflow-style: none; padding-bottom: 2px;
+            touch-action: pan-x;
         }
         .quests-row::-webkit-scrollbar { display: none; }
         .quest-chip {
@@ -288,6 +298,25 @@
             .topbar-xp { gap: 6px !important; }
             .xp-pill, .streak-pill { padding: 4px 8px !important; font-size: 0.76rem !important; }
             .level-badge { padding: 3px 8px !important; font-size: 0.68rem !important; }
+
+            /* Extra bottom padding on the domains grid so the last row of forge cards
+               is never hidden behind the fixed bottom nav (≈60 px tall + 10 px gap). */
+            .domains-grid { padding-bottom: 80px !important; }
+
+            /* Ensure the quests-row can scroll horizontally even though
+               mobile-universal.css sets body/html overflow-x:hidden.
+               The inner container controls its own scroll context. */
+            .quests-row {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                touch-action: pan-x !important;
+            }
+            /* Prevent mobile-universal.css * { max-width: 100% } from
+               collapsing individual chips to the container width */
+            .quest-chip {
+                max-width: none !important;
+                flex-shrink: 0 !important;
+            }
         }
 
         /* Extra-small phones (≤ 380 px) */
@@ -301,7 +330,7 @@
             .domains-grid {
                 grid-template-columns: 1fr !important;
                 gap: 8px !important;
-                padding: 0 12px 14px !important;
+                padding: 0 12px 80px !important;
             }
         }
     </style>
@@ -437,7 +466,7 @@
 
 <!-- LEADERBOARD -->
 <div class="section-label">&#127942; This Week's Leaders</div>
-<div class="leaderboard">
+<div class="leaderboard" id="leaderboard">
     <div class="leaderboard-header">
         <h3>Top Forgers</h3>
         <span class="lb-period">Week of Mar 17</span>
@@ -495,7 +524,7 @@
         <span class="nav-icon">&#129302;</span>
         <span>ARAYA</span>
     </a>
-    <a href="/leaderboard.html">
+    <a href="/leaderboard.html" onclick="event.preventDefault(); document.getElementById('leaderboard').scrollIntoView({behavior:'smooth'}); return false;">
         <span class="nav-icon">&#127942;</span>
         <span>Leaders</span>
     </a>
@@ -637,6 +666,19 @@
     });
 
     renderUI();
+
+    // Set leaderboard week label dynamically
+    (function () {
+        const now = new Date();
+        const day = now.getDay(); // 0=Sun, 1=Mon … 6=Sat
+        const mondayOffset = (day === 0 ? -6 : 1 - day); // days back to most recent Monday
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + mondayOffset);
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const label = 'Week of ' + monthNames[monday.getMonth()] + ' ' + monday.getDate();
+        const weekLabelElement = document.querySelector('.lb-period');
+        if (weekLabelElement) weekLabelElement.textContent = label;
+    }());
 })();
 </script>
 </body>
