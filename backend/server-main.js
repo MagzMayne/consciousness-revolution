@@ -13,6 +13,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// ── EzAutobots distributed-node routes ─────────────────────────
+try {
+  const nodeRewardsRouter = require('./routes/node-rewards');
+  const nodesRouter       = require('./routes/nodes');
+  app.use('/node-rewards', nodeRewardsRouter);
+  app.use('/nodes', nodesRouter);
+} catch (err) {
+  console.error('[server-main] Failed to mount node routes:', err.message);
+}
+
 // Health check endpoint (Railway health check)
 app.get('/', (req, res) => {
   res.json({
