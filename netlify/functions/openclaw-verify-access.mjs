@@ -1,8 +1,8 @@
 /**
- * OpenClaw Hub — Access Token Verification Endpoint
+ * OpenClaw Hub — Access Password Verification Endpoint
  *
  * POST /.netlify/functions/openclaw-verify-access
- * Body: { "token": "<access-token>" }
+ * Body: { "token": "<access-password>" }
  *
  * Returns:
  *   200 { valid: true,  email, name, orderId, ts, product }
@@ -10,11 +10,12 @@
  *   401 { valid: false, error: "Invalid token" }
  *   405 Method not allowed
  *
- * The token is a self-verifying HMAC-signed payload created by the
- * openclaw-paywall-webhook function.  No database is required.
+ * The access password is a self-verifying HMAC-signed payload created by the
+ * openclaw-paywall-webhook function.  It is uniquely tied to the buyer's
+ * PayPal purchase ID (orderId) and requires no database lookup.
  *
  * Required environment variable:
- *   OPENCLAW_DASHBOARD_SECRET — same secret used when generating the token
+ *   OPENCLAW_DASHBOARD_SECRET — same secret used when generating the password
  *
  * Author: Agent R / Barbrick Design
  */
@@ -47,7 +48,7 @@ function verifyToken(token) {
   const secret = process.env.OPENCLAW_DASHBOARD_SECRET;
   if (!secret) {
     // Without the secret we cannot verify — log a warning and allow
-    // the frontend to degrade gracefully (it will still accept the token
+    // the frontend to degrade gracefully (it will still accept the password
     // if the user entered their order ID on the client side).
     console.warn(
       'OPENCLAW_DASHBOARD_SECRET not set — token cannot be verified server-side'
