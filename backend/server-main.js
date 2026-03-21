@@ -19,6 +19,12 @@ try {
   const nodesRouter       = require('./routes/nodes');
   app.use('/node-rewards', nodeRewardsRouter);
   app.use('/nodes', nodesRouter);
+
+  // Root-level shortcuts so local launchers can POST to /register-node & /heartbeat
+  // without needing to know the /nodes prefix.
+  const _notFound = (_req, res) => res.status(404).json({ error: 'route not matched' });
+  app.post('/register-node', (req, res) => nodesRouter(req, res, _notFound));
+  app.post('/heartbeat',     (req, res) => nodesRouter(req, res, _notFound));
 } catch (err) {
   console.error('[server-main] Failed to mount node routes:', err.message);
 }
