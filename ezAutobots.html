@@ -1253,7 +1253,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
             <span>Identity</span> Local keypair + UUID
           </div>
           <div class="badge">
-            <span>Railway</span> Backend mesh registry
+            <span>Netlify</span> Backend mesh registry
           </div>
           <div class="badge" id="nodeTypeBadge">
             <span>Type</span> Detecting…
@@ -1585,11 +1585,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
           <!-- Logs injected here -->
         </div>
         <div class="hint">
-          By default, this page simulates the mesh locally and uses your configured
-          Railway backend URL for registration and heartbeats. To plug into your
-          real backend, implement:
-          <br />
-          <code>POST /register-node</code> and <code>POST /heartbeat</code> on your Railway service.
+          This page connects to the live Netlify mesh backend for full node
+          registration and heartbeats. Endpoints served at
+          <code>/api/mesh-node/register-node</code> and
+          <code>/api/mesh-node/heartbeat</code>. Node data is persisted via
+          Netlify Blobs — no local simulation needed.
         </div>
       </div>
     </div>
@@ -1600,20 +1600,18 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
      * ezAutobots.html
      * Self-contained local node launcher + identity + heartbeat client.
      *
-     * This file assumes:
-     *   - A Railway backend exposing:
-     *       POST /register-node
-     *       POST /heartbeat
-     *   - (Optional) A local backend at http://localhost:8080/health
-     *
-     * You can adapt the backend URLs below to your real deployment.
+     * Backend: Netlify Function at /api/mesh-node (mesh-node.mjs)
+     *   POST /api/mesh-node/register-node
+     *   POST /api/mesh-node/heartbeat
+     *   GET  /api/mesh-node/nodes
+     *   GET  /api/mesh-node/node-rewards/:nodeId/summary
+     *   (Optional) A local backend at http://localhost:8080/health
      ********************************************************************/
 
     // ---- CONFIG -------------------------------------------------------
 
-    // Primary backend: Railway (or any public mesh registry)
-    const RAILWAY_BACKEND_URL =
-      "https://barbrickdesigngithubio-production.up.railway.app";
+    // Primary backend: Netlify mesh function (same-origin, always reachable)
+    const MESH_BACKEND_URL = "/api/mesh-node";
 
     // Optional: override via query param ?backend=...
     const urlParams = new URLSearchParams(window.location.search);
@@ -1662,7 +1660,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
     // ---- STATE --------------------------------------------------------
 
-    let backendBase = RAILWAY_BACKEND_URL;
+    let backendBase = MESH_BACKEND_URL;
     let nodeIdentity = null;
     let heartbeatTimer = null;
     let heartbeatCount = 0;
@@ -1835,7 +1833,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
       // ── Admin Overwatch panel refresh ─────────────────────────────────
       async function refreshAdminPanel() {
         if (!currentUser || !currentUser.isAdmin) return;
-        const base = (backendBase || RAILWAY_BACKEND_URL).replace(/\/+$/, "");
+        const base = (backendBase || MESH_BACKEND_URL).replace(/\/+$/, "");
         const headers = { "x-user-id": currentUser.userId };
 
         try {
@@ -1902,7 +1900,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         if (loginBtnEl) loginBtnEl.disabled = true;
         try {
           const digest = await sha256Hex(pw);
-          const backendUrl = backendBase || RAILWAY_BACKEND_URL;
+          const backendUrl = backendBase || MESH_BACKEND_URL;
           const r = await fetch(backendUrl + "/user-profiles/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1950,7 +1948,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         if (regBtnEl) regBtnEl.disabled = true;
         try {
           const digest = await sha256Hex(pw);
-          const backendUrl = backendBase || RAILWAY_BACKEND_URL;
+          const backendUrl = backendBase || MESH_BACKEND_URL;
           const r = await fetch(backendUrl + "/user-profiles/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -2298,17 +2296,17 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         log(`Backend override: using local backend ${backendBase}`);
         return;
       }
-      if (backendOverride && backendOverride.startsWith("http")) {
+      if (backendOverride && (backendOverride.startsWith("http") || backendOverride.startsWith("/"))) {
         backendBase = backendOverride;
         backendLabel.textContent = "Custom override";
         backendUrlLabel.textContent = backendBase;
         log(`Backend override: using custom backend ${backendBase}`);
         return;
       }
-      backendBase = RAILWAY_BACKEND_URL;
-      backendLabel.textContent = "Railway backend";
+      backendBase = MESH_BACKEND_URL;
+      backendLabel.textContent = "Netlify backend";
       backendUrlLabel.textContent = backendBase;
-      log(`Using default Railway backend ${backendBase}`);
+      log(`Using Netlify mesh backend ${backendBase}`);
     }
 
     // ---- REGISTRATION -------------------------------------------------
@@ -3009,8 +3007,8 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
     function downloadNodeLauncher() {
       // Embed the launcher script content as a string and trigger download.
-      // The BACKEND_URL is injected so the downloaded script targets the right backend.
-      const backendUrl = RAILWAY_BACKEND_URL;
+      // Use full absolute URL so the downloaded script can reach the backend from any machine.
+      const backendUrl = window.location.origin + MESH_BACKEND_URL;
       const scriptContent = generateNodeLauncherScript(backendUrl);
       const blob = new Blob([scriptContent], { type: "text/javascript" });
       const url  = URL.createObjectURL(blob);
@@ -3514,7 +3512,7 @@ SUPPORT
     }
 
     function downloadStarterPack() {
-      const backendUrl = RAILWAY_BACKEND_URL;
+      const backendUrl = window.location.origin + MESH_BACKEND_URL;
       const jsContent  = generateNodeLauncherScript(backendUrl);
       const batContent = generateStartBat(backendUrl);
       const shContent  = generateStartSh(backendUrl);
