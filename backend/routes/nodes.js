@@ -1,6 +1,6 @@
 // backend/routes/nodes.js
 // EzAutobots distributed node management
-// Handles heartbeats and task-result reports from local compute nodes.
+// Handles registration, heartbeats, and task-result reports from local compute nodes.
 // Automatically logs reward entries via node-rewards.js.
 
 'use strict';
@@ -22,19 +22,23 @@ function getRewards() {
 }
 
 // ── In-memory node registry ─────────────────────────────────────
-// Map<nodeId, { lastSeen, uptimeSeconds, heartbeats, tasks }>
+// Map<nodeId, { lastSeen, uptimeSeconds, heartbeats, tasks, capabilities, ... }>
 const nodeRegistry = new Map();
 
 function upsertNode(nodeId, patch = {}) {
   if (!nodeRegistry.has(nodeId)) {
     nodeRegistry.set(nodeId, {
       nodeId,
-      firstSeen: new Date().toISOString(),
-      lastSeen:  new Date().toISOString(),
-      heartbeats: 0,
-      tasks:      0,
+      firstSeen:    new Date().toISOString(),
+      lastSeen:     new Date().toISOString(),
+      heartbeats:   0,
+      tasks:        0,
       uptimeSeconds: 0,
-      cpuFraction: 0.5
+      cpuFraction:  0.5,
+      type:         'unknown',
+      os:           'unknown',
+      label:        null,
+      capabilities: {}
     });
   }
   const n = nodeRegistry.get(nodeId);
@@ -42,10 +46,31 @@ function upsertNode(nodeId, patch = {}) {
   return n;
 }
 
+// ── POST /nodes/register-node ───────────────────────────────────
+// Body: { nodeId, type?, os?, label?, capabilities?, publicKey? }
+// Creates or updates the node's registration with capability metadata.
+function handleRegisterNode(req, res) {
+  const { nodeId } = req.body || {};
+  if (!nodeId || typeof nodeId !== 'string' || nodeId.length > 128) {
+    return res.status(400).json({ error: 'valid nodeId required (max 128 chars)' });
+  }
+
+  const type         = (typeof req.body.type  === 'string') ? req.body.type.slice(0, 32)  : 'browser';
+  const os           = (typeof req.body.os    === 'string') ? req.body.os.slice(0, 32)    : 'unknown';
+  const label        = (typeof req.body.label === 'string') ? req.body.label.slice(0, 64) : null;
+  const capabilities = (req.body.capabilities && typeof req.body.capabilities === 'object')
+    ? req.body.capabilities : {};
+
+  const node = upsertNode(nodeId, { type, os, label, capabilities });
+  res.json({ success: true, node, registered: true });
+}
+
+router.post('/register-node', handleRegisterNode);
+
 // ── POST /nodes/heartbeat ───────────────────────────────────────
 // Body: { nodeId, cpuFraction?, intervalSeconds? }
 // Side-effect: auto-logs a compute reward for the interval.
-router.post('/heartbeat', (req, res) => {
+function handleHeartbeat(req, res) {
   const { nodeId } = req.body || {};
   if (!nodeId) return res.status(400).json({ error: 'nodeId required' });
 
@@ -73,7 +98,9 @@ router.post('/heartbeat', (req, res) => {
   }
 
   res.json({ success: true, node, rewardEntry });
-});
+}
+
+router.post('/heartbeat', handleHeartbeat);
 
 // ── POST /nodes/task-result ─────────────────────────────────────
 // Body: { nodeId, taskId, success?, intervalSeconds?, complexityMultiplier? }
