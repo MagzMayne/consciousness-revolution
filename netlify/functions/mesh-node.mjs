@@ -75,9 +75,8 @@ function computeReward({ intervalSeconds = 30, cpuFraction = 0.5, tasksCompleted
     const energyCostUSD  = (wattHours / 1000) * KWH_PRICE_USD;
     const taskBonusUSD   = tasksCompleted * PER_TASK_USD;
     const systemCostUSD  = SYSTEM_COST_PER_HOUR * intervalHours;
-    const wattHoursTotal = wattHours;
     const netRewardUSD   = Math.max(0, energyCostUSD + taskBonusUSD + systemCostUSD);
-    return { netRewardUSD: +netRewardUSD.toFixed(8), wattHours: +wattHoursTotal.toFixed(6) };
+    return { netRewardUSD: +netRewardUSD.toFixed(8), wattHours: +wattHours.toFixed(6) };
 }
 
 /** Safely read a JSON blob; returns null on miss or parse error */
@@ -235,7 +234,7 @@ async function handleHeartbeat(body, nStore, rStore) {
     let rewardEntry = null;
     if (rStore) {
         const reward = computeReward({ intervalSeconds: interval, cpuFraction, tasksCompleted: 0 });
-        const existing_r = await getReward(rStore, nodeId) || {
+        const existingReward = await getReward(rStore, nodeId) || {
             nodeId,
             totalRewardUSD: 0,
             totalTasks:     0,
@@ -243,15 +242,15 @@ async function handleHeartbeat(body, nStore, rStore) {
             totalWattHours: 0,
             entries:        [],
         };
-        existing_r.totalRewardUSD  = +(existing_r.totalRewardUSD + reward.netRewardUSD).toFixed(8);
-        existing_r.totalSeconds   += interval;
-        existing_r.totalWattHours  = +(existing_r.totalWattHours + reward.wattHours).toFixed(6);
+        existingReward.totalRewardUSD  = +(existingReward.totalRewardUSD + reward.netRewardUSD).toFixed(8);
+        existingReward.totalSeconds   += interval;
+        existingReward.totalWattHours  = +(existingReward.totalWattHours + reward.wattHours).toFixed(6);
 
         // Keep last 200 entries as a ring buffer
-        existing_r.entries.push({ ts: new Date().toISOString(), ...reward });
-        if (existing_r.entries.length > 200) existing_r.entries.shift();
+        existingReward.entries.push({ ts: new Date().toISOString(), ...reward });
+        if (existingReward.entries.length > 200) existingReward.entries.shift();
 
-        await saveReward(rStore, nodeId, existing_r);
+        await saveReward(rStore, nodeId, existingReward);
         rewardEntry = { ...reward, ts: new Date().toISOString() };
     }
 
