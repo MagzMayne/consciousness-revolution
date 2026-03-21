@@ -611,7 +611,7 @@
   <span class="sep">|</span>
   <a href="/ez-autobots.html">EzAutobots</a>
   <span class="sep">|</span>
-  <a href="https://barbrickdesign.github.io" target="_blank" rel="noopener" aria-label="Visit Barbrick Design (opens in new tab)">BarbrickDesign ↗</a>
+  <a href="https://barbrickdesign.github.io" target="_blank" rel="noopener">BarbrickDesign ↗</a>
   <span class="brand">DEVELOPER DASHBOARD</span>
 </nav>
 
@@ -934,9 +934,19 @@
   }
 
   /* ── Auth / session ────────────────────────────────────────── */
+  function _tryParseStorage(key, storage) {
+    try {
+      const raw = storage.getItem(key);
+      if (raw) return JSON.parse(raw);
+    } catch (_) { /* ignore bad JSON */ }
+    return null;
+  }
+
   function loadUserState() {
     try {
-      const stored = JSON.parse(localStorage.getItem('current_contributor') || sessionStorage.getItem('cr_dev_session') || 'null');
+      const stored =
+        _tryParseStorage('current_contributor', localStorage) ||
+        _tryParseStorage('cr_dev_session', sessionStorage);
       if (stored) {
         _userState = Object.assign(_userState, stored);
         return true;
@@ -1046,7 +1056,6 @@
       card.href = p.url;
       card.target = '_blank';
       card.rel = 'noopener noreferrer';
-      card.setAttribute('aria-label', `Open ${p.name} (opens in new tab)`);
 
       const siteSpan = document.createElement('div');
       siteSpan.className = `pc-site ${p.site}`;
@@ -1303,7 +1312,12 @@
 
     // Log via CRSync if available
     if (window.CRSync && typeof CRSync.broadcast === 'function') {
-      try { CRSync.broadcast({ type: 'project_submitted', name, desc, cat, site }); } catch (_) {}
+      try {
+        CRSync.broadcast({ type: 'project_submitted', name, desc, cat, site });
+      } catch (syncErr) {
+        console.warn('CRSync.broadcast failed:', syncErr);
+        toast('⚠️ Submitted locally — CRSync unavailable.');
+      }
     }
 
     // Log to activity
