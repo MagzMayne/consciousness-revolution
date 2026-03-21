@@ -1109,7 +1109,14 @@
       margin-bottom: 24px;
     }
     .pipeline-submit-btn:hover { filter: brightness(1.15); transform: scale(1.01); }
-    .pipeline-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
+    .pipeline-submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
+      background: rgba(100,100,120,0.6);
+      color: rgba(255,255,255,0.5);
+    }
     .pipeline-merged-list { display: flex; flex-direction: column; gap: 10px; }
     .pipeline-merged-item {
       display: flex;
@@ -1747,7 +1754,8 @@
      * All DOM mutations use textContent / createElement / removeChild.
      * ──────────────────────────────────────────────────────────── */
 
-    const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
+    const ACTIVE_WINDOW_MS = window.DevMeshNetwork ? DevMeshNetwork.getActiveWindowMs() : 30 * 60 * 1000;
+    const MERGE_THRESHOLD  = window.DevMeshNetwork ? DevMeshNetwork.getMergeThreshold()  : 75;
     let _meshHandle = null; // current logged-in handle (session-only)
 
     /* ── Helper: safe text setter ────────────────────────────── */
@@ -2081,8 +2089,8 @@
       const num   = document.getElementById('pipe-score-num');
       if (fill) {
         fill.style.width = score + '%';
-        fill.style.background = score >= 75 ? 'var(--e-green)' :
-                                 score >= 50 ? '#FFD700' : '#ff4466';
+      fill.style.background = score >= MERGE_THRESHOLD ? 'var(--e-green)' :
+                               score >= Math.floor(MERGE_THRESHOLD * 0.65) ? '#FFD700' : '#ff4466';
       }
       if (num) num.textContent = score;
     }
@@ -2145,28 +2153,30 @@
         const code    = (document.getElementById('pipe-code')    || {}).value || '';
 
         submitBtn.disabled = true;
-        const result = DevMeshNetwork.submitEnhancement(_meshHandle, project, title, desc, code);
+        try {
+          const result = DevMeshNetwork.submitEnhancement(_meshHandle, project, title, desc, code);
 
-        const msgEl = document.getElementById('pipe-submit-msg');
-        if (msgEl) {
-          msgEl.textContent = result.ok
-            ? (result.status === 'merged'
-                ? '✅ Auto-merged! Score: ' + result.score + '/100. Core version bumped.'
-                : '📋 Submitted for review. Score: ' + result.score + '/100.')
-            : '⚠️ Please fill in handle, project, and title.';
+          const msgEl = document.getElementById('pipe-submit-msg');
+          if (msgEl) {
+            msgEl.textContent = result.ok
+              ? (result.status === 'merged'
+                  ? '✅ Auto-merged! Score: ' + result.score + '/100. Core version bumped.'
+                  : '📋 Submitted for review. Score: ' + result.score + '/100.')
+              : '⚠️ Please fill in handle, project, and title.';
+          }
+
+          if (result.ok) {
+            // Clear form
+            ['pipe-title','pipe-project','pipe-desc','pipe-code'].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) el.value = '';
+            });
+            updateScoreBar();
+            refreshAll();
+          }
+        } finally {
+          submitBtn.disabled = false;
         }
-
-        if (result.ok) {
-          // Clear form
-          ['pipe-title','pipe-project','pipe-desc','pipe-code'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-          });
-          updateScoreBar();
-          refreshAll();
-        }
-
-        submitBtn.disabled = false;
       });
     }
 

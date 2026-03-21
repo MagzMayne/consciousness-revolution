@@ -140,7 +140,7 @@
   /* ── Semver bump (patch) ─────────────────────────────────────── */
   function _bumpPatch(version) {
     var parts = String(version).split('.').map(Number);
-    if (parts.length < 3 || parts.some(isNaN)) return '1.0.1';
+    if (parts.length < 3 || parts.some(function (p) { return isNaN(p); })) return '1.0.1';
     parts[2] += 1;
     return parts.join('.');
   }
@@ -287,11 +287,11 @@
       points += 5;
     }
 
-    // Function definitions (max 15): count named fns + arrows
+    // Function definitions (max 15): named fns, assigned functions/arrows
     var fnMatches =
       (code.match(/function\s+\w+\s*\(/g)  || []).length +
-      (code.match(/(?:const|let|var)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length +
-      (code.match(/=>\s*\{/g)              || []).length;
+      (code.match(/(?:const|let|var)\s+\w+\s*=\s*(?:async\s*)?(?:function\s*\*?\s*)?\(/g) || []).length +
+      (code.match(/=>\s*[\{\(A-Za-z_$0-9"'`]/g) || []).length;
     if (fnMatches >= 5) {
       points += 15;
     } else if (fnMatches >= 3) {
@@ -473,7 +473,7 @@
     donateCompute: function (handle, units) {
       handle = String(handle || '').trim();
       if (!handle) return 0;
-      var amount = Math.max(1, parseInt(units, 10) || 1);
+      var amount = Math.max(1, parseInt(units, 10) || 0);
       var mesh   = _loadMesh();
       mesh.compute[handle] = (mesh.compute[handle] || 0) + amount;
       _saveMesh(mesh);
@@ -621,6 +621,20 @@
       vault[handle].splice(idx, 1);
       _saveVault(vault);
       return true;
+    },
+
+    /**
+     * Returns the quality score threshold for auto-merge (75).
+     */
+    getMergeThreshold: function () {
+      return AUTO_MERGE_THRESHOLD;
+    },
+
+    /**
+     * Returns the active developer window in milliseconds (30 min).
+     */
+    getActiveWindowMs: function () {
+      return ACTIVE_WINDOW_MS;
     },
 
     /**
