@@ -9,7 +9,7 @@
 
 'use strict';
 
-const { AgentRuntime } = require('../../core/runtime');
+const { AgentRuntime } = require('@conscious-network/runtime');
 
 // Default routing rules: topic pattern → list of downstream task events to emit
 const DEFAULT_ROUTING = {

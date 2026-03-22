@@ -10,7 +10,7 @@
 'use strict';
 
 const http = require('http');
-const { AgentRuntime } = require('../../core/runtime');
+const { AgentRuntime } = require('@conscious-network/runtime');
 
 class CommunicationAgent extends AgentRuntime {
   constructor(config = {}) {
