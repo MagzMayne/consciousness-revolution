@@ -196,7 +196,27 @@ class AULAgent {
     
     async receiveMessage(message) {
         const startTime = Date.now();
-        
+
+        // ── MiroFish Quantum Foresight: pre-action error prediction ──────────
+        // Run a lightweight look-ahead on recent error log before executing,
+        // so the agent can self-heal *before* a failure occurs.
+        try {
+            if (typeof MiroFishQuantum !== 'undefined' && MiroFishQuantum.predictErrors) {
+                const recentErrors = (this.recentErrorLog || []).slice(-20);
+                if (recentErrors.length >= 3) {
+                    const risks = MiroFishQuantum.predictErrors(this.agentId, recentErrors);
+                    const highRisk = risks.filter(r => r.severity === 'high');
+                    if (highRisk.length) {
+                        console.warn(
+                            `[MiroFish Foresight] ⚠️ Agent ${this.agentId} — high-risk pattern detected: ` +
+                            `${highRisk[0].errorType} (${Math.round(highRisk[0].probability * 100)}%). ` +
+                            `Remedy: ${highRisk[0].remedy}`
+                        );
+                    }
+                }
+            }
+        } catch (_) { /* foresight is advisory — never block execution */ }
+
         try {
             // Add to trace
             message.trace.push({
@@ -227,6 +247,11 @@ class AULAgent {
             };
             
         } catch (error) {
+            // ── Record error in rolling log for foresight ────────────────────
+            if (!this.recentErrorLog) this.recentErrorLog = [];
+            this.recentErrorLog.push(error.message || String(error));
+            if (this.recentErrorLog.length > 50) this.recentErrorLog.shift();
+
             console.error(`Error processing message: ${error.message}`);
             this.errorCount++;
             const executionTime = Date.now() - startTime;
@@ -362,6 +387,46 @@ class AULAgent {
         this.stop();
     }
     
+    // ── MiroFish Quantum Foresight helpers ───────────────────────────────────
+
+    /**
+     * Run a MiroFish foresight query on behalf of this agent.
+     * Returns a ForesightResult (or null if the engine is unavailable).
+     *
+     * @param {string} topic   - What to predict (e.g. "next action outcome")
+     * @param {number} [rounds=3] - Simulation rounds (1–20)
+     * @returns {Promise<object|null>}
+     */
+    async quantumForesight(topic, rounds = 3) {
+        try {
+            if (typeof MiroFishQuantum !== 'undefined' && MiroFishQuantum.runForesight) {
+                const result = await MiroFishQuantum.runForesight(
+                    `[${this.agentId}] ${topic}`, rounds
+                );
+                console.info(
+                    `[MiroFish] 🐟 ${this.agentId} foresight → ${result.topScenario?.label} ` +
+                    `(${Math.round((result.topScenario?.probability || 0) * 100)}%)`
+                );
+                return result;
+            }
+        } catch (_) { /* foresight is advisory — never throw */ }
+        return null;
+    }
+
+    /**
+     * Seed MiroFish swarm with context strings so subsequent foresight calls
+     * are more informed.  Safe no-op if engine is not loaded.
+     *
+     * @param {string[]} seeds
+     */
+    seedQuantumSwarm(seeds) {
+        try {
+            if (typeof MiroFishQuantum !== 'undefined' && MiroFishQuantum.seedSwarm) {
+                MiroFishQuantum.seedSwarm(seeds);
+            }
+        } catch (_) { /* advisory only */ }
+    }
+
     // Abstract methods - implement in subclass
     
     async handleMessage(message) {
