@@ -250,6 +250,49 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 margin-bottom: 12px;
             }
         }
+
+        /* ── Face-auth divider ── */
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 14px 0;
+            color: #aaa;
+            font-size: 13px;
+        }
+        .auth-divider::before,
+        .auth-divider::after {
+            content: '';
+            flex: 1;
+            border-top: 1px solid #ddd;
+        }
+
+        /* Face login button */
+        .face-auth-btn {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            background: transparent;
+            color: #667eea;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 0;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .face-auth-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.02);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+        }
+        .face-auth-btn:active { transform: scale(0.98); }
     </style>
 
   <!-- Update Notification System Meta Information -->
@@ -271,6 +314,8 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
   <script src="/js/mobile-responsive.js" defer></script>
   <script src="/js/rootib-footer.js" defer></script>
   <script src="/js/futuristic-init.js" defer></script>
+  <!-- Face authentication client module -->
+  <script src="/js/face-auth-client.js" defer></script>
 </head>
 <body>
     <a href="index.html" class="back-home">Back to Home</a>
@@ -289,6 +334,12 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         
         <!-- Google Sign-In Button -->
         <div id="google-signin-button" class="google-signin-button" style="margin-top: 15px; display: flex; justify-content: center;"></div>
+        <!-- Face Recognition Login -->
+        <div class="auth-divider">or</div>
+        <button type="button" id="face-login-btn" class="face-auth-btn"
+                aria-label="Sign in with facial recognition">
+            <span aria-hidden="true">🙂</span> Sign in with Face Recognition
+        </button>
         <div class="switch-form">
             Don't have an account? <a href="#" id="show-signup">Sign up</a>
         </div>
@@ -393,6 +444,41 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
             // Initialize Google Auth
             initGoogleAuth();
+
+            // ── Face Recognition Login ─────────────────────────────────────
+            document.getElementById('face-login-btn').addEventListener('click', () => {
+                if (!window.FaceAuthClient) {
+                    alert('Face auth module is loading. Please try again in a moment.');
+                    return;
+                }
+                // Get email hint (optional — helps narrow face lookup)
+                const emailHint = document.getElementById('email').value.trim() || '';
+
+                window.FaceAuthClient.renderModal(document.body, {
+                    mode: 'verify',
+                    email: emailHint,
+                    onSuccess: async (result) => {
+                        const user = result.user;
+                        if (!user) return;
+
+                        // Store user profile in localStorage for compatibility
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+                        localStorage.setItem('isLoggedIn', 'true');
+
+                        const redirectUrl = localStorage.getItem('authRedirect');
+                        if (redirectUrl) {
+                            localStorage.removeItem('authRedirect');
+                            window.location.href = redirectUrl;
+                        } else {
+                            window.location.href = 'SEVEN_DOMAINS_HUB.html';
+                        }
+                    },
+                    onCancel: () => {
+                        console.log('[Login] Face auth cancelled');
+                    }
+                });
+            });
+            // ──────────────────────────────────────────────────────────────
             
             // Toggle between login and signup forms
             document.getElementById('show-signup').addEventListener('click', (e) => {
