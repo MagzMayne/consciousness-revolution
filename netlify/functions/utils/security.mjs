@@ -32,6 +32,8 @@ const ALLOWED_ORIGINS = [
     'https://www.consciousnessrevolution.io',
     'https://conciousnessrevolution.io',
     'https://www.conciousnessrevolution.io',
+    // BarbrickDesign cross-site SSO partner
+    'https://barbrickdesign.github.io',
     'http://localhost:8888',
     'http://localhost:3000',
     'http://127.0.0.1:8888'
@@ -57,7 +59,7 @@ export function getSecureCORSHeaders(origin) {
         'X-XSS-Protection': '1; mode=block',
         'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=(self)'
     };
 }
 

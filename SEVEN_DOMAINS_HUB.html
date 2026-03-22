@@ -433,5 +433,75 @@
         }
     </script>
   <script src="/js/mesh-engine-client.js"></script>
+  <!-- Face auth client — enables face enrollment prompt for logged-in users -->
+  <script src="/js/face-auth-client.js" defer></script>
+  <script>
+    // After page loads, check if the user has a face enrolled.
+    // If not, show a one-time banner inviting them to enroll.
+    document.addEventListener('crAuthReady', async function(e) {
+      if (!e.detail || !e.detail.isLoggedIn) return;
+      // Only check once per session
+      if (sessionStorage.getItem('cr_face_enroll_checked')) return;
+      sessionStorage.setItem('cr_face_enroll_checked', '1');
+
+      try {
+        const isEnrolled = await window.FaceAuthClient?.isEnrolled?.();
+        if (isEnrolled) return; // already enrolled — nothing to do
+
+        const banner = document.createElement('div');
+        banner.id = 'face-enroll-banner';
+        banner.setAttribute('role', 'alert');
+        banner.style.cssText = [
+          'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);',
+          'background:rgba(10,12,20,.95);border:1px solid rgba(15,245,224,.4);',
+          'border-radius:12px;padding:14px 20px;z-index:9990;',
+          'font-family:\'Share Tech Mono\',monospace;font-size:.82rem;color:#e0e0e0;',
+          'display:flex;align-items:center;gap:12px;max-width:min(500px,92vw);',
+          'box-shadow:0 4px 24px rgba(0,0,0,.6);'
+        ].join('');
+        banner.innerHTML = [
+          '<span aria-hidden="true" style="font-size:1.4rem;">🙂</span>',
+          '<span>Enable <strong style="color:#0ff5e0;">face login</strong> for one-tap sign-in across all dashboards.</span>',
+          '<button id="face-enroll-yes" style="',
+            'background:linear-gradient(135deg,#0ff5e0,#39ff14);color:#0a0a0c;',
+            'border:none;border-radius:20px;padding:6px 14px;font-weight:700;cursor:pointer;',
+            'white-space:nowrap;font-family:inherit;">Set Up</button>',
+          '<button id="face-enroll-no" aria-label="Dismiss face enrollment prompt" style="',
+            'background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem;">✕</button>'
+        ].join('');
+        document.body.appendChild(banner);
+
+        document.getElementById('face-enroll-no').addEventListener('click', () => {
+          banner.remove();
+          localStorage.setItem('cr_face_enroll_dismissed', '1');
+        });
+
+        document.getElementById('face-enroll-yes').addEventListener('click', () => {
+          banner.remove();
+          if (!window.FaceAuthClient) return;
+          window.FaceAuthClient.renderModal(document.body, {
+            mode: 'enroll',
+            onSuccess: () => {
+              const note = document.createElement('div');
+              note.textContent = '✓ Face enrolled! You can now sign in by face.';
+              note.style.cssText = [
+                'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);',
+                'background:rgba(10,20,10,.95);border:1px solid #39ff14;border-radius:10px;',
+                'padding:12px 20px;color:#39ff14;font-family:\'Share Tech Mono\',monospace;',
+                'font-size:.85rem;z-index:9990;'
+              ].join('');
+              document.body.appendChild(note);
+              setTimeout(() => note.remove(), 3500);
+            }
+          });
+        });
+
+        // Auto-hide after 15 seconds
+        setTimeout(() => { if (banner.parentNode) banner.remove(); }, 15000);
+      } catch (err) {
+        console.warn('[Hub] face enroll check failed:', err.message);
+      }
+    });
+  </script>
 </body>
 </html>

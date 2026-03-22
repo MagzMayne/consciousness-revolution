@@ -34,6 +34,7 @@
     // ── Constants ────────────────────────────────────────────────
     const AUTH_ME_URL = '/api/auth-me';
     const LOGOUT_URL  = '/api/auth-logout';
+    const SSO_VERIFY_URL = '/api/sso-token';
     const LOGIN_PAGE  = '/login.html';
     const DASHBOARD_PAGE = '/SEVEN_DOMAINS_HUB.html';
     const LS_KEY = 'cr_user_cache'; // localStorage key for fast-paint cache
@@ -59,6 +60,31 @@
         redirectToLogin(returnUrl) {
             localStorage.setItem('authRedirect', returnUrl || window.location.href);
             window.location.href = LOGIN_PAGE;
+        },
+        /**
+         * Initiate cross-site SSO to targetSite.
+         * Issues a short-lived token from the current session and redirects.
+         * @param {string} targetSite  e.g. 'https://barbrickdesign.github.io'
+         */
+        async ssoTo(targetSite) {
+            try {
+                const res = await fetch('/api/sso-token?action=issue', {
+                    method:      'POST',
+                    credentials: 'include',
+                    headers:     { 'Content-Type': 'application/json' },
+                    body:        JSON.stringify({ action: 'issue', target_site: targetSite })
+                });
+                const data = await res.json();
+                if (data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    throw new Error(data.error || 'Failed to issue SSO token');
+                }
+            } catch (e) {
+                console.error('[CRAuth] SSO redirect failed:', e.message);
+                // Fall back to direct link
+                window.location.href = targetSite;
+            }
         }
     };
 
@@ -332,6 +358,54 @@
         }
     }
 
+    // ── SSO Token Handling ─────────────────────────────────────────
+
+    /**
+     * If the URL hash contains an SSO token (from a cross-site redirect),
+     * consume it by calling the SSO verify endpoint and cache the user.
+     * Returns the user object on success, null otherwise.
+     * Works regardless of which domain is hosting this page.
+     */
+    async function consumeSSOToken() {
+        const hash = window.location.hash;
+        const match = hash.match(/[#&]sso_token=([a-f0-9]{64})/i);
+        if (!match) return null;
+
+        const token = match[1];
+        // Immediately clean the token from the URL so it's not in browser history
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+
+        try {
+            // Determine the SSO verify endpoint:
+            // If we're on conciousnessrevolution.io, use the local /api path.
+            // If we're on barbrickdesign.github.io or another static site,
+            // call conciousnessrevolution.io directly.
+            let ssoUrl = SSO_VERIFY_URL + '?action=verify';
+            const currentHost = window.location.hostname;
+            if (!currentHost.includes('conciousnessrevolution') &&
+                !currentHost.includes('consciousnessrevolution') &&
+                !currentHost.includes('localhost') &&
+                !currentHost.includes('127.0.0.1')) {
+                ssoUrl = 'https://conciousnessrevolution.io/api/sso-token?action=verify';
+            }
+
+            const res = await fetch(ssoUrl, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ action: 'verify', token })
+            });
+            const data = await res.json();
+
+            if (data.success && data.user) {
+                saveCache(data.user);
+                return data.user;
+            }
+        } catch (e) {
+            console.warn('[CRAuth] SSO token verification failed:', e.message);
+        }
+        return null;
+    }
+
     // ── Session Check ─────────────────────────────────────────────
 
     /**
@@ -393,7 +467,21 @@
             applyAuthState();
         }
 
-        // Verify against server (always, to respect logout / expiry)
+        // Priority 1: consume a cross-site SSO token from the URL hash
+        // (set by conciousnessrevolution.io after login, consumed here
+        //  transparently on any page — including barbrickdesign.github.io)
+        const ssoUser = await consumeSSOToken();
+        if (ssoUser) {
+            _user = ssoUser;
+            _ready = true;
+            applyAuthState();
+            document.dispatchEvent(new CustomEvent('crAuthReady', {
+                detail: { user: _user, isLoggedIn: true, via: 'sso' }
+            }));
+            return; // skip server session check — SSO already confirmed identity
+        }
+
+        // Priority 2: verify server-issued HttpOnly cookie session
         const serverUser = await checkSession();
 
         if (serverUser) {
