@@ -12,8 +12,8 @@
 'use strict';
 
 const http = require('http');
-const { getDefaultBus } = require('../event-bus');
-const { getDefaultStore } = require('../state');
+const { getDefaultBus } = require('@conscious-network/event-bus');
+const { getDefaultStore } = require('@conscious-network/state');
 
 class AgentRuntime {
   /**
@@ -97,7 +97,7 @@ class AgentRuntime {
    * @param {object} [opts]   correlationId, traceId
    */
   async publish(topic, type, payload, opts = {}) {
-    const { createMessage } = require('../event-bus');
+    const { createMessage } = require('@conscious-network/event-bus');
     const msg = createMessage(topic, type, payload, { ...opts, source: this.name });
     this._messageCount++;
     this.log('debug', `publish → ${topic}`, { type, msgId: msg.id });

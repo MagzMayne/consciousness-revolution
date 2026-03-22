@@ -14,7 +14,7 @@
 
 const https = require('https');
 const http = require('http');
-const { AgentRuntime } = require('../../core/runtime');
+const { AgentRuntime } = require('@conscious-network/runtime');
 
 const SAFE_MODE = process.env.ACTION_SAFE_MODE !== 'false'; // default: safe
 

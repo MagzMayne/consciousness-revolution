@@ -9,7 +9,7 @@
 
 'use strict';
 
-const { AgentRuntime } = require('../../core/runtime');
+const { AgentRuntime } = require('@conscious-network/runtime');
 
 class AdaptationAgent extends AgentRuntime {
   constructor(config = {}) {
