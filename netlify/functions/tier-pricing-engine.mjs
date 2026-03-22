@@ -53,6 +53,9 @@ function jsonErr(message, status = 500) {
   };
 }
 
+/** Student discount applied to all paid tier prices (50 %) */
+const STUDENT_DISCOUNT_RATE = 0.5;
+
 // ── Tier definitions ────────────────────────────────────────────────────────
 
 /**
@@ -140,7 +143,7 @@ export const handler = async (event) => {
 
       for (const entry of listing.blobs) {
         const node = await nodesStore.get(entry.key, { type: 'json' });
-        if (node && now - new Date(node.lastSeen || 0).getTime() < ONLINE_THRESHOLD_MS) {
+        if (node && now - new Date(node.lastSeen ?? 0).getTime() < ONLINE_THRESHOLD_MS) {
           activeDevs++;
         }
       }
@@ -203,8 +206,8 @@ export const handler = async (event) => {
     for (const [key, cfg] of Object.entries(BASE_TIERS)) {
       const rawPrice     = cfg.basePriceUSD * adjustmentFactor;
       // Snap to nearest $5 for clean display
-      const adjustedPrice = Math.round(rawPrice / 5) * 5;
-      const discountedPrice = Math.round((adjustedPrice / 2) / 5) * 5;
+      const adjustedPrice   = Math.round(rawPrice / 5) * 5;
+      const discountedPrice = Math.round((adjustedPrice * STUDENT_DISCOUNT_RATE) / 5) * 5;
 
       const monthlyEarnings = perShareValue * cfg.multiplier;
       const roi             = adjustedPrice > 0 ? monthlyEarnings / adjustedPrice : null;

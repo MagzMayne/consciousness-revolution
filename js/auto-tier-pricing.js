@@ -106,13 +106,14 @@
       const card = document.querySelector(HUB_SELECTORS[key]);
       if (!card) continue;
 
-      // Update price display
+      // Update price display — rebuild each call so price is current,
+      // but keep the live-price dot if it already exists
       const priceEl = card.querySelector('.tier-price');
       if (priceEl) {
+        const existingDot = priceEl.querySelector('.live-price-dot');
         if (tierData.adjustedPriceUSD === 0) {
           priceEl.textContent = 'Free';
         } else {
-          // Clear and rebuild to avoid XSS
           priceEl.textContent = '';
           const priceText = document.createTextNode(fmtUSD(tierData.adjustedPriceUSD));
           const small = document.createElement('small');
@@ -120,13 +121,13 @@
           priceEl.appendChild(priceText);
           priceEl.appendChild(small);
         }
-        // Add live-price indicator dot
-        if (!priceEl.querySelector('.live-price-dot')) {
-          const dot = document.createElement('span');
+        // Re-add the live-price indicator dot (removed by textContent reset above)
+        const dot = existingDot || document.createElement('span');
+        if (!existingDot) {
           dot.className = 'live-price-dot';
           dot.title = 'Price auto-adjusts with platform growth';
-          priceEl.appendChild(dot);
         }
+        priceEl.appendChild(dot);
       }
 
       // Inject or update earnings-estimate row
@@ -236,23 +237,14 @@
       const discountEl = document.getElementById(REG_DISCOUNT_IDS[key]);
       if (discountEl) discountEl.textContent = fmtUSD(tierData.discountedPriceUSD);
     }
-
-    // Keep TIER_PRICES in sync if the registration page defines it
-    if (window._syncTierPrices && typeof window._syncTierPrices === 'function') {
-      window._syncTierPrices(data.tiers);
-    }
   }
 
   // ── Registration page — patch internal TIER_PRICES constant ──────────────
   //
-  // contributor-registration-enhanced.html stores base prices in a local
-  // object used for PayPal amount calculation.  We expose a hook so the page
-  // can update those prices after the engine responds.
+  // Expose live adjusted prices on window.CR_LIVE_TIER_PRICES so the
+  // registration page (or any other page) can read them at payment time.
   //
   function patchRegistrationTierMap(data) {
-    // The registration page uses TIER_MAP in its own closure; we cannot reach
-    // it directly, but we expose the new prices on window so the page can
-    // read them at payment time if it wishes.
     window.CR_LIVE_TIER_PRICES = {};
     for (const [key, tierData] of Object.entries(data.tiers)) {
       window.CR_LIVE_TIER_PRICES[tierData.hubAlias] = {
