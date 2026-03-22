@@ -1,0 +1,116 @@
+name: Autonomous Income Engine
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # Every 6 hours
+  workflow_dispatch:         # Manual trigger
+
+concurrency:
+  group: autonomous-income-engine
+  cancel-in-progress: false  # Never cancel mid-run; let it finish
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  run-engine:
+    name: Run Autonomous Income Engine
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline || npm install
+
+      # ─── Throttle evaluation ─────────────────────────────────────────────────
+      - name: Evaluate throttle state
+        id: throttle
+        run: |
+          THROTTLE=$(node -e "
+            const fs = require('fs');
+            const state = JSON.parse(fs.readFileSync('engine/state.json', 'utf8'));
+            console.log(state.throttle_level || 'normal');
+          " 2>/dev/null || echo 'normal')
+          echo "level=$THROTTLE" >> $GITHUB_OUTPUT
+          echo "Throttle level: $THROTTLE"
+
+      # ─── Early exit if hard-throttled ────────────────────────────────────────
+      - name: Check for early exit
+        if: steps.throttle.outputs.level == 'stopped'
+        run: |
+          echo "🛑 Engine is stopped by throttle policy — exiting early."
+          exit 0
+
+      # ─── Run agents ──────────────────────────────────────────────────────────
+      - name: Run activate-all (with watchdog + backpressure)
+        run: node agents/activate-all.js
+        continue-on-error: true
+
+      # ─── Income detection ────────────────────────────────────────────────────
+      - name: Detect income events
+        id: income
+        run: |
+          if [ -f engine/income.log ]; then
+            COUNT=$(wc -l < engine/income.log)
+            echo "events=$COUNT" >> $GITHUB_OUTPUT
+            echo "Income events detected: $COUNT"
+          else
+            echo "events=0" >> $GITHUB_OUTPUT
+            echo "No income events yet."
+          fi
+
+      # ─── Update engine state ─────────────────────────────────────────────────
+      - name: Update engine state
+        run: |
+          node -e "
+            const fs = require('fs');
+            const state = JSON.parse(fs.readFileSync('engine/state.json', 'utf8'));
+            const incomeEvents = parseInt(process.env.INCOME_EVENTS || '0', 10);
+            if (incomeEvents > 0) {
+              state.last_income_timestamp = Date.now();
+              state.runs_since_income = 0;
+            } else {
+              state.runs_since_income = (state.runs_since_income || 0) + 1;
+            }
+            // Throttle up if no income for 10+ consecutive runs
+            if (state.runs_since_income >= 10) {
+              state.throttle_level = 'reduced';
+            } else if (state.runs_since_income >= 20) {
+              state.throttle_level = 'stopped';
+            } else {
+              state.throttle_level = 'normal';
+            }
+            const tmp = 'engine/state.json.tmp';
+            fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+            fs.renameSync(tmp, 'engine/state.json');
+            console.log('Engine state updated:', state);
+          "
+        env:
+          INCOME_EVENTS: ${{ steps.income.outputs.events }}
+
+      # ─── Safe commit ─────────────────────────────────────────────────────────
+      - name: Commit engine state and income log
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add engine/state.json engine/income.log 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: update engine state [skip ci]"
+            git push
+          fi

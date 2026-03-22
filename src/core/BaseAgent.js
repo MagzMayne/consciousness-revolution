@@ -74,6 +74,16 @@ class BaseAgent {
             avgExecutionTime: 0
         };
         
+        // Safe atomic JSON writer (Node.js environments)
+        this.safeWrite = (typeof require !== 'undefined' && typeof require('fs') !== 'undefined')
+            ? (file, data) => {
+                const fs = require('fs');
+                const tmp = file + '.tmp';
+                fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+                fs.renameSync(tmp, file);
+              }
+            : () => {};
+
         this._initialize();
     }
 
@@ -176,7 +186,23 @@ class BaseAgent {
                 executionTime,
                 result 
             });
-            
+
+            // Income hook (Node.js environments only)
+            if (typeof require !== 'undefined') {
+                try {
+                    const { logIncome } = require('../../engine/income');
+                    const incomeGenerated = result && result.incomeGenerated;
+                    if (incomeGenerated) {
+                        const amount = result.amount || 0;
+                        const actionDescription = result.actionDescription || this.name;
+                        logIncome(this.id || this.name, amount, {
+                            description: actionDescription,
+                            cycle: this.metrics.tasksCompleted
+                        });
+                    }
+                } catch (_) { /* income logging unavailable in this environment */ }
+            }
+
             return { success: true, result, executionTime };
             
         } catch (error) {
