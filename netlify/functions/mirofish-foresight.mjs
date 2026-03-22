@@ -32,9 +32,19 @@ const ALLOWED_ORIGINS = [
 const _rateMap = new Map();
 const RATE_MAX = 30;
 const RATE_WIN = 60_000;
+let   _lastCleanup = Date.now();
 
 function rateLimit(ip) {
-  const now   = Date.now();
+  const now = Date.now();
+
+  // Purge expired entries every 5 minutes to prevent unbounded memory growth
+  if (now - _lastCleanup > 300_000) {
+    for (const [key, val] of _rateMap) {
+      if (now > val.resetAt) _rateMap.delete(key);
+    }
+    _lastCleanup = now;
+  }
+
   const entry = _rateMap.get(ip) || { count: 0, resetAt: now + RATE_WIN };
   if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + RATE_WIN; }
   entry.count += 1;

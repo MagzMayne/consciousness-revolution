@@ -202,8 +202,9 @@ class AULAgent {
         // so the agent can self-heal *before* a failure occurs.
         try {
             if (typeof MiroFishQuantum !== 'undefined' && MiroFishQuantum.predictErrors) {
-                const recentErrors = (this.recentErrorLog || []).slice(-20);
-                if (recentErrors.length >= 3) {
+                const errorLog = this.recentErrorLog;
+                if (errorLog && errorLog.length >= 3) {
+                    const recentErrors = errorLog.slice(-20);
                     const risks = MiroFishQuantum.predictErrors(this.agentId, recentErrors);
                     const highRisk = risks.filter(r => r.severity === 'high');
                     if (highRisk.length) {

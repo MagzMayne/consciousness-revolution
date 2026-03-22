@@ -547,15 +547,18 @@ async function agentActWithForesight(action, logs = []) {
     if (!animRunning) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Connections
+    // Connections — use squared-distance threshold to skip sqrt in the hot path
+    const CONN_DIST  = 50;
+    const CONN_DIST2 = CONN_DIST * CONN_DIST;
     ctx.lineWidth = 0.4;
     for (let i = 0; i < dots.length; i++) {
       for (let j = i + 1; j < dots.length; j++) {
-        const dx = dots[i].x - dots[j].x;
-        const dy = dots[i].y - dots[j].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 50) {
-          ctx.strokeStyle = `rgba(0,212,255,${(1 - dist / 50) * 0.3})`;
+        const dx  = dots[i].x - dots[j].x;
+        const dy  = dots[i].y - dots[j].y;
+        const d2  = dx * dx + dy * dy;
+        if (d2 < CONN_DIST2) {
+          const dist = Math.sqrt(d2);
+          ctx.strokeStyle = `rgba(0,212,255,${(1 - dist / CONN_DIST) * 0.3})`;
           ctx.beginPath();
           ctx.moveTo(dots[i].x, dots[i].y);
           ctx.lineTo(dots[j].x, dots[j].y);
@@ -745,9 +748,12 @@ async function agentActWithForesight(action, logs = []) {
     return d.innerHTML;
   }
   function escAttr(str) {
-    // Only allow relative paths and safe absolute URLs
+    // Allow only same-origin relative paths within this application.
+    // External links (e.g. GitHub) are blocked — income signal actions
+    // are always internal pages, so this is the correct restriction.
     const s = String(str || '#');
-    if (/^(https?:\/\/[^"'<>]|\/[^"'<>])/.test(s)) return s.replace(/"/g, '&quot;');
+    // Must start with / followed by a word char, or be exactly #
+    if (s === '#' || /^\/[A-Za-z0-9_\-./]+\.html$/.test(s)) return s;
     return '#';
   }
 

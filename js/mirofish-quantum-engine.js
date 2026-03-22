@@ -142,22 +142,24 @@
 
   class MicroAgent {
     constructor(id, personality) {
-      this.id          = id;
-      this.personality = personality; // { curiosity, risk, optimism, creativity }
-      this.memory      = [];
-      this.state       = 'idle';
-      this.energy      = 1.0;
+      this.id           = id;
+      this.personality  = personality; // { curiosity, risk, optimism, creativity }
+      this.memory       = [];
+      this._memoryCache = '';          // cached join — invalidated when memory changes
+      this.state        = 'idle';
+      this.energy       = 1.0;
     }
 
     /** Process a seed and return an opinion vector */
     process(seed, round) {
-      const base = this.personality.curiosity * tokenSim(seed, this.memory.join(' ') || seed);
+      const base = this.personality.curiosity * tokenSim(seed, this._memoryCache || seed);
       const noise = (Math.random() - 0.5) * QUANTUM_NOISE;
       const roundDecay = Math.exp(-round * 0.1);
       const opinion = clamp(base + noise + this.personality.optimism * 0.1, 0, 1) * roundDecay;
 
       this.memory.push(seed.slice(0, 60));
       if (this.memory.length > 10) this.memory.shift();
+      this._memoryCache = this.memory.join(' '); // update cache once per call
       this.energy = clamp(this.energy - 0.02 + Math.random() * 0.05, 0.1, 1.0);
 
       return {
@@ -431,7 +433,14 @@
      */
     seedSwarm(seeds) {
       if (!Array.isArray(seeds)) seeds = [String(seeds)];
-      _seeds = [..._seeds, ...seeds.map(s => String(s).slice(0, 200))].slice(-MAX_SEEDS);
+      const capped = seeds.map(s => String(s).slice(0, 200));
+      // Only spread when necessary to avoid intermediate arrays
+      if (_seeds.length + capped.length <= MAX_SEEDS) {
+        _seeds.push(...capped);
+      } else {
+        const combined = _seeds.concat(capped);
+        _seeds = combined.slice(-MAX_SEEDS);
+      }
       _persist();
       _emit('seeds_added', { count: seeds.length, total: _seeds.length });
     },
