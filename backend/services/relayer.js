@@ -292,10 +292,13 @@ class RelayerService {
       }
     }
 
-    const totalAttempts = Array.from(this.pendingMints.values()).reduce((sum, m) => sum + m.attempts, 0);
+    // Count attempts across both pending and completed mints for an accurate rate
+    const pendingAttempts = Array.from(this.pendingMints.values()).reduce((sum, m) => sum + m.attempts, 0);
+    const completedAttempts = Array.from(this.completedMints.values()).reduce((sum, m) => sum + m.attempts, 0);
+    const totalAttempts = pendingAttempts + completedAttempts;
     const totalSuccesses = this.completedMints.size;
     if (totalAttempts > 0) {
-      successRate = (totalSuccesses / (totalAttempts + totalSuccesses)) * 100;
+      successRate = (totalSuccesses / totalAttempts) * 100;
     }
 
     return {
@@ -304,6 +307,7 @@ class RelayerService {
       completedCount: this.completedMints.size,
       totalMinted24h: totalMinted,
       successRate: Math.round(successRate * 100) / 100,
+      hasActivity: totalAttempts > 0,
       gasPrices: this.gasPrices,
       recentMints: recentMints.slice(-10),
       uptime: Date.now() - (global.startTime || Date.now())
@@ -325,7 +329,8 @@ class RelayerService {
       });
 
       // Log warnings
-      if (metrics.successRate < 80) {
+      // Only warn when there has been actual activity; idle start-up is not a failure
+      if (metrics.hasActivity && metrics.successRate < 80) {
         console.warn(`Low success rate: ${metrics.successRate}%`);
       }
 
