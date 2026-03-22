@@ -52,7 +52,7 @@
   // Configuration
   const CONFIG = {
     refreshInterval: 30000, // Refresh every 30 seconds
-    animationSpeed: 50, // Pixels per second for scrolling
+    animationSpeed: 120, // Pixels per second for scrolling (increased for faster scroll)
     maxProjects: 20, // Maximum number of projects to show in ticker
     autoStart: true
   };
