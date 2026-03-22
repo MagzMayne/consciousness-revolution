@@ -14,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // ── EzAutobots distributed-node routes ─────────────────────────
+let _nodeRegistry = null;
 try {
   const nodeRewardsRouter = require('./routes/node-rewards');
   const nodesRouter       = require('./routes/nodes');
@@ -25,8 +26,20 @@ try {
   const _notFound = (_req, res) => res.status(404).json({ error: 'route not matched' });
   app.post('/register-node', (req, res) => nodesRouter(req, res, _notFound));
   app.post('/heartbeat',     (req, res) => nodesRouter(req, res, _notFound));
+
+  // Expose the live node registry to the master loop for stale-node cleanup
+  try { _nodeRegistry = nodesRouter.getRegistry(); } catch (_) {}
 } catch (err) {
   console.error('[server-main] Failed to mount node routes:', err.message);
+}
+
+// ── Agent registry & management routes ─────────────────────────
+try {
+  const agentsRouter = require('./routes/agents');
+  app.use('/api/agents', agentsRouter);
+  console.log('[server-main] Agent registry routes mounted at /api/agents');
+} catch (err) {
+  console.error('[server-main] Failed to mount agent routes:', err.message);
 }
 
 // Health check endpoint (Railway health check)
@@ -45,10 +58,17 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
+  const registry = (() => { try { return require('./services/agent-registry'); } catch (_) { return null; } })();
+  const agents   = registry ? registry.listAgents() : [];
   res.json({
-    status: 'healthy',
-    uptime: process.uptime(),
-    memory: process.memoryUsage()
+    status:  'healthy',
+    uptime:  process.uptime(),
+    memory:  process.memoryUsage(),
+    agents: {
+      total:   agents.length,
+      healthy: agents.filter(a => a.status !== 'error').length,
+      errors:  agents.filter(a => a.status === 'error').length,
+    },
   });
 });
 
@@ -86,4 +106,12 @@ app.listen(PORT, () => {
 ║   C1 × C2 × C3 = ∞                                           ║
 ╚══════════════════════════════════════════════════════════════╝
   `);
+
+  // ── Start self-healing master loop ──────────────────────────────
+  try {
+    const masterLoop = require('./services/master-loop');
+    masterLoop.start(_nodeRegistry);
+  } catch (err) {
+    console.error('[server-main] Failed to start master loop:', err.message);
+  }
 });

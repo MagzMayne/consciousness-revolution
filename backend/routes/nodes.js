@@ -158,4 +158,8 @@ router.get('/:nodeId', (req, res) => {
   res.json(node);
 });
 
+/** Expose a safe getter for the live node registry (used by master-loop). */
+function getRegistry() { return nodeRegistry; }
+
 module.exports = router;
+module.exports.getRegistry = getRegistry;
