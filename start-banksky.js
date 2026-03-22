@@ -121,10 +121,6 @@ class BankSkyLauncher {
     }
 
     console.log('\n🛑 Press Ctrl+C to stop all services');
-
-    // Handle graceful shutdown
-    process.on('SIGINT', () => this.stop());
-    process.on('SIGTERM', () => this.stop());
   }
 
   async startBackendServices() {
@@ -203,10 +199,14 @@ class BankSkyLauncher {
     console.log('\n🛑 Stopping BankSky Platform...');
 
     this.services.forEach(service => {
-      if (service.type === 'web' && service.process.close) {
-        service.process.close();
-      } else if (service.process.kill) {
-        service.process.kill();
+      try {
+        if (service.type === 'web' && service.process.close) {
+          service.process.close();
+        } else if (service.process.kill) {
+          service.process.kill();
+        }
+      } catch (err) {
+        // Process may already be gone — ignore
       }
     });
 
@@ -217,4 +217,13 @@ class BankSkyLauncher {
 
 // Start the launcher
 const launcher = new BankSkyLauncher();
+
+// Register signal handlers immediately so SIGTERM/SIGINT are always caught,
+// even if they arrive during the async startup window (e.g. while waiting for
+// backend services to initialise).  Without this the Node.js default handler
+// would terminate the process with the raw signal, causing npm to report
+// "npm error signal SIGTERM".
+process.on('SIGINT', () => launcher.stop());
+process.on('SIGTERM', () => launcher.stop());
+
 launcher.start().catch(console.error);
