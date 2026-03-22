@@ -18,9 +18,9 @@
 
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs              = require('fs');
+const path            = require('path');
+const { execFile }    = require('child_process');
 
 const registry = require('./agent-registry');
 
@@ -308,9 +308,9 @@ function runMeshProjectPage() {
       if (content.includes(MESH_CLIENT_MARKER)) {
         alreadyPresent++;
       } else {
-        // Inject before </body> if found, otherwise skip
+        // Inject before the last </body> tag (replace all occurrences for malformed HTML)
         if (content.includes('</body>')) {
-          const updated = content.replace('</body>', `  ${MESH_SCRIPT_TAG}\n</body>`);
+          const updated = content.replace(/<\/body>/gi, `  ${MESH_SCRIPT_TAG}\n</body>`);
           fs.writeFileSync(fpath, updated, 'utf8');
           injected++;
         }
@@ -326,27 +326,25 @@ function runMeshProjectPage() {
 
 // ── Step 9: repoCommitAgent ──────────────────────────────────────────────
 function runRepoCommit() {
-  try {
-    const status = execSync('git status --porcelain', {
-      cwd:     REPO_ROOT,
-      timeout: 10_000,
-      encoding: 'utf8',
-    }).trim();
-
+  return new Promise((resolve) => {
     log('RepoCommit', '$ git status --porcelain');
-
-    if (!status) {
-      log('RepoCommit', 'No uncommitted changes — nothing to do');
-    } else {
-      // In Railway we don't have write access to push — log for awareness only.
-      warn('RepoCommit', `Uncommitted changes detected (Railway cannot push):\n${status}`);
-    }
-
-    registry.recordRun('repoCommitAgent', { success: true });
-  } catch (err) {
-    warn('RepoCommit', `git status failed: ${err.message}`);
-    registry.recordRun('repoCommitAgent', { success: false });
-  }
+    execFile('git', ['status', '--porcelain'], { cwd: REPO_ROOT, timeout: 10_000 }, (err, stdout) => {
+      if (err) {
+        warn('RepoCommit', `git status failed: ${err.message}`);
+        registry.recordRun('repoCommitAgent', { success: false });
+      } else {
+        const status = stdout.trim();
+        if (!status) {
+          log('RepoCommit', 'No uncommitted changes — nothing to do');
+        } else {
+          // In Railway we don't have write access to push — log for awareness only.
+          warn('RepoCommit', `Uncommitted changes detected (Railway cannot push):\n${status}`);
+        }
+        registry.recordRun('repoCommitAgent', { success: true });
+      }
+      resolve();
+    });
+  });
 }
 
 // ── Master self-healing loop ─────────────────────────────────────────────

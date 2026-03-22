@@ -28,7 +28,7 @@ try {
   app.post('/heartbeat',     (req, res) => nodesRouter(req, res, _notFound));
 
   // Expose the live node registry to the master loop for stale-node cleanup
-  try { _nodeRegistry = require('./routes/nodes')._registry; } catch (_) {}
+  try { _nodeRegistry = nodesRouter.getRegistry(); } catch (_) {}
 } catch (err) {
   console.error('[server-main] Failed to mount node routes:', err.message);
 }

@@ -11,10 +11,14 @@
 
 'use strict';
 
+const path     = require('path');
 const express  = require('express');
 const router   = express.Router();
 const registry = require('../services/agent-registry');
 const loop     = require('../services/master-loop');
+
+// Resolve repo root so we can validate patch filePaths stay within it
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 // ── GET /api/agents ───────────────────────────────────────────────────────
 router.get('/', (_req, res) => {
@@ -77,8 +81,15 @@ router.post('/patch', (req, res) => {
   if (!filePath || !oldContent || !newContent) {
     return res.status(400).json({ ok: false, error: 'filePath, oldContent and newContent required' });
   }
-  loop.enqueuePatch({ filePath, oldContent, newContent });
-  res.json({ ok: true, queued: true, filePath });
+
+  // Security: resolve and verify the path stays within the repo root
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(REPO_ROOT + path.sep) && resolved !== REPO_ROOT) {
+    return res.status(400).json({ ok: false, error: 'filePath must be within the repository root' });
+  }
+
+  loop.enqueuePatch({ filePath: resolved, oldContent, newContent });
+  res.json({ ok: true, queued: true, filePath: resolved });
 });
 
 module.exports = router;
