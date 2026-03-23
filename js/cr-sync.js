@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-E757EF7E
 /**
  * cr-sync.js — Cross-Site Sync Module
  * Bridges barbrickdesign.github.io ↔ consciousnessrevolution.io

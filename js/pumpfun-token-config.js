@@ -53,22 +53,79 @@
  * PUMPFUN TOKEN CONFIGURATION & INTEGRATION
  * Complete token integration for pump.fun tokens
  * Supports MNDM token: GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r
+ * Governing / rewards token: CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump
+ * IP protocol token (RootIB): 6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump
+ * Vault wallet: 6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk
  */
 
+/** Known pump.fun tokens for the consciousness-revolution ecosystem. */
+const PUMPFUN_TOKENS = {
+    /** Primary MNDM community token */
+    MNDM: {
+        address: 'GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r',
+        name: 'MANDEM.OS',
+        symbol: 'MNDM',
+        decimals: 9,
+        chain: 'solana',
+        platform: 'pump.fun',
+        logo: '💎',
+        color: '#00FFFF',
+        gradient: 'linear-gradient(135deg, #00FFFF 0%, #FF00FF 100%)',
+        pumpfunUrl: 'https://pump.fun/coin/GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r',
+        role: 'community'
+    },
+    /** Governing / rewards token — core of all creator reward distributions */
+    GOVERN: {
+        address: 'CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+        name: 'Overkill Kulture',
+        symbol: 'OKK',
+        decimals: 9,
+        chain: 'solana',
+        platform: 'pump.fun',
+        logo: '🏛️',
+        color: '#FFD700',
+        gradient: 'linear-gradient(135deg, #FFD700 0%, #FF8C00 100%)',
+        pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+        role: 'governance',
+        description: 'Main governing token for all creator rewards. Investors earn as more developers join the platform.'
+    },
+    /** IP protocol token for all devs' ideas and projects (Root Idea Block) */
+    CRYPTO_CHANNEL: {
+        address: '6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
+        name: 'Root Idea Block',
+        symbol: 'RootIB',
+        decimals: 9,
+        chain: 'solana',
+        platform: 'pump.fun',
+        logo: '💡',
+        color: '#9B30FF',
+        gradient: 'linear-gradient(135deg, #9B30FF 0%, #C71585 100%)',
+        pumpfunUrl: 'https://pump.fun/coin/6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
+        role: 'channel',
+        description: 'IP protocol for all devs ideas and projects.'
+    }
+};
+
+/** Primary vault wallet for all platform revenue. */
+const VAULT_WALLET = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+/** Pump.fun URL for creating a new token. */
+const PUMPFUN_CREATE_URL = 'https://pump.fun/create';
+
 class PumpfunTokenConfig {
-    constructor() {
-        this.token = {
-            address: 'GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r',
-            name: 'MANDEM.OS',
-            symbol: 'MNDM',
-            decimals: 9,
-            chain: 'solana',
-            platform: 'pump.fun',
-            logo: '💎',
-            color: '#00FFFF',
-            gradient: 'linear-gradient(135deg, #00FFFF 0%, #FF00FF 100%)',
-            pumpfunUrl: 'https://pump.fun/coin/GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r'
-        };
+    /**
+     * @param {string} [tokenKey='MNDM'] - Key from PUMPFUN_TOKENS registry.
+     *   Valid values: 'MNDM' (default, community token),
+     *                 'GOVERN' (Overkill Kulture / OKK rewards token),
+     *                 'CRYPTO_CHANNEL' (Root Idea Block / RootIB IP protocol token).
+     *   Existing callers that construct without arguments continue to receive
+     *   the MNDM token unchanged.
+     */
+    constructor(tokenKey = 'MNDM') {
+        const tokenDef = PUMPFUN_TOKENS[tokenKey] || PUMPFUN_TOKENS.MNDM;
+        this.token = { ...tokenDef };
+        this.tokens = PUMPFUN_TOKENS;
+        this.vaultWallet = VAULT_WALLET;
 
         this.initialized = false;
         this.updateInterval = null;
@@ -427,6 +484,9 @@ async function initPumpfunToken(containerId = 'pumpfun-token-container') {
 // Auto-initialize on page load
 if (typeof window !== 'undefined') {
     window.PumpfunTokenConfig = PumpfunTokenConfig;
+    window.PUMPFUN_TOKENS    = PUMPFUN_TOKENS;
+    window.VAULT_WALLET      = VAULT_WALLET;
+    window.PUMPFUN_CREATE_URL = PUMPFUN_CREATE_URL;
     window.getTokenPrice = getTokenPrice;
     window.getTokenBalance = getTokenBalance;
     window.formatTokenAmount = formatTokenAmount;
@@ -441,3 +501,6 @@ if (typeof window !== 'undefined') {
 }
 
 console.log('🔥 Pump.fun Token Config System Ready');
+console.log('🏛️ Governing token:', PUMPFUN_TOKENS.GOVERN.address);
+console.log('📡 Crypto channel token:', PUMPFUN_TOKENS.CRYPTO_CHANNEL.address);
+console.log('🔐 Vault wallet:', VAULT_WALLET);
