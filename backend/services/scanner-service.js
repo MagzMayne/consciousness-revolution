@@ -46,7 +46,10 @@ function fetchText(targetUrl) {
     const req = transport.get(targetUrl, (res) => {
       if (res.statusCode < 200 || res.statusCode >= 300) {
         res.resume();
-        return reject(new Error(`HTTP ${res.statusCode} from spec URL`));
+        const msg = res.statusCode === 404
+          ? `HTTP 404 from spec URL — check SCANNER_SPEC_URL environment variable`
+          : `HTTP ${res.statusCode} from spec URL`;
+        return reject(new Error(msg));
       }
       let body = '';
       res.on('data', (chunk) => { body += chunk; });

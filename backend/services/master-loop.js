@@ -237,7 +237,9 @@ function runProtocolEnforcer() {
 
   try {
     const jsFiles = fs.readdirSync(jsDir).filter(f => f.endsWith('.js'));
-    for (const fname of jsFiles.slice(0, 20)) { // scan up to 20 JS files
+    // Scan all JS files — the directory typically has ~100-200 files and each
+    // scan is a simple string-match, so performance impact is negligible.
+    for (const fname of jsFiles) {
       const content = fs.readFileSync(path.join(jsDir, fname), 'utf8');
       for (const evType of BACKEND_EVENT_TYPES) {
         if (content.includes(evType)) handled.add(evType);
@@ -330,7 +332,12 @@ function runRepoCommit() {
     log('RepoCommit', '$ git status --porcelain');
     execFile('git', ['status', '--porcelain'], { cwd: REPO_ROOT, timeout: 10_000 }, (err, stdout) => {
       if (err) {
-        warn('RepoCommit', `git status failed: ${err.message}`);
+        if (err.code === 'ENOENT') {
+          // git binary not available in this environment (Railway, Docker, etc.)
+          log('RepoCommit', 'git not found in PATH — skipping commit step');
+        } else {
+          warn('RepoCommit', `git status failed: ${err.message}`);
+        }
         registry.recordRun('repoCommitAgent', { success: false });
       } else {
         const status = stdout.trim();
