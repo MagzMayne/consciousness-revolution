@@ -19,10 +19,14 @@
 
 // ═══════════════════════════════════════════════════════════════
 // SUPABASE CONFIGURATION
+// Project: iadptixzmckbetwpoycq
+// Credentials loaded at runtime from /api/supabase-config relay.
 // ═══════════════════════════════════════════════════════════════
 
-const SUPABASE_URL = 'https://iqjghsofnpoadwzqxmnz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxamdoc29mbnBvYWR3enF4bW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU0NDkxMDEsImV4cCI6MjA1MTAyNTEwMX0.WAz3cvPOIa-u7J2_JqAY8E5tPGkJQPWQYCdv7QV1QR0';
+// Resolved at runtime via initDomainSupabase() → window.getSupabaseClient()
+// Do NOT hard-code project credentials here.
+let _domainSupabaseUrl = null;
+let _domainSupabaseAnonKey = null;
 
 let supabaseClient = null;
 let isConnected = false;
@@ -123,22 +127,35 @@ async function initDomainSupabase(domainId) {
     try {
         updateConnectionStatus('connecting');
 
-        if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Prefer the centralised client (supabase-client.js) when available
+        if (typeof window.getSupabaseClient === 'function') {
+            supabaseClient = await window.getSupabaseClient();
+        } else if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+            // Fallback: load credentials from the secure relay
+            const cfgRes = await fetch('/api/supabase-config');
+            const cfg = cfgRes.ok ? await cfgRes.json() : {};
+            if (cfg.auth && cfg.url && cfg.anonKey) {
+                _domainSupabaseUrl     = cfg.url;
+                _domainSupabaseAnonKey = cfg.anonKey;
+                supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+            }
+        }
 
-            // Test connection
-            const { data, error } = await supabaseClient.from('atoms').select('id').limit(1);
-            if (error) throw error;
-
-            updateConnectionStatus('connected');
-            await loadDomainData(domainId);
-        } else {
-            console.warn('Supabase client not loaded, using fallback');
+        if (!supabaseClient) {
+            console.warn('[DomainSupabase] Supabase client unavailable, using fallback');
             updateConnectionStatus('offline');
             loadFallbackData(domainId);
+            return;
         }
+
+        // Test connection
+        const { data, error } = await supabaseClient.from('atoms').select('id').limit(1);
+        if (error) throw error;
+
+        updateConnectionStatus('connected');
+        await loadDomainData(domainId);
     } catch (error) {
-        console.error('Supabase init error:', error);
+        console.error('[DomainSupabase] Init error:', error);
         updateConnectionStatus('offline');
         loadFallbackData(domainId);
     }

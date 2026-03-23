@@ -15,12 +15,20 @@ const TEAM_COMMS = {
 
     // Initialize with Supabase
     async init() {
-        const SUPABASE_URL = 'https://krvwfmblyfkaxqpxpwqm.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtydndmbWJseWZrYXhxcHhwd3FtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYzOTE0MjMsImV4cCI6MjA1MTk2NzQyM30.8IFY7vWWF2jXzOvyEJIWid8kh9gOx3h7x-5n7fQgrfQ';
-
-        // Check for supabase
-        if (typeof supabase !== 'undefined') {
-            this.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Use the centralised client (supabase-client.js) when available,
+        // otherwise load credentials from the secure relay.
+        if (typeof window.getSupabaseClient === 'function') {
+            this.supabase = await window.getSupabaseClient();
+        } else if (typeof supabase !== 'undefined') {
+            try {
+                const cfgRes = await fetch('/api/supabase-config');
+                const cfg = cfgRes.ok ? await cfgRes.json() : {};
+                if (cfg.auth && cfg.url && cfg.anonKey) {
+                    this.supabase = supabase.createClient(cfg.url, cfg.anonKey);
+                }
+            } catch (e) {
+                // Supabase unavailable — team comms will use localStorage only
+            }
         }
 
         // Detect current user
