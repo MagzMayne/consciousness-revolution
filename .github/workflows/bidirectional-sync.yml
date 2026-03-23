@@ -1,0 +1,240 @@
+# Bidirectional Sync — consciousness-revolution ↔ barbrickdesign.github.io
+#
+# PURPOSE
+#   Keeps both repositories in sync so features and shared assets flow freely
+#   in both directions without removing anything from either repo.
+#
+# DIRECTIONS
+#   pull  — barbrickdesign.github.io → consciousness-revolution (additive)
+#   push  — consciousness-revolution → barbrickdesign.github.io (additive)
+#   both  — pull first, then push (default)
+#
+# DIRECTORIES SYNCED
+#   css/, js/, components/, shared/
+#
+# TRIGGERS
+#   • Push to main/master that touches css/, js/, components/, or shared/
+#   • Daily at 03:00 UTC (off-peak, after the existing pull-only sync at 02:00)
+#   • Manual dispatch with configurable direction and dry-run
+#
+# REQUIRED SECRETS
+#   GITHUB_TOKEN           — auto-provided by Actions (pull needs read on BD repo)
+#   BARBRICKDESIGN_TOKEN   — PAT with `contents:write` on barbrickdesign.github.io
+#                            Without this, only pull direction runs.
+#
+# Critical: NO — additive-only; no revenue-impacting changes
+# Contact:  BarbrickDesign@gmail.com
+
+name: Bidirectional Sync with barbrickdesign.github.io
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'css/**'
+      - 'js/**'
+      - 'components/**'
+      - 'shared/**'
+      - '.github/workflows/bidirectional-sync.yml'
+  schedule:
+    # 03:00 UTC daily (one hour after the pull-only daily sync)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      direction:
+        description: 'Sync direction'
+        required: true
+        type: choice
+        options:
+          - both
+          - pull
+          - push
+        default: both
+      dry_run:
+        description: 'Dry run (report only, no files written)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  sync:
+    name: Bidirectional sync (${{ github.event.inputs.direction || 'both' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Check BARBRICKDESIGN_TOKEN
+        id: token_check
+        run: |
+          if [ -n "${{ secrets.BARBRICKDESIGN_TOKEN }}" ]; then
+            echo "bd_token_available=true" >> "$GITHUB_OUTPUT"
+            echo "✅ BARBRICKDESIGN_TOKEN is configured — push direction enabled."
+          else
+            echo "bd_token_available=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  BARBRICKDESIGN_TOKEN is NOT set — push direction will be skipped."
+            echo "   To enable push, add a PAT with 'contents:write' on barbrickdesign/barbrickdesign.github.io as BARBRICKDESIGN_TOKEN."
+          fi
+
+      - name: Determine direction
+        id: direction
+        run: |
+          REQUESTED="${{ github.event.inputs.direction || 'both' }}"
+
+          if [ "$REQUESTED" = "push" ] || [ "$REQUESTED" = "both" ]; then
+            if [ "${{ steps.token_check.outputs.bd_token_available }}" != "true" ]; then
+              # Downgrade "push" or "both" to "pull" when token is missing
+              echo "direction=pull" >> "$GITHUB_OUTPUT"
+              echo "ℹ️  Direction downgraded to 'pull' because BARBRICKDESIGN_TOKEN is not available."
+            else
+              echo "direction=$REQUESTED" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "direction=$REQUESTED" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run cross-repo sync
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BARBRICKDESIGN_TOKEN: ${{ secrets.BARBRICKDESIGN_TOKEN }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          node scripts/cross-repo-sync.js \
+            --direction "${{ steps.direction.outputs.direction }}" \
+            $DRY_RUN_FLAG
+
+      - name: Read sync report
+        id: report
+        if: always()
+        run: |
+          REPORT=".github/scripts/cross-repo-sync-report.json"
+          if [ -f "$REPORT" ]; then
+            PULL_ADDED=$(node -e  "try { const r=require('./${REPORT}'); console.log((r.pull&&r.pull.added)?r.pull.added.length:0); } catch(e){ console.log(0); }" 2>/dev/null || echo 0)
+            PULL_ERRORS=$(node -e "try { const r=require('./${REPORT}'); console.log((r.pull&&r.pull.errors)?r.pull.errors.length:0); } catch(e){ console.log(0); }" 2>/dev/null || echo 0)
+            PUSH_PUSHED=$(node -e "try { const r=require('./${REPORT}'); console.log((r.push&&r.push.pushed)?r.push.pushed.length:0); } catch(e){ console.log(0); }" 2>/dev/null || echo 0)
+            PUSH_ERRORS=$(node -e "try { const r=require('./${REPORT}'); console.log((r.push&&r.push.errors)?r.push.errors.length:0); } catch(e){ console.log(0); }" 2>/dev/null || echo 0)
+
+            echo "pull_added=${PULL_ADDED}"   >> "$GITHUB_OUTPUT"
+            echo "pull_errors=${PULL_ERRORS}" >> "$GITHUB_OUTPUT"
+            echo "push_pushed=${PUSH_PUSHED}" >> "$GITHUB_OUTPUT"
+            echo "push_errors=${PUSH_ERRORS}" >> "$GITHUB_OUTPUT"
+          else
+            echo "pull_added=0"  >> "$GITHUB_OUTPUT"
+            echo "pull_errors=0" >> "$GITHUB_OUTPUT"
+            echo "push_pushed=0" >> "$GITHUB_OUTPUT"
+            echo "push_errors=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit pulled files
+        if: |
+          steps.report.outputs.pull_added != '0' &&
+          github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add --all
+
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            ADDED="${{ steps.report.outputs.pull_added }}"
+            git commit -m "🔄 Bidirectional sync: +${ADDED} file(s) from barbrickdesign.github.io [skip ci]"
+            git push
+            echo "✅ Committed and pushed ${ADDED} new file(s)"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write job summary
+        if: always()
+        run: |
+          DIR="${{ steps.direction.outputs.direction }}"
+          DRY="${{ github.event.inputs.dry_run }}"
+
+          echo "## 🔄 Bidirectional Sync — consciousness-revolution ↔ barbrickdesign" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Direction:** \`$DIR\`  |  **Dry run:** \`${DRY:-false}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "| Direction | Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----------|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DIR" != "push" ]; then
+            echo "| ← Pull    | ✅ New files added | ${{ steps.report.outputs.pull_added }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| ← Pull    | ❌ Errors          | ${{ steps.report.outputs.pull_errors }} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$DIR" != "pull" ]; then
+            echo "| → Push    | ✅ Files pushed    | ${{ steps.report.outputs.push_pushed }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| → Push    | ❌ Errors          | ${{ steps.report.outputs.push_errors }} |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "${{ steps.token_check.outputs.bd_token_available }}" != "true" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ⚠️  **Push direction unavailable**: \`BARBRICKDESIGN_TOKEN\` secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "> Add a PAT with \`contents:write\` on \`barbrickdesign/barbrickdesign.github.io\`." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$DRY" = "true" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ℹ️  **Dry-run mode** — no files were written or committed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          REPORT=".github/scripts/cross-repo-sync-report.json"
+          if [ -f "$REPORT" ] && [ "${{ steps.report.outputs.pull_added }}" != "0" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### 🆕 Files Added (pull)" >> "$GITHUB_STEP_SUMMARY"
+            node -e "
+              try {
+                const r = require('./${REPORT}');
+                (r.pull && r.pull.added || []).forEach(f => {
+                  const safe = f.replace(/\`/g, '\\\\\\`');
+                  console.log('- \`' + safe + '\`');
+                });
+              } catch(e) { console.log('_(error reading report)_'); }
+            " >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -f "$REPORT" ] && [ "${{ steps.report.outputs.push_pushed }}" != "0" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### 📤 Files Pushed (push)" >> "$GITHUB_STEP_SUMMARY"
+            node -e "
+              try {
+                const r = require('./${REPORT}');
+                (r.push && r.push.pushed || []).forEach(f => {
+                  const safe = f.replace(/\`/g, '\\\\\\`');
+                  console.log('- \`' + safe + '\`');
+                });
+              } catch(e) { console.log('_(error reading report)_'); }
+            " >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail if errors
+        if: |
+          steps.report.outputs.pull_errors != '0' ||
+          steps.report.outputs.push_errors != '0'
+        run: |
+          PULL_ERR="${{ steps.report.outputs.pull_errors }}"
+          PUSH_ERR="${{ steps.report.outputs.push_errors }}"
+          echo "❌ Sync completed with errors — pull: ${PULL_ERR}, push: ${PUSH_ERR}"
+          exit 1
