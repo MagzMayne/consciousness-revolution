@@ -127,12 +127,53 @@ class PumpfunTokenConfig {
         this.tokens = PUMPFUN_TOKENS;
         this.vaultWallet = VAULT_WALLET;
 
+        // ── Platform token registry ─────────────────────────────────
+        // CORE — governing token: invest to earn platform-wide creator rewards
+        this.governingToken = {
+            address:    'CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+            name:       'Consciousness Revolution',
+            symbol:     'CORE',
+            decimals:   9,
+            chain:      'solana',
+            platform:   'pump.fun',
+            logo:       '👑',
+            color:      '#FFD700',
+            gradient:   'linear-gradient(135deg, #FFD700 0%, #FF6B00 100%)',
+            pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+            role:       'Governing token — hold to earn creator rewards as the platform grows'
+        };
+
+        // ROOTIB — idea provenance token: stamps every creator's idea
+        this.rootibToken = {
+            address:    '6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
+            name:       'RootIB',
+            symbol:     'ROOTIB',
+            decimals:   9,
+            chain:      'solana',
+            platform:   'pump.fun',
+            logo:       '🔖',
+            color:      '#00D9FF',
+            gradient:   'linear-gradient(135deg, #00D9FF 0%, #5865F2 100%)',
+            pumpfunUrl: 'https://pump.fun/coin/6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
+            role:       'Idea provenance token — every project RootIB tag is backed by this token'
+        };
+
+        // Vault wallet — creator rewards pool
+        this.vaultWallet = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+        // Pump.Fun API endpoints
+        this.pumpfunCreate = 'https://pump.fun/create';
+        this.creatorHubUrl = '/pumpfun-creator-hub.html';
+
         this.initialized = false;
         this.updateInterval = null;
         this.updateFrequency = 30000; // 30 seconds
 
         console.log('🔥 Pump.fun Token Config Loaded');
         console.log('Token Address:', this.token.address);
+        console.log('👑 Governing Token (CORE):', this.governingToken.address);
+        console.log('🔖 RootIB Token:', this.rootibToken.address);
+        console.log('🏦 Vault Wallet:', this.vaultWallet);
     }
 
     /**
@@ -452,6 +493,83 @@ class PumpfunTokenConfig {
         this.initialized = false;
         console.log('🔥 Pump.fun token integration destroyed');
     }
+
+    /**
+     * Get the governing (CORE) token info
+     */
+    getGoverningToken() {
+        return this.governingToken;
+    }
+
+    /**
+     * Get the RootIB token info
+     */
+    getRootibToken() {
+        return this.rootibToken;
+    }
+
+    /**
+     * Get the vault wallet address
+     */
+    getVaultWallet() {
+        return this.vaultWallet;
+    }
+
+    /**
+     * Get all platform tokens as a registry object
+     */
+    getPlatformTokens() {
+        return {
+            legacy:    this.token,
+            governing: this.governingToken,
+            rootib:    this.rootibToken,
+            vault:     this.vaultWallet,
+            createUrl: this.pumpfunCreate,
+            hubUrl:    this.creatorHubUrl
+        };
+    }
+
+    /**
+     * Get price for any token by mint address via DexScreener
+     */
+    async getPriceForMint(mintAddress) {
+        try {
+            const response = await fetch(
+                `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`
+            );
+            if (!response.ok) return null;
+            const data = await response.json();
+            if (!data.pairs?.length) return null;
+            const p = data.pairs[0];
+            return {
+                priceUsd:  parseFloat(p.priceUsd) || 0,
+                change24h: parseFloat(p.priceChange?.h24) || 0,
+                volume24h: parseFloat(p.volume?.h24) || 0,
+                marketCap: parseFloat(p.fdv) || 0,
+                txns24h:   (p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0)
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Announce a new coin launch to the creator hub
+     * @param {object} coin - { name, symbol, description, mintAddress?, pumpfunUrl?, creator, key }
+     */
+    async announceCoinLaunch(coin) {
+        try {
+            const res = await fetch('/api/pumpfun-creator', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(coin)
+            });
+            return res.json();
+        } catch (error) {
+            console.error('Failed to announce coin launch:', error);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 // Global functions for external use
@@ -492,6 +610,13 @@ if (typeof window !== 'undefined') {
     window.formatTokenAmount = formatTokenAmount;
     window.getTokenDisplayInfo = getTokenDisplayInfo;
     window.initPumpfunToken = initPumpfunToken;
+
+    // Platform token helpers (global)
+    const _platformCfg = new PumpfunTokenConfig();
+    window.PLATFORM_TOKENS = _platformCfg.getPlatformTokens();
+    window.GOVERNING_TOKEN = _platformCfg.getGoverningToken();
+    window.ROOTIB_TOKEN    = _platformCfg.getRootibToken();
+    window.VAULT_WALLET    = _platformCfg.getVaultWallet();
 
     // Auto-init when DOM is ready
     document.addEventListener('DOMContentLoaded', async () => {

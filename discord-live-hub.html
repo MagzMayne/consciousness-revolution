@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Live bilateral Discord integration — see who's online, monitor activity, and auto-submit work backlogs to the Consciousness Revolution Discord server.">
+    <title>Discord Live Hub | Consciousness Revolution</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+    <style>
+        /* ── Variables ─────────────────────────────────────────── */
+        :root {
+            --blurple:  #5865F2;
+            --green:    #57F287;
+            --yellow:   #FEE75C;
+            --fuchsia:  #EB459E;
+            --red:      #ED4245;
+            --bg:       #0a0a0f;
+            --card:     #12121a;
+            --border:   rgba(88,101,242,.25);
+            --text:     #e0e0e0;
+            --muted:    #888;
+        }
+
+        /* ── Reset ─────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Header ────────────────────────────────────────────── */
+        header {
+            background: linear-gradient(135deg,#0e0e1a,#1a1a2e);
+            border-bottom: 2px solid var(--blurple);
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .back-link {
+            color: var(--blurple);
+            text-decoration: none;
+            font-size: .9rem;
+            opacity: .8;
+        }
+        .back-link:hover { opacity: 1; }
+
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg,var(--blurple),var(--fuchsia));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            flex: 1;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(87,242,135,.1);
+            border: 1px solid rgba(87,242,135,.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: .8rem;
+            color: var(--green);
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+        /* ── Layout ────────────────────────────────────────────── */
+        .page { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+        /* Stats row */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 16px; margin-bottom: 28px; }
+        .stat {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat .val { font-size: 2rem; font-weight: 700; color: var(--blurple); }
+        .stat .lbl { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+        /* Two-column layout */
+        .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width:900px){ .cols { grid-template-columns: 1fr; } }
+
+        /* ── Cards ─────────────────────────────────────────────── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .card-head {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: .95rem;
+        }
+        .card-head .icon { font-size: 1.2rem; }
+        .card-body { padding: 18px; }
+
+        /* ── Discord widget ─────────────────────────────────────── */
+        .widget-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .widget-wrap iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 0 0 14px 14px;
+            display: block;
+        }
+        .widget-fallback {
+            display: none;
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        /* ── Activity feed ─────────────────────────────────────── */
+        #actFeed { list-style: none; max-height: 420px; overflow-y: auto; }
+        #actFeed li {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+        #actFeed li:last-child { border-bottom: none; }
+        .av {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .8rem; font-weight: 700; flex-shrink: 0; color: #fff;
+        }
+        .act-info { flex: 1; min-width: 0; }
+        .act-user { font-weight: 600; font-size: .9rem; }
+        .act-text { font-size: .85rem; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .act-time { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+
+        /* ── Backlog panel ─────────────────────────────────────── */
+        .backlog-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        @media(max-width:500px){ .backlog-controls { grid-template-columns: 1fr; } }
+
+        label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: 4px; }
+        select, input[type=text], input[type=password] {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(0,0,0,.4);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 8px;
+            color: #fff;
+            font-size: .9rem;
+        }
+        select:focus, input:focus { outline: none; border-color: var(--blurple); }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 22px;
+            border: none; border-radius: 8px;
+            font-size: .9rem; font-weight: 600;
+            cursor: pointer; transition: transform .15s, opacity .15s;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: none; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-primary { background: linear-gradient(135deg,var(--blurple),var(--fuchsia)); color: #fff; }
+        .btn-outline { background: transparent; border: 1px solid var(--blurple); color: var(--blurple); }
+        .btn-green { background: linear-gradient(135deg,#2ecc71,#27ae60); color: #fff; }
+
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+        #backlogPreview {
+            background: rgba(0,0,0,.35);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 16px;
+            font-size: .82rem;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+        #backlogPreview h4 { color: var(--blurple); margin-bottom: 8px; font-size: .9rem; }
+        #backlogPreview .bl-section { margin-bottom: 12px; }
+        #backlogPreview .bl-section h5 { color: var(--green); margin-bottom: 4px; font-size: .82rem; }
+        #backlogPreview .bl-item { color: var(--muted); padding-left: 12px; }
+
+        /* ── Members panel ─────────────────────────────────────── */
+        #memberList { list-style: none; max-height: 400px; overflow-y: auto; }
+        #memberList li {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+            font-size: .88rem;
+        }
+        #memberList li:last-child { border-bottom: none; }
+        .role-badge {
+            font-size: .7rem; font-weight: 700;
+            padding: 2px 8px; border-radius: 10px;
+            background: rgba(88,101,242,.2); color: var(--blurple);
+        }
+        .score { font-size: .75rem; color: var(--muted); margin-left: auto; }
+
+        /* ── Toast ─────────────────────────────────────────────── */
+        #toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 999;
+            padding: 12px 20px; border-radius: 10px;
+            font-size: .9rem; font-weight: 600;
+            opacity: 0; transition: opacity .3s;
+            pointer-events: none;
+        }
+        #toast.show { opacity: 1; pointer-events: auto; }
+        #toast.success { background: rgba(87,242,135,.2); border: 1px solid var(--green); color: var(--green); }
+        #toast.error   { background: rgba(237,66,69,.2);  border: 1px solid var(--red);   color: var(--red); }
+        #toast.info    { background: rgba(88,101,242,.2); border: 1px solid var(--blurple); color: var(--blurple); }
+
+        /* ── Loading skeleton ──────────────────────────────────── */
+        .skel { background: linear-gradient(90deg,#1a1a2e 25%,#25253e 50%,#1a1a2e 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        /* ── Footer ────────────────────────────────────────────── */
+        footer {
+            text-align: center;
+            padding: 32px;
+            color: var(--muted);
+            font-size: .85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+        footer a { color: var(--blurple); }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="back-link">← Hub</a>
+    <h1>💬 Discord Live Hub</h1>
+    <div class="status-pill"><span class="dot"></span> Live</div>
+    <a href="https://discord.gg/consciousnessrevolution" target="_blank" rel="noopener"
+       class="btn btn-primary" style="padding:8px 16px;font-size:.85rem;">Join Discord</a>
+</header>
+
+<div class="page">
+
+    <!-- Stats row -->
+    <div class="stats" id="statsRow">
+        <div class="stat"><div class="val skel" style="height:2.2rem;border-radius:4px;"> </div><div class="lbl">Members</div></div>
+        <div class="stat"><div class="val skel" style="height:2.2rem;border-radius:4px;"> </div><div class="lbl">Online Now</div></div>
+        <div class="stat"><div class="val skel" style="height:2.2rem;border-radius:4px;"> </div><div class="lbl">XP Today</div></div>
+        <div class="stat"><div class="val skel" style="height:2.2rem;border-radius:4px;"> </div><div class="lbl">Active (24h)</div></div>
+    </div>
+
+    <div class="cols">
+        <!-- ── LEFT: Discord widget + Backlog ───────────────────── -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Discord native embed widget -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="icon">🖥️</span> Live Discord Server
+                    <span style="margin-left:auto;font-size:.75rem;color:var(--muted);">188 members</span>
+                </div>
+                <div class="widget-wrap" id="widgetWrap">
+                    <iframe id="discordWidget"
+                        src="https://discord.com/widget?id=1458000070862573805&theme=dark"
+                        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+                        title="Consciousness Revolution Discord Server"
+                        loading="lazy">
+                    </iframe>
+                    <div class="widget-fallback" id="widgetFallback">
+                        <p>Discord widget requires widget to be enabled on the server.</p>
+                        <a href="https://discord.gg/consciousnessrevolution" target="_blank" class="btn btn-primary" style="margin-top:12px;">
+                            Open Discord
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backlog auto-submitter -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="icon">📋</span> Work Backlog Auto-Submitter
+                </div>
+                <div class="card-body">
+                    <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;">
+                        Compiles GitHub commits, PRs, issues and releases into an organized
+                        report and posts it directly to a Discord channel.
+                    </p>
+
+                    <div class="backlog-controls">
+                        <div>
+                            <label for="blPeriod">Time Period</label>
+                            <select id="blPeriod">
+                                <option value="day">Last 24 Hours</option>
+                                <option value="week" selected>Last 7 Days</option>
+                                <option value="month">Last 30 Days</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="blChannel">Target Channel</label>
+                            <select id="blChannel">
+                                <option value="completed">#completed (default)</option>
+                                <option value="alerts">#alerts</option>
+                                <option value="t1Builders">#t1-builders</option>
+                                <option value="t2Architects">#t2-architects</option>
+                                <option value="t3Oracles">#t3-oracles</option>
+                                <option value="memberSafety">#member-safety</option>
+                                <option value="commandCenter">#command-center</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="blKey">Admin Key</label>
+                        <input type="password" id="blKey" placeholder="Enter admin key to submit">
+                    </div>
+
+                    <div class="btn-row">
+                        <button class="btn btn-outline" id="btnPreview" onclick="previewBacklog()">
+                            🔍 Preview
+                        </button>
+                        <button class="btn btn-green" id="btnSubmit" onclick="submitBacklog()">
+                            📤 Submit to Discord
+                        </button>
+                    </div>
+
+                    <div id="backlogPreview"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── RIGHT: Activity feed + Members ──────────────────── -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Live activity feed -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="icon">⚡</span> Live Activity Feed
+                    <span id="actRefresh" style="margin-left:auto;font-size:.75rem;color:var(--muted);cursor:pointer;" onclick="loadActivity()">↻ Refresh</span>
+                </div>
+                <div class="card-body" style="padding:12px 18px;">
+                    <ul id="actFeed">
+                        <li><div class="av skel" style="width:36px;height:36px;"> </div><div style="flex:1"><div class="skel" style="height:.8rem;border-radius:4px;margin-bottom:6px;"> </div><div class="skel" style="height:.7rem;border-radius:4px;width:60%;"> </div></div></li>
+                        <li><div class="av skel" style="width:36px;height:36px;"> </div><div style="flex:1"><div class="skel" style="height:.8rem;border-radius:4px;margin-bottom:6px;"> </div><div class="skel" style="height:.7rem;border-radius:4px;width:70%;"> </div></div></li>
+                        <li><div class="av skel" style="width:36px;height:36px;"> </div><div style="flex:1"><div class="skel" style="height:.8rem;border-radius:4px;margin-bottom:6px;"> </div><div class="skel" style="height:.7rem;border-radius:4px;width:50%;"> </div></div></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Member leaderboard -->
+            <div class="card">
+                <div class="card-head">
+                    <span class="icon">🏆</span> Community Leaderboard
+                    <span style="margin-left:auto;font-size:.75rem;color:var(--muted);">Top by XP</span>
+                </div>
+                <div class="card-body" style="padding:12px 18px;">
+                    <ul id="memberList">
+                        <li><div class="av skel" style="width:32px;height:32px;"> </div><div class="skel" style="flex:1;height:.8rem;border-radius:4px;"> </div></li>
+                        <li><div class="av skel" style="width:32px;height:32px;"> </div><div class="skel" style="flex:1;height:.8rem;border-radius:4px;"> </div></li>
+                        <li><div class="av skel" style="width:32px;height:32px;"> </div><div class="skel" style="flex:1;height:.8rem;border-radius:4px;"> </div></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Quick links -->
+            <div class="card">
+                <div class="card-head"><span class="icon">🔗</span> Quick Links</div>
+                <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <a href="https://discord.com/channels/1458000070862573805/1458298435974336573" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">#completed</a>
+                    <a href="https://discord.com/channels/1458000070862573805/1458298425752944826" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">#task-board</a>
+                    <a href="https://discord.com/channels/1458000070862573805/1458298272228835413" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">#alerts</a>
+                    <a href="https://discord.com/channels/1458000070862573805/1458000070862573805" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">#member-safety</a>
+                    <a href="DISCORD_ADMIN_DASHBOARD.html" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">Admin Panel</a>
+                    <a href="DISCORD_COMMAND_CENTER.html" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">Command Center</a>
+                </div>
+            </div>
+
+            <!-- 🚀 Crypto / Token hub panel -->
+            <div class="card">
+                <div class="card-head"><span class="icon">🚀</span> Crypto & Creator Rewards</div>
+                <div class="card-body">
+                    <!-- Governing token ticker -->
+                    <div style="background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.25);
+                                border-radius:12px;padding:14px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="font-size:1.6rem;">👑</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:800;font-size:.9rem;">CORE — Governing Token</div>
+                                <div style="font-size:.75rem;color:var(--muted);">CFB81yp47…Wpump</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="corePrice" style="font-weight:800;color:#FFD700;">Loading…</div>
+                                <div id="coreChg"   style="font-size:.75rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- RootIB token ticker -->
+                    <div style="background:rgba(0,217,255,.07);border:1px solid rgba(0,217,255,.2);
+                                border-radius:12px;padding:14px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="font-size:1.6rem;">🔖</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:800;font-size:.9rem;">ROOTIB — Idea Provenance</div>
+                                <div style="font-size:.75rem;color:var(--muted);">6xaadtw1…Spump</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="rootibPrice2" style="font-weight:800;color:var(--blurple);">Loading…</div>
+                                <div id="rootibChg2"   style="font-size:.75rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <a href="pumpfun-creator-hub.html" class="btn btn-primary" style="font-size:.8rem;justify-content:center;background:linear-gradient(135deg,#FF6B00,#e05500);">🔥 Creator Hub</a>
+                        <a href="https://pump.fun/create" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:.8rem;justify-content:center;background:linear-gradient(135deg,#FFD700,#e6a800);color:#000;">Launch Coin</a>
+                        <a href="https://discord.com/channels/1458000070862573805/1458298393964187783" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.8rem;justify-content:center;">#crypto-launch</a>
+                        <a href="https://discord.com/channels/1458000070862573805/1458298404764651633" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.8rem;justify-content:center;">#revenue-streams</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<footer>
+    <p>© 2024-2025 Consciousness Revolution · <a href="mailto:BarbrickDesign@gmail.com">Contact</a> · <a href="index.html">Hub</a></p>
+    <p style="margin-top:6px;font-size:.78rem;">AgentR R3 · Bilateral Discord Integration · Guild 1458000070862573805</p>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   DISCORD LIVE HUB — Frontend Logic
+   Pattern: 3 → 7 → 13 → ∞
+   ══════════════════════════════════════════════════════════════════ */
+
+const GUILD_ID = '1458000070862573805';
+
+// ── Toast helper ────────────────────────────────────────────────
+function toast(msg, type = 'info', ms = 3500) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + type;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', ms);
+}
+
+// ── Stats: Discord widget.json (no bot token needed) + community API ─
+async function loadStats() {
+    const row = document.getElementById('statsRow');
+
+    // Default stats
+    let memberCount = '188+';
+    let onlineCount = '—';
+    let xpToday = '—';
+    let active24 = '—';
+
+    // Fetch widget (public, no token)
+    fetch(`https://discord.com/api/guilds/${GUILD_ID}/widget.json`)
+        .then(r => {
+            // 403 = widget disabled in Discord server settings
+            if (r.status === 403 || !r.ok) {
+                document.getElementById('discordWidget').style.display = 'none';
+                const fb = document.getElementById('widgetFallback');
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.innerHTML = r.status === 403
+                        ? '<p>Widget disabled — enable it in Discord Server Settings → Widget.</p><a href="https://discord.gg/consciousnessrevolution" target="_blank" class="btn btn-primary" style="margin-top:12px;">Open Discord</a>'
+                        : fb.innerHTML;
+                }
+                return {};
+            }
+            return r.json();
+        })
+        .then(w => {
+            if (w.members) onlineCount = w.members.length;
+            renderStats(memberCount, onlineCount, xpToday, active24);
+        })
+        .catch(() => {}); // network offline — silently skip
+
+    // Fetch community stats from Supabase via our API
+    fetch('/api/discord-community-api?type=stats')
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && d.data?.stats) {
+                const s = d.data.stats;
+                memberCount = s.totalMembers || memberCount;
+                xpToday = s.totalXpToday || '—';
+                active24 = s.activeLast24h || '—';
+                renderStats(memberCount, onlineCount, xpToday, active24);
+            }
+        })
+        .catch(() => {
+            renderStats(memberCount, onlineCount, xpToday, active24);
+        });
+}
+
+function renderStats(members, online, xp, active) {
+    document.getElementById('statsRow').innerHTML = `
+        <div class="stat"><div class="val">${members}</div><div class="lbl">Members</div></div>
+        <div class="stat"><div class="val">${online}</div><div class="lbl">Online Now</div></div>
+        <div class="stat"><div class="val">${typeof xp === 'number' ? xp.toLocaleString() : xp}</div><div class="lbl">XP Today</div></div>
+        <div class="stat"><div class="val">${active}</div><div class="lbl">Active (24h)</div></div>
+    `;
+}
+
+// ── Activity feed ────────────────────────────────────────────────
+async function loadActivity() {
+    const feed = document.getElementById('actFeed');
+
+    // Static fallback shown until API responds
+    const fallback = [
+        { initials: 'CR', gradient: 'linear-gradient(135deg,#5865F2,#EB459E)', user: 'System', text: 'Live data loading…', time: 'now' }
+    ];
+
+    try {
+        const res = await fetch('/api/discord-community-api?type=activity');
+        const d = await res.json();
+        const items = (d.success && d.data?.activity?.length) ? d.data.activity : fallback;
+        renderActivity(items);
+    } catch {
+        renderActivity(fallback);
+    }
+}
+
+function renderActivity(items) {
+    const feed = document.getElementById('actFeed');
+    feed.innerHTML = items.map(a => `
+        <li>
+            <div class="av" style="background:${a.gradient}">${a.initials}</div>
+            <div class="act-info">
+                <div class="act-user">${escHtml(a.user)}</div>
+                <div class="act-text">${escHtml(a.text)}</div>
+            </div>
+            <div class="act-time">${escHtml(a.time)}</div>
+        </li>
+    `).join('');
+}
+
+// ── Member leaderboard ───────────────────────────────────────────
+async function loadMembers() {
+    try {
+        const res = await fetch('/api/discord-community-api?type=members');
+        const d = await res.json();
+        const members = (d.success && d.data?.members) ? d.data.members : [];
+        renderMembers(members);
+    } catch {
+        renderMembers([]);
+    }
+}
+
+function renderMembers(members) {
+    const list = document.getElementById('memberList');
+    if (!members.length) {
+        list.innerHTML = '<li style="color:var(--muted);font-size:.85rem;">No data yet — link Supabase to load live leaderboard</li>';
+        return;
+    }
+    list.innerHTML = members.slice(0, 15).map((m, i) => `
+        <li>
+            <div class="av" style="background:${m.gradient};width:32px;height:32px;font-size:.75rem;">${m.initials}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.name)}</div>
+            </div>
+            <span class="role-badge">${escHtml(m.role)}</span>
+            <span class="score">${m.score.toLocaleString()} XP</span>
+        </li>
+    `).join('');
+}
+
+// ── Backlog preview ──────────────────────────────────────────────
+async function previewBacklog() {
+    const btn = document.getElementById('btnPreview');
+    const period = document.getElementById('blPeriod').value;
+    const preview = document.getElementById('backlogPreview');
+
+    btn.disabled = true;
+    btn.textContent = '🔍 Loading…';
+    preview.style.display = 'none';
+
+    try {
+        const res = await fetch(`/api/discord-backlog?period=${period}`);
+        const d = await res.json();
+
+        if (!d.success) {
+            throw new Error(d.error || 'Failed to compile backlog');
+        }
+
+        const b = d.backlog;
+        let html = `<h4>📋 Backlog Preview — ${periodLabel(period)}</h4>`;
+
+        if (d.summary.releases > 0) {
+            html += `<div class="bl-section"><h5>🚀 Releases (${d.summary.releases})</h5>`;
+            html += b.releases.map(r => `<div class="bl-item">• ${escHtml(r.name)} <code>${escHtml(r.tag)}</code></div>`).join('');
+            html += `</div>`;
+        }
+
+        if (d.summary.prs > 0) {
+            html += `<div class="bl-section"><h5>🔀 Merged PRs (${d.summary.prs})</h5>`;
+            html += b.prs.slice(0, 8).map(pr => `<div class="bl-item">• #${pr.number} ${escHtml(pr.title.slice(0,60))}</div>`).join('');
+            if (d.summary.prs > 8) html += `<div class="bl-item" style="color:var(--blurple);">…and ${d.summary.prs - 8} more</div>`;
+            html += `</div>`;
+        }
+
+        if (d.summary.issues > 0) {
+            html += `<div class="bl-section"><h5>✅ Closed Issues (${d.summary.issues})</h5>`;
+            html += b.issues.slice(0, 8).map(i => `<div class="bl-item">• #${i.number} ${escHtml(i.title.slice(0,55))}</div>`).join('');
+            if (d.summary.issues > 8) html += `<div class="bl-item" style="color:var(--blurple);">…and ${d.summary.issues - 8} more</div>`;
+            html += `</div>`;
+        }
+
+        if (d.summary.commits > 0) {
+            html += `<div class="bl-section"><h5>📦 Commits (${d.summary.commits})</h5>`;
+            html += b.commits.slice(0, 8).map(c => `<div class="bl-item">• <code>${c.sha}</code> ${escHtml(c.message.slice(0,50))}</div>`).join('');
+            if (d.summary.commits > 8) html += `<div class="bl-item" style="color:var(--blurple);">…and ${d.summary.commits - 8} more</div>`;
+            html += `</div>`;
+        }
+
+        if (!d.summary.commits && !d.summary.prs && !d.summary.issues && !d.summary.releases) {
+            html += `<div style="color:var(--muted);">No activity found for this period.</div>`;
+        }
+
+        preview.innerHTML = html;
+        preview.style.display = 'block';
+        toast('Backlog compiled ✓', 'success');
+    } catch (err) {
+        toast('Preview failed: ' + err.message, 'error');
+        if (err.message.includes('GITHUB_TOKEN')) {
+            preview.innerHTML = `<div style="color:var(--red);">⚠️ GITHUB_TOKEN not configured in Netlify environment variables.</div>`;
+            preview.style.display = 'block';
+        }
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Preview';
+    }
+}
+
+// ── Backlog submit ───────────────────────────────────────────────
+async function submitBacklog() {
+    const btn = document.getElementById('btnSubmit');
+    const period  = document.getElementById('blPeriod').value;
+    const channel = document.getElementById('blChannel').value;
+    const key     = document.getElementById('blKey').value.trim();
+
+    if (!key) { toast('Enter your admin key first', 'error'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '📤 Submitting…';
+
+    try {
+        const res = await fetch('/api/discord-backlog', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ period, channel, key })
+        });
+        const d = await res.json();
+
+        if (!d.success) throw new Error(d.error || 'Submission failed');
+
+        toast(`✅ Posted ${d.messagesPosted} message(s) to #${channel}!`, 'success', 5000);
+
+        const preview = document.getElementById('backlogPreview');
+        preview.innerHTML = `<h4 style="color:var(--green);">✅ Submitted to Discord #${channel}</h4>
+            <div>• ${d.summary.commits} commits · ${d.summary.prs} PRs · ${d.summary.issues} issues · ${d.summary.releases} releases</div>
+            <div style="color:var(--muted);margin-top:8px;">Messages posted: ${d.messagesPosted}</div>`;
+        preview.style.display = 'block';
+    } catch (err) {
+        toast('Submit failed: ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📤 Submit to Discord';
+    }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function periodLabel(p) {
+    return { day: 'Last 24 Hours', week: 'Last 7 Days', month: 'Last 30 Days' }[p] || 'Last 7 Days';
+}
+
+// ── Widget error handling ────────────────────────────────────────
+document.getElementById('discordWidget').addEventListener('error', () => {
+    document.getElementById('discordWidget').style.display = 'none';
+    document.getElementById('widgetFallback').style.display = 'block';
+});
+
+// ── Auto-refresh activity every 60s ──────────────────────────────
+function startAutoRefresh() {
+    loadActivity();
+    loadMembers();
+    setInterval(loadActivity, 60_000);
+}
+
+// ── Token price ticker (CORE + ROOTIB) ──────────────────────────
+async function loadTokenTicker() {
+    try {
+        const res = await fetch('/api/pumpfun-creator?action=tokens');
+        const d   = await res.json();
+        if (!d.success) return;
+
+        function fmtPrice(n) {
+            if (!n || n === 0) return '$—';
+            if (n < 0.000001) return '$' + n.toExponential(2);
+            if (n < 0.001)    return '$' + n.toFixed(6);
+            return '$' + n.toFixed(5);
+        }
+        function fmtChg(n, elId) {
+            const el = document.getElementById(elId);
+            if (!el || !n) return;
+            const up = n >= 0;
+            el.textContent = (up ? '▲ +' : '▼ ') + Math.abs(n).toFixed(2) + '%';
+            el.style.color = up ? 'var(--green)' : 'var(--red)';
+        }
+
+        const gov    = d.tokens.governing.price;
+        const rootib = d.tokens.rootib.price;
+
+        document.getElementById('corePrice').textContent =
+            gov ? fmtPrice(gov.priceUsd) : '$—';
+        fmtChg(gov?.change24h, 'coreChg');
+
+        document.getElementById('rootibPrice2').textContent =
+            rootib ? fmtPrice(rootib.priceUsd) : '$—';
+        fmtChg(rootib?.change24h, 'rootibChg2');
+    } catch {
+        document.getElementById('corePrice').textContent    = '$—';
+        document.getElementById('rootibPrice2').textContent = '$—';
+    }
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+loadStats();
+startAutoRefresh();
+loadTokenTicker();
+setInterval(loadTokenTicker, 60_000);
+</script>
+
+</body>
+</html>
