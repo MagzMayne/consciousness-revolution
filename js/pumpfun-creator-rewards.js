@@ -9,7 +9,7 @@
  *
  * Key tokens & addresses:
  *   Governing / rewards token : CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump
- *   Crypto channel token      : 6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump
+ *   IP protocol token (RootIB): 6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump
  *   Vault wallet              : 6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk
  *   Platform                  : https://pump.fun
  *
@@ -37,14 +37,14 @@ const CREATOR_REWARDS = {
         logo: '🏛️',
         description: 'Main governing token. Investors earn as more developers use this platform.'
     },
-    /** Crypto-channel community token */
+    /** IP protocol token for all devs' ideas and projects */
     CHANNEL_TOKEN: {
         address: '6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
-        symbol: 'CRCC',
-        name: 'CR Crypto Channel',
+        symbol: 'RootIB',
+        name: 'Root Idea Block',
         pumpfunUrl: 'https://pump.fun/coin/6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
-        logo: '📡',
-        description: 'Token for the consciousness-revolution crypto community channel.'
+        logo: '💡',
+        description: 'IP protocol for all devs ideas and projects.'
     },
     /** Primary vault — receives all platform revenue */
     VAULT_WALLET: '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk',

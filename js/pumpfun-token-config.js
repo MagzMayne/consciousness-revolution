@@ -54,7 +54,7 @@
  * Complete token integration for pump.fun tokens
  * Supports MNDM token: GK24fQQQKNF6JMsCd3rLfSr1n2tvr3bCJ7zAgNqxbA7r
  * Governing / rewards token: CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump
- * Crypto channel token: 6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump
+ * IP protocol token (RootIB): 6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump
  * Vault wallet: 6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk
  */
 
@@ -89,20 +89,20 @@ const PUMPFUN_TOKENS = {
         role: 'governance',
         description: 'Main governing token for all creator rewards. Investors earn as more developers join the platform.'
     },
-    /** Crypto community channel token */
+    /** IP protocol token for all devs' ideas and projects (Root Idea Block) */
     CRYPTO_CHANNEL: {
         address: '6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
-        name: 'CR Crypto Channel',
-        symbol: 'CRCC',
+        name: 'Root Idea Block',
+        symbol: 'RootIB',
         decimals: 9,
         chain: 'solana',
         platform: 'pump.fun',
-        logo: '📡',
+        logo: '💡',
         color: '#9B30FF',
         gradient: 'linear-gradient(135deg, #9B30FF 0%, #C71585 100%)',
         pumpfunUrl: 'https://pump.fun/coin/6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
         role: 'channel',
-        description: 'Token for the consciousness-revolution crypto community channel.'
+        description: 'IP protocol for all devs ideas and projects.'
     }
 };
 
@@ -117,7 +117,7 @@ class PumpfunTokenConfig {
      * @param {string} [tokenKey='MNDM'] - Key from PUMPFUN_TOKENS registry.
      *   Valid values: 'MNDM' (default, community token),
      *                 'GOVERN' (Overkill Kulture / OKK rewards token),
-     *                 'CRYPTO_CHANNEL' (crypto channel community token).
+     *                 'CRYPTO_CHANNEL' (Root Idea Block / RootIB IP protocol token).
      *   Existing callers that construct without arguments continue to receive
      *   the MNDM token unchanged.
      */
