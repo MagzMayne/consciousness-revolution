@@ -35,7 +35,8 @@ const CHANNELS = {
     revenueStreams: '1458298404764651633',
     alerts: '1458298272228835413',
     completed: '1458298435974336573',
-    aiConversations: '1469841378279428230'
+    aiConversations: '1469841378279428230',
+    memberSafety: '1458000070862573805'  // #member-safety
 };
 
 // Pinned message content for each channel
