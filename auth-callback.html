@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<!-- RootIB: RB-20260323000000-AUTHCB01 -->
+<html lang="en">
+<head>
+  <meta name="rootib" content="RootIB: RB-20260323000000-AUTHCB01">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing you in… — Consciousness Revolution</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #e0e0e0;
+    }
+    .card {
+      background: rgba(20, 20, 35, 0.9);
+      border: 1px solid rgba(123, 44, 191, 0.3);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 4px solid rgba(123, 44, 191, 0.3);
+      border-top-color: #7b2cbf;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 24px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 {
+      font-size: 1.4rem;
+      background: linear-gradient(90deg, #7b2cbf, #00d4ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    p { color: #888; font-size: 0.95rem; line-height: 1.5; }
+    .error-card { display: none; }
+    .error-card h2 { background: none; -webkit-text-fill-color: #ff6b6b; color: #ff6b6b; }
+    .error-card p { color: #aaa; }
+    .error-card a {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 12px 28px;
+      background: linear-gradient(90deg, #7b2cbf, #00d4ff);
+      border-radius: 10px;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+  <script src="/js/mobile-responsive.js" defer></script>
+</head>
+<body>
+  <div class="card" id="loading-card">
+    <div class="spinner"></div>
+    <h2>Signing you in…</h2>
+    <p>Please wait while we verify your identity and set up your session.</p>
+  </div>
+
+  <div class="card error-card" id="error-card">
+    <h2>Sign-in failed</h2>
+    <p id="error-msg">Something went wrong during sign-in. Please try again.</p>
+    <a href="/auth.html">Back to Sign In</a>
+  </div>
+
+  <!-- Supabase JS (needed to exchange the OAuth code / OTP hash for a session) -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/js/supabase-client.js"></script>
+
+  <script>
+    // ──────────────────────────────────────────────────────────────────────
+    // auth-callback.html
+    // Handles two scenarios:
+    //  1. OAuth redirect  — ?code=… in the URL (PKCE flow)
+    //  2. Magic link      — #access_token=… in the URL hash (implicit flow)
+    //
+    // In both cases we:
+    //  a. Let the Supabase JS library exchange the code/token for a session.
+    //  b. POST the session tokens to /api/auth-oauth-session which sets them
+    //     as secure HttpOnly cookies (same as the password-login flow).
+    //  c. Redirect the user to the dashboard (or the page they came from).
+    // ──────────────────────────────────────────────────────────────────────
+
+    function showError(msg) {
+      document.getElementById('loading-card').style.display = 'none';
+      const card = document.getElementById('error-card');
+      card.style.display = 'block';
+      if (msg) document.getElementById('error-msg').textContent = msg;
+    }
+
+    async function run() {
+      try {
+        // Wait for the Supabase client to be initialised
+        const supabase = await window.getSupabaseClient();
+
+        if (!supabase) {
+          showError('Auth service unavailable. Please try again later.');
+          return;
+        }
+
+        // ── Parse URL params & hash ────────────────────────────────────
+        const params = new URLSearchParams(window.location.search);
+        const hash   = new URLSearchParams(window.location.hash.slice(1));
+
+        const code         = params.get('code');
+        const errorParam   = params.get('error');
+        const errorDesc    = params.get('error_description');
+        const hashToken    = hash.get('access_token');
+        const hashRefresh  = hash.get('refresh_token');
+        const hashExpires  = hash.get('expires_at');
+        const hashType     = hash.get('type');   // 'magiclink', 'recovery', etc.
+
+        // Surface any error the provider returned
+        if (errorParam) {
+          showError(decodeURIComponent(errorDesc || errorParam));
+          return;
+        }
+
+        let session = null;
+
+        if (code) {
+          // ── PKCE / OAuth code flow ─────────────────────────────────
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error || !data?.session) {
+            showError(error?.message || 'Failed to exchange auth code for session.');
+            return;
+          }
+          session = data.session;
+
+        } else if (hashToken) {
+          // ── Implicit / magic-link / recovery flow ──────────────────
+          const { data, error } = await supabase.auth.setSession({
+            access_token:  hashToken,
+            refresh_token: hashRefresh || ''
+          });
+          if (error || !data?.session) {
+            showError(error?.message || 'Failed to activate session from link.');
+            return;
+          }
+          session = data.session;
+
+        } else {
+          // Nothing to work with — the user probably landed here directly
+          showError('No authentication token found. Please sign in again.');
+          return;
+        }
+
+        // ── Hand session tokens to the server for HttpOnly cookies ────
+        const res = await fetch('/api/auth-oauth-session', {
+          method:      'POST',
+          credentials: 'include',
+          headers:     { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token:  session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at:    session.expires_at
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showError(err.error || 'Failed to establish session. Please try again.');
+          return;
+        }
+
+        // ── Redirect ──────────────────────────────────────────────────
+        const returnTo = localStorage.getItem('authRedirect') || '/dashboard.html';
+        localStorage.removeItem('authRedirect');
+        window.location.replace(returnTo);
+
+      } catch (err) {
+        console.error('[auth-callback] Unexpected error:', err);
+        showError('An unexpected error occurred. Please try signing in again.');
+      }
+    }
+
+    // Kick off as soon as the page loads
+    run();
+  </script>
+</body>
+</html>

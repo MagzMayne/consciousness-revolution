@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-D0A3AF8F
 /**
  * mesh-engine-client.js
  * Browser-side WebSocket client for the consciousness-revolution mesh backend.

@@ -828,19 +828,19 @@ npm start
 
 ### 📊 Project Statistics (Auto-Updated)
 
-**Total Projects**: 2085 | **Interactive**: 1910
+**Total Projects**: 2087 | **Interactive**: 1912
 
 **Status Breakdown**:
-- ✅ **1678 working** (80% - fully functional)
+- ✅ **1680 working** (80% - fully functional)
 - ⚠️ **99 partial** (5% - core features work)
 - 🔧 **76 broken** (4% - under repair)
 - 🧪 **232 untested** (11% - awaiting validation)
 
-**Top Categories**: ✨ web-app: 1510 | 🤖 ai-tool: 140 | 📊 dashboard: 131 | 🌐 3d-experience: 103 | 🛠️ utility: 74
+**Top Categories**: ✨ web-app: 1512 | 🤖 ai-tool: 140 | 📊 dashboard: 131 | 🌐 3d-experience: 103 | 🛠️ utility: 74
 
-**Top Technologies**: PayPal (905), Web Storage (536), Solana Web3 (205), Canvas (188), React (166)
+**Top Technologies**: PayPal (905), Web Storage (538), Solana Web3 (207), Canvas (188), React (166)
 
-*Last scanned: Mar 23, 2026, 6:29 AM*
+*Last scanned: Mar 23, 2026, 12:26 PM*
 
 ---
 
@@ -857,9 +857,9 @@ npm start
 7. ✨⚠️ **[Workshop - Build Things](workshop.html)** - Interactive web-app application *(Mar 23, 2026)*
 8. 🎮✅ **[Tourmaline Poker — 500 Seats (PMS UTC Sync)](workingPokerTable.html)** - Interactive game application `React`, `PayPal` *(Mar 23, 2026)*
 9. ✨✅ **[Magical Wishing Well](wishingWell.html)** - Interactive web-app application `Three.js`, `PayPal`, `WebGL` *(Mar 23, 2026)*
-10. 💰✅ **[Widget Marketplace | Consciousness Revolution](widget-marketplace.html)** - Interactive marketplace application `Web Storage` *(Mar 23, 2026)*
+10. ✨✅ **[XP Transmutation Hub — Consciousness Revolution](xp-transmutation-hub.html)** - Convert your XP to real on-chain crypto tokens — OKK (Overkill Kulture) and RootIB (Root Idea Block) on Solana via pump.fun `Solana Web3`, `Web Storage` *(Mar 23, 2026)*
 
-*Last updated: Mar 23, 2026, 6:29 AM*
+*Last updated: Mar 23, 2026, 12:26 PM*
 
 **[View All 10+ Projects →](projects.json)**
 
