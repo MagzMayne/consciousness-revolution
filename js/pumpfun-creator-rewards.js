@@ -31,8 +31,8 @@ const CREATOR_REWARDS = {
     /** Main governing token — core of all reward distributions */
     GOVERNING_TOKEN: {
         address: 'CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
-        symbol: 'CRG',
-        name: 'CR Governance',
+        symbol: 'OKK',
+        name: 'Overkill Kulture',
         pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
         logo: '🏛️',
         description: 'Main governing token. Investors earn as more developers use this platform.'

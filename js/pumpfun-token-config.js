@@ -77,8 +77,8 @@ const PUMPFUN_TOKENS = {
     /** Governing / rewards token — core of all creator reward distributions */
     GOVERN: {
         address: 'CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
-        name: 'CR Governance',
-        symbol: 'CRG',
+        name: 'Overkill Kulture',
+        symbol: 'OKK',
         decimals: 9,
         chain: 'solana',
         platform: 'pump.fun',
@@ -116,7 +116,7 @@ class PumpfunTokenConfig {
     /**
      * @param {string} [tokenKey='MNDM'] - Key from PUMPFUN_TOKENS registry.
      *   Valid values: 'MNDM' (default, community token),
-     *                 'GOVERN' (CR Governance rewards token),
+     *                 'GOVERN' (Overkill Kulture / OKK rewards token),
      *                 'CRYPTO_CHANNEL' (crypto channel community token).
      *   Existing callers that construct without arguments continue to receive
      *   the MNDM token unchanged.
