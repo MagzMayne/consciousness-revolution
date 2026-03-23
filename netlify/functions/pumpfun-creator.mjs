@@ -47,6 +47,14 @@ const PLATFORM_TOKENS = {
 };
 
 const VAULT_WALLET  = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+/**
+ * OKKDistributor wallet — Solflare wallet that receives vault funds for
+ * automated XP-to-OKK on-chain conversions on consciousnessrevolution.io
+ * and via Discord (https://discord.gg/Yf2HUxbS).
+ */
+const OKK_DISTRIBUTOR_WALLET = '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN';
+const OKK_PUMPFUN_JOIN_URL   = 'https://join.pump.fun/HSag/bful4hvo';
 const PUMPFUN_BASE  = 'https://pump.fun/coin/';
 const PUMPFUN_CREATE = 'https://pump.fun/create';
 
@@ -184,6 +192,11 @@ function buildLaunchEmbeds(coin) {
                 name:   '🏦 Vault Wallet',
                 value:  `\`${VAULT_WALLET}\`\nSend SOL/tokens here to fund rewards pool`,
                 inline: false
+            },
+            {
+                name:   '📤 OKK Distributor Wallet',
+                value:  `\`${OKK_DISTRIBUTOR_WALLET}\`\nReceives vault funds for automated XP→OKK conversions`,
+                inline: false
             }
         ],
         footer:    { text: 'Consciousness Revolution · AgentR R3 · consciousnessrevolution.io' },
@@ -236,7 +249,9 @@ export default async function handler(req, context) {
                 governing: { ...PLATFORM_TOKENS.governing, price: govPrice },
                 rootib:    { ...PLATFORM_TOKENS.rootib,    price: rootibPrice }
             },
-            vaultWallet: VAULT_WALLET,
+            vaultWallet:          VAULT_WALLET,
+            okkDistributorWallet: OKK_DISTRIBUTOR_WALLET,
+            okkJoinUrl:           OKK_PUMPFUN_JOIN_URL,
             pumpfunCreate: PUMPFUN_CREATE
         }), { status: 200, headers: CORS });
     }
@@ -259,7 +274,8 @@ export default async function handler(req, context) {
             success: true,
             launches,
             tokens: PLATFORM_TOKENS,
-            vaultWallet: VAULT_WALLET
+            vaultWallet:          VAULT_WALLET,
+            okkDistributorWallet: OKK_DISTRIBUTOR_WALLET
         }), { status: 200, headers: CORS });
     }
 

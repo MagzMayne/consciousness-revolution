@@ -31,7 +31,8 @@ const XP_TOKENS = {
         name:    'Overkill Kulture',
         xpRate:  100,    // 100 XP = 1 OKK
         minXP:   1000,
-        pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump'
+        pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+        distributorWallet: '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN'
     },
     RootIB: {
         address: '6xaadtw1ZsuYXW8gCY4WXfhiv8CmFgp5iwhbA3xSpump',
@@ -44,6 +45,13 @@ const XP_TOKENS = {
 };
 
 const VAULT_WALLET = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+/**
+ * OKKDistributor wallet — Solflare wallet that receives vault funds for
+ * automated XP-to-OKK on-chain conversions on consciousnessrevolution.io
+ * and via Discord (https://discord.gg/Yf2HUxbS).
+ */
+const OKK_DISTRIBUTOR_WALLET = '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN';
 
 /* ─── CORS headers ────────────────────────────────────────────────────── */
 
@@ -149,19 +157,21 @@ export async function handler(event) {
     /* ── Build payout record ───────────────────────────────────────── */
     const txId     = `xtx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const record   = {
-        tx_id:          txId,
-        token_key:      tokenKey,
-        token_address:  token.address,
-        token_symbol:   token.symbol,
-        token_name:     token.name,
-        xp_spent:       xp,
-        token_amount:   expectedTokens,
-        wallet_address: walletAddress.trim(),
-        user_id:        userId || null,
-        vault_wallet:   VAULT_WALLET,
-        status:         'pending',
-        pumpfun_url:    token.pumpfunUrl,
-        created_at:     new Date().toISOString()
+        tx_id:                txId,
+        token_key:            tokenKey,
+        token_address:        token.address,
+        token_symbol:         token.symbol,
+        token_name:           token.name,
+        xp_spent:             xp,
+        token_amount:         expectedTokens,
+        wallet_address:       walletAddress.trim(),
+        user_id:              userId || null,
+        vault_wallet:         VAULT_WALLET,
+        // OKK payouts are routed through the OKKDistributor Solflare wallet
+        distributor_wallet:   token.distributorWallet || null,
+        status:               'pending',
+        pumpfun_url:          token.pumpfunUrl,
+        created_at:           new Date().toISOString()
     };
 
     /* ── Persist to Supabase (best-effort) ─────────────────────────── */
@@ -184,15 +194,16 @@ export async function handler(event) {
 
     /* ── Respond ───────────────────────────────────────────────────── */
     return json(200, {
-        success:      true,
+        success:            true,
         txId,
         tokenKey,
-        tokenSymbol:  token.symbol,
-        tokenAmount:  expectedTokens,
-        xpSpent:      xp,
-        walletAddress: walletAddress.trim(),
-        pumpfunUrl:   token.pumpfunUrl,
-        vaultWallet:  VAULT_WALLET,
+        tokenSymbol:        token.symbol,
+        tokenAmount:        expectedTokens,
+        xpSpent:            xp,
+        walletAddress:      walletAddress.trim(),
+        pumpfunUrl:         token.pumpfunUrl,
+        vaultWallet:        VAULT_WALLET,
+        distributorWallet:  token.distributorWallet || null,
         persisted,
         message:      persisted
             ? `Transmutation queued! ${expectedTokens} ${token.symbol} will be sent to your wallet.`
