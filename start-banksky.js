@@ -125,8 +125,12 @@ class BankSkyLauncher {
 
   async startBackendServices() {
     return new Promise((resolve, reject) => {
+      // Force the backend API subprocess to use port 3000 so it doesn't conflict
+      // with the web server that binds to process.env.PORT (Railway's exposed port).
+      const backendEnv = Object.assign({}, process.env, { PORT: process.env.BACKEND_PORT || '3000' });
       const backendProcess = spawn('npm', ['run', 'dev'], {
         cwd: this.backendDir,
+        env: backendEnv,
         stdio: ['inherit', 'pipe', 'pipe'],
         detached: false
       });
@@ -140,7 +144,10 @@ class BankSkyLauncher {
       // Handle backend output
       backendProcess.stdout.on('data', (data) => {
         const output = data.toString();
-        if (output.includes('BankSky Local Development Server')) {
+        // Detect either the legacy banner or the Railway service banner
+        if (output.includes('BankSky Local Development Server') ||
+            output.includes('CONSCIOUSNESS REVOLUTION') ||
+            output.includes('Status: LIVE on port')) {
           console.log('✅ Backend services started');
           resolve();
         }
@@ -190,7 +197,16 @@ class BankSkyLauncher {
       });
 
       server.on('error', (error) => {
-        console.error('❌ Web server failed:', error.message);
+        if (error.code === 'EADDRINUSE') {
+          console.error(`❌ Web server failed: port ${port} is already in use.`);
+          console.error('   Tip: set BACKEND_PORT env var to move the API server off this port.');
+          // Resolve (not reject) so the launcher keeps running — the backend API
+          // subprocess is still alive on its own port and can handle API traffic.
+          resolve();
+        } else {
+          console.error('❌ Web server failed:', error.message);
+          resolve(); // don't crash the launcher; continue with backend-only mode
+        }
       });
     });
   }
