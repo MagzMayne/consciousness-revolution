@@ -20,6 +20,8 @@
 //   GEMINI_API_KEY        — Google Gemini API key
 //   EMAIL_USER            — SMTP / Gmail sender address
 //   EMAIL_PASSWORD        — SMTP / Gmail app password
+//   SUPABASE_URL          — Supabase project URL (for auth routes)
+//   SUPABASE_SERVICE_ROLE — Supabase service-role key (for auth routes)
 
 const express = require('express');
 const cors = require('cors');
@@ -43,6 +45,8 @@ const REQUIRED_ENV = {
   GEMINI_API_KEY:         'Google Gemini API key',
   EMAIL_USER:             'SMTP sender address',
   EMAIL_PASSWORD:         'SMTP sender password',
+  SUPABASE_URL:           'Supabase project URL',
+  SUPABASE_SERVICE_ROLE:  'Supabase service-role key',
 };
 
 const missingVars = Object.entries(REQUIRED_ENV)
@@ -87,6 +91,15 @@ try {
   console.log('[server-main] Agent registry routes mounted at /api/agents');
 } catch (err) {
   console.error('[server-main] Failed to mount agent routes:', err.message);
+}
+
+// ── Auth routes (register / login / password-reset) ────────────
+try {
+  const authRouter = require('./routes/auth');
+  app.use('/api/auth', authRouter);
+  console.log('[server-main] Auth routes mounted at /api/auth');
+} catch (err) {
+  console.error('[server-main] Failed to mount auth routes:', err.message);
 }
 
 // ── RootIB integration routes ───────────────────────────────────
