@@ -16,8 +16,25 @@
 (function() {
     'use strict';
 
-    const SUPABASE_URL = 'https://lgibyvqynhshkcdmglbe.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnaWJ5dnF5bmhzaGtjZG1nbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMjg5MTcsImV4cCI6MjA0OTYwNDkxN30.LGT_BBIA1AqFDhgB4QQB5dB_hYs7lhPPjm4_EJJmCl0';
+    // Supabase project: iadptixzmckbetwpoycq
+    // Credentials loaded at runtime from /api/supabase-config — never committed.
+    let SUPABASE_URL      = null;
+    let SUPABASE_ANON_KEY = null;
+
+    async function ensureSupabaseConfig() {
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) return true;
+        try {
+            const res = await fetch('/api/supabase-config');
+            if (!res.ok) return false;
+            const cfg = await res.json();
+            if (!cfg.auth || !cfg.url || !cfg.anonKey) return false;
+            SUPABASE_URL      = cfg.url;
+            SUPABASE_ANON_KEY = cfg.anonKey;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
 
     // Get dashboard ID from DNA or URL
     function getDashboardId() {
@@ -37,7 +54,9 @@
     // Get current user from localStorage or session
     function getCurrentUser() {
         try {
-            const session = localStorage.getItem('sb-lgibyvqynhshkcdmglbe-auth-token');
+            // Check canonical project localStorage key then fallback
+            const CANONICAL_PROJECT = 'iadptixzmckbetwpoycq';
+            const session = localStorage.getItem(`sb-${CANONICAL_PROJECT}-auth-token`);
             if (session) {
                 const parsed = JSON.parse(session);
                 return {
@@ -52,6 +71,7 @@
     // Load customizations from Supabase
     async function loadCustomizations(dashboardId, userId) {
         try {
+            if (!await ensureSupabaseConfig()) return null;
             const url = `${SUPABASE_URL}/rest/v1/dashboard_customizations?dashboard_id=eq.${encodeURIComponent(dashboardId)}&is_active=eq.true&select=*`;
 
             const response = await fetch(url, {
@@ -162,6 +182,7 @@
     // Save customization to Supabase
     async function saveCustomization(dashboardId, userId, userName, updates) {
         try {
+            if (!await ensureSupabaseConfig()) return false;
             // Check if customization exists
             const checkUrl = `${SUPABASE_URL}/rest/v1/dashboard_customizations?dashboard_id=eq.${encodeURIComponent(dashboardId)}&owner_id=eq.${userId}&select=id`;
             const checkResponse = await fetch(checkUrl, {

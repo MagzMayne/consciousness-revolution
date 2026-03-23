@@ -11,7 +11,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://iqjghsofnpoadwzqxmnz.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL; // https://iadptixzmckbetwpoycq.supabase.co
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);

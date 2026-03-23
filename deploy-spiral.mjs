@@ -1,6 +1,6 @@
 // Deploy Spiral Engine to Supabase
 const TOKEN = 'sbp_3519b93f2ce9756ce4e6883fc041ed93e1870f01';
-const PROJECT_REF = 'lgibygzcbvrrykfaxvbg';
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'iadptixzmckbetwpoycq';
 
 async function query(sql) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {

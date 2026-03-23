@@ -26,7 +26,7 @@ try {
     console.log('Note: .env.supabase not found');
 }
 
-const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'lgibygzcbvrrykfaxvbg';
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || 'iadptixzmckbetwpoycq';
 const DB_PASSWORD = process.env.SUPABASE_DB_PASSWORD;
 
 if (!DB_PASSWORD) {
@@ -114,7 +114,7 @@ async function executeSql() {
         } catch (altErr) {
             console.error('Alternative connection also failed:', altErr.message);
             console.log('\n*** HUMAN ACTION REQUIRED ***');
-            console.log('Go to: https://supabase.com/dashboard/project/lgibygzcbvrrykfaxvbg/sql/new');
+            console.log('Go to: https://supabase.com/dashboard/project/iadptixzmckbetwpoycq/sql/new');
             console.log('Paste SQL from: migrations/create_user_images.sql');
         }
 
