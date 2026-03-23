@@ -394,6 +394,49 @@
                     <a href="DISCORD_COMMAND_CENTER.html" class="btn btn-outline" style="font-size:.82rem;justify-content:center;">Command Center</a>
                 </div>
             </div>
+
+            <!-- 🚀 Crypto / Token hub panel -->
+            <div class="card">
+                <div class="card-head"><span class="icon">🚀</span> Crypto & Creator Rewards</div>
+                <div class="card-body">
+                    <!-- Governing token ticker -->
+                    <div style="background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.25);
+                                border-radius:12px;padding:14px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="font-size:1.6rem;">👑</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:800;font-size:.9rem;">CORE — Governing Token</div>
+                                <div style="font-size:.75rem;color:var(--muted);">CFB81yp47…Wpump</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="corePrice" style="font-weight:800;color:#FFD700;">Loading…</div>
+                                <div id="coreChg"   style="font-size:.75rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- RootIB token ticker -->
+                    <div style="background:rgba(0,217,255,.07);border:1px solid rgba(0,217,255,.2);
+                                border-radius:12px;padding:14px;margin-bottom:14px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="font-size:1.6rem;">🔖</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:800;font-size:.9rem;">ROOTIB — Idea Provenance</div>
+                                <div style="font-size:.75rem;color:var(--muted);">6xaadtw1…Spump</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div id="rootibPrice2" style="font-weight:800;color:var(--blurple);">Loading…</div>
+                                <div id="rootibChg2"   style="font-size:.75rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <a href="pumpfun-creator-hub.html" class="btn btn-primary" style="font-size:.8rem;justify-content:center;background:linear-gradient(135deg,#FF6B00,#e05500);">🔥 Creator Hub</a>
+                        <a href="https://pump.fun/create" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:.8rem;justify-content:center;background:linear-gradient(135deg,#FFD700,#e6a800);color:#000;">Launch Coin</a>
+                        <a href="https://discord.com/channels/1458000070862573805/1458298393964187783" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.8rem;justify-content:center;">#crypto-launch</a>
+                        <a href="https://discord.com/channels/1458000070862573805/1458298404764651633" target="_blank" rel="noopener" class="btn btn-outline" style="font-size:.8rem;justify-content:center;">#revenue-streams</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -434,12 +477,26 @@ async function loadStats() {
 
     // Fetch widget (public, no token)
     fetch(`https://discord.com/api/guilds/${GUILD_ID}/widget.json`)
-        .then(r => r.json())
+        .then(r => {
+            // 403 = widget disabled in Discord server settings
+            if (r.status === 403 || !r.ok) {
+                document.getElementById('discordWidget').style.display = 'none';
+                const fb = document.getElementById('widgetFallback');
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.innerHTML = r.status === 403
+                        ? '<p>Widget disabled — enable it in Discord Server Settings → Widget.</p><a href="https://discord.gg/consciousnessrevolution" target="_blank" class="btn btn-primary" style="margin-top:12px;">Open Discord</a>'
+                        : fb.innerHTML;
+                }
+                return {};
+            }
+            return r.json();
+        })
         .then(w => {
             if (w.members) onlineCount = w.members.length;
             renderStats(memberCount, onlineCount, xpToday, active24);
         })
-        .catch(() => {}); // widget may be disabled — that's fine
+        .catch(() => {}); // network offline — silently skip
 
     // Fetch community stats from Supabase via our API
     fetch('/api/discord-community-api?type=stats')
@@ -659,9 +716,48 @@ function startAutoRefresh() {
     setInterval(loadActivity, 60_000);
 }
 
+// ── Token price ticker (CORE + ROOTIB) ──────────────────────────
+async function loadTokenTicker() {
+    try {
+        const res = await fetch('/api/pumpfun-creator?action=tokens');
+        const d   = await res.json();
+        if (!d.success) return;
+
+        function fmtPrice(n) {
+            if (!n || n === 0) return '$—';
+            if (n < 0.000001) return '$' + n.toExponential(2);
+            if (n < 0.001)    return '$' + n.toFixed(6);
+            return '$' + n.toFixed(5);
+        }
+        function fmtChg(n, elId) {
+            const el = document.getElementById(elId);
+            if (!el || !n) return;
+            const up = n >= 0;
+            el.textContent = (up ? '▲ +' : '▼ ') + Math.abs(n).toFixed(2) + '%';
+            el.style.color = up ? 'var(--green)' : 'var(--red)';
+        }
+
+        const gov    = d.tokens.governing.price;
+        const rootib = d.tokens.rootib.price;
+
+        document.getElementById('corePrice').textContent =
+            gov ? fmtPrice(gov.priceUsd) : '$—';
+        fmtChg(gov?.change24h, 'coreChg');
+
+        document.getElementById('rootibPrice2').textContent =
+            rootib ? fmtPrice(rootib.priceUsd) : '$—';
+        fmtChg(rootib?.change24h, 'rootibChg2');
+    } catch {
+        document.getElementById('corePrice').textContent    = '$—';
+        document.getElementById('rootibPrice2').textContent = '$—';
+    }
+}
+
 // ── Init ─────────────────────────────────────────────────────────
 loadStats();
 startAutoRefresh();
+loadTokenTicker();
+setInterval(loadTokenTicker, 60_000);
 </script>
 
 </body>

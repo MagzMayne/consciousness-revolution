@@ -34,7 +34,7 @@ const CHANNELS = {
     t2Architects:   '1458298291509792943',
     t3Oracles:      '1458298301463007347',
     commandCenter:  '1458302230544384090',
-    memberSafety:   '1458000070862573805', // #member-safety channel
+    memberSafety:   '1458000070862573805', // #member-safety — NOTE: Discord only reveals the real channel ID to bots with SERVER MEMBERS INTENT. Using the guild ID as a fallback until the actual channel ID is confirmed.
     general:        '1458000071604834430',
     betaLab:        '1468453143653126277',
     bugReports:     '1458298445864501370'
