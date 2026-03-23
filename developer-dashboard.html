@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- RootIB: RB-20260319142113-B5ABE3C5 -->
 <!-- RootIB: RB-DEVDASH-20260321 -->
 <html lang="en">
 <head>
@@ -796,6 +797,69 @@
           <button type="submit" class="btn-primary" style="width:100%;">🚀 Submit Project via CRSync</button>
         </form>
       </div>
+
+      <!-- ── Final Stage: Pump.Fun Coin Launch ─────────────────── -->
+      <div id="pumpfun-launch-stage" style="display:none;margin-top:20px;">
+        <div style="
+            background:linear-gradient(135deg,#0f0f23 0%,#1a0f3e 100%);
+            border:1px solid #9B30FF;
+            border-radius:12px;
+            padding:20px;
+            color:#e5e7eb;
+            box-shadow:0 0 24px rgba(155,48,255,0.25);
+        ">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <span style="font-size:28px;">🔥</span>
+            <div>
+              <div style="font-weight:700;font-size:16px;color:#FFD700;">Final Stage: Launch Your Project Coin</div>
+              <div style="font-size:12px;color:#9ca3af;">Powered by Pump.Fun · Creator rewards flow automatically</div>
+            </div>
+          </div>
+
+          <div id="pumpfun-project-info" style="background:rgba(155,48,255,0.1);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;">
+            <!-- Filled by JS after submit -->
+          </div>
+
+          <div style="background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <span>🏛️</span>
+              <span style="color:#FFD700;font-weight:600;">Governing Token (CRG) — Core Rewards</span>
+            </div>
+            <div style="color:#9ca3af;word-break:break-all;font-size:11px;">CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump</div>
+            <div style="color:#a3a3a3;margin-top:4px;font-size:11px;">All investors earn as more developers join. Rewards flow to governing token holders.</div>
+            <a href="https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump"
+               target="_blank" rel="noopener noreferrer"
+               style="display:inline-block;margin-top:6px;color:#FFD700;font-size:11px;text-decoration:none;">
+               View CRG on Pump.Fun ↗
+            </a>
+          </div>
+
+          <a id="pumpfun-launch-btn"
+             href="#"
+             target="_blank"
+             rel="noopener noreferrer"
+             style="
+               display:flex;align-items:center;justify-content:center;gap:8px;
+               padding:14px;
+               background:linear-gradient(135deg,#9B30FF 0%,#C71585 100%);
+               color:#fff;font-weight:700;font-size:15px;
+               border-radius:10px;text-decoration:none;
+               box-shadow:0 4px 14px rgba(155,48,255,0.4);
+               transition:opacity .2s;
+             "
+             onmouseover="this.style.opacity='.85'"
+             onmouseout="this.style.opacity='1'"
+          >
+            🔥 Launch Coin on Pump.Fun
+          </a>
+
+          <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:11px;color:#6b7280;">
+            <span>Revenue vault: <span style="color:#9ca3af;">6HTjfgWZ…SAsfk</span></span>
+            <a href="pump-fun-dev-launcher.html" target="_blank" rel="noopener noreferrer"
+               style="color:#9B30FF;text-decoration:none;">Full launcher →</a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ───────────────────────────────────────────────────────── -->
@@ -1300,6 +1364,7 @@
     const desc = document.getElementById('sp-desc')?.value.trim();
     const cat  = document.getElementById('sp-cat')?.value;
     const site = document.getElementById('sp-site')?.value;
+    const url  = document.getElementById('sp-url')?.value.trim();
 
     if (!name || !desc || !cat || !site) {
       toast('Please fill in all required fields.');
@@ -1337,7 +1402,70 @@
     renderActivity();
 
     toast(`✅ "${name}" submitted successfully!`);
+
+    // ── Final Stage: show Pump.Fun coin launch panel ──────────────
+    _showPumpFunLaunchStage({ name, description: desc, url, category: cat });
   });
+
+  /**
+   * Show the Pump.Fun final-stage launch panel after project submission.
+   * @param {object} project
+   */
+  function _showPumpFunLaunchStage(project) {
+    const stage = document.getElementById('pumpfun-launch-stage');
+    const info  = document.getElementById('pumpfun-project-info');
+    const btn   = document.getElementById('pumpfun-launch-btn');
+    if (!stage || !info || !btn) return;
+
+    // Derive ticker — delegate to __pfcr singleton if available to avoid duplication
+    const ticker = (window.__pfcr && typeof window.__pfcr._deriveTicker === 'function')
+      ? (project.symbol || window.__pfcr._deriveTicker(project.name))
+      : (project.name || 'COIN').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 5) || 'COIN';
+
+    const fullProject = { ...project, symbol: ticker };
+
+    // Build Pump.Fun create URL — use __pfcr if loaded, else construct directly
+    let launchUrl;
+    if (window.__pfcr && typeof window.__pfcr.buildLaunchUrl === 'function') {
+      launchUrl = window.__pfcr.buildLaunchUrl(fullProject);
+    } else {
+      const govToken = 'CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump';
+      const suffix   = ` | CR | Rewards: ${govToken}`;
+      const maxDesc  = 500 - suffix.length;
+      const params   = new URLSearchParams({
+        name:        project.name || 'My CR Project',
+        symbol:      ticker,
+        description: `${(project.description || '').slice(0, maxDesc)}${suffix}`,
+        website:     project.url || 'https://consciousnessrevolution.io'
+      });
+      launchUrl = `https://pump.fun/create?${params.toString()}`;
+    }
+
+    // Populate info block
+    info.innerHTML = `
+      <div style="color:#c4b5fd;margin-bottom:4px;">Project: <strong style="color:#fff;">${project.name.replace(/</g,'&lt;')}</strong></div>
+      <div style="color:#c4b5fd;">Token ticker: <strong style="color:#FFD700;">${ticker}</strong></div>
+      ${project.url ? `<div style="color:#c4b5fd;margin-top:4px;">Website: <a href="${project.url}" target="_blank" rel="noopener" style="color:#9B30FF;">${project.url.replace(/</g,'&lt;')}</a></div>` : ''}
+    `;
+
+    // Wire launch button — with fallback localStorage recording
+    btn.href = launchUrl;
+    btn.onclick = () => {
+      if (window.__pfcr && typeof window.__pfcr.recordLaunch === 'function') {
+        window.__pfcr.recordLaunch(fullProject, null);
+      } else {
+        try {
+          const coins = JSON.parse(localStorage.getItem('cr_launched_coins') || '[]');
+          coins.unshift({ project: project.name, ticker, description: project.description, launchedAt: new Date().toISOString(), launchUrl });
+          localStorage.setItem('cr_launched_coins', JSON.stringify(coins));
+        } catch (_) {}
+      }
+    };
+
+    // Show panel
+    stage.style.display = 'block';
+    stage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 
   /* ── Boot ──────────────────────────────────────────────────── */
   window.addEventListener('load', () => {
@@ -1350,6 +1478,7 @@
 
 })();
 </script>
+  <script src="/js/pumpfun-creator-rewards.js"></script>
   <script src="/js/mesh-engine-client.js"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+// RootIB: RB-20260319142113-518F85BD
 // RootIB: RB-FACEAUTH-2026
 /**
  * face-auth-client.js — Consciousness Revolution
