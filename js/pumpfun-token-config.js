@@ -86,6 +86,8 @@ const PUMPFUN_TOKENS = {
         color: '#FFD700',
         gradient: 'linear-gradient(135deg, #FFD700 0%, #FF8C00 100%)',
         pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+        joinUrl: 'https://join.pump.fun/HSag/bful4hvo',
+        distributorWallet: '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN',
         role: 'governance',
         description: 'Main governing token for all creator rewards. Investors earn as more developers join the platform.'
     },
@@ -108,6 +110,16 @@ const PUMPFUN_TOKENS = {
 
 /** Primary vault wallet for all platform revenue. */
 const VAULT_WALLET = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+/**
+ * OKKDistributor wallet — Solflare wallet that receives funds from the main vault
+ * for automated XP-to-OKK on-chain conversions on consciousnessrevolution.io
+ * and via Discord (https://discord.gg/Yf2HUxbS).
+ */
+const OKK_DISTRIBUTOR_WALLET = '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN';
+
+/** Pump.fun referral join URL for OKK. */
+const OKK_PUMPFUN_JOIN_URL = 'https://join.pump.fun/HSag/bful4hvo';
 
 /** Pump.fun URL for creating a new token. */
 const PUMPFUN_CREATE_URL = 'https://pump.fun/create';
@@ -161,6 +173,9 @@ class PumpfunTokenConfig {
         // Vault wallet — creator rewards pool
         this.vaultWallet = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
 
+        // OKKDistributor wallet — receives vault funds for automated XP→OKK conversions
+        this.okkDistributorWallet = OKK_DISTRIBUTOR_WALLET;
+
         // Pump.Fun API endpoints
         this.pumpfunCreate = 'https://pump.fun/create';
         this.creatorHubUrl = '/pumpfun-creator-hub.html';
@@ -174,6 +189,7 @@ class PumpfunTokenConfig {
         console.log('👑 Governing Token (CORE):', this.governingToken.address);
         console.log('🔖 RootIB Token:', this.rootibToken.address);
         console.log('🏦 Vault Wallet:', this.vaultWallet);
+        console.log('📤 OKK Distributor Wallet:', this.okkDistributorWallet);
     }
 
     /**
@@ -516,16 +532,25 @@ class PumpfunTokenConfig {
     }
 
     /**
+     * Get the OKKDistributor wallet address.
+     * This Solflare wallet receives vault funds for automated XP-to-OKK conversions.
+     */
+    getOKKDistributorWallet() {
+        return this.okkDistributorWallet;
+    }
+
+    /**
      * Get all platform tokens as a registry object
      */
     getPlatformTokens() {
         return {
-            legacy:    this.token,
-            governing: this.governingToken,
-            rootib:    this.rootibToken,
-            vault:     this.vaultWallet,
-            createUrl: this.pumpfunCreate,
-            hubUrl:    this.creatorHubUrl
+            legacy:              this.token,
+            governing:           this.governingToken,
+            rootib:              this.rootibToken,
+            vault:               this.vaultWallet,
+            okkDistributorWallet: this.okkDistributorWallet,
+            createUrl:           this.pumpfunCreate,
+            hubUrl:              this.creatorHubUrl
         };
     }
 
@@ -601,10 +626,12 @@ async function initPumpfunToken(containerId = 'pumpfun-token-container') {
 
 // Auto-initialize on page load
 if (typeof window !== 'undefined') {
-    window.PumpfunTokenConfig = PumpfunTokenConfig;
-    window.PUMPFUN_TOKENS    = PUMPFUN_TOKENS;
-    window.VAULT_WALLET      = VAULT_WALLET;
-    window.PUMPFUN_CREATE_URL = PUMPFUN_CREATE_URL;
+    window.PumpfunTokenConfig      = PumpfunTokenConfig;
+    window.PUMPFUN_TOKENS          = PUMPFUN_TOKENS;
+    window.VAULT_WALLET            = VAULT_WALLET;
+    window.OKK_DISTRIBUTOR_WALLET  = OKK_DISTRIBUTOR_WALLET;
+    window.OKK_PUMPFUN_JOIN_URL    = OKK_PUMPFUN_JOIN_URL;
+    window.PUMPFUN_CREATE_URL      = PUMPFUN_CREATE_URL;
     window.getTokenPrice = getTokenPrice;
     window.getTokenBalance = getTokenBalance;
     window.formatTokenAmount = formatTokenAmount;
@@ -613,10 +640,11 @@ if (typeof window !== 'undefined') {
 
     // Platform token helpers (global)
     const _platformCfg = new PumpfunTokenConfig();
-    window.PLATFORM_TOKENS = _platformCfg.getPlatformTokens();
-    window.GOVERNING_TOKEN = _platformCfg.getGoverningToken();
-    window.ROOTIB_TOKEN    = _platformCfg.getRootibToken();
-    window.VAULT_WALLET    = _platformCfg.getVaultWallet();
+    window.PLATFORM_TOKENS         = _platformCfg.getPlatformTokens();
+    window.GOVERNING_TOKEN         = _platformCfg.getGoverningToken();
+    window.ROOTIB_TOKEN            = _platformCfg.getRootibToken();
+    window.VAULT_WALLET            = _platformCfg.getVaultWallet();
+    window.OKK_DISTRIBUTOR_WALLET  = _platformCfg.getOKKDistributorWallet();
 
     // Auto-init when DOM is ready
     document.addEventListener('DOMContentLoaded', async () => {
@@ -629,3 +657,4 @@ console.log('🔥 Pump.fun Token Config System Ready');
 console.log('🏛️ Governing token:', PUMPFUN_TOKENS.GOVERN.address);
 console.log('📡 Crypto channel token:', PUMPFUN_TOKENS.CRYPTO_CHANNEL.address);
 console.log('🔐 Vault wallet:', VAULT_WALLET);
+console.log('📤 OKK distributor wallet:', OKK_DISTRIBUTOR_WALLET);

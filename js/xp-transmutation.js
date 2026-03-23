@@ -35,6 +35,8 @@ const XP_TOKENS = {
         color: '#FFD700',
         gradient: 'linear-gradient(135deg, #FFD700 0%, #FF8C00 100%)',
         pumpfunUrl: 'https://pump.fun/coin/CFB81yp47VXeypR9VPqVdPPPtfVVTc47P4H5TzfWpump',
+        joinUrl: 'https://join.pump.fun/HSag/bful4hvo',
+        distributorWallet: '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN',
         xpRate: 100,       // 100 XP = 1 OKK
         minXP: 1000,       // minimum 1 000 XP to redeem
         description: 'Main governing token. Investors earn as more developers join the platform.',
@@ -56,6 +58,13 @@ const XP_TOKENS = {
 };
 
 const VAULT_WALLET = '6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk';
+
+/**
+ * OKKDistributor wallet — Solflare wallet that receives vault funds for
+ * automated XP-to-OKK on-chain conversions on consciousnessrevolution.io
+ * and via Discord (https://discord.gg/Yf2HUxbS).
+ */
+const OKK_DISTRIBUTOR_WALLET = '5cEViMoVC383m92PhLxKRjUQUmLtktCWd2TDxYmKrajN';
 const STORAGE_KEY  = 'cr_xp_transmutation';
 
 /* ─── XP Aggregator ─────────────────────────────────────────────────── */
@@ -232,6 +241,8 @@ const XPTransmutation = {
             userId: userId || localStorage.getItem('spiralUserId') || localStorage.getItem('userEmail') || 'anonymous',
             timestamp: new Date().toISOString(),
             vaultWallet: VAULT_WALLET,
+            // OKK transmutations route through the OKKDistributor wallet
+            ...(token.distributorWallet && { distributorWallet: token.distributorWallet }),
             pumpfunUrl: token.pumpfunUrl
         };
 
@@ -329,16 +340,18 @@ const XPTransmutation = {
 /* ─── Global exposure ────────────────────────────────────────────────── */
 
 if (typeof window !== 'undefined') {
-    window.XP_TOKENS        = XP_TOKENS;
-    window.XPAggregator     = XPAggregator;
-    window.XPTransmutation  = XPTransmutation;
-    window.VAULT_WALLET     = window.VAULT_WALLET || VAULT_WALLET;
+    window.XP_TOKENS             = XP_TOKENS;
+    window.XPAggregator          = XPAggregator;
+    window.XPTransmutation       = XPTransmutation;
+    window.VAULT_WALLET          = window.VAULT_WALLET || VAULT_WALLET;
+    window.OKK_DISTRIBUTOR_WALLET = OKK_DISTRIBUTOR_WALLET;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { XP_TOKENS, XPAggregator, XPTransmutation };
+    module.exports = { XP_TOKENS, XPAggregator, XPTransmutation, OKK_DISTRIBUTOR_WALLET };
 }
 
 console.log('🔄 XP Transmutation Engine ready');
 console.log('🏛️ OKK  :', XP_TOKENS.OKK.address);
 console.log('💡 RootIB:', XP_TOKENS.RootIB.address);
+console.log('📤 OKK distributor wallet:', OKK_DISTRIBUTOR_WALLET);
