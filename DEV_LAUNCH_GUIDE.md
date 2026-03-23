@@ -17,15 +17,23 @@ cd consciousness-revolution
 # 2. Install Node dependencies
 npm install
 
-# 3. Start local dev server
+# 3. Pull shared assets from barbrickdesign.github.io (additive, never overwrites)
+./scripts/sync.sh pull
+
+# 4. Start local dev server
 npm start
 
-# 4. Open the developer hub in your browser
+# 5. Open the developer hub in your browser
 open http://localhost:3000/dev-launch.html
 
-# 5. Run tests to confirm everything is healthy
+# 6. Run tests to confirm everything is healthy
 npm test
 ```
+
+> **Cross-repo sync** — both `consciousness-revolution` and `barbrickdesign.github.io`
+> share CSS, JS, and component files.  Step 3 pulls any new shared files from
+> barbrickdesign into this repo.  See [`CROSS_REPO_SYNC.md`](CROSS_REPO_SYNC.md)
+> for the full sync guide including how to push changes back.
 
 ---
 
