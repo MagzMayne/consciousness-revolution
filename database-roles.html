@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Manage access control to your database through users, groups, and permissions">
+    <title>Database Roles - Consciousness Revolution</title>
+    <script src="/js/mobile-responsive.js" defer></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        /* ── Top nav ── */
+        .top-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            font-size: 0.9em;
+        }
+        .top-nav a {
+            color: #8b9dc3;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .top-nav a:hover { color: #00f0ff; }
+        .top-nav .sep { color: #444; }
+
+        /* ── Page header ── */
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 {
+            font-size: 1.9em;
+            font-weight: 700;
+            background: linear-gradient(90deg, #e0e0e0, #a0a8c0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        .page-header p {
+            color: #8b9dc3;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        /* ── Controls row ── */
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 220px;
+            max-width: 360px;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 9px 12px 9px 36px;
+            color: #e0e0e0;
+            font-size: 0.9em;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-box input::placeholder { color: #5a6580; }
+        .search-box input:focus { border-color: rgba(0,240,255,0.5); }
+        .search-box .icon {
+            position: absolute;
+            left: 11px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #5a6580;
+            font-size: 1em;
+            pointer-events: none;
+        }
+
+        /* connections counter */
+        .connections-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .connections-pill .label { color: #8b9dc3; }
+        .connections-pill .count { color: #e0e0e0; font-weight: 600; }
+
+        /* Add role button */
+        .btn-add-role {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #10b981;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 16px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-left: auto;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .btn-add-role:hover { background: #059669; transform: translateY(-1px); }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            margin-bottom: 28px;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #8b9dc3;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.92em;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn:hover { color: #e0e0e0; }
+        .tab-btn.active {
+            color: #e0e0e0;
+            border-bottom-color: #00f0ff;
+        }
+
+        /* ── Alert banners ── */
+        .alert {
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .alert-warning {
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.4);
+            color: #fbbf24;
+        }
+        .alert-error {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: #f87171;
+        }
+        .alert code {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88em;
+        }
+
+        /* ── Spinner ── */
+        .spinner-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 20px;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(0,240,255,0.2);
+            border-top-color: #00f0ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Section header ── */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #8b9dc3;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .badge-protected {
+            background: rgba(99,102,241,0.2);
+            border: 1px solid rgba(99,102,241,0.5);
+            color: #a5b4fc;
+            font-size: 0.75em;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Role list ── */
+        .roles-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 900px;
+        }
+
+        .role-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 18px 20px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .role-card:hover {
+            border-color: rgba(0,240,255,0.3);
+            background: rgba(255,255,255,0.07);
+        }
+
+        .role-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .role-name {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #e0e0e0;
+        }
+        .role-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .role-id {
+            font-size: 0.8em;
+            color: #5a6580;
+        }
+        .connections-count {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.82em;
+            color: #8b9dc3;
+        }
+        .connections-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #5a6580;
+        }
+        .connections-dot.active { background: #10b981; }
+
+        /* permission badges */
+        .permissions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .perm-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.78em;
+            color: #a0acc0;
+        }
+        .perm-badge .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            flex-shrink: 0;
+        }
+
+        /* empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #5a6580;
+        }
+        .empty-state .icon { font-size: 2.5em; margin-bottom: 12px; }
+        .empty-state p { font-size: 0.95em; }
+
+        /* responsive */
+        @media (max-width: 600px) {
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .search-box { max-width: 100%; }
+            .btn-add-role { margin-left: 0; width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- breadcrumb nav -->
+    <nav class="top-nav" aria-label="Breadcrumb">
+        <a href="index.html">Home</a>
+        <span class="sep">›</span>
+        <a href="#">Database</a>
+        <span class="sep">›</span>
+        <span>Roles</span>
+    </nav>
+
+    <!-- page header -->
+    <header class="page-header">
+        <h1>Database Roles</h1>
+        <p>Manage access control to your database through users, groups, and permissions</p>
+    </header>
+
+    <!-- controls row -->
+    <div class="controls-row">
+        <div class="search-box">
+            <span class="icon" aria-hidden="true">🔍</span>
+            <input type="search" id="search-input" placeholder="Search for a role" aria-label="Search for a role">
+        </div>
+        <div class="connections-pill" id="connections-pill" aria-label="Active connections">
+            <span class="label">Active connections</span>
+            <span class="count" id="connections-count">—</span>
+        </div>
+        <button class="btn-add-role" id="btn-add-role" aria-label="Add role">
+            ＋ Add role
+        </button>
+    </div>
+
+    <!-- tabs -->
+    <div class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true"  data-tab="all"    id="tab-all">All roles</button>
+        <button class="tab-btn"        role="tab" aria-selected="false" data-tab="active" id="tab-active">Active roles</button>
+    </div>
+
+    <!-- alert area -->
+    <div id="alert-area" role="alert" aria-live="polite"></div>
+
+    <!-- spinner -->
+    <div class="spinner-wrap" id="spinner" aria-label="Loading roles…">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- roles list -->
+    <main id="roles-container" style="display:none;">
+        <!-- section header -->
+        <div class="section-header">
+            <span class="section-title">Roles managed by Supabase</span>
+            <span class="badge-protected">Protected</span>
+        </div>
+
+        <div class="roles-list" id="roles-list" role="list"></div>
+
+        <!-- empty state (hidden until needed) -->
+        <div class="empty-state" id="empty-state" style="display:none;" aria-live="polite">
+            <div class="icon">👤</div>
+            <p>No roles match your search.</p>
+        </div>
+    </main>
+
+    <!-- Add role modal / coming-soon toast -->
+    <div id="add-role-toast" role="status" aria-live="polite"
+         style="display:none; position:fixed; bottom:24px; right:24px;
+                background:rgba(16,185,129,0.9); color:#fff;
+                padding:12px 20px; border-radius:10px; font-size:0.9em;
+                z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+        ✅ Add Role — coming soon
+    </div>
+
+    <script>
+    'use strict';
+
+    // ── Permission label map ──────────────────────────────────────────────────
+    // Maps Management API field names to human-readable labels matching the UI.
+    const PERM_LABELS = {
+        can_login:               'User can login',
+        can_create_role:         'User can create roles',
+        can_create_db:           'User can create databases',
+        is_replication_role:     'User can initiate streaming replication and put the system in and out of backup mode',
+        bypass_rls:              'User bypasses every row level security policy',
+        is_superuser:            'User is a Superuser',
+        inherit_role:            'User inherits role privileges',
+        is_no_inherit:           'User does NOT inherit role privileges',
+        can_bypass_rls:          'User bypasses every row level security policy',
+    };
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let allRoles   = [];
+    let activeTab  = 'all';
+    let searchTerm = '';
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const $spinner       = document.getElementById('spinner');
+    const $container     = document.getElementById('roles-container');
+    const $list          = document.getElementById('roles-list');
+    const $empty         = document.getElementById('empty-state');
+    const $alertArea     = document.getElementById('alert-area');
+    const $searchInput   = document.getElementById('search-input');
+    const $connCount     = document.getElementById('connections-count');
+    const $addBtn        = document.getElementById('btn-add-role');
+    const $toast         = document.getElementById('add-role-toast');
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function showAlert(html, type = 'warning') {
+        $alertArea.innerHTML = `<div class="alert alert-${type}" role="alert">${html}</div>`;
+    }
+
+    function clearAlert() { $alertArea.innerHTML = ''; }
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = String(str ?? '');
+        return d.innerHTML;
+    }
+
+    function totalConnections(roles) {
+        return roles.reduce((sum, r) => sum + (r.active_connections ?? 0), 0);
+    }
+
+    // ── Render a single role card ─────────────────────────────────────────────
+    function buildRoleCard(role) {
+        const name        = escapeHtml(role.name  ?? role.rolname ?? '(unnamed)');
+        const id          = escapeHtml(role.id    ?? role.oid     ?? '—');
+        const connCount   = role.active_connections ?? 0;
+        const dotClass    = connCount > 0 ? 'active' : '';
+
+        // Collect active permission badges
+        const permFields = [
+            ['can_login',           role.can_login],
+            ['can_create_role',     role.can_create_role],
+            ['can_create_db',       role.can_create_db],
+            ['bypass_rls',          role.bypass_rls ?? role.can_bypass_rls],
+            ['is_superuser',        role.is_superuser],
+            ['is_replication_role', role.is_replication_role],
+        ];
+
+        const permBadges = permFields
+            .filter(([, v]) => v)
+            .map(([key]) => {
+                const label = PERM_LABELS[key] ?? key;
+                return `<span class="perm-badge"><span class="dot" aria-hidden="true"></span>${escapeHtml(label)}</span>`;
+            })
+            .join('');
+
+        const article = document.createElement('article');
+        article.className = 'role-card';
+        article.setAttribute('role', 'listitem');
+        article.setAttribute('aria-label', `Role: ${role.name ?? role.rolname}`);
+        article.innerHTML = `
+            <div class="role-header">
+                <span class="role-name">${name}</span>
+                <div class="role-meta">
+                    <span class="role-id">(ID: ${id})</span>
+                    <span class="connections-count">
+                        <span class="connections-dot ${dotClass}" aria-hidden="true"></span>
+                        ${escapeHtml(connCount)} connection${connCount === 1 ? '' : 's'}
+                    </span>
+                </div>
+            </div>
+            ${permBadges ? `<div class="permissions" aria-label="Permissions">${permBadges}</div>` : ''}
+        `;
+        return article;
+    }
+
+    // ── Render the visible roles list ─────────────────────────────────────────
+    function renderRoles() {
+        const term = searchTerm.toLowerCase().trim();
+
+        const visible = allRoles.filter(r => {
+            const name = (r.name ?? r.rolname ?? '').toLowerCase();
+            if (term && !name.includes(term)) return false;
+            if (activeTab === 'active' && !(r.active_connections > 0)) return false;
+            return true;
+        });
+
+        $list.innerHTML = '';
+
+        if (visible.length === 0) {
+            $empty.style.display = 'block';
+        } else {
+            $empty.style.display = 'none';
+            visible.forEach(role => $list.appendChild(buildRoleCard(role)));
+        }
+    }
+
+    // ── Load roles from the Netlify function ──────────────────────────────────
+    async function loadRoles() {
+        $spinner.style.display  = 'flex';
+        $container.style.display = 'none';
+        clearAlert();
+
+        try {
+            const res  = await fetch('/api/supabase-roles');
+            const data = await res.json();
+
+            if (!data.auth) {
+                showAlert(
+                    `<strong>Configuration required:</strong> ${escapeHtml(data.message ?? '')} ` +
+                    `Set <code>SUPABASE_URL</code> and <code>SUPABASE_ACCESS_TOKEN</code> in your ` +
+                    `Netlify environment variables.`,
+                    'warning'
+                );
+                $spinner.style.display   = 'none';
+                $container.style.display = 'block';
+                allRoles = [];
+                renderRoles();
+                return;
+            }
+
+            if (data.api_error) {
+                showAlert(
+                    `<strong>API error:</strong> ${escapeHtml(data.api_error)}`,
+                    'error'
+                );
+            }
+
+            allRoles = Array.isArray(data.roles) ? data.roles : [];
+
+            // Update the connections counter (total active connections / max)
+            const totalConn = totalConnections(allRoles);
+            $connCount.textContent = totalConn;
+
+        } catch (err) {
+            showAlert(
+                `<strong>Network error:</strong> ${escapeHtml(err.message)} — ` +
+                `check your connection and try reloading.`,
+                'error'
+            );
+            allRoles = [];
+        }
+
+        $spinner.style.display   = 'none';
+        $container.style.display = 'block';
+        renderRoles();
+    }
+
+    // ── Event listeners ───────────────────────────────────────────────────────
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+            activeTab = btn.dataset.tab;
+            renderRoles();
+        });
+    });
+
+    // Search
+    $searchInput.addEventListener('input', () => {
+        searchTerm = $searchInput.value;
+        renderRoles();
+    });
+
+    // Add role button — placeholder
+    $addBtn.addEventListener('click', () => {
+        $toast.style.display = 'block';
+        setTimeout(() => { $toast.style.display = 'none'; }, 2500);
+    });
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    loadRoles();
+    </script>
+</body>
+</html>
