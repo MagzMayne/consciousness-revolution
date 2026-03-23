@@ -79,9 +79,12 @@ export async function handler(event, context) {
         const supabase = getSupabaseAdmin();
 
         // Send the password-reset email via Supabase Auth
+        // Use SITE_URL env var if set (e.g. https://barbrickdesign.github.io), falling back
+        // to the primary domain.  The reset page must be deployed at this path on the site.
+        const siteUrl = (process.env.SITE_URL || 'https://conciousnessrevolution.io').replace(/\/$/, '');
         const { error } = await supabase.auth.resetPasswordForEmail(
             validation.sanitized.email,
-            { redirectTo: 'https://conciousnessrevolution.io/reset-password.html' }
+            { redirectTo: `${siteUrl}/reset-password.html` }
         );
 
         if (error) {

@@ -201,7 +201,19 @@ export async function handler(event, context) {
         // Security: Set tokens as httpOnly cookies instead of response body
         // This prevents XSS attacks from stealing tokens
         const isProduction = process.env.NODE_ENV === 'production';
-        const cookieDomain = isProduction ? '.conciousnessrevolution.io' : '';
+        // Determine cookie domain based on the request host so that both
+        // barbrickdesign.github.io and conciousnessrevolution.io are supported.
+        // When served from GitHub Pages or an unknown host we omit the Domain
+        // attribute so the cookie is scoped to the host that set it.
+        const requestHost = event.headers?.host || event.headers?.Host || '';
+        let cookieDomain = '';
+        if (isProduction) {
+            if (requestHost.includes('conciousnessrevolution.io') || requestHost.includes('consciousnessrevolution.io')) {
+                cookieDomain = '.conciousnessrevolution.io';
+            }
+            // barbrickdesign.github.io and other origins get no Domain attribute
+            // (cookie scopes to the netlify host that served the response)
+        }
         const accessTokenMaxAge = 3600; // 1 hour
         const refreshTokenMaxAge = 604800; // 7 days
 

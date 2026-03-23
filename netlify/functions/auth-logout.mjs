@@ -106,7 +106,14 @@ export async function handler(event, context) {
 
         // Clear all auth cookies with proper security settings
         const isProduction = process.env.NODE_ENV === 'production';
-        const cookieDomain = isProduction ? '.conciousnessrevolution.io' : '';
+        // Determine cookie domain dynamically (mirrors auth-login.mjs logic)
+        const requestHost = event.headers?.host || event.headers?.Host || '';
+        let cookieDomain = '';
+        if (isProduction) {
+            if (requestHost.includes('conciousnessrevolution.io') || requestHost.includes('consciousnessrevolution.io')) {
+                cookieDomain = '.conciousnessrevolution.io';
+            }
+        }
 
         // Set cookies to empty with immediate expiration
         const clearCookies = [
@@ -134,7 +141,13 @@ export async function handler(event, context) {
 
         // Even on error, clear cookies
         const isProduction = process.env.NODE_ENV === 'production';
-        const cookieDomain = isProduction ? '.conciousnessrevolution.io' : '';
+        const requestHost = event.headers?.host || event.headers?.Host || '';
+        let cookieDomain = '';
+        if (isProduction) {
+            if (requestHost.includes('conciousnessrevolution.io') || requestHost.includes('consciousnessrevolution.io')) {
+                cookieDomain = '.conciousnessrevolution.io';
+            }
+        }
 
         const clearCookies = [
             `access_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0${cookieDomain ? `; Domain=${cookieDomain}` : ''}`,
