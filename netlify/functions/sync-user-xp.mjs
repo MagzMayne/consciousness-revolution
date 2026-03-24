@@ -63,9 +63,20 @@ export async function handler(event, context) {
     }
 
     try {
-        const { action, user_id, discord_user_id, xp_data } = event.httpMethod === 'GET'
-            ? event.queryStringParameters || {}
-            : JSON.parse(event.body || '{}');
+        let payload;
+        try {
+            payload = event.httpMethod === 'GET'
+                ? event.queryStringParameters || {}
+                : JSON.parse(event.body || '{}');
+        } catch (parseError) {
+            return {
+                statusCode: 400,
+                headers: CORS_HEADERS,
+                body: JSON.stringify({ error: 'Invalid JSON in request body' })
+            };
+        }
+
+        const { action, user_id, discord_user_id, xp_data } = payload;
 
         if (!action) {
             return {
@@ -92,6 +103,9 @@ export async function handler(event, context) {
 
             case 'update_discord':
                 return await updateDiscordRolesFromXP(supabase, discord_user_id);
+
+            case 'log_visit':
+                return await logPageVisit(supabase, payload);
 
             default:
                 return {
@@ -525,4 +539,62 @@ async function updateDiscordRole(userId, levelName) {
             message: error.message
         };
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOG PAGE VISIT (lightweight backend logging for consciousnessrevolution.io)
+// ═══════════════════════════════════════════════════════════════
+
+async function logPageVisit(supabase, payload) {
+    const { user_id, page, domain, referrer, xp_snapshot } = payload;
+
+    if (!user_id || !page) {
+        return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: 'Missing user_id or page' })
+        };
+    }
+
+    // Upsert a lightweight visit record into the users table
+    const updateData = {
+        id: user_id,
+        last_synced: new Date().toISOString()
+    };
+
+    // Carry XP snapshot if provided (keeps Supabase in sync without a full sync call)
+    if (xp_snapshot && typeof xp_snapshot.currentXP === 'number') {
+        updateData.xp = xp_snapshot.currentXP;
+        if (typeof xp_snapshot.totalXPEarned === 'number') {
+            updateData.total_xp_earned = xp_snapshot.totalXPEarned;
+        }
+    }
+
+    const { error } = await supabase
+        .from('users')
+        .upsert(updateData, { onConflict: 'id' });
+
+    if (error) {
+        console.warn('[SYNC-USER-XP] log_visit upsert failed:', error.message);
+    }
+
+    // Log the visit event to discord_xp_ledger as a lightweight audit trail
+    const { error: ledgerError } = await supabase
+        .from('discord_xp_ledger')
+        .insert({
+            user_id,
+            action: 'page_visit',
+            xp_earned: 0,
+            notes: JSON.stringify({ page, domain: domain || 'unknown', referrer: referrer || null })
+        });
+
+    if (ledgerError) {
+        console.warn('[SYNC-USER-XP] log_visit ledger insert failed:', ledgerError.message);
+    }
+
+    return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ success: true, logged: true, page, user_id })
+    };
 }
