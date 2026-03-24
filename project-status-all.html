@@ -527,6 +527,8 @@ AI Assistant: Merlin AI / ARAYA
       <div class="mission-progress-card">
         <div class="section-title" style="margin-bottom:14px;">Quick Links</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
+          <a href="https://discord.gg/Yf2HUxbS" target="_blank" rel="noopener" class="btn btn-outline" style="justify-content:flex-start;border-color:rgba(88,101,242,0.5);color:#7289da;">&#128172; Join Discord — Learn &amp; Earn</a>
+          <a href="ezAutobots.html" class="btn btn-outline" style="justify-content:flex-start;border-color:rgba(74,222,128,0.4);color:#4ade80;">&#9881; EzAutobots — Free Apprentice Tier</a>
           <a href="project-status-dashboard.html" class="btn btn-outline" style="justify-content:flex-start;">&#128202; Task Status Dashboard</a>
           <a href="agent-management-dashboard.html" class="btn btn-outline" style="justify-content:flex-start;">&#129302; Agent Management</a>
           <a href="xp-transmutation-hub.html" class="btn btn-outline" style="justify-content:flex-start;">&#9889; XP Transmutation Hub</a>
@@ -1492,14 +1494,36 @@ function formatXP(n) {
 }
 
 function refreshXP() {
-  var result = readLocalXP();
-  var total = result.total, src = result.src;
+  // Use CRXPSync if available; fall back to inline reader
+  var src_data, total;
+  if (window.CRXPSync) {
+    var result = CRXPSync.readLocalXP();
+    total = result.total; src_data = result.src;
+  } else {
+    var result2 = readLocalXP();
+    total = result2.total; src_data = result2.src;
+  }
   var set = function(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; };
-  set('xp-display', formatXP(total) + ' XP');
-  set('src-lvl',     formatXP(src.lvl)    + ' XP');
-  set('src-spiral',  formatXP(src.spiral) + ' XP');
-  set('src-reward',  formatXP(src.reward) + ' XP');
-  set('src-discord', '0 XP');
+  var fmt = window.CRXPSync ? CRXPSync.formatXP : formatXP;
+  set('xp-display', fmt(total) + ' XP');
+  set('src-lvl',     fmt(src_data.lvl)    + ' XP');
+  set('src-spiral',  fmt(src_data.spiral) + ' XP');
+  set('src-reward',  fmt(src_data.reward) + ' XP');
+  set('src-discord', '…');
+
+  // Fetch Discord XP from backend
+  if (window.CRXPSync) {
+    CRXPSync.fetchDiscordXP().then(function(dxp) {
+      var safeDxp = (typeof dxp === 'number' && !isNaN(dxp)) ? dxp : 0;
+      set('src-discord', fmt(safeDxp) + ' XP');
+      set('xp-display', fmt(total + safeDxp) + ' XP');
+    }).catch(function() {
+      set('src-discord', '0 XP');
+      set('xp-display', fmt(total) + ' XP');
+    });
+  } else {
+    set('src-discord', '0 XP');
+  }
 }
 
 refreshXP();
@@ -1642,6 +1666,16 @@ console.log('Vault: 6HTjfgWZYMbENnMAJJFhxWR2VZDxdze3qV7zznSAsfk');
 <script src="/self-healing.js"></script>
 <!-- Mesh engine -->
 <script src="/js/mesh-engine-client.js"></script>
+<!-- Cross-site XP sync (Discord, backend logging) -->
+<script src="/js/cr-xp-sync.js"></script>
+<script>
+  // Log this visit to the backend for consciousnessrevolution.io tracking
+  if (window.CRXPSync) {
+    CRXPSync.logVisit('project-status-all', window.location.hostname);
+    // Refresh XP display with backend Discord XP once module is ready
+    refreshXP();
+  }
+</script>
 
 </body>
 </html>

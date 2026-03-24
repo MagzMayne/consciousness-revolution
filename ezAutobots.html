@@ -1247,6 +1247,62 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
           One‑click local node launcher. Any machine becomes a fully registered, heartbeat‑driven node in your mesh.
         </p>
 
+        <!-- ── Discord + Apprentice onboarding banner ──────────── -->
+        <div id="ez-onboard-banner" style="
+          background:linear-gradient(135deg,rgba(88,101,242,0.15),rgba(74,222,128,0.10));
+          border:1px solid rgba(88,101,242,0.35);
+          border-radius:12px;padding:14px 18px;margin-bottom:18px;
+          display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+          <div style="font-size:2rem;line-height:1;flex-shrink:0">🚀</div>
+          <div style="flex:1;min-width:180px">
+            <div style="font-weight:700;font-size:0.95rem;color:#fff;margin-bottom:4px">
+              Free &amp; Apprentice Tier — Learn, Build &amp; Earn
+            </div>
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);line-height:1.5;margin-bottom:10px">
+              Launch your first node for <strong style="color:#4ade80">free</strong>.
+              Earn mesh rewards for every compute cycle.
+              Join our Discord to get help, claim tasks, and level up to Builder+.
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <a href="https://discord.gg/Yf2HUxbS" target="_blank" rel="noopener"
+                 style="display:inline-flex;align-items:center;gap:6px;
+                        background:rgba(88,101,242,0.25);border:1px solid rgba(88,101,242,0.5);
+                        border-radius:20px;padding:6px 14px;color:#7289da;
+                        font-size:0.78rem;font-weight:700;text-decoration:none;transition:background 0.2s"
+                 onmouseover="this.style.background='rgba(88,101,242,0.4)'"
+                 onmouseout="this.style.background='rgba(88,101,242,0.25)'">
+                &#128172; Join Discord
+              </a>
+              <a href="consciousness-revolution-hub.html"
+                 style="display:inline-flex;align-items:center;gap:6px;
+                        background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.35);
+                        border-radius:20px;padding:6px 14px;color:#4ade80;
+                        font-size:0.78rem;font-weight:700;text-decoration:none;transition:background 0.2s"
+                 onmouseover="this.style.background='rgba(74,222,128,0.25)'"
+                 onmouseout="this.style.background='rgba(74,222,128,0.12)'">
+                &#129395; See All Tiers →
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Apprentice XP display ────────────────────────────── -->
+        <div id="ez-xp-bar" style="
+          background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);
+          border-radius:10px;padding:10px 14px;margin-bottom:18px;
+          display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:1.4rem;line-height:1">⚡</div>
+          <div style="flex:1;min-width:120px">
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Your XP</div>
+            <div style="font-size:1.1rem;font-weight:800;color:#ffd700" id="ez-xp-total">— XP</div>
+          </div>
+          <div style="flex:1;min-width:120px">
+            <div style="font-size:0.72rem;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Level</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#00ff88" id="ez-xp-level">APPRENTICE</div>
+          </div>
+          <a href="project-status-all.html" style="font-size:0.72rem;color:rgba(255,255,255,0.4);text-decoration:none;white-space:nowrap">View all XP →</a>
+        </div>
+
         <div class="badge-row">
           <div class="badge">
             <span>Mode</span> Self‑assembling node
@@ -3773,5 +3829,69 @@ SUPPORT
       setTimeout(() => probeLocalBackend(/* silent= */ true), 3000);
     })();
   </script><script src="/js/mesh-engine-client.js" defer></script>  <script src="/js/rootib-footer.js"></script>
+<!-- Cross-site XP sync — logs visits, tracks Discord XP, awards XP on node actions -->
+<script src="/js/cr-xp-sync.js"></script>
+<script>
+  (function initEzXP() {
+    // Log this visit to the backend
+    if (window.CRXPSync) {
+      CRXPSync.logVisit('ezAutobots', window.location.hostname);
+    }
+
+    // Render XP bar
+    function updateXPBar() {
+      if (!window.CRXPSync) return;
+      var xpResult = CRXPSync.readLocalXP();
+      var level    = CRXPSync.getLevel(xpResult.total);
+      var el       = document.getElementById('ez-xp-total');
+      var lvlEl    = document.getElementById('ez-xp-level');
+      if (el)    el.textContent  = CRXPSync.formatXP(xpResult.total) + ' XP';
+      if (lvlEl) lvlEl.textContent = level.name;
+    }
+
+    updateXPBar();
+
+    // Listen for XP updates from any other module
+    if (window.CRXPSync) {
+      CRXPSync.onXPUpdate(function () { updateXPBar(); });
+    }
+
+    // Hook into node registration to award XP
+    var _origRegister = window.registerNode;
+    if (typeof _origRegister === 'function') {
+      window.registerNode = async function () {
+        var res = await _origRegister.apply(this, arguments);
+        try {
+          if (window.CRXPSync) {
+            CRXPSync.awardXP('node_register');
+            updateXPBar();
+          }
+        } catch (xpErr) {
+          console.warn('[CRXPSync] XP award on register failed:', xpErr);
+        }
+        return res;
+      };
+    }
+
+    // Hook into heartbeat to award XP (every 5th heartbeat = 1 award)
+    var _hbCount = 0;
+    var _origHb = window.sendHeartbeat;
+    if (typeof _origHb === 'function') {
+      window.sendHeartbeat = async function () {
+        var res = await _origHb.apply(this, arguments);
+        try {
+          _hbCount++;
+          if (_hbCount % 5 === 0 && window.CRXPSync) {
+            CRXPSync.awardXP('node_heartbeat');
+            updateXPBar();
+          }
+        } catch (xpErr) {
+          console.warn('[CRXPSync] XP award on heartbeat failed:', xpErr);
+        }
+        return res;
+      };
+    }
+  })();
+</script>
 </body>
 </html>
