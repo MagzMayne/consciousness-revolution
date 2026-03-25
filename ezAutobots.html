@@ -1489,6 +1489,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
                 <div style="font-size:10px;color:#fde68a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">&#x26A1; Pending Tasks from Backend</div>
                 <div id="taskPanelContent" style="font-size:11px;color:var(--muted)">Loading&hellip;</div>
               </div>
+              <!-- Relay fallback panel — shows mesh relay task activity -->
+              <div class="task-panel" id="relayTaskPanel" style="display:none">
+                <div style="font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">&#x1F504; Netlify Fallback Tasks</div>
+                <div id="relayTaskPanelContent" style="font-size:11px;color:var(--muted)">Idle — no queued relay tasks.</div>
+              </div>
               <div class="hint">
                 <strong>Not running yet?</strong> Download the Starter Pack above and run
                 <code>start.bat</code> (Windows) or <code>bash start.sh</code> (macOS/Linux).
@@ -1529,6 +1534,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
               <div class="rlabel">Tasks Done</div>
               <div class="rvalue" id="rewardTasks">0</div>
               <div class="rsub">completed tasks</div>
+            </div>
+            <div class="rewards-metric">
+              <div class="rlabel">Relay Tasks</div>
+              <div class="rvalue" id="relayTasksDoneEl">0</div>
+              <div class="rsub">fallback tasks run</div>
             </div>
             <div class="rewards-metric">
               <div class="rlabel">Est. Monthly</div>
@@ -1731,6 +1741,12 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     let autoprobeTimer = null;       // background health-check interval
     let _nodeOnlineSince = null;     // timestamp when local backend first came online
 
+    // ── Relay fallback worker ──────────────────────────────────────────────
+    const RELAY_BACKEND_URL   = "/api/node-relay";
+    const RELAY_POLL_INTERVAL = 5_000;   // poll every 5 seconds when node is running
+    let   relayWorkerTimer    = null;
+    let   relayTasksDone      = 0;       // relay tasks completed by this node session
+
     // ---- USER SESSION STATE -------------------------------------------
     // userId is stored in localStorage; password is NEVER stored client-side.
     // The SHA-256 digest is computed at login/register time and used only in
@@ -1876,6 +1892,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
           clearInterval(heartbeatTimer);
           heartbeatTimer = null;
         }
+        stopRelayWorker();
       }
       if (signoutBtn) signoutBtn.addEventListener("click", signOut);
 
@@ -2439,6 +2456,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         setStatusDotOnline(nodeStatusDot, true);
 
         startHeartbeatLoop();
+        startRelayWorker();
 
         // Show disconnect button and, on mobile, update the contribution panel
         if (disconnectNodeBtn) disconnectNodeBtn.style.display = "";
@@ -2460,6 +2478,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
         // Still start the local heartbeat loop so the UI reflects uptime
         startHeartbeatLoop();
+        startRelayWorker();
       }
     }
 
@@ -2588,6 +2607,181 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
         log("Heartbeat loop stopped");
+      }
+    }
+
+    // ── Relay fallback worker ──────────────────────────────────────────────
+    // Polls /api/node-relay/pending-tasks while this node is running and
+    // processes any tasks queued by failing Netlify functions or clients.
+
+    /** Task processors keyed by task type */
+    const RELAY_PROCESSORS = {
+      /** echo — return payload unchanged; useful for testing */
+      echo: async function (task) {
+        return task.payload;
+      },
+
+      /** relay-request — re-fetch a safe public GET URL */
+      'relay-request': async function (task) {
+        const p = task.payload || {};
+        const method = (p.method || 'GET').toUpperCase();
+        if (method !== 'GET') {
+          throw new Error('relay-request only supports GET; use queued-payload for mutations');
+        }
+        if (!p.url || typeof p.url !== 'string') throw new Error('url required');
+        // Strict URL validation using the URL constructor to prevent path traversal
+        // and homograph attacks (e.g. barbrickdesign.github.io.attacker.com)
+        let parsedUrl;
+        try { parsedUrl = new URL(p.url, location.origin); } catch (_) {
+          throw new Error('relay-request: invalid URL');
+        }
+        const allowedSameOrigin = parsedUrl.origin === location.origin;
+        const allowedExternal = (
+          parsedUrl.hostname === 'barbrickdesign.github.io' ||
+          parsedUrl.hostname === 'consciousnessrevolution.io' ||
+          parsedUrl.hostname === 'www.consciousnessrevolution.io'
+        ) && (parsedUrl.protocol === 'https:');
+        if (!allowedSameOrigin && !allowedExternal) {
+          throw new Error('relay-request: url not on allow-list');
+        }
+        const headers = {};
+        if (p.headers && typeof p.headers === 'object') {
+          const SAFE_HDR = /^(content-type|accept|accept-language|cache-control)$/i;
+          for (const [k, v] of Object.entries(p.headers)) {
+            if (SAFE_HDR.test(k)) headers[k] = v;
+          }
+        }
+        // Apply a timeout so a slow target cannot stall the node indefinitely
+        const res = await fetch(parsedUrl.href, { method: 'GET', headers, signal: AbortSignal.timeout(15_000) });
+        const ct  = (res.headers.get('content-type') || '').toLowerCase();
+        const body = ct.includes('application/json') ? await res.json() : await res.text();
+        return { status: res.status, ok: res.ok, body };
+      },
+
+      /** queued-payload — async work item; just acknowledge receipt */
+      'queued-payload': async function (task) {
+        return { received: true, type: task.type, taskId: task.taskId };
+      },
+
+      /** compute — basic JSON transform operations */
+      compute: async function (task) {
+        const p = task.payload || {};
+        switch (p.op) {
+          case 'keys':   return { keys: Object.keys(p.data || {}) };
+          case 'length': return { length: Array.isArray(p.data) ? p.data.length : null };
+          case 'sum':    return { sum: Array.isArray(p.data) ? p.data.reduce((a, b) => a + (Number(b) || 0), 0) : null };
+          default:       return { echo: p };
+        }
+      },
+    };
+
+    const RELAY_CAPS = Object.keys(RELAY_PROCESSORS);
+
+    async function processRelayTasks() {
+      if (!nodeIdentity) return; // not registered yet
+
+      const relayTaskPanelEl      = document.getElementById('relayTaskPanel');
+      const relayTaskPanelContent = document.getElementById('relayTaskPanelContent');
+      const relayTasksDoneEl      = document.getElementById('relayTasksDoneEl');
+
+      let pending = [];
+      try {
+        const capsParam = RELAY_CAPS.map(c => encodeURIComponent(c)).join('&capabilities[]=');
+        const url = `${RELAY_BACKEND_URL}/pending-tasks?nodeId=${encodeURIComponent(nodeIdentity.nodeId)}&capabilities[]=${capsParam}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) return;
+        const data = await res.json();
+        pending = data.tasks || [];
+      } catch (_) {
+        return; // relay backend unreachable — fail silently
+      }
+
+      if (pending.length === 0) {
+        if (relayTaskPanelEl) relayTaskPanelEl.style.display = 'none';
+        return;
+      }
+
+      // Show the relay panel
+      if (relayTaskPanelEl) relayTaskPanelEl.style.display = '';
+      if (relayTaskPanelContent) {
+        const SAFE_PRI = new Set(['low', 'normal', 'high']);
+        relayTaskPanelContent.innerHTML = pending.map(t => {
+          const safeType = escHtml(t.type || 'task');
+          const safeId   = escHtml(t.taskId ? ('#' + String(t.taskId).slice(0, 10)) : '');
+          const safePri  = SAFE_PRI.has(t.priority) ? escHtml(t.priority) : 'normal';
+          return `<div style="margin-bottom:4px;padding:4px 6px;border-radius:5px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.15)">` +
+            `<strong style="color:#4ade80">${safeType}</strong>` +
+            ` <span style="color:#6b7280">${safeId}</span>` +
+            ` <span style="color:#fde68a">${safePri}</span></div>`;
+        }).join('');
+      }
+
+      // Claim and process each task
+      for (const task of pending) {
+        // Claim
+        try {
+          const claimRes = await fetch(`${RELAY_BACKEND_URL}/claim`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ taskId: task.taskId, nodeId: nodeIdentity.nodeId }),
+          });
+          const claimData = await claimRes.json();
+          if (!claimData.ok) {
+            log(`Relay claim for ${task.taskId.slice(0, 10)} rejected: ${claimData.error || 'already claimed'}`, 'warn');
+            continue; // already claimed by another node
+          }
+        } catch (_) { continue; }
+
+        // Process
+        let result = null;
+        let error  = null;
+        const processor = RELAY_PROCESSORS[task.type];
+        if (!processor) {
+          error = `Unsupported task type: ${task.type}`;
+        } else {
+          try {
+            result = await processor(task);
+          } catch (e) {
+            error = e.message || 'Processing error';
+          }
+        }
+
+        // Complete
+        try {
+          await fetch(`${RELAY_BACKEND_URL}/complete`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+              taskId: task.taskId,
+              nodeId: nodeIdentity.nodeId,
+              result: result,
+              error:  error,
+            }),
+          });
+          if (!error) {
+            relayTasksDone++;
+            if (relayTasksDoneEl) relayTasksDoneEl.textContent = String(relayTasksDone);
+            log(`Relay task ${task.taskId.slice(0, 10)} (${task.type}) completed`);
+          } else {
+            log(`Relay task ${task.taskId.slice(0, 10)} failed: ${error}`, 'warn');
+          }
+        } catch (_) {}
+      }
+    }
+
+    function startRelayWorker() {
+      if (relayWorkerTimer) clearInterval(relayWorkerTimer);
+      relayWorkerTimer = setInterval(processRelayTasks, RELAY_POLL_INTERVAL);
+      // Run immediately on start
+      processRelayTasks();
+      log('Relay fallback worker started');
+    }
+
+    function stopRelayWorker() {
+      if (relayWorkerTimer) {
+        clearInterval(relayWorkerTimer);
+        relayWorkerTimer = null;
+        log('Relay fallback worker stopped');
       }
     }
 
@@ -2906,6 +3100,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
     function resetIdentity() {
       stopHeartbeatLoop();
+      stopRelayWorker();
       localStorage.removeItem(STORAGE_KEY_IDENTITY);
       nodeIdentity = null;
       heartbeatCount = 0;
@@ -2923,6 +3118,7 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
 
     async function disconnectNode() {
       stopHeartbeatLoop();
+      stopRelayWorker();
 
       // Best-effort deregister from backend (Railway + local micro-node endpoint)
       if (nodeIdentity) {
