@@ -1541,6 +1541,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
               <div class="rsub">fallback tasks run</div>
             </div>
             <div class="rewards-metric">
+              <div class="rlabel">DB Backups</div>
+              <div class="rvalue" id="dbBackupTasksDoneEl">0</div>
+              <div class="rsub">db probes completed</div>
+            </div>
+            <div class="rewards-metric">
               <div class="rlabel">Est. Monthly</div>
               <div class="rvalue" id="rewardMonthly">$0.0000</div>
               <div class="rsub">at current rate</div>
@@ -1746,6 +1751,25 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
     const RELAY_POLL_INTERVAL = 5_000;   // poll every 5 seconds when node is running
     let   relayWorkerTimer    = null;
     let   relayTasksDone      = 0;       // relay tasks completed by this node session
+
+    // ── DB-backup rate-limit guard (per node session) ─────────────────────
+    // Prevents a flood of db-backup tasks from hammering the database endpoint.
+    // At most DB_BACKUP_MAX_PER_WINDOW probes are run per DB_BACKUP_WINDOW_MS.
+    const DB_BACKUP_MAX_PER_WINDOW = 4;
+    const DB_BACKUP_WINDOW_MS      = 60_000;
+    let   _dbBackupCount           = 0;
+    let   _dbBackupWindowStart     = Date.now();
+
+    function _dbBackupAllowed() {
+      const now = Date.now();
+      if (now - _dbBackupWindowStart >= DB_BACKUP_WINDOW_MS) {
+        _dbBackupWindowStart = now;
+        _dbBackupCount = 0;
+      }
+      if (_dbBackupCount >= DB_BACKUP_MAX_PER_WINDOW) return false;
+      _dbBackupCount++;
+      return true;
+    }
 
     // ---- USER SESSION STATE -------------------------------------------
     // userId is stored in localStorage; password is NEVER stored client-side.
@@ -2673,6 +2697,95 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
           default:       return { echo: p };
         }
       },
+
+      /**
+       * db-backup — probe the Neon/Netlify DB and optionally snapshot metadata.
+       *
+       * Workload protection:
+       *   - Skipped when the node rate-limit guard has been exhausted
+       *     (max DB_BACKUP_MAX_PER_WINDOW probes per DB_BACKUP_WINDOW_MS).
+       *   - Skipped when another db-backup task is already in-flight (guards
+       *     against burst-queued tasks exceeding a single node's capacity).
+       *
+       * When skipped (result.skipped === true) the task is still marked as
+       * complete so it is removed from the queue.  The relay backend / server
+       * may re-queue it if the workload is truly critical.  Skipped tasks do
+       * NOT increment the "DB Backups" counter in the rewards panel.
+       *
+       * payload options (all optional):
+       *   { probe: true }             — status check only (default)
+       *   { probe: true, tables: true } — also fetch public table list
+       */
+      'db-backup': async function (task) {
+        // ── Overload / rate-limit guard ──────────────────────────────────
+        if (!_dbBackupAllowed()) {
+          return {
+            skipped: true,
+            reason: 'rate-limit: db-backup quota exhausted for this window — task deferred',
+          };
+        }
+
+        const p = task.payload || {};
+
+        // ── Status probe ─────────────────────────────────────────────────
+        let statusResult = null;
+        try {
+          const res = await fetch('/api/db?action=status', {
+            signal: AbortSignal.timeout(10_000),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          statusResult = await res.json();
+        } catch (err) {
+          return {
+            skipped: false,
+            probe: 'failed',
+            db_error: err.message || 'DB status probe failed',
+            tables: null,
+          };
+        }
+
+        // If the DB is not reachable, return early — no point fetching tables.
+        if (!statusResult.connected) {
+          return {
+            skipped: false,
+            probe: 'unreachable',
+            auth: statusResult.auth ?? false,
+            db_error: statusResult.db_error || 'Database not connected',
+            tables: null,
+          };
+        }
+
+        // ── Optional table-list snapshot ─────────────────────────────────
+        let tables = null;
+        if (p.tables === true) {
+          try {
+            const res = await fetch('/api/db', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ action: 'table_list' }),
+              signal:  AbortSignal.timeout(10_000),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              tables = data.data || null;
+            }
+          } catch (tableErr) {
+            // Non-critical — proceed without table data but surface a trace
+            // message so repeated failures are visible in the node log.
+            log(`db-backup: table_list fetch skipped — ${tableErr.message || 'fetch error'}`, 'warn');
+          }
+        }
+
+        return {
+          skipped: false,
+          probe: 'ok',
+          auth: statusResult.auth ?? true,
+          server_version: statusResult.server_version || null,
+          server_time:    statusResult.server_time    || null,
+          db_error:       null,
+          tables,
+        };
+      },
     };
 
     const RELAY_CAPS = Object.keys(RELAY_PROCESSORS);
@@ -2761,6 +2874,11 @@ For licensing inquiries, contact: BarbrickDesign@gmail.com
           if (!error) {
             relayTasksDone++;
             if (relayTasksDoneEl) relayTasksDoneEl.textContent = String(relayTasksDone);
+            // Track db-backup completions separately
+            if (task.type === 'db-backup' && result && !result.skipped) {
+              const dbEl = document.getElementById('dbBackupTasksDoneEl');
+              if (dbEl) dbEl.textContent = String(Number(dbEl.textContent || '0') + 1);
+            }
             log(`Relay task ${task.taskId.slice(0, 10)} (${task.type}) completed`);
           } else {
             log(`Relay task ${task.taskId.slice(0, 10)} failed: ${error}`, 'warn');

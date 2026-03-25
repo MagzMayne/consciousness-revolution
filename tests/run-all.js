@@ -14,6 +14,7 @@ const TEST_FILES = [
   'intent-engine.test.js',
   'adapters.test.js',
   'sdk.test.js',
+  'db-function.test.js',
 ];
 
 async function runFile(file) {
