@@ -48,6 +48,21 @@
  */
 
 exports.handler = async (event, context) => {
+  // Check database connectivity (Netlify DB / Neon)
+  let db = { connected: false, db_error: null };
+  if (process.env.NETLIFY_DATABASE_URL) {
+    try {
+      const { neon } = await import('@netlify/neon');
+      const sql = neon();
+      await sql`SELECT 1`;
+      db = { connected: true, db_error: null };
+    } catch (err) {
+      db = { connected: false, db_error: err.message || 'Database connection failed.' };
+    }
+  } else {
+    db.db_error = 'NETLIFY_DATABASE_URL is not set.';
+  }
+
   const response = {
     statusCode: 200,
     headers: {
@@ -64,7 +79,8 @@ exports.handler = async (event, context) => {
       repository: 'barbrickdesign.github.io',
       version: '1.0.0',
       auth: Boolean(process.env.GITHUB_TOKEN),
-      api_error: null
+      api_error: null,
+      db
     })
   };
 
