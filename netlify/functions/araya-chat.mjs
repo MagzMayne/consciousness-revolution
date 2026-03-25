@@ -62,6 +62,9 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_SECRET || process.env.SUP
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+// Discord alerts channel (from discord-backlog.mjs channel registry)
+const DISCORD_ALERTS_CHANNEL = '1458298272228835413';
 const GITHUB_OWNER = 'overkor-tek';
 const GITHUB_REPO = 'consciousness-revolution';
 const GITHUB_BRANCH = 'master';
@@ -2884,6 +2887,8 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
         let response;
         let apiMode = hasImages ? 'claude' : 'deepseek';
         let storedImageIds = [];
+        // Tracks per-provider failure details for diagnostics (populated in text path)
+        const providerErrors = {};
 
         if (hasImages) {
             // Images require Claude Vision API
@@ -2973,6 +2978,8 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
                 }
             }
 
+            // Track per-provider failure details for diagnostics (declared above)
+
             if (!response) {
                 // Grok (xAI) first if configured (enhanced knowledge)
                 if (GROK_API_KEY && !response) {
@@ -2981,7 +2988,10 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
                         apiMode = 'grok';
                     } catch (grokError) {
                         console.error('Grok error, falling to DeepSeek:', grokError.message);
+                        providerErrors.grok = grokError.message;
                     }
+                } else if (!GROK_API_KEY) {
+                    providerErrors.grok = 'no API key configured';
                 }
             }
 
@@ -2990,21 +3000,25 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
                     response = await callAI(messages, true);
                 } catch (deepseekError) {
                     console.error('DeepSeek error, trying Groq:', deepseekError.message);
+                    providerErrors.deepseek = deepseekError.message;
                     try {
                         response = await callGroq(messages);
                         apiMode = 'groq';
                     } catch (groqError) {
                         console.error('Groq error, trying OpenRouter:', groqError.message);
+                        providerErrors.groq = groqError.message;
                         try {
                             response = await callOpenRouter(messages);
                             apiMode = 'openrouter';
                         } catch (openrouterError) {
                             console.error('OpenRouter error, trying OpenAI:', openrouterError.message);
+                            providerErrors.openrouter = openrouterError.message;
                             try {
                                 response = await callAI(messages, false);
                                 apiMode = 'openai';
                             } catch (openaiError) {
                                 console.error('OpenAI also failed, trying Ollama (local):', openaiError.message);
+                                providerErrors.openai = openaiError.message;
                                 // Final fallback: Ollama local AI (works offline!)
                                 try {
                                     response = await callOllama(messages);
@@ -3012,8 +3026,40 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
                                     console.log('✓ Ollama offline mode successful');
                                 } catch (ollamaError) {
                                     console.error('All AI providers failed including Ollama:', ollamaError.message);
-                                    response = "All my AI connections are down (Grok, DeepSeek, Groq, OpenRouter, OpenAI, Ollama). Please check network or try again.";
+                                    providerErrors.ollama = ollamaError.message;
                                     apiMode = 'all_failed';
+
+                                    // Build a diagnostic summary of what failed and why
+                                    const diagLines = Object.entries(providerErrors).map(([p, e]) => {
+                                        const reason = e.includes('No ') || e.includes('no API key') || e.includes('No API key')
+                                            ? 'missing API key'
+                                            : e.replace(/\n/g, ' ').substring(0, 120);
+                                        return `• ${p}: ${reason}`;
+                                    });
+                                    const diagSummary = diagLines.join('\n');
+
+                                    response = `All my AI connections are down (Grok, DeepSeek, Groq, OpenRouter, OpenAI, Ollama). Please check network or try again.\n\nDiagnostics:\n${diagSummary}`;
+
+                                    // Fire a Discord alert so the team is notified immediately
+                                    if (DISCORD_BOT_TOKEN) {
+                                        try {
+                                            await fetch(`https://discord.com/api/v10/channels/${DISCORD_ALERTS_CHANNEL}/messages`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': `Bot ${DISCORD_BOT_TOKEN}`
+                                                },
+                                                body: JSON.stringify({
+                                                    content: `🚨 **ARAYA ALL-PROVIDERS-DOWN** — ${new Date().toISOString()}\n\nAll AI fallback providers failed. ARAYA is currently unable to respond.\n\n**Per-provider diagnostics:**\n\`\`\`\n${diagSummary}\n\`\`\`\n\nPlease verify the following Netlify environment variables are set:\n\`DEEPSEEK_API_KEY\` · \`GROQ_API_KEY\` · \`OPENROUTER_API_KEY\` · \`OPENAI_API_KEY\` · \`GROK_API_KEY\``
+                                                })
+                                            });
+                                            console.log('[ARAYA] Discord alert sent for all-providers-down');
+                                        } catch (discordErr) {
+                                            console.error('[ARAYA] Failed to send Discord alert:', discordErr.message);
+                                        }
+                                    } else {
+                                        console.warn('[ARAYA] DISCORD_BOT_TOKEN not set — skipping all-providers-down alert');
+                                    }
                                 }
                             }
                         }
@@ -3052,7 +3098,17 @@ If user asks about upgrading, explain: "For full consciousness depth, unlimited 
                 storedImageIds: storedImageIds.length > 0 ? storedImageIds : null,
                 ability: abilityResult,
                 abilityUsed: detectedAbility?.key || null,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                // Diagnostic fields — only populated when apiMode === 'all_failed'
+                providerErrors: apiMode === 'all_failed' ? providerErrors : undefined,
+                providerStatus: apiMode === 'all_failed' ? {
+                    grok: !!GROK_API_KEY,
+                    deepseek: !!DEEPSEEK_API_KEY,
+                    groq: !!GROQ_API_KEY,
+                    openrouter: !!OPENROUTER_API_KEY,
+                    openai: !!OPENAI_API_KEY,
+                    ollama: false
+                } : undefined
             })
         };
 
