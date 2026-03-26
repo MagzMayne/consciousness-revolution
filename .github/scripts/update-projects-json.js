@@ -105,6 +105,11 @@ function mergeProjects(projectsData, scannedData) {
   projectsData.meta.total_html_projects = projectsData.html_projects.length;
   projectsData.meta.total_items = 
     projectsData.repositories.length + projectsData.html_projects.length;
+  // Keep top-level totalProjects in sync with the projects array
+  if (Array.isArray(projectsData.projects)) {
+    projectsData.meta.total_projects = projectsData.projects.length;
+    projectsData.totalProjects = projectsData.projects.length;
+  }
   
   return { newProjects, updatedProjects };
 }
