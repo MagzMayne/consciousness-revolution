@@ -3,9 +3,9 @@
 /**
  * Sync Barbrick Design Script
  *
- * Fetches the file list from barbrickdesign/barbrickdesign.github.io via the
- * GitHub API and copies any files that are not already present in this repo
- * (overkor-tek/consciousness-revolution) into the working tree.
+ * Fetches the complete file tree from barbrickdesign/barbrickdesign.github.io
+ * via the GitHub API and copies any files that are not already present in this
+ * repo (overkor-tek/consciousness-revolution) into the working tree.
  *
  * Philosophy: ADDITIVE ONLY — this script NEVER deletes or overwrites files.
  *
@@ -124,38 +124,103 @@ function fetchRaw(downloadUrl) {
 }
 
 /**
- * List all files at the top level of the source repository.
- * GitHub's contents API returns at most 1000 items per directory; this
- * function returns only the root level (recursive listing is not needed
- * since both repos keep their files at the root).
- * @returns {Promise<Array<{name: string, path: string, download_url: string, sha: string, type: string}>>}
+ * Recursively list all files in the source repository tree.
+ * Uses the Git Trees API (recursive=1) to get the full file list in one call,
+ * which avoids rate-limit issues with many individual contents requests.
+ * Falls back to directory-by-directory traversal if the tree API fails.
+ * @returns {Promise<Array<{name: string, path: string, download_url: string}>>}
  */
 async function listSourceFiles() {
-  const urlPath = `/repos/${SOURCE_OWNER}/${SOURCE_REPO}/contents/`;
+  // First try the Git Trees API — returns everything in a single request
+  const refsUrl = `/repos/${SOURCE_OWNER}/${SOURCE_REPO}/git/refs/heads`;
+  const refsRes = await githubGet(refsUrl);
+
+  let sha;
+  if (refsRes.status === 200 && Array.isArray(refsRes.body) && refsRes.body.length > 0) {
+    // Prefer main, then master, then first available branch
+    const main   = refsRes.body.find((r) => r.ref === 'refs/heads/main');
+    const master = refsRes.body.find((r) => r.ref === 'refs/heads/master');
+    sha = (main || master || refsRes.body[0]).object.sha;
+  }
+
+  if (sha) {
+    const treeUrl = `/repos/${SOURCE_OWNER}/${SOURCE_REPO}/git/trees/${sha}?recursive=1`;
+    const treeRes = await githubGet(treeUrl);
+
+    if (treeRes.status === 200 && treeRes.body && Array.isArray(treeRes.body.tree)) {
+      const baseRaw = `https://raw.githubusercontent.com/${SOURCE_OWNER}/${SOURCE_REPO}/${sha}/`;
+      return treeRes.body.tree
+        .filter((item) => item.type === 'blob')
+        .map((item) => ({
+          name: path.basename(item.path),
+          path: item.path,
+          download_url: baseRaw + item.path,
+        }));
+    }
+  }
+
+  // Fallback: walk the repo root directory-by-directory (slower, more API calls)
+  console.warn('⚠  Git Trees API unavailable — falling back to directory traversal');
+  return listSourceFilesRecursive('');
+}
+
+/**
+ * Recursively list files under a given directory path in the source repo.
+ * Used only as a fallback when the Git Trees API is unavailable.
+ * @param {string} dirPath - path relative to repo root ('' = root)
+ * @returns {Promise<Array<{name: string, path: string, download_url: string}>>}
+ */
+async function listSourceFilesRecursive(dirPath) {
+  const encoded = dirPath
+    ? dirPath.split('/').map(encodeURIComponent).join('/')
+    : '';
+  const urlPath = `/repos/${SOURCE_OWNER}/${SOURCE_REPO}/contents/${encoded}`;
   const { status, body } = await githubGet(urlPath);
 
+  if (status === 404) return [];
   if (status !== 200) {
-    throw new Error(`GitHub API returned HTTP ${status} for ${urlPath}: ${JSON.stringify(body)}`);
+    console.warn(`⚠  Could not list ${SOURCE_OWNER}/${SOURCE_REPO}/${dirPath} (${status})`);
+    return [];
   }
 
   if (!Array.isArray(body)) {
     throw new Error(`Unexpected response from GitHub API: ${JSON.stringify(body).slice(0, 200)}`);
   }
 
-  return body.filter((item) => item.type === 'file');
+  const results = [];
+  for (const item of body) {
+    if (item.type === 'file') {
+      results.push({
+        name: item.name,
+        path: item.path,
+        download_url: item.download_url,
+      });
+    } else if (item.type === 'dir') {
+      // Recurse into directories (skip excluded prefixes)
+      if (!SKIP_PREFIXES.some((p) => item.path === p || item.path.startsWith(p + '/'))) {
+        const sub = await listSourceFilesRecursive(item.path);
+        results.push(...sub);
+      }
+    }
+  }
+  return results;
 }
 
 /**
- * Determine whether a file should be synced.
- * @param {string} fileName
+ * Determine whether a file (identified by its full repo-relative path) should
+ * be synced into consciousness-revolution.
+ * @param {string} filePath - full path relative to source repo root
  * @returns {boolean}
  */
-function shouldSync(fileName) {
+function shouldSync(filePath) {
+  const fileName = path.basename(filePath);
+
   if (fileName.startsWith('.')) return false;
   if (SKIP_FILENAMES.has(fileName)) return false;
 
+  // Skip any path that starts with an excluded prefix
   for (const prefix of SKIP_PREFIXES) {
-    if (fileName.startsWith(prefix)) return false;
+    if (filePath === prefix || filePath.startsWith(prefix + '/')) return false;
   }
 
   const ext = path.extname(fileName).toLowerCase();
@@ -198,37 +263,37 @@ async function main() {
   };
 
   for (const file of sourceFiles) {
-    const { name: fileName, download_url: downloadUrl } = file;
+    const { path: filePath, download_url: downloadUrl } = file;
 
     // Determine if this file type should be synced
-    if (!shouldSync(fileName)) {
-      report.skipped_excluded.push(fileName);
+    if (!shouldSync(filePath)) {
+      report.skipped_excluded.push(filePath);
       continue;
     }
 
     // Guard: directories and submodules have no download_url
     if (!downloadUrl) {
-      report.errors.push({ file: fileName, error: 'No download URL provided by GitHub API' });
+      report.errors.push({ file: filePath, error: 'No download URL provided by GitHub API' });
       continue;
     }
 
-    const destPath = path.join(REPO_ROOT, fileName);
+    const destPath = path.join(REPO_ROOT, filePath);
 
     // ADDITIVE ONLY: skip files that already exist in this repo
     if (fs.existsSync(destPath)) {
-      report.skipped_existing.push(fileName);
+      report.skipped_existing.push(filePath);
       continue;
     }
 
     // Fetch content and write
     try {
-      console.log(`  ➕ Adding: ${fileName}`);
+      console.log(`  ➕ Adding: ${filePath}`);
       const content = await fetchRaw(downloadUrl);
       writeFile(destPath, content);
-      report.added.push(fileName);
+      report.added.push(filePath);
     } catch (err) {
-      console.error(`  ⚠️  Error fetching ${fileName}: ${err.message}`);
-      report.errors.push({ file: fileName, error: err.message });
+      console.error(`  ⚠️  Error fetching ${filePath}: ${err.message}`);
+      report.errors.push({ file: filePath, error: err.message });
     }
   }
 
