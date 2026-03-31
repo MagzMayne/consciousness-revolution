@@ -41,6 +41,8 @@ const STATES = Object.freeze({
 const BASE_BACKOFF_MS   = parseInt(process.env.JOB_BASE_BACKOFF_MS   || '1000',  10);
 const MAX_BACKOFF_MS    = parseInt(process.env.JOB_MAX_BACKOFF_MS    || '60000', 10);
 const DEFAULT_MAX_TRIES = parseInt(process.env.JOB_DEFAULT_MAX_TRIES || '3',     10);
+// Fraction of the computed back-off delay to use as random jitter (±JITTER_FACTOR/2).
+const JITTER_FACTOR     = 0.1;
 
 // ── In-memory store ────────────────────────────────────────────────────────
 // Map<jobId, JobRecord>
@@ -55,9 +57,9 @@ function _now() {
 }
 
 function _computeBackoff(attempt) {
-  // Exponential back-off with jitter: base * 2^attempt  ± 10%
+  // Exponential back-off with jitter: base * 2^attempt  ± JITTER_FACTOR/2
   const raw    = BASE_BACKOFF_MS * Math.pow(2, attempt);
-  const jitter = raw * 0.1 * (Math.random() - 0.5);
+  const jitter = raw * JITTER_FACTOR * (Math.random() - 0.5);
   return Math.min(Math.floor(raw + jitter), MAX_BACKOFF_MS);
 }
 

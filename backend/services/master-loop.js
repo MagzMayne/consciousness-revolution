@@ -206,26 +206,26 @@ function runFilePatch() {
   }
 
   let applied = 0;
-  let failCount  = 0;
+  let failed  = 0;
   while (patchQueue.length) {
     const { filePath, oldContent, newContent } = patchQueue.shift();
     try {
       const current = fs.readFileSync(filePath, 'utf8');
       if (!current.includes(oldContent)) {
         warn('FilePatch', `Target content not found in ${filePath} — skipping`);
-        failCount++;
+        failed++;
         continue;
       }
       fs.writeFileSync(filePath, current.replace(oldContent, newContent), 'utf8');
       applied++;
     } catch (err) {
       warn('FilePatch', `Failed to patch ${filePath}: ${err.message}`);
-      failCount++;
+      failed++;
     }
   }
 
-  log('FilePatch', `Applied ${applied} patch(es) — failed=${failCount}`);
-  if (failCount > 0) throw new Error(`${failCount} patch(es) failed to apply`);
+  log('FilePatch', `Applied ${applied} patch(es) — failed=${failed}`);
+  if (failed > 0) throw new Error(`${failed} patch(es) failed to apply`);
 }
 
 // ── Step 4: frontendRebuildAgent ─────────────────────────────────────────
