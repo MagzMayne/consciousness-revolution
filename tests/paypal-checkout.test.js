@@ -13,6 +13,7 @@
  */
 
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 // ── Minimal assertion helpers ─────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ function captureResp(status) {
   console.log('=== paypal-checkout.mjs tests ===');
 
   // Import the module under test — env vars are read at call-time, not load-time
-  const moduleUrl = 'file://' + path.resolve(__dirname, '../netlify/functions/paypal-checkout.mjs');
+  const moduleUrl = pathToFileURL(path.resolve(__dirname, '../netlify/functions/paypal-checkout.mjs')).href;
   const mod = await import(moduleUrl);
   const handler = mod.handler;
 

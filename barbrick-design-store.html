@@ -634,12 +634,12 @@ async function runDevOpsHealthCheck() {
     // Check PayPal checkout endpoint health
     try {
         const res = await fetch('/api/paypal-checkout/health');
-        const data = await res.json();
+        const data = res.ok ? await res.json() : null;
         const dot = document.getElementById('dot-paypal');
         const label = document.getElementById('status-paypal');
-        if (data.configured) {
+        if (data && data.configured) {
             dot.className = 'dot green';
-            label.textContent = `PayPal: ${data.mode}`;
+            label.textContent = `PayPal: ${data.mode || 'live'}`;
         } else {
             dot.className = 'dot yellow';
             label.textContent = 'PayPal: unconfigured';
@@ -762,14 +762,19 @@ async function loadPayPalSDK() {
             const data = await res.json();
             // In a real deployment the server relays the client ID via a
             // dedicated /api/paypal-client-id endpoint.  For now, fall
-            // through to the fallback (sandbox test account).
-            clientId = data.clientId || null;
+            // through to show an informational message when unconfigured.
+            clientId = (data && data.clientId) ? data.clientId : null;
+            if (data && !data.configured) {
+                console.warn('[BarbrickStore] PayPal not configured on server — payments unavailable');
+            }
         }
     } catch { /* network unavailable */ }
 
-    // Fallback: sandbox test client ID (safe to be public — it's a test credential)
     if (!clientId) {
-        clientId = 'sb'; // PayPal SDK accepts 'sb' for sandbox testing
+        // No client ID available — PayPal SDK cannot be initialised.
+        // Buttons will show a "contact us" message instead.
+        paypalSdkLoading = false;
+        return;
     }
 
     const script = document.createElement('script');
@@ -795,7 +800,13 @@ async function renderPayPalButtons() {
         // Poll for SDK
         const waited = await waitForPayPal();
         if (!waited) {
-            showCheckoutStatus('PayPal could not be loaded. Please refresh and try again.', 'error');
+            // PayPal SDK unavailable — show manual contact option
+            container.innerHTML = `
+                <div style="text-align:center; padding:1rem; background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.3); border-radius:8px;">
+                    <p style="color:var(--gold); font-weight:700; margin-bottom:0.5rem;">💳 Complete Purchase via Email</p>
+                    <p style="color:var(--text-dim); font-size:0.85rem;">Send payment to <strong>BarbrickDesign@gmail.com</strong> via PayPal Goods &amp; Services, then email us your receipt and we'll deliver your product within 24 hours.</p>
+                    <a href="mailto:BarbrickDesign@gmail.com?subject=Purchase: ${encodeURIComponent(currentProduct.name)}&body=I'd like to purchase: ${encodeURIComponent(currentProduct.name)} ($${currentProduct.price})" style="display:inline-block; margin-top:0.75rem; padding:0.6rem 1.25rem; background:var(--gold); color:#000; border-radius:6px; text-decoration:none; font-weight:700;">Email to Purchase</a>
+                </div>`;
             return;
         }
     }

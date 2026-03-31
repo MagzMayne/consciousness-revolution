@@ -120,15 +120,21 @@ async function handleCreateOrder(body) {
         },
         description,
         ...(items.length > 0 && {
-          items: items.map((item) => ({
-            name: String(item.name || 'Item').slice(0, 127),
-            unit_amount: {
-              currency_code: currency,
-              value: parseFloat(item.price || 0).toFixed(2),
-            },
-            quantity: String(item.quantity || 1),
-            category: 'DIGITAL_GOODS',
-          })),
+          items: items.map((item) => {
+            const rawName = String(item.name || 'Item');
+            if (rawName.length > 127) {
+              console.warn(`[paypal-checkout] Item name truncated from ${rawName.length} to 127 chars: "${rawName.slice(0, 40)}…"`);
+            }
+            return {
+              name: rawName.slice(0, 127),
+              unit_amount: {
+                currency_code: currency,
+                value: parseFloat(item.price || 0).toFixed(2),
+              },
+              quantity: String(item.quantity || 1),
+              category: 'DIGITAL_GOODS',
+            };
+          }),
         }),
       },
     ],
@@ -136,8 +142,8 @@ async function handleCreateOrder(body) {
       brand_name: 'BarbrickDesign',
       landing_page: 'NO_PREFERENCE',
       user_action: 'PAY_NOW',
-      return_url: 'https://consciousnessrevolution.io/barbrick-design-store.html?status=success',
-      cancel_url: 'https://consciousnessrevolution.io/barbrick-design-store.html?status=cancelled',
+      return_url: `${process.env.SITE_URL || 'https://consciousnessrevolution.io'}/barbrick-design-store.html?status=success`,
+      cancel_url: `${process.env.SITE_URL || 'https://consciousnessrevolution.io'}/barbrick-design-store.html?status=cancelled`,
     },
   };
 
