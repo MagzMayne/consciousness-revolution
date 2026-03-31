@@ -16,6 +16,7 @@ const TEST_FILES = [
   'sdk.test.js',
   'db-function.test.js',
   'paypal-checkout.test.js',
+  'master-loop.test.js',
 ];
 
 async function runFile(file) {

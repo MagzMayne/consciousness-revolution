@@ -15,6 +15,15 @@
 //
 // Each step is a focused function that logs results and is fault-isolated:
 // one failure never aborts the loop.
+//
+// Observability enhancements (self-healing automation):
+//   • Every loop run gets a unique correlationId propagated to all step logs.
+//   • Each step is tracked as a Job through the job-state-machine (PENDING →
+//     RUNNING → SUCCEEDED/FAILED/RETRYING → ROLLED_BACK).
+//   • Failed steps are retried with exponential back-off up to maxTries.
+//   • Structured JSON log lines include ts, level, correlationId, stepName,
+//     jobId, and attempt so log aggregators can join events.
+//   • getMetrics() exposes success/failure counts and retry rate.
 
 'use strict';
 
@@ -22,12 +31,15 @@ const fs              = require('fs');
 const path            = require('path');
 const { execFile }    = require('child_process');
 
-const registry = require('./agent-registry');
+const registry       = require('./agent-registry');
+const jobSM          = require('./job-state-machine');
 
 // ── Configuration ─────────────────────────────────────────────────────────
 const LOOP_INTERVAL_MS    = parseInt(process.env.LOOP_INTERVAL_MS    || String(5 * 60 * 1000), 10); // 5 min
 const NODE_STALE_MS       = parseInt(process.env.NODE_STALE_MS       || String(3 * 60 * 1000), 10); // 3 min
 const BACKEND_COOLDOWN_MS = parseInt(process.env.BACKEND_COOLDOWN_MS || String(30 * 1000),     10); // 30 s
+// Max attempts per step before the step is marked FAILED (terminal).
+const STEP_MAX_TRIES      = parseInt(process.env.STEP_MAX_TRIES      || '3',                   10);
 
 // Resolve repo root relative to this file (backend/services/ → repo root)
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -51,15 +63,87 @@ function enqueuePatch(patch) {
   patchQueue.push(patch);
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────
-function log(tag, msg) {
-  const ts = new Date().toISOString();
-  console.log(`${ts} [inf] [${tag}] ${msg}`);
+// ── Correlation ID generator ──────────────────────────────────────────────
+function generateCorrelationId() {
+  return `loop_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function warn(tag, msg) {
-  const ts = new Date().toISOString();
-  console.warn(`${ts} [warn] [${tag}] ${msg}`);
+// ── Structured logger ─────────────────────────────────────────────────────
+// All log lines are emitted as JSON so that aggregators (ELK, Loki, etc.)
+// can parse them without further configuration.
+
+function structuredLog(level, tag, msg, fields = {}) {
+  const entry = {
+    ts:  new Date().toISOString(),
+    level,
+    tag,
+    msg,
+    ...fields,
+  };
+  const method = (level === 'warn' || level === 'error') ? 'warn' : 'log';
+  // Emit structured JSON for log aggregators; keep the human-readable prefix
+  // compatible with existing Railway log viewers.
+  console[method](JSON.stringify(entry));
+}
+
+function log(tag, msg, fields = {}) {
+  structuredLog('info', tag, msg, fields);
+}
+
+function warn(tag, msg, fields = {}) {
+  structuredLog('warn', tag, msg, fields);
+}
+
+// ── Step runner with state machine + retry ────────────────────────────────
+/**
+ * Run a single step function, tracking it through the job state machine.
+ * Retries up to STEP_MAX_TRIES on failure (exponential back-off is handled
+ * inside job-state-machine when markFailed schedules RETRYING state).
+ *
+ * Returns the final JobRecord.
+ */
+async function runStep(stepName, fn, correlationId) {
+  const { job } = jobSM.createJob({ stepName, correlationId, maxTries: STEP_MAX_TRIES });
+  const jobId   = job.id;
+
+  let attempt = 0;
+  while (attempt < STEP_MAX_TRIES) {
+    attempt++;
+    jobSM.markRunning(jobId);
+
+    try {
+      const result = await fn();
+      jobSM.markSucceeded(jobId, result || null);
+      registry.recordRun(stepName, { success: true });
+      return jobSM.getJob(jobId);
+    } catch (err) {
+      const currentJob = jobSM.markFailed(jobId, err.message);
+      registry.recordRun(stepName, { success: false });
+
+      if (currentJob.state === jobSM.STATES.RETRYING && attempt < STEP_MAX_TRIES) {
+        // Wait for the computed back-off delay before the next attempt.
+        const delayMs = Math.max(0,
+          new Date(currentJob.nextRetryAt).getTime() - Date.now()
+        );
+        warn(stepName, `Step failed — retrying after ${delayMs}ms`, {
+          correlationId, jobId, attempt, error: err.message,
+        });
+        await _sleep(delayMs);
+        // Transition back so markRunning() accepts it on the next iteration.
+      } else {
+        warn(stepName, `Step failed — no more retries`, {
+          correlationId, jobId, attempt, error: err.message,
+        });
+        return jobSM.getJob(jobId);
+      }
+    }
+  }
+
+  return jobSM.getJob(jobId);
+}
+
+function _sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // ── Step 1: nodeCleanupAgent ──────────────────────────────────────────────
@@ -78,7 +162,6 @@ function runNodeCleanup() {
     }
   }
   log('NodeCleanup', `Evicted ${evicted} stale node(s) — active=${_nodeRegistry.size}`);
-  registry.recordRun('nodeCleanupAgent', { success: true });
 }
 
 // ── Step 2: codeGenAgent ──────────────────────────────────────────────────
@@ -113,14 +196,12 @@ function runCodeGen() {
   }
 
   log('CodeGen', `regenerateMissingHeartbeats — generated=${generated} skipped=${skipped}`);
-  registry.recordRun('codeGenAgent', { success: true });
 }
 
 // ── Step 3: filePatchAgent ────────────────────────────────────────────────
 function runFilePatch() {
   if (patchQueue.length === 0) {
     log('FilePatch', 'Patch queue is empty — nothing to do');
-    registry.recordRun('filePatchAgent', { success: true });
     return;
   }
 
@@ -144,7 +225,7 @@ function runFilePatch() {
   }
 
   log('FilePatch', `Applied ${applied} patch(es) — failed=${failed}`);
-  registry.recordRun('filePatchAgent', { success: failed === 0 });
+  if (failed > 0) throw new Error(`${failed} patch(es) failed to apply`);
 }
 
 // ── Step 4: frontendRebuildAgent ─────────────────────────────────────────
@@ -160,7 +241,6 @@ function runFrontendRebuild() {
     'consciousness-revolution-hub.html',
   ];
 
-  let htmlOk = true;
   let issues = 0;
 
   for (const page of pages) {
@@ -170,13 +250,12 @@ function runFrontendRebuild() {
       log('FrontendRebuild', `HTML OK: ${page} (${stat.size} bytes)`);
     } catch (_) {
       warn('FrontendRebuild', `MISSING: ${page}`);
-      htmlOk = false;
       issues++;
     }
   }
 
-  log('FrontendRebuild', `Done — htmlOk=${htmlOk} issues=${issues}`);
-  registry.recordRun('frontendRebuildAgent', { success: htmlOk });
+  log('FrontendRebuild', `Done — issues=${issues}`);
+  if (issues > 0) throw new Error(`${issues} critical HTML page(s) missing`);
 }
 
 // ── Step 5: dashboardRepairAgent ─────────────────────────────────────────
@@ -221,7 +300,6 @@ function runDashboardRepair() {
   }
 
   log('DashboardRepair', `Done — totalRepaired=${totalRepaired}/${totalFiles}`);
-  registry.recordRun('dashboardRepairAgent', { success: true });
 }
 
 // ── Step 6: protocolEnforcerAgent ────────────────────────────────────────
@@ -259,7 +337,6 @@ function runProtocolEnforcer() {
   }
 
   log('ProtocolEnforcer', `Done — ok=${ok} unhandled=${unhandled.length} orphaned=0 patchedFiles=0`);
-  registry.recordRun('protocolEnforcerAgent', { success: ok });
 }
 
 // ── Step 7: backendReloadAgent ───────────────────────────────────────────
@@ -269,14 +346,12 @@ function runBackendReload() {
   if (_lastReload > 0 && elapsed < BACKEND_COOLDOWN_MS) {
     const remaining = Math.ceil((BACKEND_COOLDOWN_MS - elapsed) / 1000);
     log('BackendReload', `Cool-down active — ${remaining}s remaining, skipping reload`);
-    registry.recordRun('backendReloadAgent', { success: true });
     return;
   }
   // Nothing actually needs reloading — Railway handles restarts.
   // We just update the timestamp so subsequent calls honour the cooldown.
   _lastReload = now;
   log('BackendReload', 'Reload check complete — no action needed');
-  registry.recordRun('backendReloadAgent', { success: true });
 }
 
 // ── Step 8: meshProjectPageAgent ────────────────────────────────────────
@@ -296,9 +371,7 @@ function runMeshProjectPage() {
   try {
     htmlFiles = fs.readdirSync(REPO_ROOT).filter(f => f.endsWith('.html'));
   } catch (err) {
-    warn('meshProjectPageAgent', `Cannot read repo root: ${err.message}`);
-    registry.recordRun('meshProjectPageAgent', { success: false });
-    return;
+    throw new Error(`Cannot read repo root: ${err.message}`);
   }
 
   for (const fname of htmlFiles) {
@@ -323,22 +396,22 @@ function runMeshProjectPage() {
   }
 
   log('meshProjectPageAgent', `Done — scanned=${scanned} injected=${injected} alreadyPresent=${alreadyPresent} errors=${errors}`);
-  registry.recordRun('meshProjectPageAgent', { success: errors === 0 });
+  if (errors > 0) throw new Error(`${errors} HTML file(s) could not be processed`);
 }
 
 // ── Step 9: repoCommitAgent ──────────────────────────────────────────────
 function runRepoCommit() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     log('RepoCommit', '$ git status --porcelain');
     execFile('git', ['status', '--porcelain'], { cwd: REPO_ROOT, timeout: 10_000 }, (err, stdout) => {
       if (err) {
         if (err.code === 'ENOENT') {
           // git binary not available in this environment (Railway, Docker, etc.)
           log('RepoCommit', 'git not found in PATH — skipping commit step');
+          resolve();
         } else {
-          warn('RepoCommit', `git status failed: ${err.message}`);
+          reject(new Error(`git status failed: ${err.message}`));
         }
-        registry.recordRun('repoCommitAgent', { success: false });
       } else {
         const status = stdout.trim();
         if (!status) {
@@ -347,9 +420,8 @@ function runRepoCommit() {
           // In Railway we don't have write access to push — log for awareness only.
           warn('RepoCommit', `Uncommitted changes detected (Railway cannot push):\n${status}`);
         }
-        registry.recordRun('repoCommitAgent', { success: true });
+        resolve();
       }
-      resolve();
     });
   });
 }
@@ -369,22 +441,36 @@ const STEPS = [
 
 async function runSelfHealing() {
   _loopCount++;
-  log('MasterLoop', `Starting: runSelfHealing (loop #${_loopCount})`);
+  const correlationId = generateCorrelationId();
+
+  log('MasterLoop', `Starting: runSelfHealing (loop #${_loopCount})`, { correlationId });
+
+  const stepResults = [];
 
   for (let i = 0; i < STEPS.length; i++) {
     const { name, fn } = STEPS[i];
-    log('SelfHealing', `Step ${i + 1}/${STEPS.length}: ${name}`);
+    log('SelfHealing', `Step ${i + 1}/${STEPS.length}: ${name}`, { correlationId });
     registry.setStatus(name, 'running');
-    try {
-      await fn();
-    } catch (err) {
-      warn('SelfHealing', `Step ${name} threw: ${err.message}`);
-      registry.recordRun(name, { success: false });
-    }
+
+    const finalJob = await runStep(name, fn, correlationId);
+    stepResults.push({ name, state: finalJob.state, attempts: finalJob.attempt });
   }
 
-  log('SelfHealing', `All ${STEPS.length} steps complete`);
-  log('MasterLoop', 'Finished: runSelfHealing');
+  // Emit structured loop summary for dashboards / alerting.
+  const succeeded = stepResults.filter(r => r.state === jobSM.STATES.SUCCEEDED).length;
+  const failed    = stepResults.filter(r => r.state === jobSM.STATES.FAILED).length;
+  const metrics   = jobSM.getMetrics();
+
+  log('SelfHealing', `All ${STEPS.length} steps complete`, {
+    correlationId,
+    succeeded,
+    failed,
+    retryRate:   metrics.retryRate,
+    failureRate: metrics.failureRate,
+  });
+  log('MasterLoop', 'Finished: runSelfHealing', { correlationId });
+
+  return { correlationId, succeeded, failed, stepResults };
 }
 
 /** Start the master loop.  Call once from server-main.js after server is bound. */
@@ -420,6 +506,7 @@ module.exports = {
   setNodeRegistry,
   enqueuePatch,
   runSelfHealing,
+  getMetrics: jobSM.getMetrics,
   // Expose step runners for unit tests
   steps: {
     runNodeCleanup,
