@@ -17,6 +17,7 @@ const TEST_FILES = [
   'db-function.test.js',
   'paypal-checkout.test.js',
   'master-loop.test.js',
+  'diykits.test.js',
 ];
 
 async function runFile(file) {
